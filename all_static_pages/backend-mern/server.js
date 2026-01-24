@@ -19,6 +19,11 @@ const serviceRoutes = require('./routes/services');
 const documentRoutes = require('./routes/documents');
 const analyticsRoutes = require('./routes/analytics');
 
+// Import new form routes
+const profileAssessmentRoutes = require('./routes/profileAssessments');
+const appointmentRoutes = require('./routes/appointments');
+const contactRoutes = require('./routes/contact');
+
 // Initialize Express app
 const app = express();
 
@@ -88,6 +93,11 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
+// New form API routes
+app.use('/api/profile-assessments', profileAssessmentRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api/contact', contactRoutes);
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
@@ -116,7 +126,11 @@ app.get('/', (req, res) => {
       queries: '/api/queries',
       services: '/api/services',
       documents: '/api/documents',
-      analytics: '/api/analytics'
+      analytics: '/api/analytics',
+      // New form endpoints
+      profileAssessments: '/api/profile-assessments',
+      appointments: '/api/appointments',
+      contact: '/api/contact'
     }
   });
 });
