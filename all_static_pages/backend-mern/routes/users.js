@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect, restrictTo } = require('../middleware/auth');
+const auth = require('../middleware/auth');
 const userController = require('../controllers/userController');
 const { body } = require('express-validator');
 
@@ -22,36 +22,36 @@ const validateUserUpdate = [
 // @route   GET /api/users
 // @desc    Get all users with filters
 // @access  Private (Admin, Lead Manager)
-router.get('/', protect, restrictTo('admin', 'lead_manager'), userController.getUsers);
+router.get('/', ...auth(['admin', 'lead_manager']), userController.getUsers);
 
 // @route   GET /api/users/stats
 // @desc    Get user statistics
 // @access  Private (Admin, Lead Manager)
-router.get('/stats', protect, restrictTo('admin', 'lead_manager'), userController.getUserStats);
+router.get('/stats', ...auth(['admin', 'lead_manager']), userController.getUserStats);
 
 // @route   GET /api/users/:id
 // @desc    Get single user
 // @access  Private (Admin, Lead Manager, Own Profile)
-router.get('/:id', protect, userController.getUser);
+router.get('/:id', ...auth(), userController.getUser);
 
 // @route   POST /api/users
 // @desc    Create new user
 // @access  Private (Admin only)
-router.post('/', protect, restrictTo('admin'), validateUserCreation, userController.createUser);
+router.post('/', ...auth(['admin']), validateUserCreation, userController.createUser);
 
 // @route   PATCH /api/users/:id
 // @desc    Update user
 // @access  Private (Admin, Own Profile)
-router.patch('/:id', protect, validateUserUpdate, userController.updateUser);
+router.patch('/:id', ...auth(), validateUserUpdate, userController.updateUser);
 
 // @route   PATCH /api/users/:id/assign-manager
 // @desc    Assign manager to user
 // @access  Private (Admin, Lead Manager)
-router.patch('/:id/assign-manager', protect, restrictTo('admin', 'lead_manager'), userController.assignManager);
+router.patch('/:id/assign-manager', ...auth(['admin', 'lead_manager']), userController.assignManager);
 
 // @route   DELETE /api/users/:id
 // @desc    Delete user (soft delete)
 // @access  Private (Admin only)
-router.delete('/:id', protect, restrictTo('admin'), userController.deleteUser);
+router.delete('/:id', ...auth(['admin']), userController.deleteUser);
 
 module.exports = router;

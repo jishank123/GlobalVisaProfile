@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const Payment = require('../models/Payment');
-const { protect, authorize } = require('../middleware/auth');
+const auth = require('../middleware/auth');
 
 // @route   GET /api/payments
 // @desc    Get all payments with filters
 // @access  Private
-router.get('/', protect, async (req, res) => {
+router.get('/', ...auth(), async (req, res) => {
   try {
     const { client, project, status, page = 1, limit = 50 } = req.query;
     
@@ -51,7 +51,7 @@ router.get('/', protect, async (req, res) => {
 // @route   GET /api/payments/:id
 // @desc    Get single payment
 // @access  Private
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', ...auth(), async (req, res) => {
   try {
     const payment = await Payment.findById(req.params.id)
       .populate('client', 'name email phone')
@@ -88,7 +88,7 @@ router.get('/:id', protect, async (req, res) => {
 // @route   POST /api/payments
 // @desc    Create new payment
 // @access  Private (Admin, CRM Manager)
-router.post('/', protect, authorize('admin', 'crm_manager'), async (req, res) => {
+router.post('/', ...auth(['admin', 'crm_manager']), async (req, res) => {
   try {
     // Generate transaction ID if not provided
     if (!req.body.transactionId) {
@@ -114,7 +114,7 @@ router.post('/', protect, authorize('admin', 'crm_manager'), async (req, res) =>
 // @route   PATCH /api/payments/:id
 // @desc    Update payment
 // @access  Private (Admin, CRM Manager)
-router.patch('/:id', protect, authorize('admin', 'crm_manager'), async (req, res) => {
+router.patch('/:id', ...auth(['admin', 'crm_manager']), async (req, res) => {
   try {
     const payment = await Payment.findByIdAndUpdate(
       req.params.id,
@@ -149,7 +149,7 @@ router.patch('/:id', protect, authorize('admin', 'crm_manager'), async (req, res
 // @route   DELETE /api/payments/:id
 // @desc    Delete payment
 // @access  Private (Admin only)
-router.delete('/:id', protect, authorize('admin'), async (req, res) => {
+router.delete('/:id', ...auth(['admin']), async (req, res) => {
   try {
     const payment = await Payment.findByIdAndDelete(req.params.id);
     
@@ -176,7 +176,7 @@ router.delete('/:id', protect, authorize('admin'), async (req, res) => {
 // @route   GET /api/payments/stats/summary
 // @desc    Get payment statistics
 // @access  Private (Admin, CRM Manager)
-router.get('/stats/summary', protect, authorize('admin', 'crm_manager'), async (req, res) => {
+router.get('/stats/summary', ...auth(['admin', 'crm_manager']), async (req, res) => {
   try {
     const totalPayments = await Payment.aggregate([
       {

@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const Document = require('../models/Document');
-const { protect, authorize } = require('../middleware/auth');
+const auth = require('../middleware/auth');
 
 // @route   GET /api/documents
 // @desc    Get all documents with filters
 // @access  Private
-router.get('/', protect, async (req, res) => {
+router.get('/', ...auth(), async (req, res) => {
   try {
     const { client, project, category, status, page = 1, limit = 50 } = req.query;
     
@@ -53,7 +53,7 @@ router.get('/', protect, async (req, res) => {
 // @route   GET /api/documents/:id
 // @desc    Get single document
 // @access  Private
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', ...auth(), async (req, res) => {
   try {
     const document = await Document.findById(req.params.id)
       .populate('client', 'name email phone')
@@ -95,7 +95,7 @@ router.get('/:id', protect, async (req, res) => {
 // @route   POST /api/documents
 // @desc    Upload new document
 // @access  Private
-router.post('/', protect, async (req, res) => {
+router.post('/', ...auth(), async (req, res) => {
   try {
     // Set uploadedBy to current user
     req.body.uploadedBy = req.user._id;
@@ -124,7 +124,7 @@ router.post('/', protect, async (req, res) => {
 // @route   PATCH /api/documents/:id
 // @desc    Update document metadata
 // @access  Private
-router.patch('/:id', protect, async (req, res) => {
+router.patch('/:id', ...auth(), async (req, res) => {
   try {
     const document = await Document.findById(req.params.id);
     
@@ -173,7 +173,7 @@ router.patch('/:id', protect, async (req, res) => {
 // @route   POST /api/documents/:id/download
 // @desc    Track document download
 // @access  Private
-router.post('/:id/download', protect, async (req, res) => {
+router.post('/:id/download', ...auth(), async (req, res) => {
   try {
     const document = await Document.findById(req.params.id);
     
@@ -217,7 +217,7 @@ router.post('/:id/download', protect, async (req, res) => {
 // @route   DELETE /api/documents/:id
 // @desc    Delete document
 // @access  Private (Admin or Owner)
-router.delete('/:id', protect, async (req, res) => {
+router.delete('/:id', ...auth(), async (req, res) => {
   try {
     const document = await Document.findById(req.params.id);
     
@@ -257,7 +257,7 @@ router.delete('/:id', protect, async (req, res) => {
 // @route   GET /api/documents/stats/summary
 // @desc    Get document statistics
 // @access  Private (Admin, Managers)
-router.get('/stats/summary', protect, authorize('admin', 'lead_manager', 'crm_manager'), async (req, res) => {
+router.get('/stats/summary', ...auth(['admin', 'lead_manager', 'crm_manager']), async (req, res) => {
   try {
     const totalDocs = await Document.countDocuments();
     

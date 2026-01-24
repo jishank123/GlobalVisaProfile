@@ -4,7 +4,7 @@ const activityLogSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false // Allow null for anonymous submissions
   },
   action: {
     type: String,
@@ -19,7 +19,7 @@ const activityLogSchema = new mongoose.Schema({
   },
   resourceType: {
     type: String,
-    enum: ['User', 'Lead', 'Client', 'Project', 'Payment', 'Query', 'Document', 'Service', 'System'],
+    enum: ['User', 'Lead', 'Client', 'Project', 'Payment', 'Query', 'Document', 'Service', 'System', 'ProfileAssessment', 'AppointmentRequest', 'ContactForm'],
     required: true
   },
   resourceId: {

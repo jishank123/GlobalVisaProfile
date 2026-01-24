@@ -82,17 +82,17 @@ mongoose.connect(process.env.MONGODB_URI, {
 });
 
 // API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/leads', leadRoutes);
-app.use('/api/clients', clientRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/queries', queryRoutes);
-app.use('/api/services', serviceRoutes);
-app.use('/api/documents', documentRoutes);
-app.use('/api/analytics', analyticsRoutes);
-
+app.use('/api/auth', authRoutes); 
+app.use('/api/users', userRoutes); 
+app.use('/api/leads', leadRoutes); 
+app.use('/api/clients', clientRoutes); 
+app.use('/api/projects', projectRoutes); 
+app.use('/api/payments', paymentRoutes); 
+app.use('/api/queries', queryRoutes); 
+app.use('/api/services', serviceRoutes); 
+app.use('/api/documents', documentRoutes); 
+app.use('/api/analytics', analyticsRoutes); 
+ 
 // New form API routes
 app.use('/api/profile-assessments', profileAssessmentRoutes);
 app.use('/api/appointments', appointmentRoutes);

@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const Project = require('../models/Project');
-const { protect, authorize } = require('../middleware/auth');
+const auth = require('../middleware/auth');
 
 // @route   GET /api/projects
 // @desc    Get all projects with filters
 // @access  Private
-router.get('/', protect, async (req, res) => {
+router.get('/', ...auth(), async (req, res) => {
   try {
     const { client, service, status, priority, manager, page = 1, limit = 20 } = req.query;
     
@@ -57,7 +57,7 @@ router.get('/', protect, async (req, res) => {
 // @route   GET /api/projects/:id
 // @desc    Get single project
 // @access  Private
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', ...auth(), async (req, res) => {
   try {
     const project = await Project.findById(req.params.id)
       .populate('client', 'name email phone country')
@@ -107,7 +107,7 @@ router.get('/:id', protect, async (req, res) => {
 // @route   POST /api/projects
 // @desc    Create new project
 // @access  Private (Admin, Managers)
-router.post('/', protect, authorize('admin', 'lead_manager', 'crm_manager'), async (req, res) => {
+router.post('/', ...auth(['admin', 'lead_manager', 'crm_manager']), async (req, res) => {
   try {
     req.body.createdBy = req.user._id;
     
@@ -132,7 +132,7 @@ router.post('/', protect, authorize('admin', 'lead_manager', 'crm_manager'), asy
 // @route   PATCH /api/projects/:id
 // @desc    Update project
 // @access  Private
-router.patch('/:id', protect, async (req, res) => {
+router.patch('/:id', ...auth(), async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
     
@@ -182,7 +182,7 @@ router.patch('/:id', protect, async (req, res) => {
 // @route   PATCH /api/projects/:id/progress
 // @desc    Update project progress
 // @access  Private (Team Members)
-router.patch('/:id/progress', protect, async (req, res) => {
+router.patch('/:id/progress', ...auth(), async (req, res) => {
   try {
     const { progress } = req.body;
     
@@ -237,7 +237,7 @@ router.patch('/:id/progress', protect, async (req, res) => {
 // @route   POST /api/projects/:id/milestones
 // @desc    Add milestone to project
 // @access  Private (Team Members)
-router.post('/:id/milestones', protect, async (req, res) => {
+router.post('/:id/milestones', ...auth(), async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
     
@@ -268,7 +268,7 @@ router.post('/:id/milestones', protect, async (req, res) => {
 // @route   PATCH /api/projects/:id/milestones/:milestoneId
 // @desc    Update milestone
 // @access  Private (Team Members)
-router.patch('/:id/milestones/:milestoneId', protect, async (req, res) => {
+router.patch('/:id/milestones/:milestoneId', ...auth(), async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
     
@@ -314,7 +314,7 @@ router.patch('/:id/milestones/:milestoneId', protect, async (req, res) => {
 // @route   DELETE /api/projects/:id
 // @desc    Delete project
 // @access  Private (Admin only)
-router.delete('/:id', protect, authorize('admin'), async (req, res) => {
+router.delete('/:id', ...auth(['admin']), async (req, res) => {
   try {
     const project = await Project.findByIdAndDelete(req.params.id);
     
@@ -341,7 +341,7 @@ router.delete('/:id', protect, authorize('admin'), async (req, res) => {
 // @route   GET /api/projects/stats/summary
 // @desc    Get project statistics
 // @access  Private (Admin, Managers)
-router.get('/stats/summary', protect, authorize('admin', 'lead_manager', 'crm_manager'), async (req, res) => {
+router.get('/stats/summary', ...auth(['admin', 'lead_manager', 'crm_manager']), async (req, res) => {
   try {
     let query = {};
     

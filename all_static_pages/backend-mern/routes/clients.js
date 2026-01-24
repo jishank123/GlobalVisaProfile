@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect, restrictTo } = require('../middleware/auth');
+const auth = require('../middleware/auth');
 const clientController = require('../controllers/clientController');
 const { body } = require('express-validator');
 
@@ -20,41 +20,41 @@ const validateClientUpdate = [
 // @route   GET /api/clients
 // @desc    Get all clients with filters
 // @access  Private (Admin, Managers)
-router.get('/', protect, restrictTo('admin', 'lead_manager', 'crm_manager'), clientController.getClients);
+router.get('/', ...auth(['admin', 'lead_manager', 'crm_manager']), clientController.getClients);
 
 // @route   GET /api/clients/stats/summary
 // @desc    Get client statistics
 // @access  Private (Admin, Managers)
-router.get('/stats/summary', protect, restrictTo('admin', 'lead_manager', 'crm_manager'), clientController.getClientStats);
+router.get('/stats/summary', ...auth(['admin', 'lead_manager', 'crm_manager']), clientController.getClientStats);
 
 // @route   GET /api/clients/my-clients
 // @desc    Get clients assigned to current manager
 // @access  Private (CRM Manager only)
-router.get('/my-clients', protect, restrictTo('crm_manager'), clientController.getMyClients);
+router.get('/my-clients', ...auth(['crm_manager']), clientController.getMyClients);
 
 // @route   GET /api/clients/:id
 // @desc    Get single client
 // @access  Private
-router.get('/:id', protect, clientController.getClient);
+router.get('/:id', ...auth(), clientController.getClient);
 
 // @route   POST /api/clients
 // @desc    Create new client
 // @access  Private (Admin, Lead Manager)
-router.post('/', protect, restrictTo('admin', 'lead_manager'), validateClientCreation, clientController.createClient);
+router.post('/', ...auth(['admin', 'lead_manager']), validateClientCreation, clientController.createClient);
 
 // @route   PATCH /api/clients/:id
 // @desc    Update client
 // @access  Private (Admin, Assigned Manager, Own Profile)
-router.patch('/:id', protect, validateClientUpdate, clientController.updateClient);
+router.patch('/:id', ...auth(), validateClientUpdate, clientController.updateClient);
 
 // @route   PATCH /api/clients/:id/assign
 // @desc    Assign client to manager
 // @access  Private (Admin, Lead Manager)
-router.patch('/:id/assign', protect, restrictTo('admin', 'lead_manager'), clientController.assignClient);
+router.patch('/:id/assign', ...auth(['admin', 'lead_manager']), clientController.assignClient);
 
 // @route   DELETE /api/clients/:id
 // @desc    Delete client (soft delete)
 // @access  Private (Admin only)
-router.delete('/:id', protect, restrictTo('admin'), clientController.deleteClient);
+router.delete('/:id', ...auth(['admin']), clientController.deleteClient);
 
 module.exports = router;

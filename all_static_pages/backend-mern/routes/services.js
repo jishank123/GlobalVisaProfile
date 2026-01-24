@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Service = require('../models/Service');
-const { protect, authorize } = require('../middleware/auth');
+const auth = require('../middleware/auth');
 
 // @route   GET /api/services
 // @desc    Get all services
@@ -71,7 +71,7 @@ router.get('/:id', async (req, res) => {
 // @route   POST /api/services
 // @desc    Create new service
 // @access  Private (Admin only)
-router.post('/', protect, authorize('admin'), async (req, res) => {
+router.post('/', ...auth(['admin']), async (req, res) => {
   try {
     const service = await Service.create(req.body);
     
@@ -92,7 +92,7 @@ router.post('/', protect, authorize('admin'), async (req, res) => {
 // @route   PATCH /api/services/:id
 // @desc    Update service
 // @access  Private (Admin only)
-router.patch('/:id', protect, authorize('admin'), async (req, res) => {
+router.patch('/:id', ...auth(['admin']), async (req, res) => {
   try {
     const service = await Service.findByIdAndUpdate(
       req.params.id,
@@ -127,7 +127,7 @@ router.patch('/:id', protect, authorize('admin'), async (req, res) => {
 // @route   DELETE /api/services/:id
 // @desc    Delete service
 // @access  Private (Admin only)
-router.delete('/:id', protect, authorize('admin'), async (req, res) => {
+router.delete('/:id', ...auth(['admin']), async (req, res) => {
   try {
     const service = await Service.findByIdAndDelete(req.params.id);
     

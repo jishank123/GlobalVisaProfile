@@ -135,3 +135,12 @@ exports.optionalAuth = async (req, res, next) => {
     next();
   }
 };
+
+// Main auth function that combines protection and role authorization
+// Usage: auth(['admin', 'manager']) or auth() for just authentication
+module.exports = (roles = []) => {
+  return [
+    exports.protect,
+    ...(roles.length > 0 ? [exports.restrictTo(...roles)] : [])
+  ];
+};

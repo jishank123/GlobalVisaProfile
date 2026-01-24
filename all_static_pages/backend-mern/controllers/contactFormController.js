@@ -1,419 +1,365 @@
 const ContactForm = require('../models/ContactForm');
-const Lead = require('../models/Lead');
 const ActivityLog = require('../models/ActivityLog');
-const { body, validationResult } = require('express-validator');
-const rateLimit = require('express-rate-limit');
+const { validationResult } = require('express-validator');
 
-// Rate limiting for contact form submissions
-const contactRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 3, // Limit each IP to 3 requests per 15 minutes
-  message: {
-    error: 'Too many contact form submissions. Please try again in 15 minutes.',
-    code: 'RATE_LIMIT_EXCEEDED'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
-});
+/**
+ * Contact Form Controller
+ * Handles contact form submissions with comprehensive security and lead management
+ */
 
-// Validation rules for contact form
-const validateContactForm = [
-  body('name')
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage('Name must be between 2 and 100 characters')
-    .matches(/^[a-zA-Z\s\-\.\']+$/)
-    .withMessage('Name can only contain letters, spaces, hyphens, dots, and apostrophes'),
-  
-  body('email')
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('Please provide a valid email address'),
-  
-  body('phone')
-    .optional()
-    .trim()
-    .matches(/^[\+]?[1-9][\d]{0,15}$/)
-    .withMessage('Please provide a valid phone number'),
-  
-  body('visa_type')
-    .isIn(['eb1a', 'eb2-niw', 'o1', 'profile', 'other'])
-    .withMessage('Please select a valid visa category'),
-  
-  body('message')
-    .trim()
-    .isLength({ min: 10, max: 2000 })
-    .withMessage('Message must be between 10 and 2000 characters')
-];
-
-// @desc    Submit contact form
+// @desc    Submit Contact Form
 // @route   POST /api/contact
-// @access  Public (with rate limiting)
+// @access  Public (with rate limiting and validation)
 const submitContactForm = async (req, res) => {
   try {
-    // Check validation results
+    // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        message: 'Validation failed',
-        errors: errors.array()
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid input data',
+          details: errors.array()
+        }
       });
     }
 
-    // Extract client IP and user agent for security
-    const clientIP = req.ip || req.connection.remoteAddress || req.socket.remoteAddress;
-    const userAgent = req.get('User-Agent') || 'Unknown';
+    const {
+      name,
+      email,
+      phone,
+      visa_type,
+      message,
+      utm_source,
+      utm_medium,
+      utm_campaign,
+      referrer_url
+    } = req.body;
 
-    // Extract UTM parameters and referrer
-    const utmSource = req.body.utm_source || req.query.utm_source;
-    const utmMedium = req.body.utm_medium || req.query.utm_medium;
-    const utmCampaign = req.body.utm_campaign || req.query.utm_campaign;
-    const referrerUrl = req.get('Referer');
-
-    // Check for duplicate submissions (same email and similar message within 1 hour)
-    const existingSubmission = await ContactForm.findOne({
-      email: req.body.email,
-      createdAt: { $gte: new Date(Date.now() - 60 * 60 * 1000) },
-      status: { $in: ['new', 'reviewed', 'in_progress'] }
+    // Check for duplicate recent submissions (prevent spam)
+    const recentSubmission = await ContactForm.findOne({
+      email: email.toLowerCase(),
+      createdAt: { $gte: new Date(Date.now() - 6 * 60 * 60 * 1000) } // Last 6 hours
     });
 
-    if (existingSubmission) {
-      // Check if message is very similar (simple check)
-      const similarity = calculateSimilarity(existingSubmission.message, req.body.message);
-      if (similarity > 0.8) {
-        return res.status(409).json({
-          success: false,
-          message: 'You have already submitted a similar inquiry recently. We will respond to your previous message shortly.',
-          code: 'DUPLICATE_SUBMISSION'
-        });
-      }
+    if (recentSubmission) {
+      return res.status(429).json({
+        success: false,
+        error: {
+          code: 'DUPLICATE_SUBMISSION',
+          message: 'You have already submitted a contact form in the last 6 hours. We will respond to your inquiry soon.'
+        }
+      });
     }
 
-    // Create contact form record
-    const contactData = {
-      ...req.body,
-      ip_address: clientIP,
-      user_agent: userAgent,
-      utm_source: utmSource,
-      utm_medium: utmMedium,
-      utm_campaign: utmCampaign,
-      referrer_url: referrerUrl,
+    // Create contact form submission
+    const contactSubmission = new ContactForm({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      phone: phone?.trim(),
+      visa_type,
+      message: message.trim(),
+      utm_source: utm_source?.trim(),
+      utm_medium: utm_medium?.trim(),
+      utm_campaign: utm_campaign?.trim(),
+      referrer_url: referrer_url?.trim(),
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent'),
       source: 'website_contact'
-    };
-
-    const contact = new ContactForm(contactData);
-    await contact.save();
-
-    // Log the activity
-    await ActivityLog.create({
-      user: null, // Public submission
-      action: 'contact_form_submitted',
-      resource: 'ContactForm',
-      resourceId: contact._id,
-      details: {
-        email: contact.email,
-        visa_type: contact.visa_type,
-        inquiry_type: contact.inquiry_type,
-        priority: contact.priority,
-        ip_address: clientIP
-      },
-      ip_address: clientIP,
-      user_agent: userAgent
     });
 
-    // Return success response (without sensitive data)
+    await contactSubmission.save();
+
+    // Log activity for security audit
+    await ActivityLog.create({
+      user: null, // Anonymous submission
+      action: 'create',
+      resourceType: 'ContactForm',
+      resourceId: contactSubmission._id,
+      description: `Contact form submitted by ${email}`,
+      metadata: {
+        email,
+        visa_type,
+        inquiry_type: contactSubmission.inquiry_type,
+        priority: contactSubmission.priority,
+        message_length: message.length,
+        utm_source,
+        utm_medium
+      },
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
+    // Return success response (excluding sensitive data)
     res.status(201).json({
       success: true,
-      message: 'Thank you for your inquiry! We will respond within 24-48 hours.',
+      message: 'Thank you for contacting us! We will respond to your inquiry within 24-48 hours.',
       data: {
-        id: contact._id,
-        name: contact.name,
-        email: contact.email,
-        visa_type: contact.visa_type_display,
-        inquiry_type: contact.inquiry_type,
-        priority: contact.priority,
-        response_deadline: contact.response_deadline,
-        submission_date: contact.createdAt
+        submission_id: contactSubmission._id,
+        name: contactSubmission.name,
+        email: contactSubmission.email,
+        visa_type: contactSubmission.visa_type_display,
+        inquiry_type: contactSubmission.inquiry_type,
+        priority: contactSubmission.priority,
+        status: contactSubmission.status,
+        submission_date: contactSubmission.createdAt,
+        reference_number: `CNT-${contactSubmission._id.toString().slice(-8).toUpperCase()}`,
+        response_deadline: contactSubmission.response_deadline
       }
     });
 
   } catch (error) {
-    console.error('Contact form submission error:', error);
+    console.error('Contact Form Submission Error:', error);
     
-    // Log the error
-    await ActivityLog.create({
-      user: null,
-      action: 'contact_form_error',
-      resource: 'ContactForm',
-      details: {
-        error: error.message,
-        email: req.body.email,
-        ip_address: req.ip
-      },
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent')
-    }).catch(console.error);
+    // Log error for monitoring
+    if (req.body?.email) {
+      await ActivityLog.create({
+        user: null,
+        action: 'other',
+        resourceType: 'System',
+        description: `Contact form submission failed for ${req.body.email}`,
+        metadata: { error: error.message },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      }).catch(() => {}); // Silent fail for logging
+    }
 
     res.status(500).json({
       success: false,
-      message: 'An error occurred while processing your inquiry. Please try again later.',
-      code: 'INTERNAL_SERVER_ERROR'
+      error: {
+        code: 'SUBMISSION_ERROR',
+        message: 'Failed to submit contact form. Please try again or contact us directly.'
+      }
     });
   }
 };
 
-// Simple similarity calculation function
-function calculateSimilarity(str1, str2) {
-  const longer = str1.length > str2.length ? str1 : str2;
-  const shorter = str1.length > str2.length ? str2 : str1;
-  
-  if (longer.length === 0) return 1.0;
-  
-  const editDistance = levenshteinDistance(longer, shorter);
-  return (longer.length - editDistance) / longer.length;
-}
-
-function levenshteinDistance(str1, str2) {
-  const matrix = [];
-  
-  for (let i = 0; i <= str2.length; i++) {
-    matrix[i] = [i];
-  }
-  
-  for (let j = 0; j <= str1.length; j++) {
-    matrix[0][j] = j;
-  }
-  
-  for (let i = 1; i <= str2.length; i++) {
-    for (let j = 1; j <= str1.length; j++) {
-      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1,
-          matrix[i][j - 1] + 1,
-          matrix[i - 1][j] + 1
-        );
-      }
+// @desc    Get Contact Form by ID
+// @route   GET /api/contact/:id
+// @access  Private (Admin/Manager only)
+const getContactForm = async (req, res) => {
+  try {
+    const contactForm = await ContactForm.findById(req.params.id)
+      .populate('assigned_to', 'first_name last_name email')
+      .populate('converted_to_lead', 'name email status')
+      .populate('converted_to_client', 'name email status');
+    
+    if (!contactForm) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Contact form submission not found'
+        }
+      });
     }
-  }
-  
-  return matrix[str2.length][str1.length];
-}
 
-// @desc    Get all contact forms (Admin only)
+    // Log access for audit
+    await ActivityLog.create({
+      user: req.user._id,
+      action: 'view',
+      resourceType: 'ContactForm',
+      resourceId: contactForm._id,
+      description: `Contact form viewed by ${req.user.email}`,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
+    res.json({
+      success: true,
+      data: contactForm
+    });
+
+  } catch (error) {
+    console.error('Get Contact Form Error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'FETCH_ERROR',
+        message: 'Failed to retrieve contact form'
+      }
+    });
+  }
+};
+
+// @desc    Get All Contact Forms (with pagination and filtering)
 // @route   GET /api/contact
-// @access  Private (Admin)
-const getContactForms = async (req, res) => {
+// @access  Private (Admin/Manager only)
+const getAllContactForms = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    
-    // Build filter
+
+    // Build filter object
     const filter = {};
     if (req.query.status) filter.status = req.query.status;
     if (req.query.visa_type) filter.visa_type = req.query.visa_type;
     if (req.query.priority) filter.priority = req.query.priority;
     if (req.query.inquiry_type) filter.inquiry_type = req.query.inquiry_type;
     if (req.query.assigned_to) filter.assigned_to = req.query.assigned_to;
-    
+    if (req.query.response_required) filter.response_required = req.query.response_required === 'true';
+
     // Date range filter
-    if (req.query.date_from || req.query.date_to) {
+    if (req.query.start_date || req.query.end_date) {
       filter.createdAt = {};
-      if (req.query.date_from) filter.createdAt.$gte = new Date(req.query.date_from);
-      if (req.query.date_to) filter.createdAt.$lte = new Date(req.query.date_to);
+      if (req.query.start_date) filter.createdAt.$gte = new Date(req.query.start_date);
+      if (req.query.end_date) filter.createdAt.$lte = new Date(req.query.end_date);
     }
-    
-    // Response status filter
-    if (req.query.response_status) {
-      if (req.query.response_status === 'overdue') {
-        filter.responded_at = { $exists: false };
-        filter.response_deadline = { $lt: new Date() };
-      } else if (req.query.response_status === 'pending') {
-        filter.responded_at = { $exists: false };
-        filter.response_deadline = { $gte: new Date() };
-      } else if (req.query.response_status === 'responded') {
-        filter.responded_at = { $exists: true };
-      }
-    }
-    
+
     // Search functionality
     if (req.query.search) {
       filter.$text = { $search: req.query.search };
     }
-    
-    // Build sort
-    const sort = {};
-    if (req.query.sort_by) {
-      const sortField = req.query.sort_by;
-      const sortOrder = req.query.sort_order === 'asc' ? 1 : -1;
-      sort[sortField] = sortOrder;
-    } else {
-      sort.createdAt = -1; // Default: newest first
-    }
 
-    const contacts = await ContactForm.find(filter)
-      .sort(sort)
-      .skip(skip)
-      .limit(limit)
-      .populate('assigned_to', 'name email')
+    // Get contact forms with pagination
+    const contactForms = await ContactForm.find(filter)
+      .populate('assigned_to', 'first_name last_name email')
       .populate('converted_to_lead', 'name email status')
       .populate('converted_to_client', 'name email status')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
       .select('-ip_address -user_agent'); // Exclude sensitive data
 
     const total = await ContactForm.countDocuments(filter);
 
-    // Log the access
+    // Get statistics
+    const stats = await ContactForm.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          new: { $sum: { $cond: [{ $eq: ['$status', 'new'] }, 1, 0] } },
+          in_progress: { $sum: { $cond: [{ $eq: ['$status', 'in_progress'] }, 1, 0] } },
+          resolved: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
+          overdue: { 
+            $sum: { 
+              $cond: [
+                { 
+                  $and: [
+                    { $eq: ['$responded_at', null] },
+                    { $lt: ['$response_deadline', new Date()] }
+                  ]
+                }, 
+                1, 
+                0
+              ] 
+            } 
+          }
+        }
+      }
+    ]);
+
+    // Log access
     await ActivityLog.create({
       user: req.user._id,
-      action: 'contact_forms_viewed',
-      resource: 'ContactForm',
-      details: {
-        page,
-        limit,
-        total_results: total,
-        filter
-      },
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent')
+      action: 'view',
+      resourceType: 'ContactForm',
+      description: `Contact forms list viewed by ${req.user.email}`,
+      metadata: { page, limit, total, filter },
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
     });
 
     res.json({
       success: true,
-      data: contacts,
-      pagination: {
-        current_page: page,
-        total_pages: Math.ceil(total / limit),
-        total_records: total,
-        per_page: limit
+      data: {
+        contact_forms: contactForms,
+        pagination: {
+          current_page: page,
+          total_pages: Math.ceil(total / limit),
+          total_records: total,
+          per_page: limit
+        },
+        statistics: stats[0] || {
+          total: 0,
+          new: 0,
+          in_progress: 0,
+          resolved: 0,
+          overdue: 0
+        }
       }
     });
 
   } catch (error) {
-    console.error('Get contact forms error:', error);
+    console.error('Get All Contact Forms Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error retrieving contact forms'
+      error: {
+        code: 'FETCH_ERROR',
+        message: 'Failed to retrieve contact forms'
+      }
     });
   }
 };
 
-// @desc    Get single contact form (Admin only)
-// @route   GET /api/contact/:id
-// @access  Private (Admin)
-const getContactForm = async (req, res) => {
+// @desc    Update Contact Form Status
+// @route   PUT /api/contact/:id/status
+// @access  Private (Admin/Manager only)
+const updateContactFormStatus = async (req, res) => {
   try {
-    const contact = await ContactForm.findById(req.params.id)
-      .populate('assigned_to', 'name email role')
-      .populate('converted_to_lead', 'name email status service_interest')
-      .populate('converted_to_client', 'name email status')
-      .populate('communications.user', 'name email');
-
-    if (!contact) {
-      return res.status(404).json({
-        success: false,
-        message: 'Contact form not found'
-      });
-    }
-
-    // Log the access
-    await ActivityLog.create({
-      user: req.user._id,
-      action: 'contact_form_viewed',
-      resource: 'ContactForm',
-      resourceId: contact._id,
-      details: {
-        email: contact.email,
-        visa_type: contact.visa_type
-      },
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent')
-    });
-
-    res.json({
-      success: true,
-      data: contact
-    });
-
-  } catch (error) {
-    console.error('Get contact form error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error retrieving contact form'
-    });
-  }
-};
-
-// @desc    Update contact form (Admin only)
-// @route   PUT /api/contact/:id
-// @access  Private (Admin)
-const updateContactForm = async (req, res) => {
-  try {
-    const { 
-      status, 
-      priority, 
-      assigned_to, 
-      inquiry_type,
-      internal_notes,
-      tags,
-      response_required,
-      response_deadline
-    } = req.body;
+    const { status, assigned_to, internal_notes, priority } = req.body;
     
-    const contact = await ContactForm.findById(req.params.id);
-    if (!contact) {
+    const contactForm = await ContactForm.findById(req.params.id);
+    if (!contactForm) {
       return res.status(404).json({
         success: false,
-        message: 'Contact form not found'
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Contact form submission not found'
+        }
       });
     }
 
-    // Update fields
-    if (status) contact.status = status;
-    if (priority) contact.priority = priority;
-    if (assigned_to) contact.assigned_to = assigned_to;
-    if (inquiry_type) contact.inquiry_type = inquiry_type;
-    if (internal_notes) contact.internal_notes = internal_notes;
-    if (tags) contact.tags = tags;
-    if (response_required !== undefined) contact.response_required = response_required;
-    if (response_deadline) contact.response_deadline = response_deadline;
+    const oldStatus = contactForm.status;
+    contactForm.status = status;
+    if (assigned_to) contactForm.assigned_to = assigned_to;
+    if (internal_notes) contactForm.internal_notes = internal_notes;
+    if (priority) contactForm.priority = priority;
 
-    await contact.save();
+    await contactForm.save();
 
-    // Log the update
+    // Log status change
     await ActivityLog.create({
       user: req.user._id,
-      action: 'contact_form_updated',
-      resource: 'ContactForm',
-      resourceId: contact._id,
-      details: {
-        updated_fields: { status, priority, assigned_to, inquiry_type },
-        email: contact.email
+      action: 'update',
+      resourceType: 'ContactForm',
+      resourceId: contactForm._id,
+      description: `Contact form status changed from ${oldStatus} to ${status}`,
+      metadata: { 
+        old_status: oldStatus, 
+        new_status: status, 
+        assigned_to,
+        priority 
       },
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent')
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
     });
 
     res.json({
       success: true,
-      message: 'Contact form updated successfully',
-      data: contact
+      message: 'Contact form status updated successfully',
+      data: contactForm
     });
 
   } catch (error) {
-    console.error('Update contact form error:', error);
+    console.error('Update Contact Form Status Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error updating contact form'
+      error: {
+        code: 'UPDATE_ERROR',
+        message: 'Failed to update contact form status'
+      }
     });
   }
 };
 
-// @desc    Respond to contact form (Admin only)
+// @desc    Respond to Contact Form
 // @route   POST /api/contact/:id/respond
-// @access  Private (Admin)
+// @access  Private (Admin/Manager only)
 const respondToContactForm = async (req, res) => {
   try {
     const { response_message } = req.body;
@@ -421,195 +367,226 @@ const respondToContactForm = async (req, res) => {
     if (!response_message || response_message.trim().length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Response message is required'
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Response message is required'
+        }
       });
     }
-    
-    const contact = await ContactForm.findById(req.params.id);
-    if (!contact) {
+
+    const contactForm = await ContactForm.findById(req.params.id);
+    if (!contactForm) {
       return res.status(404).json({
         success: false,
-        message: 'Contact form not found'
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Contact form submission not found'
+        }
       });
     }
 
     // Use the model method to respond
-    await contact.respond(response_message, req.user._id);
+    await contactForm.respond(response_message.trim(), req.user._id);
 
-    // Log the response
+    // Log response
     await ActivityLog.create({
       user: req.user._id,
-      action: 'contact_form_responded',
-      resource: 'ContactForm',
-      resourceId: contact._id,
-      details: {
-        email: contact.email,
-        response_length: response_message.length
+      action: 'update',
+      resourceType: 'ContactForm',
+      resourceId: contactForm._id,
+      description: `Response sent to contact form inquiry`,
+      metadata: { 
+        response_length: response_message.length,
+        client_email: contactForm.email
       },
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent')
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
     });
 
     res.json({
       success: true,
       message: 'Response sent successfully',
-      data: contact
+      data: contactForm
     });
 
   } catch (error) {
-    console.error('Respond to contact form error:', error);
+    console.error('Respond to Contact Form Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error sending response'
+      error: {
+        code: 'RESPONSE_ERROR',
+        message: 'Failed to send response'
+      }
     });
   }
 };
 
-// @desc    Convert contact to lead (Admin only)
-// @route   POST /api/contact/:id/convert-to-lead
-// @access  Private (Admin)
-const convertToLead = async (req, res) => {
+// @desc    Add Communication to Contact Form
+// @route   POST /api/contact/:id/communications
+// @access  Private (Admin/Manager only)
+const addCommunication = async (req, res) => {
   try {
-    const contact = await ContactForm.findById(req.params.id);
-    if (!contact) {
+    const { type, message, direction } = req.body;
+    
+    const contactForm = await ContactForm.findById(req.params.id);
+    if (!contactForm) {
       return res.status(404).json({
         success: false,
-        message: 'Contact form not found'
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Contact form submission not found'
+        }
       });
     }
 
-    if (contact.converted_to_lead) {
+    // Use the model method to add communication
+    await contactForm.addCommunication(type, message, req.user._id, direction);
+
+    // Log communication
+    await ActivityLog.create({
+      user: req.user._id,
+      action: 'update',
+      resourceType: 'ContactForm',
+      resourceId: contactForm._id,
+      description: `Communication added: ${type} - ${direction}`,
+      metadata: { type, direction, message_length: message.length },
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
+    res.json({
+      success: true,
+      message: 'Communication added successfully',
+      data: contactForm
+    });
+
+  } catch (error) {
+    console.error('Add Communication Error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'COMMUNICATION_ERROR',
+        message: 'Failed to add communication'
+      }
+    });
+  }
+};
+
+// @desc    Convert Contact Form to Lead
+// @route   POST /api/contact/:id/convert-to-lead
+// @access  Private (Admin/Manager only)
+const convertToLead = async (req, res) => {
+  try {
+    const { service_interest, priority, assigned_to, notes } = req.body;
+    
+    const contactForm = await ContactForm.findById(req.params.id);
+    if (!contactForm) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Contact form submission not found'
+        }
+      });
+    }
+
+    if (contactForm.converted_to_lead) {
       return res.status(400).json({
         success: false,
-        message: 'Contact form has already been converted to a lead'
+        error: {
+          code: 'ALREADY_CONVERTED',
+          message: 'This contact form has already been converted to a lead'
+        }
       });
     }
 
     // Create lead from contact form
-    const leadData = {
-      name: contact.name,
-      email: contact.email,
-      phone: contact.phone,
-      service_interest: contact.visa_type_display,
-      status: 'new',
-      priority: contact.priority,
-      source: 'website',
-      assigned_to: contact.assigned_to || req.user._id,
-      notes: `Converted from contact form. Original message: ${contact.message}`
-    };
+    const Lead = require('../models/Lead');
+    const lead = new Lead({
+      name: contactForm.name,
+      email: contactForm.email,
+      phone: contactForm.phone,
+      service_interest: service_interest || contactForm.visa_type_display,
+      priority: priority || contactForm.priority,
+      assigned_to: assigned_to,
+      notes: notes || contactForm.message,
+      source: 'website'
+    });
 
-    const lead = new Lead(leadData);
     await lead.save();
 
-    // Update contact form
-    await contact.convertToLead(lead);
+    // Update contact form with conversion
+    await contactForm.convertToLead(lead);
 
-    // Log the conversion
+    // Log conversion
     await ActivityLog.create({
       user: req.user._id,
-      action: 'contact_converted_to_lead',
-      resource: 'ContactForm',
-      resourceId: contact._id,
-      details: {
-        email: contact.email,
-        lead_id: lead._id
+      action: 'create',
+      resourceType: 'Lead',
+      resourceId: lead._id,
+      description: `Lead created from contact form submission`,
+      metadata: { 
+        contact_form_id: contactForm._id,
+        email: contactForm.email,
+        service_interest
       },
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent')
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
     });
 
     res.json({
       success: true,
       message: 'Contact form converted to lead successfully',
       data: {
-        contact: contact,
-        lead: lead
+        lead,
+        contact_form: contactForm
       }
     });
 
   } catch (error) {
-    console.error('Convert to lead error:', error);
+    console.error('Convert to Lead Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error converting contact to lead'
+      error: {
+        code: 'CONVERSION_ERROR',
+        message: 'Failed to convert contact form to lead'
+      }
     });
   }
 };
 
-// @desc    Add communication to contact form (Admin only)
-// @route   POST /api/contact/:id/communications
-// @access  Private (Admin)
-const addCommunication = async (req, res) => {
-  try {
-    const { type, message, direction } = req.body;
-    
-    const contact = await ContactForm.findById(req.params.id);
-    if (!contact) {
-      return res.status(404).json({
-        success: false,
-        message: 'Contact form not found'
-      });
-    }
-
-    await contact.addCommunication(type, message, req.user._id, direction);
-
-    // Log the communication
-    await ActivityLog.create({
-      user: req.user._id,
-      action: 'contact_communication_added',
-      resource: 'ContactForm',
-      resourceId: contact._id,
-      details: {
-        communication_type: type,
-        direction,
-        email: contact.email
-      },
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent')
-    });
-
-    res.json({
-      success: true,
-      message: 'Communication added successfully',
-      data: contact
-    });
-
-  } catch (error) {
-    console.error('Add communication error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error adding communication'
-    });
-  }
-};
-
-// @desc    Delete contact form (Admin only)
+// @desc    Delete Contact Form
 // @route   DELETE /api/contact/:id
-// @access  Private (Admin)
+// @access  Private (Admin only)
 const deleteContactForm = async (req, res) => {
   try {
-    const contact = await ContactForm.findById(req.params.id);
-    if (!contact) {
+    const contactForm = await ContactForm.findById(req.params.id);
+    if (!contactForm) {
       return res.status(404).json({
         success: false,
-        message: 'Contact form not found'
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Contact form submission not found'
+        }
       });
     }
 
-    await contact.deleteOne();
+    await ContactForm.findByIdAndDelete(req.params.id);
 
-    // Log the deletion
+    // Log deletion
     await ActivityLog.create({
       user: req.user._id,
-      action: 'contact_form_deleted',
-      resource: 'ContactForm',
+      action: 'delete',
+      resourceType: 'ContactForm',
       resourceId: req.params.id,
-      details: {
-        email: contact.email,
-        visa_type: contact.visa_type
+      description: `Contact form deleted by ${req.user.email}`,
+      metadata: { 
+        client_email: contactForm.email,
+        visa_type: contactForm.visa_type,
+        status: contactForm.status
       },
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent')
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
     });
 
     res.json({
@@ -618,95 +595,24 @@ const deleteContactForm = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Delete contact form error:', error);
+    console.error('Delete Contact Form Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error deleting contact form'
-    });
-  }
-};
-
-// @desc    Get contact form statistics (Admin only)
-// @route   GET /api/contact/stats
-// @access  Private (Admin)
-const getContactStats = async (req, res) => {
-  try {
-    const stats = await ContactForm.aggregate([
-      {
-        $group: {
-          _id: null,
-          total_inquiries: { $sum: 1 },
-          new_inquiries: {
-            $sum: { $cond: [{ $eq: ['$status', 'new'] }, 1, 0] }
-          },
-          responded: {
-            $sum: { $cond: [{ $ne: ['$responded_at', null] }, 1, 0] }
-          },
-          overdue: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $eq: ['$responded_at', null] },
-                    { $lt: ['$response_deadline', new Date()] }
-                  ]
-                },
-                1,
-                0
-              ]
-            }
-          },
-          converted_to_leads: {
-            $sum: { $cond: [{ $ne: ['$converted_to_lead', null] }, 1, 0] }
-          }
-        }
+      error: {
+        code: 'DELETE_ERROR',
+        message: 'Failed to delete contact form'
       }
-    ]);
-
-    const visaTypeDistribution = await ContactForm.aggregate([
-      {
-        $group: {
-          _id: '$visa_type',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    const inquiryTypeDistribution = await ContactForm.aggregate([
-      {
-        $group: {
-          _id: '$inquiry_type',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    res.json({
-      success: true,
-      data: {
-        overview: stats[0] || {},
-        visa_type_distribution: visaTypeDistribution,
-        inquiry_type_distribution: inquiryTypeDistribution
-      }
-    });
-
-  } catch (error) {
-    console.error('Get contact stats error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error retrieving contact statistics'
     });
   }
 };
 
 module.exports = {
-  submitContactForm: [contactRateLimit, validateContactForm, submitContactForm],
-  getContactForms,
+  submitContactForm,
   getContactForm,
-  updateContactForm,
+  getAllContactForms,
+  updateContactFormStatus,
   respondToContactForm,
-  convertToLead,
   addCommunication,
-  deleteContactForm,
-  getContactStats
+  convertToLead,
+  deleteContactForm
 };

@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const Query = require('../models/Query');
-const { protect, authorize } = require('../middleware/auth');
+const auth = require('../middleware/auth');
 
 // @route   GET /api/queries
 // @desc    Get all queries with filters
 // @access  Private
-router.get('/', protect, async (req, res) => {
+router.get('/', ...auth(), async (req, res) => {
   try {
     const { client, assignedTo, status, priority, category, page = 1, limit = 20 } = req.query;
     
@@ -56,7 +56,7 @@ router.get('/', protect, async (req, res) => {
 // @route   GET /api/queries/:id
 // @desc    Get single query
 // @access  Private
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', ...auth(), async (req, res) => {
   try {
     const query = await Query.findById(req.params.id)
       .populate('client', 'name email phone')
@@ -94,7 +94,7 @@ router.get('/:id', protect, async (req, res) => {
 // @route   POST /api/queries
 // @desc    Create new query
 // @access  Private
-router.post('/', protect, async (req, res) => {
+router.post('/', ...auth(), async (req, res) => {
   try {
     // If user is client, set client field automatically
     if (req.user.role === 'client') {
@@ -120,7 +120,7 @@ router.post('/', protect, async (req, res) => {
 // @route   PATCH /api/queries/:id
 // @desc    Update query
 // @access  Private
-router.patch('/:id', protect, async (req, res) => {
+router.patch('/:id', ...auth(), async (req, res) => {
   try {
     const query = await Query.findById(req.params.id);
     
@@ -173,7 +173,7 @@ router.patch('/:id', protect, async (req, res) => {
 // @route   POST /api/queries/:id/responses
 // @desc    Add response to query
 // @access  Private
-router.post('/:id/responses', protect, async (req, res) => {
+router.post('/:id/responses', ...auth(), async (req, res) => {
   try {
     const query = await Query.findById(req.params.id);
     
@@ -217,7 +217,7 @@ router.post('/:id/responses', protect, async (req, res) => {
 // @route   DELETE /api/queries/:id
 // @desc    Delete query
 // @access  Private (Admin only)
-router.delete('/:id', protect, authorize('admin'), async (req, res) => {
+router.delete('/:id', ...auth(['admin']), async (req, res) => {
   try {
     const query = await Query.findByIdAndDelete(req.params.id);
     
@@ -244,7 +244,7 @@ router.delete('/:id', protect, authorize('admin'), async (req, res) => {
 // @route   GET /api/queries/stats/summary
 // @desc    Get query statistics
 // @access  Private (Admin, CRM Manager)
-router.get('/stats/summary', protect, authorize('admin', 'crm_manager'), async (req, res) => {
+router.get('/stats/summary', ...auth(['admin', 'crm_manager']), async (req, res) => {
   try {
     const stats = await Query.aggregate([
       {
