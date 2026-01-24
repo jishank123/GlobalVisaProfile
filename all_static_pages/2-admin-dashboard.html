@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Academic Consultancy ERP</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        body { background: #f8f9fa; }
+        
+        .top-navbar {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            color: white;
+            padding: 15px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 70px;
+            width: 250px;
+            height: calc(100vh - 70px);
+            background: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        .sidebar-item {
+            padding: 15px 20px;
+            color: #4b5563;
+            text-decoration: none;
+            display: block;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+        }
+        
+        .sidebar-item:hover, .sidebar-item.active {
+            background: #f3f4f6;
+            color: #1e3a8a;
+            border-left-color: #1e3a8a;
+        }
+        
+        .main-content {
+            margin-left: 250px;
+            padding: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #1e3a8a;
+        }
+        
+        .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1e3a8a;
+        }
+        
+        .management-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .table thead {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            color: white;
+        }
+        
+        .action-btn {
+            padding: 6px 12px;
+            border-radius: 5px;
+            border: none;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            margin: 2px;
+        }
+        
+        .btn-edit { background: #f59e0b; color: white; }
+        .btn-delete { background: #ef4444; color: white; }
+        .btn-activate { background: #10b981; color: white; }
+    </style>
+</head>
+<body>
+
+<!-- Top Navigation -->
+<div class="top-navbar">
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Admin Control Panel</h4>
+            </div>
+            <div>
+                <a href="index.html" class="btn btn-light btn-sm me-2">
+                    <i class="fas fa-home me-1"></i>Home
+                </a>
+                <span class="me-3">Administrator</span>
+                <a href="login.html" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-sign-out-alt me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div class="sidebar">
+    <a href="#overview" class="sidebar-item active">
+        <i class="fas fa-tachometer-alt me-2"></i>Dashboard Overview
+    </a>
+    <a href="#users" class="sidebar-item">
+        <i class="fas fa-users me-2"></i>User Management
+    </a>
+    <a href="#services" class="sidebar-item">
+        <i class="fas fa-briefcase me-2"></i>Services Management
+    </a>
+    <a href="#clients" class="sidebar-item">
+        <i class="fas fa-user-tie me-2"></i>Client Management
+    </a>
+    <a href="#financial" class="sidebar-item">
+        <i class="fas fa-dollar-sign me-2"></i>Financial Overview
+    </a>
+    <a href="#reports" class="sidebar-item">
+        <i class="fas fa-chart-bar me-2"></i>Reports & Analytics
+    </a>
+    <a href="#settings" class="sidebar-item">
+        <i class="fas fa-cog me-2"></i>System Settings
+    </a>
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+    
+    <!-- Overview Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="stat-number">156</div>
+                        <div class="text-muted">Total Clients</div>
+                    </div>
+                    <i class="fas fa-users fa-2x text-primary"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="stat-number">45</div>
+                        <div class="text-muted">Active Projects</div>
+                    </div>
+                    <i class="fas fa-project-diagram fa-2x text-success"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="stat-number">$245K</div>
+                        <div class="text-muted">Monthly Revenue</div>
+                    </div>
+                    <i class="fas fa-dollar-sign fa-2x text-warning"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="stat-number">23</div>
+                        <div class="text-muted">Team Members</div>
+                    </div>
+                    <i class="fas fa-user-friends fa-2x text-info"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- User Management Section -->
+    <div id="users" class="management-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5><i class="fas fa-users me-2"></i>User Management</h5>
+            <button class="btn btn-primary btn-sm">
+                <i class="fas fa-plus me-1"></i>Add New User
+            </button>
+        </div>
+        
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>User ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Last Login</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>USR-001</strong></td>
+                    <td>John Smith</td>
+                    <td>john.smith@company.com</td>
+                    <td><span class="badge bg-primary">Lead Manager</span></td>
+                    <td><span class="badge bg-success">Active</span></td>
+                    <td>Jan 23, 2025 09:15 AM</td>
+                    <td>
+                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
+                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>USR-002</strong></td>
+                    <td>Emily Roberts</td>
+                    <td>emily.r@company.com</td>
+                    <td><span class="badge bg-info">CRM Manager</span></td>
+                    <td><span class="badge bg-success">Active</span></td>
+                    <td>Jan 23, 2025 08:45 AM</td>
+                    <td>
+                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
+                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>USR-003</strong></td>
+                    <td>Michael Chen</td>
+                    <td>m.chen@company.com</td>
+                    <td><span class="badge bg-warning">Consultant</span></td>
+                    <td><span class="badge bg-success">Active</span></td>
+                    <td>Jan 22, 2025 05:30 PM</td>
+                    <td>
+                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
+                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>USR-004</strong></td>
+                    <td>Sarah Johnson</td>
+                    <td>s.johnson@company.com</td>
+                    <td><span class="badge bg-secondary">Writer</span></td>
+                    <td><span class="badge bg-warning">Inactive</span></td>
+                    <td>Jan 20, 2025 02:15 PM</td>
+                    <td>
+                        <button class="action-btn btn-activate"><i class="fas fa-check"></i></button>
+                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Services Management Section -->
+    <div id="services" class="management-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5><i class="fas fa-briefcase me-2"></i>Services Management</h5>
+            <button class="btn btn-primary btn-sm">
+                <i class="fas fa-plus me-1"></i>Add New Service
+            </button>
+        </div>
+        
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Service ID</th>
+                    <th>Service Name</th>
+                    <th>Category</th>
+                    <th>Base Price</th>
+                    <th>Duration</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>SRV-001</strong></td>
+                    <td>Research Paper Publication</td>
+                    <td>Academic Writing</td>
+                    <td>$3,500 - $8,000</td>
+                    <td>6-12 weeks</td>
+                    <td><span class="badge bg-success">Active</span></td>
+                    <td>
+                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
+                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>SRV-002</strong></td>
+                    <td>Thesis/Dissertation Help</td>
+                    <td>Academic Writing</td>
+                    <td>$5,000 - $15,000</td>
+                    <td>12-24 weeks</td>
+                    <td><span class="badge bg-success">Active</span></td>
+                    <td>
+                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
+                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>SRV-003</strong></td>
+                    <td>Grant Writing Services</td>
+                    <td>Funding Support</td>
+                    <td>$2,500 - $10,000</td>
+                    <td>4-8 weeks</td>
+                    <td><span class="badge bg-success">Active</span></td>
+                    <td>
+                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
+                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>SRV-004</strong></td>
+                    <td>Conference Paper Assistance</td>
+                    <td>Academic Writing</td>
+                    <td>$1,500 - $4,000</td>
+                    <td>3-6 weeks</td>
+                    <td><span class="badge bg-success">Active</span></td>
+                    <td>
+                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
+                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>SRV-005</strong></td>
+                    <td>Literature Review</td>
+                    <td>Research Support</td>
+                    <td>$1,000 - $3,500</td>
+                    <td>2-4 weeks</td>
+                    <td><span class="badge bg-warning">Inactive</span></td>
+                    <td>
+                        <button class="action-btn btn-activate"><i class="fas fa-check"></i></button>
+                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Financial Overview Section -->
+    <div id="financial" class="management-card">
+        <h5 class="mb-3"><i class="fas fa-dollar-sign me-2"></i>Financial Overview</h5>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="text-muted mb-3">Revenue Breakdown (This Month)</h6>
+                <table class="table table-sm">
+                    <tr>
+                        <td>Research Papers</td>
+                        <td class="text-end"><strong>$98,500</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Thesis/Dissertation</td>
+                        <td class="text-end"><strong>$75,000</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Grant Writing</td>
+                        <td class="text-end"><strong>$42,800</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Conference Papers</td>
+                        <td class="text-end"><strong>$28,700</strong></td>
+                    </tr>
+                    <tr class="table-primary fw-bold">
+                        <td>Total Revenue</td>
+                        <td class="text-end">$245,000</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-muted mb-3">Payment Status</h6>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Paid Invoices</span>
+                        <span class="text-success fw-bold">$189,500 (77%)</span>
+                    </div>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar bg-success" style="width: 77%">77%</div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Pending Payments</span>
+                        <span class="text-warning fw-bold">$42,300 (17%)</span>
+                    </div>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar bg-warning" style="width: 17%">17%</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Overdue</span>
+                        <span class="text-danger fw-bold">$13,200 (6%)</span>
+                    </div>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar bg-danger" style="width: 6%">6%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Settings Section -->
+    <div id="settings" class="management-card">
+        <h5 class="mb-3"><i class="fas fa-cog me-2"></i>System Settings</h5>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6><i class="fas fa-envelope me-2"></i>Email Configuration</h6>
+                        <p class="text-muted small">Configure SMTP settings for system emails</p>
+                        <button class="btn btn-sm btn-outline-primary">Configure</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6><i class="fas fa-database me-2"></i>Database Backup</h6>
+                        <p class="text-muted small">Last backup: Jan 23, 2025 02:00 AM</p>
+                        <button class="btn btn-sm btn-outline-success">Backup Now</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6><i class="fas fa-shield-alt me-2"></i>Security Settings</h6>
+                        <p class="text-muted small">Password policies, 2FA, session timeout</p>
+                        <button class="btn btn-sm btn-outline-warning">Manage</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6><i class="fas fa-file-export me-2"></i>Data Export</h6>
+                        <p class="text-muted small">Export system data for reporting</p>
+                        <button class="btn btn-sm btn-outline-info">Export</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Sidebar active state
+document.querySelectorAll('.sidebar-item').forEach(item => {
+    item.addEventListener('click', function(e) {
+        document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+        this.classList.add('active');
+    });
+});
+
+// Demo action buttons
+document.querySelectorAll('.action-btn, .btn-primary').forEach(btn => {
+    btn.addEventListener('click', function() {
+        alert('This action will connect to backend API in production.');
+    });
+});
+</script>
+
+</body>
+</html>

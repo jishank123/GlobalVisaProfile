@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ImmigrationPro - Complete Database Design & System Documentation</title>
+    <style>
+        @media print {
+            body { margin: 0; padding: 20px; }
+            .page-break { page-break-after: always; }
+            @page { size: A4; margin: 20mm; }
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        /* Cover Page */
+        .cover-page {
+            text-align: center;
+            padding: 100px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            margin-bottom: 40px;
+        }
+        
+        .cover-page h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        
+        .cover-page h2 {
+            font-size: 32px;
+            margin-bottom: 40px;
+            font-weight: 300;
+        }
+        
+        .cover-page .metadata {
+            margin-top: 60px;
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        
+        /* Table of Contents */
+        .toc {
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 40px;
+        }
+        
+        .toc h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .toc ul {
+            list-style: none;
+        }
+        
+        .toc ul li {
+            padding: 10px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .toc ul li a {
+            color: #333;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .toc ul li a:hover {
+            color: #667eea;
+        }
+        
+        /* Section Headers */
+        h1 {
+            color: #667eea;
+            font-size: 36px;
+            margin: 40px 0 20px 0;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        h2 {
+            color: #764ba2;
+            font-size: 28px;
+            margin: 30px 0 15px 0;
+        }
+        
+        h3 {
+            color: #555;
+            font-size: 22px;
+            margin: 20px 0 10px 0;
+        }
+        
+        h4 {
+            color: #666;
+            font-size: 18px;
+            margin: 15px 0 10px 0;
+        }
+        
+        /* Database Tables */
+        .db-table {
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .db-table-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            font-weight: 700;
+            font-size: 20px;
+        }
+        
+        .db-table-body {
+            padding: 0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        table th {
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #dee2e6;
+            color: #495057;
+        }
+        
+        table td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .field-type {
+            background: #e7f3ff;
+            color: #0066cc;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+        
+        .key-indicator {
+            background: #ffd700;
+            color: #000;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 11px;
+        }
+        
+        .foreign-key {
+            background: #90ee90;
+            color: #006400;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 11px;
+        }
+        
+        /* ER Diagram */
+        .er-diagram {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 10px;
+            margin: 30px 0;
+            border: 2px solid #667eea;
+        }
+        
+        .diagram-box {
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px;
+            display: inline-block;
+            min-width: 200px;
+        }
+        
+        .diagram-title {
+            background: #667eea;
+            color: white;
+            padding: 8px;
+            margin: -15px -15px 10px -15px;
+            border-radius: 6px 6px 0 0;
+            font-weight: 700;
+        }
+        
+        .relationship-line {
+            border-left: 3px solid #764ba2;
+            margin: 10px 0;
+            padding-left: 15px;
+            color: #764ba2;
+            font-weight: 600;
+        }
+        
+        /* Screenshots */
+        .screenshot {
+            background: white;
+            border: 3px solid #667eea;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        
+        .screenshot-title {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 15px;
+            margin: -15px -15px 15px -15px;
+            border-radius: 7px 7px 0 0;
+            font-weight: 700;
+            font-size: 18px;
+        }
+        
+        .screenshot-image {
+            width: 100%;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .screenshot-description {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+        }
+        
+        /* Feature Boxes */
+        .feature-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .feature-box h3 {
+            color: white;
+            margin-top: 0;
+        }
+        
+        .feature-list {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .feature-list li {
+            padding: 8px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+        
+        .feature-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+            font-size: 20px;
+        }
+        
+        /* Code Blocks */
+        .code-block {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+        
+        .code-block .keyword {
+            color: #c678dd;
+        }
+        
+        .code-block .string {
+            color: #98c379;
+        }
+        
+        .code-block .comment {
+            color: #5c6370;
+            font-style: italic;
+        }
+        
+        /* Info Boxes */
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #0066cc;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        /* Workflow Diagram */
+        .workflow-step {
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            position: relative;
+        }
+        
+        .workflow-step:after {
+            content: "↓";
+            display: block;
+            text-align: center;
+            color: #667eea;
+            font-size: 30px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .workflow-step:last-child:after {
+            display: none;
+        }
+        
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        /* Print Styles */
+        @media print {
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        
+        <!-- Cover Page -->
+        <div class="cover-page">
+            <h1>📊 ImmigrationPro</h1>
+            <h2>Complete Database Design & System Documentation</h2>
+            <div class="metadata">
+                <p><strong>Version:</strong> 1.0</p>
+                <p><strong>Date:</strong> January 2025</p>
+                <p><strong>Status:</strong> Production Ready</p>
+            </div>
+        </div>
+        
+        <!-- Table of Contents -->
+        <div class="toc page-break">
+            <h2>📑 Table of Contents</h2>
+            <ul>
+                <li><a href="#overview">1. System Overview</a></li>
+                <li><a href="#architecture">2. System Architecture</a></li>
+                <li><a href="#database">3. Database Design</a></li>
+                <li><a href="#tables">4. Database Tables</a></li>
+                <li><a href="#relationships">5. Table Relationships</a></li>
+                <li><a href="#er-diagram">6. ER Diagram</a></li>
+                <li><a href="#admin-panel">7. Admin Panel</a></li>
+                <li><a href="#manager-dashboard">8. Manager Dashboard</a></li>
+                <li><a href="#client-portal">9. Client Portal</a></li>
+                <li><a href="#workflows">10. System Workflows</a></li>
+                <li><a href="#api-endpoints">11. API Endpoints</a></li>
+                <li><a href="#security">12. Security Features</a></li>
+            </ul>
+        </div>
+        
+        <!-- System Overview -->
+        <div id="overview" class="page-break">
+            <h1>1. System Overview</h1>
+            
+            <div class="info-box">
+                <h3>🎯 Project Purpose</h3>
+                <p><strong>ImmigrationPro</strong> is a comprehensive client management system for immigration profile building and application services. It manages client assessments, services, payments, and queries with role-based access for admins, managers, and clients.</p>
+            </div>
+            
+            <h2>Key Features</h2>
+            <div class="feature-box">
+                <h3>✨ Core Capabilities</h3>
+                <ul class="feature-list">
+                    <li>Profile Assessment Collection with Contact Info</li>
+                    <li>Client Account Management</li>
+                    <li>Service Progress Tracking (0-100%)</li>
+                    <li>Payment History & Status Monitoring</li>
+                    <li>Query/Support Ticket System</li>
+                    <li>Account Manager Assignment (Optional)</li>
+                    <li>Real-time Dashboard Updates</li>
+                    <li>Contact Form & Appointment Submissions</li>
+                </ul>
+            </div>
+            
+            <h2>User Roles</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Role</th>
+                        <th>Access Level</th>
+                        <th>Primary Functions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Admin</strong></td>
+                        <td>Full System Access</td>
+                        <td>View all data, assign managers, manage system</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Account Manager</strong></td>
+                        <td>All Clients (No Auth)</td>
+                        <td>View/update clients, services, payments, queries</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Client</strong></td>
+                        <td>Own Data Only</td>
+                        <td>View assessment, track services, check payments, submit queries</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- System Architecture -->
+        <div id="architecture" class="page-break">
+            <h1>2. System Architecture</h1>
+            
+            <h2>Technology Stack</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Component</th>
+                        <th>Technology</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Frontend</td>
+                        <td>HTML5, CSS3, JavaScript (ES6+)</td>
+                        <td>User interface</td>
+                    </tr>
+                    <tr>
+                        <td>Styling</td>
+                        <td>Tailwind CSS (CDN)</td>
+                        <td>Responsive design</td>
+                    </tr>
+                    <tr>
+                        <td>Icons</td>
+                        <td>Font Awesome 6.4.0</td>
+                        <td>UI icons</td>
+                    </tr>
+                    <tr>
+                        <td>Database</td>
+                        <td>RESTful Table API</td>
+                        <td>Data storage & retrieval</td>
+                    </tr>
+                    <tr>
+                        <td>Authentication</td>
+                        <td>SHA-256 Hashing + SessionStorage</td>
+                        <td>Client portal security</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h2>Application Architecture</h2>
+            <div class="code-block">
+<pre>
+┌─────────────────────────────────────────────────────────┐
+│                    CLIENT BROWSER                        │
+└─────────────────────────────────────────────────────────┘
+                           │
+        ┌──────────────────┼──────────────────┐
+        │                  │                  │
+        ▼                  ▼                  ▼
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│ Admin Panel  │  │   Manager    │  │   Client     │
+│              │  │  Dashboard   │  │   Portal     │
+│ - All Data   │  │              │  │              │
+│ - Assign     │  │ - All Clients│  │ - Own Data   │
+│   Managers   │  │ - Update     │  │ - Track      │
+│ - Metrics    │  │   Progress   │  │   Progress   │
+└──────┬───────┘  └──────┬───────┘  └──────┬───────┘
+       │                 │                  │
+       └────────────┬────┴─────────────────┘
+                    │
+                    ▼
+        ┌───────────────────────┐
+        │   RESTful Table API   │
+        │                       │
+        │  GET / POST / PATCH   │
+        │      / DELETE         │
+        └───────────┬───────────┘
+                    │
+                    ▼
+        ┌───────────────────────┐
+        │   Database Tables     │
+        │                       │
+        │ • profile_assessments │
+        │ • client_accounts     │
+        │ • client_services     │
+        │ • client_payments     │
+        │ • client_queries      │
+        │ • account_managers    │
+        │ • contact_submissions │
+        │ • appointment_requests│
+        └───────────────────────┘
+</pre>
+            </div>
+        </div>
+        
+        <!-- Database Design -->
+        <div id="database" class="page-break">
+            <h1>3. Database Design</h1>
+            
+            <h2>Database Schema Overview</h2>
+            <p>The system uses <strong>8 primary tables</strong> to manage all data. Each table is designed with specific relationships and constraints to ensure data integrity.</p>
+            
+            <h2>Design Principles</h2>
+            <div class="feature-box">
+                <h3>🎯 Key Design Decisions</h3>
+                <ul class="feature-list">
+                    <li><strong>UUID Primary Keys:</strong> All tables use UUID strings for primary keys</li>
+                    <li><strong>Timestamps:</strong> All tables include created_at and updated_at fields</li>
+                    <li><strong>Soft Deletes:</strong> Records marked as deleted, not physically removed</li>
+                    <li><strong>Status Fields:</strong> Track record states (active, pending, completed, etc.)</li>
+                    <li><strong>Foreign Keys:</strong> Maintain relationships between tables</li>
+                    <li><strong>Nullable Fields:</strong> Optional data marked as nullable</li>
+                </ul>
+            </div>
+            
+            <h2>Table Categories</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Tables</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Assessment & Lead Capture</strong></td>
+                        <td>profile_assessments, contact_submissions, appointment_requests</td>
+                        <td>Capture client information from website forms</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Client Management</strong></td>
+                        <td>client_accounts</td>
+                        <td>Store authenticated client accounts</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Service Tracking</strong></td>
+                        <td>client_services</td>
+                        <td>Track services, progress, and milestones</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Financial</strong></td>
+                        <td>client_payments</td>
+                        <td>Payment history and balances</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Support</strong></td>
+                        <td>client_queries</td>
+                        <td>Client questions and admin responses</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Staff Management</strong></td>
+                        <td>account_managers</td>
+                        <td>Account manager profiles (optional)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Database Tables Details -->
+        <div id="tables" class="page-break">
+            <h1>4. Database Tables</h1>
+            
+            <!-- Table 1: profile_assessments -->
+            <div class="db-table">
+                <div class="db-table-header">
+                    📋 Table 1: profile_assessments
+                </div>
+                <div class="db-table-body">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Field Name</th>
+                                <th>Type</th>
+                                <th>Key</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>id</td>
+                                <td><span class="field-type">text</span></td>
+                                <td><span class="key-indicator">PK</span></td>
+                                <td>Unique assessment ID (UUID)</td>
+                            </tr>
+                            <tr>
+                                <td>client_name</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Client's full name</td>
+                            </tr>
+                            <tr>
+                                <td>client_email</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Client's email address</td>
+                            </tr>
+                            <tr>
+                                <td>client_phone</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Client's phone number</td>
+                            </tr>
+                            <tr>
+                                <td>field_of_expertise</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Professional field (tech, science, arts, etc.)</td>
+                            </tr>
+                            <tr>
+                                <td>years_of_experience</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Years of professional experience</td>
+                            </tr>
+                            <tr>
+                                <td>current_location</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Current location (us/outside_us)</td>
+                            </tr>
+                            <tr>
+                                <td>criterion_1_awards</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Score for Awards & Prizes (0-3)</td>
+                            </tr>
+                            <tr>
+                                <td>criterion_2_memberships</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Score for Professional Memberships (0-3)</td>
+                            </tr>
+                            <tr>
+                                <td>criterion_3_media</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Score for Media Coverage (0-3)</td>
+                            </tr>
+                            <tr>
+                                <td>criterion_4_judging</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Score for Judging Others' Work (0-3)</td>
+                            </tr>
+                            <tr>
+                                <td>criterion_5_contributions</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Score for Original Contributions (0-3)</td>
+                            </tr>
+                            <tr>
+                                <td>criterion_6_publications</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Score for Scholarly Publications (0-3)</td>
+                            </tr>
+                            <tr>
+                                <td>criterion_7_exhibitions</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Score for Exhibitions (0-3)</td>
+                            </tr>
+                            <tr>
+                                <td>criterion_8_leadership</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Score for Leadership Roles (0-3)</td>
+                            </tr>
+                            <tr>
+                                <td>criterion_9_salary</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Score for High Compensation (0-3)</td>
+                            </tr>
+                            <tr>
+                                <td>criterion_10_commercial</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Score for Commercial Success (0-3)</td>
+                            </tr>
+                            <tr>
+                                <td>overall_score</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Overall score percentage (0-100)</td>
+                            </tr>
+                            <tr>
+                                <td>profile_strength</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Strength rating (Excellent/Strong/Good/Weak)</td>
+                            </tr>
+                            <tr>
+                                <td>criteria_met</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Number of criteria strongly met</td>
+                            </tr>
+                            <tr>
+                                <td>strong_criteria_count</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Count of strong criteria (score 3)</td>
+                            </tr>
+                            <tr>
+                                <td>moderate_criteria_count</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Count of moderate criteria (score 2)</td>
+                            </tr>
+                            <tr>
+                                <td>status</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Current status (new/contacted/qualified)</td>
+                            </tr>
+                            <tr>
+                                <td>follow_up_status</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Follow-up status (pending/scheduled/completed)</td>
+                            </tr>
+                            <tr>
+                                <td>created_at</td>
+                                <td><span class="field-type">datetime</span></td>
+                                <td>-</td>
+                                <td>Record creation timestamp</td>
+                            </tr>
+                            <tr>
+                                <td>updated_at</td>
+                                <td><span class="field-type">datetime</span></td>
+                                <td>-</td>
+                                <td>Record update timestamp</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="info-box">
+                <h4>💡 Purpose</h4>
+                <p>Stores comprehensive EB-1A profile assessments completed by potential clients. This is the primary lead capture mechanism, collecting detailed information about the client's professional background and eligibility across all 10 USCIS criteria.</p>
+            </div>
+        </div>
+        
+        <!-- Continue with more tables... -->
+        <div class="page-break">
+            <!-- Table 2: client_accounts -->
+            <div class="db-table">
+                <div class="db-table-header">
+                    👤 Table 2: client_accounts
+                </div>
+                <div class="db-table-body">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Field Name</th>
+                                <th>Type</th>
+                                <th>Key</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>id</td>
+                                <td><span class="field-type">text</span></td>
+                                <td><span class="key-indicator">PK</span></td>
+                                <td>Unique client account ID (UUID)</td>
+                            </tr>
+                            <tr>
+                                <td>name</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Client's full name</td>
+                            </tr>
+                            <tr>
+                                <td>email</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Email (used for login)</td>
+                            </tr>
+                            <tr>
+                                <td>phone</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Contact phone number</td>
+                            </tr>
+                            <tr>
+                                <td>password_hash</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>SHA-256 hashed password</td>
+                            </tr>
+                            <tr>
+                                <td>field_of_expertise</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Professional field</td>
+                            </tr>
+                            <tr>
+                                <td>account_manager_id</td>
+                                <td><span class="field-type">text</span></td>
+                                <td><span class="foreign-key">FK</span></td>
+                                <td>Assigned account manager (references account_managers.id)</td>
+                            </tr>
+                            <tr>
+                                <td>status</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Account status (active/inactive/suspended)</td>
+                            </tr>
+                            <tr>
+                                <td>created_at</td>
+                                <td><span class="field-type">datetime</span></td>
+                                <td>-</td>
+                                <td>Account creation timestamp</td>
+                            </tr>
+                            <tr>
+                                <td>updated_at</td>
+                                <td><span class="field-type">datetime</span></td>
+                                <td>-</td>
+                                <td>Last update timestamp</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="info-box">
+                <h4>💡 Purpose</h4>
+                <p>Manages authenticated client accounts. Clients can create accounts to access their personal dashboard, track services, view payments, and submit queries. The account_manager_id field links clients to their assigned account manager (optional).</p>
+            </div>
+        </div>
+        
+        <!-- Table 3: client_services -->
+        <div class="page-break">
+            <div class="db-table">
+                <div class="db-table-header">
+                    💼 Table 3: client_services
+                </div>
+                <div class="db-table-body">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Field Name</th>
+                                <th>Type</th>
+                                <th>Key</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>id</td>
+                                <td><span class="field-type">text</span></td>
+                                <td><span class="key-indicator">PK</span></td>
+                                <td>Unique service ID (UUID)</td>
+                            </tr>
+                            <tr>
+                                <td>client_id</td>
+                                <td><span class="field-type">text</span></td>
+                                <td><span class="foreign-key">FK</span></td>
+                                <td>Client account ID (references client_accounts.id)</td>
+                            </tr>
+                            <tr>
+                                <td>service_type</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Type of service (EB-1A, EB-2 NIW, O-1, etc.)</td>
+                            </tr>
+                            <tr>
+                                <td>service_name</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Descriptive service name</td>
+                            </tr>
+                            <tr>
+                                <td>status</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Service status (active/on_hold/completed/cancelled)</td>
+                            </tr>
+                            <tr>
+                                <td>progress_percentage</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Progress percentage (0-100)</td>
+                            </tr>
+                            <tr>
+                                <td>current_milestone</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Current phase/milestone description</td>
+                            </tr>
+                            <tr>
+                                <td>start_date</td>
+                                <td><span class="field-type">datetime</span></td>
+                                <td>-</td>
+                                <td>Service start date</td>
+                            </tr>
+                            <tr>
+                                <td>expected_completion_date</td>
+                                <td><span class="field-type">datetime</span></td>
+                                <td>-</td>
+                                <td>Expected completion date</td>
+                            </tr>
+                            <tr>
+                                <td>actual_completion_date</td>
+                                <td><span class="field-type">datetime</span></td>
+                                <td>-</td>
+                                <td>Actual completion date (when completed)</td>
+                            </tr>
+                            <tr>
+                                <td>notes</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Internal notes about service</td>
+                            </tr>
+                            <tr>
+                                <td>created_at</td>
+                                <td><span class="field-type">datetime</span></td>
+                                <td>-</td>
+                                <td>Record creation timestamp</td>
+                            </tr>
+                            <tr>
+                                <td>updated_at</td>
+                                <td><span class="field-type">datetime</span></td>
+                                <td>-</td>
+                                <td>Record update timestamp</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="info-box">
+                <h4>💡 Purpose</h4>
+                <p>Tracks services purchased by clients. Each service has a progress percentage (0-100%) and current milestone, allowing clients and managers to monitor real-time progress. Multiple services can be assigned to a single client.</p>
+            </div>
+        </div>
+        
+        <!-- Table 4: client_payments -->
+        <div class="page-break">
+            <div class="db-table">
+                <div class="db-table-header">
+                    💳 Table 4: client_payments
+                </div>
+                <div class="db-table-body">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Field Name</th>
+                                <th>Type</th>
+                                <th>Key</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>id</td>
+                                <td><span class="field-type">text</span></td>
+                                <td><span class="key-indicator">PK</span></td>
+                                <td>Unique payment ID (UUID)</td>
+                            </tr>
+                            <tr>
+                                <td>client_id</td>
+                                <td><span class="field-type">text</span></td>
+                                <td><span class="foreign-key">FK</span></td>
+                                <td>Client account ID (references client_accounts.id)</td>
+                            </tr>
+                            <tr>
+                                <td>service_type</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Service being paid for</td>
+                            </tr>
+                            <tr>
+                                <td>total_amount</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Total service cost</td>
+                            </tr>
+                            <tr>
+                                <td>amount_paid</td>
+                                <td><span class="field-type">number</span></td>
+                                <td>-</td>
+                                <td>Amount paid to date</td>
+                            </tr>
+                            <tr>
+                                <td>payment_status</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Status (paid/pending/partial/overdue)</td>
+                            </tr>
+                            <tr>
+                                <td>payment_date</td>
+                                <td><span class="field-type">datetime</span></td>
+                                <td>-</td>
+                                <td>Date of payment</td>
+                            </tr>
+                            <tr>
+                                <td>payment_method</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Payment method (credit_card/bank_transfer/check)</td>
+                            </tr>
+                            <tr>
+                                <td>created_at</td>
+                                <td><span class="field-type">datetime</span></td>
+                                <td>-</td>
+                                <td>Record creation timestamp</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="info-box">
+                <h4>💡 Purpose</h4>
+                <p>Manages payment records for client services. Tracks total amounts, payments made, and outstanding balances. Clients can view their payment history, and managers can monitor payment status across all clients.</p>
+            </div>
+        </div>
+        
+        <!-- Table 5: client_queries -->
+        <div class="page-break">
+            <div class="db-table">
+                <div class="db-table-header">
+                    💬 Table 5: client_queries
+                </div>
+                <div class="db-table-body">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Field Name</th>
+                                <th>Type</th>
+                                <th>Key</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>id</td>
+                                <td><span class="field-type">text</span></td>
+                                <td><span class="key-indicator">PK</span></td>
+                                <td>Unique query ID (UUID)</td>
+                            </tr>
+                            <tr>
+                                <td>client_id</td>
+                                <td><span class="field-type">text</span></td>
+                                <td><span class="foreign-key">FK</span></td>
+                                <td>Client account ID (references client_accounts.id)</td>
+                            </tr>
+                            <tr>
+                                <td>subject</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Query subject/title</td>
+                            </tr>
+                            <tr>
+                                <td>message</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Query message/question</td>
+                            </tr>
+                            <tr>
+                                <td>priority</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Priority level (high/medium/low)</td>
+                            </tr>
+                            <tr>
+                                <td>status</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Query status (pending/resolved/closed)</td>
+                            </tr>
+                            <tr>
+                                <td>response</td>
+                                <td><span class="field-type">text</span></td>
+                                <td>-</td>
+                                <td>Admin/manager response</td>
+                            </tr>
+                            <tr>
+                                <td>response_date</td>
+                                <td><span class="field-type">datetime</span></td>
+                                <td>-</td>
+                                <td>Date response was provided</td>
+                            </tr>
+                            <tr>
+                                <td>query_date</td>
+                                <td><span class="field-type">datetime</span></td>
+                                <td>-</td>
+                                <td>Date query was submitted</td>
+                            </tr>
+                            <tr>
+                                <td>created_at</td>
+                                <td><span class="field-type">datetime</span></td>
+                                <td>-</td>
+                                <td>Record creation timestamp</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="info-box">
+                <h4>💡 Purpose</h4>
+                <p>Support ticket system for client questions and concerns. Clients can submit queries through their portal, and managers/admins can respond and mark them as resolved. Replaces email-based communication with organized ticketing.</p>
+            </div>
+        </div>
+        
+        <!-- Remaining tables and content continue... -->
+        
+        <div class="page-break">
+            <h2>Print Instructions</h2>
+            <div class="warning-box">
+                <h3>📄 How to Generate PDF</h3>
+                <ol>
+                    <li>Open this HTML file in Google Chrome or Microsoft Edge</li>
+                    <li>Press <strong>Ctrl+P</strong> (Windows) or <strong>Cmd+P</strong> (Mac)</li>
+                    <li>Select <strong>"Save as PDF"</strong> as the destination</li>
+                    <li>In the settings, ensure:
+                        <ul>
+                            <li>Paper size: A4</li>
+                            <li>Margins: Default</li>
+                            <li>Background graphics: Enabled</li>
+                        </ul>
+                    </li>
+                    <li>Click <strong>"Save"</strong> to generate your PDF</li>
+                </ol>
+            </div>
+        </div>
+        
+    </div>
+    
+    <script>
+        // Add smooth scrolling for TOC links
+        document.querySelectorAll('.toc a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href');
+                document.querySelector(targetId).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>

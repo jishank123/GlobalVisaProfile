@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Contact, Appointment & Assessment Submissions</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#2563eb',
+                        'secondary': '#1e40af',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100">
+    
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-primary to-secondary text-white shadow-lg">
+        <div class="container mx-auto px-4 py-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold">
+                        <i class="fas fa-chart-line mr-2"></i>Admin Dashboard
+                    </h1>
+                    <p class="text-blue-100 mt-1">Contact Forms, Appointment Requests & Profile Assessments</p>
+                </div>
+                <a href="index.html" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors">
+                    <i class="fas fa-home mr-2"></i>Back to Website
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-4 py-8">
+        
+        <!-- Stats Cards -->
+        <div class="grid md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+            <div class="bg-white rounded-xl p-6 shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Total Contacts</p>
+                        <p id="total-contacts" class="text-3xl font-bold text-primary">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-envelope text-primary text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl p-6 shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Total Appointments</p>
+                        <p id="total-appointments" class="text-3xl font-bold text-green-600">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-calendar text-green-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl p-6 shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">New (Uncontacted)</p>
+                        <p id="new-contacts" class="text-3xl font-bold text-yellow-600">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-bell text-yellow-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl p-6 shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Pending Appointments</p>
+                        <p id="pending-appointments" class="text-3xl font-bold text-orange-600">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-clock text-orange-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl p-6 shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Profile Assessments</p>
+                        <p id="total-assessments" class="text-3xl font-bold text-purple-600">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-clipboard-check text-purple-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="bg-white rounded-xl shadow-md mb-6">
+            <div class="border-b border-gray-200">
+                <nav class="flex">
+                    <button onclick="showTab('contacts')" id="tab-contacts" class="tab-button flex-1 px-6 py-4 text-center font-semibold border-b-2 border-primary text-primary">
+                        <i class="fas fa-envelope mr-2"></i>Contact Submissions
+                    </button>
+                    <button onclick="showTab('appointments')" id="tab-appointments" class="tab-button flex-1 px-6 py-4 text-center font-semibold text-gray-500 hover:text-primary border-b-2 border-transparent">
+                        <i class="fas fa-calendar mr-2"></i>Appointment Requests
+                    </button>
+                    <button onclick="showTab('assessments')" id="tab-assessments" class="tab-button flex-1 px-6 py-4 text-center font-semibold text-gray-500 hover:text-primary border-b-2 border-transparent">
+                        <i class="fas fa-clipboard-check mr-2"></i>Profile Assessments
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Contact Submissions Table -->
+        <div id="contacts-section" class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-bold text-gray-900">
+                        <i class="fas fa-inbox mr-2 text-primary"></i>Contact Form Submissions
+                    </h2>
+                    <button onclick="loadContacts()" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-secondary transition-colors">
+                        <i class="fas fa-sync mr-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Phone</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Visa Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="contacts-table-body" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                                <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+                                <p>Loading contact submissions...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Appointments Table -->
+        <div id="appointments-section" class="bg-white rounded-xl shadow-md overflow-hidden hidden">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-bold text-gray-900">
+                        <i class="fas fa-calendar-check mr-2 text-green-600"></i>Appointment Requests
+                    </h2>
+                    <button onclick="loadAppointments()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-sync mr-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Phone</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Visa Category</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Preferred Date/Time</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="appointments-table-body" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                                <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+                                <p>Loading appointment requests...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Profile Assessments Table -->
+        <div id="assessments-section" class="bg-white rounded-xl shadow-md overflow-hidden hidden">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-bold text-gray-900">
+                        <i class="fas fa-clipboard-check mr-2 text-purple-600"></i>Profile Assessments
+                    </h2>
+                    <button onclick="loadAssessments()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
+                        <i class="fas fa-sync mr-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Field</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Score</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Strength</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Criteria Met</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="assessments-table-body" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="9" class="px-6 py-12 text-center text-gray-500">
+                                <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+                                <p>Loading profile assessments...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- View Details Modal -->
+    <div id="details-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-2xl font-bold text-gray-900">Submission Details</h3>
+                    <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="modal-content" class="p-6">
+                <!-- Content will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load contacts from database
+        async function loadContacts() {
+            try {
+                const response = await fetch('tables/contact_submissions?limit=100&sort=-submission_date');
+                const data = await response.json();
+                
+                const tbody = document.getElementById('contacts-table-body');
+                
+                if (data.data && data.data.length > 0) {
+                    document.getElementById('total-contacts').textContent = data.total || data.data.length;
+                    document.getElementById('new-contacts').textContent = data.data.filter(c => c.status === 'new').length;
+                    
+                    tbody.innerHTML = data.data.map(contact => `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                ${new Date(contact.submission_date).toLocaleString()}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                ${contact.name}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <a href="mailto:${contact.email}" class="text-primary hover:underline">
+                                    ${contact.email}
+                                </a>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <a href="tel:${contact.phone}" class="text-primary hover:underline">
+                                    ${contact.phone || 'N/A'}
+                                </a>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
+                                    ${contact.visa_type}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 ${getStatusColor(contact.status)} rounded-full text-xs font-semibold">
+                                    ${contact.status}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button onclick='viewDetails(${JSON.stringify(contact).replace(/'/g, "&apos;")}, "contact")' 
+                                        class="text-primary hover:text-secondary mr-3">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                                <button onclick="updateStatus('${contact.id}', 'contact_submissions')"
+                                        class="text-green-600 hover:text-green-800">
+                                    <i class="fas fa-check"></i> Update
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                                <i class="fas fa-inbox text-4xl mb-2 text-gray-400"></i>
+                                <p>No contact submissions yet</p>
+                            </td>
+                        </tr>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading contacts:', error);
+                document.getElementById('contacts-table-body').innerHTML = `
+                    <tr>
+                        <td colspan="7" class="px-6 py-12 text-center text-red-500">
+                            <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
+                            <p>Error loading contacts. Please refresh the page.</p>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Load appointments from database
+        async function loadAppointments() {
+            try {
+                const response = await fetch('tables/appointment_requests?limit=100&sort=-submission_date');
+                const data = await response.json();
+                
+                const tbody = document.getElementById('appointments-table-body');
+                
+                if (data.data && data.data.length > 0) {
+                    document.getElementById('total-appointments').textContent = data.total || data.data.length;
+                    document.getElementById('pending-appointments').textContent = data.data.filter(a => a.status === 'pending').length;
+                    document.getElementById('pending-appointments').textContent = data.data.filter(a => a.status === 'pending').length;
+                    
+                    tbody.innerHTML = data.data.map(appt => `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                ${new Date(appt.submission_date).toLocaleString()}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                ${appt.name}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <a href="mailto:${appt.email}" class="text-primary hover:underline">
+                                    ${appt.email}
+                                </a>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <a href="tel:${appt.phone}" class="text-primary hover:underline">
+                                    ${appt.phone}
+                                </a>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <span class="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-semibold">
+                                    ${appt.visa_category}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-900">
+                                ${appt.preferred_date || 'Not specified'}<br>
+                                ${appt.preferred_time || ''}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 ${getStatusColor(appt.status)} rounded-full text-xs font-semibold">
+                                    ${appt.status}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button onclick='viewDetails(${JSON.stringify(appt).replace(/'/g, "&apos;")}, "appointment")' 
+                                        class="text-primary hover:text-secondary mr-3">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                                <button onclick="updateStatus('${appt.id}', 'appointment_requests')"
+                                        class="text-green-600 hover:text-green-800">
+                                    <i class="fas fa-check"></i> Update
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                                <i class="fas fa-calendar text-4xl mb-2 text-gray-400"></i>
+                                <p>No appointment requests yet</p>
+                            </td>
+                        </tr>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading appointments:', error);
+                document.getElementById('appointments-table-body').innerHTML = `
+                    <tr>
+                        <td colspan="8" class="px-6 py-12 text-center text-red-500">
+                            <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
+                            <p>Error loading appointments. Please refresh the page.</p>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Load profile assessments from database
+        async function loadAssessments() {
+            try {
+                const response = await fetch('tables/profile_assessments?limit=100&sort=-created_at');
+                const data = await response.json();
+                
+                const tbody = document.getElementById('assessments-table-body');
+                
+                if (data.data && data.data.length > 0) {
+                    document.getElementById('total-assessments').textContent = data.total || data.data.length;
+                    
+                    tbody.innerHTML = data.data.map(assessment => `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                ${new Date(assessment.created_at).toLocaleString()}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                ${assessment.client_name}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <a href="mailto:${assessment.client_email}" class="text-primary hover:underline">
+                                    ${assessment.client_email}
+                                </a>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <span class="px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-semibold">
+                                    ${formatField(assessment.field_of_expertise)}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold ${getScoreColor(assessment.overall_score)}">
+                                ${assessment.overall_score}%
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="px-2 py-1 ${getStrengthColor(assessment.profile_strength)} rounded-full text-xs font-semibold">
+                                    ${assessment.profile_strength}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
+                                <span class="px-2 py-1 ${assessment.criteria_met >= 3 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} rounded-full text-xs font-semibold">
+                                    ${assessment.criteria_met} / 3
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 ${getStatusColor(assessment.status)} rounded-full text-xs font-semibold">
+                                    ${assessment.status}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button onclick='viewDetails(${JSON.stringify(assessment).replace(/'/g, "&apos;")}, "assessment")' 
+                                        class="text-primary hover:text-secondary mr-3">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                                <button onclick="updateStatus('${assessment.id}', 'profile_assessments')"
+                                        class="text-green-600 hover:text-green-800">
+                                    <i class="fas fa-check"></i> Update
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="9" class="px-6 py-12 text-center text-gray-500">
+                                <i class="fas fa-clipboard-check text-4xl mb-2 text-gray-400"></i>
+                                <p>No profile assessments yet</p>
+                            </td>
+                        </tr>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading assessments:', error);
+                document.getElementById('assessments-table-body').innerHTML = `
+                    <tr>
+                        <td colspan="9" class="px-6 py-12 text-center text-red-500">
+                            <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
+                            <p>Error loading assessments. Please refresh the page.</p>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Show tab
+        function showTab(tab) {
+            // Hide all sections
+            document.getElementById('contacts-section').classList.add('hidden');
+            document.getElementById('appointments-section').classList.add('hidden');
+            document.getElementById('assessments-section').classList.add('hidden');
+            
+            // Reset all tab styles
+            document.getElementById('tab-contacts').classList.remove('border-primary', 'text-primary');
+            document.getElementById('tab-contacts').classList.add('border-transparent', 'text-gray-500');
+            document.getElementById('tab-appointments').classList.remove('border-primary', 'text-primary');
+            document.getElementById('tab-appointments').classList.add('border-transparent', 'text-gray-500');
+            document.getElementById('tab-assessments').classList.remove('border-primary', 'text-primary');
+            document.getElementById('tab-assessments').classList.add('border-transparent', 'text-gray-500');
+            
+            // Show selected section and activate tab
+            if (tab === 'contacts') {
+                document.getElementById('contacts-section').classList.remove('hidden');
+                document.getElementById('tab-contacts').classList.add('border-primary', 'text-primary');
+                document.getElementById('tab-contacts').classList.remove('border-transparent', 'text-gray-500');
+            } else if (tab === 'appointments') {
+                document.getElementById('appointments-section').classList.remove('hidden');
+                document.getElementById('tab-appointments').classList.add('border-primary', 'text-primary');
+                document.getElementById('tab-appointments').classList.remove('border-transparent', 'text-gray-500');
+            } else if (tab === 'assessments') {
+                document.getElementById('assessments-section').classList.remove('hidden');
+                document.getElementById('tab-assessments').classList.add('border-primary', 'text-primary');
+                document.getElementById('tab-assessments').classList.remove('border-transparent', 'text-gray-500');
+            }
+        }
+
+        // Get status color
+        function getStatusColor(status) {
+            const colors = {
+                'new': 'bg-yellow-100 text-yellow-800',
+                'New': 'bg-yellow-100 text-yellow-800',
+                'pending': 'bg-orange-100 text-orange-800',
+                'Pending': 'bg-orange-100 text-orange-800',
+                'contacted': 'bg-blue-100 text-blue-800',
+                'Contacted': 'bg-blue-100 text-blue-800',
+                'confirmed': 'bg-green-100 text-green-800',
+                'Confirmed': 'bg-green-100 text-green-800',
+                'completed': 'bg-gray-100 text-gray-800',
+                'Completed': 'bg-gray-100 text-gray-800',
+                'cancelled': 'bg-red-100 text-red-800',
+                'Cancelled': 'bg-red-100 text-red-800'
+            };
+            return colors[status] || 'bg-gray-100 text-gray-800';
+        }
+        
+        // Format field of expertise
+        function formatField(field) {
+            const fields = {
+                'science': 'Science & Research',
+                'technology': 'Technology & Engineering',
+                'business': 'Business & Entrepreneurship',
+                'arts': 'Arts & Design',
+                'education': 'Education',
+                'athletics': 'Athletics & Sports',
+                'other': 'Other'
+            };
+            return fields[field] || field;
+        }
+        
+        // Get score color
+        function getScoreColor(score) {
+            if (score >= 80) return 'text-green-600';
+            if (score >= 60) return 'text-blue-600';
+            if (score >= 40) return 'text-yellow-600';
+            return 'text-red-600';
+        }
+        
+        // Get strength color
+        function getStrengthColor(strength) {
+            const colors = {
+                'Excellent': 'bg-green-100 text-green-800',
+                'Good': 'bg-blue-100 text-blue-800',
+                'Moderate': 'bg-yellow-100 text-yellow-800',
+                'Needs Development': 'bg-red-100 text-red-800'
+            };
+            return colors[strength] || 'bg-gray-100 text-gray-800';
+        }
+
+        // View details
+        function viewDetails(data, type) {
+            const modal = document.getElementById('details-modal');
+            const content = document.getElementById('modal-content');
+            
+            if (type === 'contact') {
+                content.innerHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Name:</label>
+                            <p class="text-gray-900">${data.name}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Email:</label>
+                            <p class="text-gray-900"><a href="mailto:${data.email}" class="text-primary hover:underline">${data.email}</a></p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Phone:</label>
+                            <p class="text-gray-900"><a href="tel:${data.phone}" class="text-primary hover:underline">${data.phone || 'N/A'}</a></p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Visa Type:</label>
+                            <p class="text-gray-900">${data.visa_type}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Message:</label>
+                            <p class="text-gray-900 bg-gray-50 p-4 rounded-lg">${data.message}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Submission Date:</label>
+                            <p class="text-gray-900">${new Date(data.submission_date).toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Status:</label>
+                            <p><span class="px-3 py-1 ${getStatusColor(data.status)} rounded-full text-sm font-semibold">${data.status}</span></p>
+                        </div>
+                    </div>
+                `;
+            } else if (type === 'appointment') {
+                content.innerHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Name:</label>
+                            <p class="text-gray-900">${data.name}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Email:</label>
+                            <p class="text-gray-900"><a href="mailto:${data.email}" class="text-primary hover:underline">${data.email}</a></p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Phone:</label>
+                            <p class="text-gray-900"><a href="tel:${data.phone}" class="text-primary hover:underline">${data.phone}</a></p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Visa Category:</label>
+                            <p class="text-gray-900">${data.visa_category}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Timezone:</label>
+                            <p class="text-gray-900">${data.timezone || 'Not specified'}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Preferred Date:</label>
+                            <p class="text-gray-900">${data.preferred_date || 'Not specified'}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Preferred Time:</label>
+                            <p class="text-gray-900">${data.preferred_time || 'Not specified'}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Consultation Type:</label>
+                            <p class="text-gray-900">${data.consultation_type || 'Not specified'}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Additional Details:</label>
+                            <p class="text-gray-900 bg-gray-50 p-4 rounded-lg">${data.details || 'No additional details provided'}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Submission Date:</label>
+                            <p class="text-gray-900">${new Date(data.submission_date).toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Status:</label>
+                            <p><span class="px-3 py-1 ${getStatusColor(data.status)} rounded-full text-sm font-semibold">${data.status}</span></p>
+                        </div>
+                    </div>
+                `;
+            } else if (type === 'assessment') {
+                const criteriaNames = [
+                    'Awards & Prizes', 'Professional Memberships', 'Media Coverage', 
+                    'Judging Others\' Work', 'Original Contributions', 'Scholarly Publications',
+                    'Exhibitions', 'Leadership Roles', 'High Compensation', 'Commercial Success'
+                ];
+                const criteriaScores = [
+                    data.criterion_1_awards, data.criterion_2_memberships, data.criterion_3_media,
+                    data.criterion_4_judging, data.criterion_5_contributions, data.criterion_6_publications,
+                    data.criterion_7_exhibitions, data.criterion_8_leadership, data.criterion_9_salary,
+                    data.criterion_10_commercial
+                ];
+                const scoreLabels = ['None', 'Weak', 'Moderate', 'Strong'];
+                
+                content.innerHTML = `
+                    <div class="space-y-6">
+                        <!-- Contact Info -->
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h4 class="font-bold text-gray-900 mb-3">Contact Information</h4>
+                            <div class="grid md:grid-cols-2 gap-3 text-sm">
+                                <div>
+                                    <label class="font-semibold text-gray-700">Name:</label>
+                                    <p class="text-gray-900">${data.client_name}</p>
+                                </div>
+                                <div>
+                                    <label class="font-semibold text-gray-700">Email:</label>
+                                    <p><a href="mailto:${data.client_email}" class="text-primary hover:underline">${data.client_email}</a></p>
+                                </div>
+                                <div>
+                                    <label class="font-semibold text-gray-700">Phone:</label>
+                                    <p><a href="tel:${data.client_phone}" class="text-primary hover:underline">${data.client_phone || 'Not provided'}</a></p>
+                                </div>
+                                <div>
+                                    <label class="font-semibold text-gray-700">Assessment Date:</label>
+                                    <p class="text-gray-900">${new Date(data.created_at).toLocaleString()}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Professional Background -->
+                        <div class="bg-indigo-50 p-4 rounded-lg">
+                            <h4 class="font-bold text-gray-900 mb-3">Professional Background</h4>
+                            <div class="grid md:grid-cols-3 gap-3 text-sm">
+                                <div>
+                                    <label class="font-semibold text-gray-700">Field:</label>
+                                    <p class="text-gray-900">${formatField(data.field_of_expertise)}</p>
+                                </div>
+                                <div>
+                                    <label class="font-semibold text-gray-700">Experience:</label>
+                                    <p class="text-gray-900">${data.years_of_experience} years</p>
+                                </div>
+                                <div>
+                                    <label class="font-semibold text-gray-700">Location:</label>
+                                    <p class="text-gray-900">${data.current_location === 'us' ? 'In US' : 'Outside US'}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Assessment Results -->
+                        <div class="bg-gradient-to-br from-purple-50 to-blue-50 p-4 rounded-lg">
+                            <h4 class="font-bold text-gray-900 mb-3">Assessment Results</h4>
+                            <div class="grid md:grid-cols-4 gap-3 text-center">
+                                <div class="bg-white p-3 rounded-lg">
+                                    <p class="text-3xl font-bold ${getScoreColor(data.overall_score)}">${data.overall_score}%</p>
+                                    <p class="text-xs text-gray-600">Overall Score</p>
+                                </div>
+                                <div class="bg-white p-3 rounded-lg">
+                                    <p class="text-3xl font-bold text-green-600">${data.strong_criteria_count}</p>
+                                    <p class="text-xs text-gray-600">Strong Criteria</p>
+                                </div>
+                                <div class="bg-white p-3 rounded-lg">
+                                    <p class="text-3xl font-bold text-yellow-600">${data.moderate_criteria_count}</p>
+                                    <p class="text-xs text-gray-600">Moderate Criteria</p>
+                                </div>
+                                <div class="bg-white p-3 rounded-lg">
+                                    <p class="text-3xl font-bold ${data.criteria_met >= 3 ? 'text-green-600' : 'text-red-600'}">${data.criteria_met} / 3</p>
+                                    <p class="text-xs text-gray-600">Criteria Met</p>
+                                </div>
+                            </div>
+                            <div class="mt-3 text-center">
+                                <span class="px-4 py-2 ${getStrengthColor(data.profile_strength)} rounded-full text-sm font-semibold">
+                                    Profile Strength: ${data.profile_strength}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <!-- Criteria Breakdown -->
+                        <div>
+                            <h4 class="font-bold text-gray-900 mb-3">Criteria Breakdown</h4>
+                            <div class="space-y-2">
+                                ${criteriaNames.map((name, i) => `
+                                    <div class="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                        <span class="text-sm text-gray-700">${i+1}. ${name}</span>
+                                        <span class="px-2 py-1 ${
+                                            criteriaScores[i] === 3 ? 'bg-green-100 text-green-800' :
+                                            criteriaScores[i] === 2 ? 'bg-yellow-100 text-yellow-800' :
+                                            criteriaScores[i] === 1 ? 'bg-orange-100 text-orange-800' :
+                                            'bg-gray-100 text-gray-800'
+                                        } rounded text-xs font-semibold">
+                                            ${scoreLabels[criteriaScores[i]]}
+                                        </span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <!-- Status -->
+                        <div class="flex items-center justify-between border-t pt-4">
+                            <div>
+                                <label class="text-sm font-semibold text-gray-700">Current Status:</label>
+                                <p><span class="px-3 py-1 ${getStatusColor(data.status)} rounded-full text-sm font-semibold">${data.status}</span></p>
+                            </div>
+                            <div>
+                                <label class="text-sm font-semibold text-gray-700">Follow-up:</label>
+                                <p><span class="px-3 py-1 ${getStatusColor(data.follow_up_status)} rounded-full text-sm font-semibold">${data.follow_up_status}</span></p>
+                            </div>
+                        </div>
+                        
+                        <!-- Assign Manager Button -->
+                        <div class="border-t pt-4 text-center">
+                            <button onclick='closeModal(); assignManager(${JSON.stringify(data).replace(/'/g, "&apos;")})' class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors">
+                                <i class="fas fa-user-plus mr-2"></i>Assign Account Manager
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            modal.classList.remove('hidden');
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('details-modal').classList.add('hidden');
+        }
+
+        // Update status
+        async function updateStatus(id, table) {
+            const newStatus = prompt('Enter new status (new, contacted, confirmed, completed, cancelled):');
+            if (!newStatus) return;
+            
+            try {
+                const response = await fetch(`tables/${table}/${id}`, {
+                    method: 'PATCH',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ status: newStatus })
+                });
+                
+                if (response.ok) {
+                    alert('Status updated successfully!');
+                    if (table === 'contact_submissions') {
+                        loadContacts();
+                    } else {
+                        loadAppointments();
+                    }
+                } else {
+                    alert('Failed to update status');
+                }
+            } catch (error) {
+                console.error('Error updating status:', error);
+                alert('Error updating status');
+            }
+        }
+
+        // Load Account Managers
+        let accountManagers = [];
+        
+        async function loadManagers() {
+            try {
+                const response = await fetch('tables/account_managers?limit=100');
+                const data = await response.json();
+                accountManagers = data.data;
+                console.log('Loaded managers:', accountManagers);
+            } catch (error) {
+                console.error('Error loading managers:', error);
+            }
+        }
+
+        // Assign Account Manager to Client
+        async function assignManager(assessmentData) {
+            if (accountManagers.length === 0) {
+                await loadManagers();
+            }
+
+            if (accountManagers.length === 0) {
+                alert('❌ No account managers available. Please create account managers first.');
+                return;
+            }
+
+            // Create options for manager selection
+            const managerOptions = accountManagers.map(manager => 
+                `<option value="${manager.id}">${manager.name} (${manager.email})</option>`
+            ).join('');
+
+            const modal = document.getElementById('submission-details-modal');
+            const content = document.getElementById('details-modal-content');
+            const title = document.getElementById('details-modal-title');
+
+            title.textContent = 'Assign Account Manager';
+            content.innerHTML = `
+                <div class="space-y-4">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-gray-900 mb-2">Client Information</h4>
+                        <p><strong>Name:</strong> ${assessmentData.client_name}</p>
+                        <p><strong>Email:</strong> ${assessmentData.client_email}</p>
+                        <p><strong>Field:</strong> ${formatField(assessmentData.field_of_expertise)}</p>
+                        <p><strong>Score:</strong> <span class="${getScoreColor(assessmentData.overall_score)}">${assessmentData.overall_score}%</span></p>
+                    </div>
+                    
+                    <form id="assign-manager-form">
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Select Account Manager</label>
+                            <select id="manager-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary" required>
+                                <option value="">-- Choose Manager --</option>
+                                ${managerOptions}
+                            </select>
+                        </div>
+                        
+                        <div class="flex justify-end gap-3">
+                            <button type="button" onclick="closeModal()" class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+                                Cancel
+                            </button>
+                            <button type="submit" class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-secondary">
+                                <i class="fas fa-user-check mr-2"></i>Assign Manager
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+
+            // Handle form submission
+            document.getElementById('assign-manager-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const managerId = document.getElementById('manager-select').value;
+
+                if (!managerId) {
+                    alert('Please select a manager');
+                    return;
+                }
+
+                try {
+                    // Check if client account exists
+                    const checkResponse = await fetch(`tables/client_accounts?search=${encodeURIComponent(assessmentData.client_email)}`);
+                    const checkData = await checkResponse.json();
+
+                    let clientId;
+                    
+                    if (checkData.data && checkData.data.length > 0) {
+                        // Client exists, update their account
+                        clientId = checkData.data[0].id;
+                        const updateResponse = await fetch(`tables/client_accounts/${clientId}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                account_manager_id: managerId
+                            })
+                        });
+
+                        if (!updateResponse.ok) throw new Error('Failed to assign manager');
+                    } else {
+                        // Create new client account
+                        const createResponse = await fetch('tables/client_accounts', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: assessmentData.client_name,
+                                email: assessmentData.client_email,
+                                phone: assessmentData.client_phone || '',
+                                password_hash: 'temp_' + Date.now(), // Temporary password
+                                field_of_expertise: assessmentData.field_of_expertise,
+                                account_manager_id: managerId,
+                                status: 'active'
+                            })
+                        });
+
+                        if (!createResponse.ok) throw new Error('Failed to create client account');
+                        const newClient = await createResponse.json();
+                        clientId = newClient.id;
+                    }
+
+                    const manager = accountManagers.find(m => m.id === managerId);
+                    alert(`✅ Successfully assigned ${manager.name} to ${assessmentData.client_name}!`);
+                    closeModal();
+                    loadAssessments(); // Refresh the list
+                } catch (error) {
+                    console.error('Error assigning manager:', error);
+                    alert('❌ Error assigning manager. Please try again.');
+                }
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async function() {
+            await loadManagers(); // Load managers first
+            loadContacts();
+            loadAppointments();
+            loadAssessments();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(() => {
+                loadContacts();
+                loadAppointments();
+                loadAssessments();
+            }, 30000);
+        });
+    </script>
+</body>
+</html>

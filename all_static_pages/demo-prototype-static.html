@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ImmigrationPro - Static Demo Prototype</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-assigned { background: #dbeafe; color: #1e40af; }
+        .status-in-progress { background: #fde68a; color: #78350f; }
+        .status-resolved { background: #d1fae5; color: #065f46; }
+        .status-closed { background: #e5e7eb; color: #374151; }
+        
+        .demo-badge {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-weight: bold;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .workflow-arrow {
+            font-size: 24px;
+            color: #667eea;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .story-card {
+            border-left: 4px solid #667eea;
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    
+    <div class="demo-badge">
+        🎬 STATIC DEMO
+    </div>
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg border-b-4 border-primary">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-globe-americas text-3xl text-blue-600"></i>
+                    <span class="text-2xl font-bold text-gray-800">ImmigrationPro</span>
+                    <span class="text-xs bg-yellow-400 text-black px-2 py-1 rounded ml-2">DEMO VERSION</span>
+                </div>
+                <div class="flex space-x-6">
+                    <a href="#user-form" class="text-gray-700 hover:text-blue-600 font-semibold">User Form</a>
+                    <a href="#admin-panel" class="text-gray-700 hover:text-blue-600 font-semibold">Admin Panel</a>
+                    <a href="#manager-dashboard" class="text-gray-700 hover:text-blue-600 font-semibold">Manager Dashboard</a>
+                    <a href="#client-portal" class="text-gray-700 hover:text-blue-600 font-semibold">Client Portal</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Demo Story Banner -->
+    <div class="bg-gradient-to-r from-purple-600 to-blue-600 text-white py-8">
+        <div class="container mx-auto px-4">
+            <h1 class="text-4xl font-bold text-center mb-4">📖 Demo Story: Follow Rajesh's Immigration Journey</h1>
+            <p class="text-center text-lg max-w-3xl mx-auto">
+                This static prototype demonstrates the complete workflow from when <strong>Rajesh Kumar</strong>, 
+                a software engineer, submits his EB-1A profile assessment through to resolution by our team. 
+                All data is hardcoded for demonstration purposes.
+            </p>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-8">
+
+        <!-- ============================================ -->
+        <!-- STEP 1: USER SUBMITS PROFILE ASSESSMENT -->
+        <!-- ============================================ -->
+        <section id="user-form" class="mb-16">
+            <div class="bg-white rounded-xl shadow-xl p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-3xl font-bold text-gray-900">
+                        <span class="bg-blue-600 text-white px-4 py-2 rounded-full mr-3">Step 1</span>
+                        User Submits Profile Assessment
+                    </h2>
+                    <span class="text-sm text-gray-500">All fields pre-filled with demo data</span>
+                </div>
+
+                <div class="story-card">
+                    <p class="text-gray-700 mb-2"><strong>📖 Story Context:</strong></p>
+                    <p class="text-gray-600">
+                        <strong>Rajesh Kumar</strong>, a Senior Software Engineer from Bangalore, India, 
+                        has 8 years of experience in AI/Machine Learning. He's published 12 research papers, 
+                        has 500+ citations, and wants to apply for EB-1A. He fills out the assessment form below.
+                    </p>
+                </div>
+
+                <form class="space-y-6">
+                    <!-- Contact Information -->
+                    <div class="bg-blue-50 p-6 rounded-lg">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">📋 Contact Information</h3>
+                        <div class="grid md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
+                                <input type="text" value="Rajesh Kumar" 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                                <input type="email" value="rajesh.kumar@techcorp.com" 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Phone</label>
+                                <input type="tel" value="+91-98765-43210" 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Professional Background -->
+                    <div class="bg-green-50 p-6 rounded-lg">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">💼 Professional Background</h3>
+                        <div class="grid md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Field of Expertise</label>
+                                <input type="text" value="Artificial Intelligence / Machine Learning" 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Years of Experience</label>
+                                <input type="number" value="8" 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Current Location</label>
+                                <input type="text" value="Bangalore, India" 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Assessment Scores -->
+                    <div class="bg-purple-50 p-6 rounded-lg">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">🎯 EB-1A Criteria Assessment</h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div class="bg-white p-4 rounded border-l-4 border-green-500">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Publications</label>
+                                <input type="text" value="12 peer-reviewed papers (Strong)" 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-green-50" readonly>
+                            </div>
+                            <div class="bg-white p-4 rounded border-l-4 border-green-500">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Citations</label>
+                                <input type="text" value="500+ citations (Strong)" 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-green-50" readonly>
+                            </div>
+                            <div class="bg-white p-4 rounded border-l-4 border-yellow-500">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Awards</label>
+                                <input type="text" value="2 industry awards (Moderate)" 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-yellow-50" readonly>
+                            </div>
+                            <div class="bg-white p-4 rounded border-l-4 border-green-500">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Leadership</label>
+                                <input type="text" value="Team Lead, Tech Lead roles (Strong)" 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-green-50" readonly>
+                            </div>
+                            <div class="bg-white p-4 rounded border-l-4 border-yellow-500">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Media Coverage</label>
+                                <input type="text" value="Featured in 3 tech magazines (Moderate)" 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-yellow-50" readonly>
+                            </div>
+                            <div class="bg-white p-4 rounded border-l-4 border-green-500">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Original Contributions</label>
+                                <input type="text" value="3 ML algorithms, 2 patents (Strong)" 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-green-50" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Assessment Results -->
+                    <div class="bg-gradient-to-r from-green-400 to-blue-500 p-6 rounded-lg text-white">
+                        <h3 class="text-2xl font-bold mb-4">✅ Assessment Results</h3>
+                        <div class="grid md:grid-cols-3 gap-4">
+                            <div class="bg-white bg-opacity-20 p-4 rounded">
+                                <div class="text-4xl font-bold">87%</div>
+                                <div class="text-sm">Overall Score</div>
+                            </div>
+                            <div class="bg-white bg-opacity-20 p-4 rounded">
+                                <div class="text-4xl font-bold">7/10</div>
+                                <div class="text-sm">Criteria Met</div>
+                            </div>
+                            <div class="bg-white bg-opacity-20 p-4 rounded">
+                                <div class="text-4xl font-bold">Strong</div>
+                                <div class="text-sm">Profile Strength</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <button type="button" class="bg-green-600 text-white px-8 py-4 rounded-xl text-lg font-bold hover:bg-green-700 transition shadow-lg">
+                            ✓ Assessment Submitted (Demo)
+                        </button>
+                        <p class="text-sm text-gray-500 mt-2">In real system: Data saved to database</p>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <div class="workflow-arrow">
+            <i class="fas fa-arrow-down"></i>
+            <p class="text-sm text-gray-600 mt-2">Data flows to Admin Panel</p>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- STEP 2: ADMIN PANEL - VIEW & ASSIGN -->
+        <!-- ============================================ -->
+        <section id="admin-panel" class="mb-16">
+            <div class="bg-white rounded-xl shadow-xl p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-3xl font-bold text-gray-900">
+                        <span class="bg-purple-600 text-white px-4 py-2 rounded-full mr-3">Step 2</span>
+                        Admin Panel - Profile Assessments
+                    </h2>
+                </div>
+
+                <div class="story-card">
+                    <p class="text-gray-700 mb-2"><strong>📖 Story Context:</strong></p>
+                    <p class="text-gray-600">
+                        Admin <strong>Sarah Johnson</strong> reviews incoming assessments. She sees Rajesh's high score (87%) 
+                        and decides to assign him to <strong>Sandeep Kumar</strong>, a senior account manager specializing 
+                        in tech industry EB-1A cases. Below are 5 recent assessments showing different stages.
+                    </p>
+                </div>
+
+                <!-- Statistics -->
+                <div class="grid md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-blue-100 p-4 rounded-lg">
+                        <div class="text-3xl font-bold text-blue-600">24</div>
+                        <div class="text-sm text-gray-700">Total Assessments</div>
+                    </div>
+                    <div class="bg-yellow-100 p-4 rounded-lg">
+                        <div class="text-3xl font-bold text-yellow-600">8</div>
+                        <div class="text-sm text-gray-700">Pending Review</div>
+                    </div>
+                    <div class="bg-green-100 p-4 rounded-lg">
+                        <div class="text-3xl font-bold text-green-600">12</div>
+                        <div class="text-sm text-gray-700">Assigned</div>
+                    </div>
+                    <div class="bg-purple-100 p-4 rounded-lg">
+                        <div class="text-3xl font-bold text-purple-600">4</div>
+                        <div class="text-sm text-gray-700">Converted to Clients</div>
+                    </div>
+                </div>
+
+                <!-- Assessment Table -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Field</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Score</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Criteria</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Manager</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            <!-- Row 1: PENDING - Our Main Character (Rajesh) -->
+                            <tr class="bg-yellow-50 border-l-4 border-yellow-500">
+                                <td class="px-6 py-4 text-sm">Jan 20, 2025<br><span class="text-xs text-gray-500">9:30 AM</span></td>
+                                <td class="px-6 py-4">
+                                    <div class="font-semibold text-blue-600">Rajesh Kumar ⭐</div>
+                                    <div class="text-xs text-gray-500">rajesh.kumar@techcorp.com</div>
+                                    <div class="text-xs text-gray-500">+91-98765-43210</div>
+                                </td>
+                                <td class="px-6 py-4 text-sm">AI / Machine Learning</td>
+                                <td class="px-6 py-4">
+                                    <div class="text-2xl font-bold text-green-600">87%</div>
+                                    <div class="text-xs text-gray-500">Excellent</div>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <div class="text-lg font-bold text-green-600">7/10</div>
+                                    <div class="text-xs text-gray-500">Strong</div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="status-pending px-3 py-1 rounded-full text-xs font-bold">
+                                        ⏳ PENDING
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-500">Not assigned</td>
+                                <td class="px-6 py-4">
+                                    <button class="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold hover:bg-blue-700">
+                                        View & Assign
+                                    </button>
+                                </td>
+                            </tr>
+
+                            <!-- Row 2: ASSIGNED - Recently assigned -->
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 text-sm">Jan 19, 2025<br><span class="text-xs text-gray-500">2:15 PM</span></td>
+                                <td class="px-6 py-4">
+                                    <div class="font-semibold">Priya Sharma</div>
+                                    <div class="text-xs text-gray-500">priya.sharma@biotech.com</div>
+                                    <div class="text-xs text-gray-500">+1-415-555-0123</div>
+                                </td>
+                                <td class="px-6 py-4 text-sm">Biotechnology</td>
+                                <td class="px-6 py-4">
+                                    <div class="text-2xl font-bold text-blue-600">82%</div>
+                                    <div class="text-xs text-gray-500">Strong</div>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <div class="text-lg font-bold text-blue-600">6/10</div>
+                                    <div class="text-xs text-gray-500">Good</div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="status-assigned px-3 py-1 rounded-full text-xs font-bold">
+                                        👤 ASSIGNED
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-sm">
+                                    <div class="font-semibold text-blue-600">Preet Singh</div>
+                                    <div class="text-xs text-gray-500">Jan 19, 3:00 PM</div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <button class="bg-gray-300 text-gray-700 px-4 py-2 rounded text-xs font-bold cursor-not-allowed">
+                                        Assigned
+                                    </button>
+                                </td>
+                            </tr>
+
+                            <!-- Row 3: IN PROGRESS - Service started -->
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 text-sm">Jan 18, 2025<br><span class="text-xs text-gray-500">11:00 AM</span></td>
+                                <td class="px-6 py-4">
+                                    <div class="font-semibold">Michael Chen</div>
+                                    <div class="text-xs text-gray-500">mchen@fintech.com</div>
+                                    <div class="text-xs text-gray-500">+1-650-555-0456</div>
+                                </td>
+                                <td class="px-6 py-4 text-sm">Financial Technology</td>
+                                <td class="px-6 py-4">
+                                    <div class="text-2xl font-bold text-green-600">91%</div>
+                                    <div class="text-xs text-gray-500">Excellent</div>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <div class="text-lg font-bold text-green-600">8/10</div>
+                                    <div class="text-xs text-gray-500">Very Strong</div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="status-in-progress px-3 py-1 rounded-full text-xs font-bold">
+                                        🔄 IN PROGRESS
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-sm">
+                                    <div class="font-semibold text-blue-600">Sandeep Kumar</div>
+                                    <div class="text-xs text-gray-500">Service: EB-1A (35%)</div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <button class="bg-green-600 text-white px-4 py-2 rounded text-xs font-bold hover:bg-green-700">
+                                        View Details
+                                    </button>
+                                </td>
+                            </tr>
+
+                            <!-- Row 4: RESOLVED - Consultation completed -->
+                            <tr class="bg-green-50 hover:bg-green-100">
+                                <td class="px-6 py-4 text-sm">Jan 15, 2025<br><span class="text-xs text-gray-500">4:30 PM</span></td>
+                                <td class="px-6 py-4">
+                                    <div class="font-semibold">Anita Desai</div>
+                                    <div class="text-xs text-gray-500">anita.d@pharma.com</div>
+                                    <div class="text-xs text-gray-500">+1-212-555-0789</div>
+                                </td>
+                                <td class="px-6 py-4 text-sm">Pharmaceutical Research</td>
+                                <td class="px-6 py-4">
+                                    <div class="text-2xl font-bold text-blue-600">79%</div>
+                                    <div class="text-xs text-gray-500">Good</div>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <div class="text-lg font-bold text-blue-600">5/10</div>
+                                    <div class="text-xs text-gray-500">Moderate</div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="status-resolved px-3 py-1 rounded-full text-xs font-bold">
+                                        ✅ CONVERTED
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-sm">
+                                    <div class="font-semibold text-blue-600">Deepali Sharma</div>
+                                    <div class="text-xs text-green-600">Client since Jan 16</div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <button class="bg-purple-600 text-white px-4 py-2 rounded text-xs font-bold hover:bg-purple-700">
+                                        View Client
+                                    </button>
+                                </td>
+                            </tr>
+
+                            <!-- Row 5: CLOSED - Not pursuing -->
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 text-sm">Jan 12, 2025<br><span class="text-xs text-gray-500">10:00 AM</span></td>
+                                <td class="px-6 py-4">
+                                    <div class="font-semibold text-gray-500">David Wilson</div>
+                                    <div class="text-xs text-gray-400">dwilson@startup.com</div>
+                                    <div class="text-xs text-gray-400">+1-415-555-0321</div>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-500">Software Engineering</td>
+                                <td class="px-6 py-4">
+                                    <div class="text-2xl font-bold text-orange-600">62%</div>
+                                    <div class="text-xs text-gray-500">Fair</div>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <div class="text-lg font-bold text-orange-600">3/10</div>
+                                    <div class="text-xs text-gray-500">Weak</div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="status-closed px-3 py-1 rounded-full text-xs font-bold">
+                                        ⛔ CLOSED
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-400">Not qualified</td>
+                                <td class="px-6 py-4">
+                                    <button class="bg-gray-200 text-gray-500 px-4 py-2 rounded text-xs font-bold cursor-not-allowed">
+                                        Closed
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Admin Action Section -->
+                <div class="mt-8 p-6 bg-blue-50 border-2 border-blue-300 rounded-lg">
+                    <h3 class="text-xl font-bold text-gray-900 mb-4">👨‍💼 Admin Action: Assign Rajesh to Manager</h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Select Account Manager</label>
+                            <select class="w-full px-4 py-3 border-2 border-blue-300 rounded-lg bg-white">
+                                <option>-- Choose Manager --</option>
+                                <option selected>✓ Sandeep Kumar (Tech Specialist)</option>
+                                <option>Preet Singh (Life Sciences)</option>
+                                <option>Deepali Sharma (Business/Finance)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Priority Level</label>
+                            <select class="w-full px-4 py-3 border-2 border-blue-300 rounded-lg bg-white">
+                                <option>Normal</option>
+                                <option selected>✓ High (87% score)</option>
+                                <option>Urgent</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <button class="bg-green-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-green-700 transition shadow-lg">
+                            ✓ Assign Rajesh to Sandeep Kumar (Demo)
+                        </button>
+                        <p class="text-sm text-gray-600 mt-2">In real system: Updates client_accounts.account_manager_id</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="workflow-arrow">
+            <i class="fas fa-arrow-down"></i>
+            <p class="text-sm text-gray-600 mt-2">Assignment flows to Manager Dashboard</p>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- STEP 3: MANAGER DASHBOARD -->
+        <!-- ============================================ -->
+        <section id="manager-dashboard" class="mb-16">
+            <div class="bg-white rounded-xl shadow-xl p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-3xl font-bold text-gray-900">
+                        <span class="bg-green-600 text-white px-4 py-2 rounded-full mr-3">Step 3</span>
+                        Manager Dashboard - Sandeep Kumar
+                    </h2>
+                </div>
+
+                <div class="story-card">
+                    <p class="text-gray-700 mb-2"><strong>📖 Story Context:</strong></p>
+                    <p class="text-gray-600">
+                        <strong>Sandeep Kumar</strong> (Senior Account Manager - Tech Industry Specialist) logs into 
+                        his dashboard and sees Rajesh has been assigned to him. He reviews Rajesh's strong profile 
+                        (87%, 7 criteria), calls him immediately, and signs him up for the EB-1A Premium Package ($15,000). 
+                        Below are Sandeep's active clients.
+                    </p>
+                </div>
+
+                <!-- Manager Stats -->
+                <div class="grid md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-blue-100 p-4 rounded-lg">
+                        <div class="text-3xl font-bold text-blue-600">8</div>
+                        <div class="text-sm text-gray-700">Total Clients</div>
+                    </div>
+                    <div class="bg-green-100 p-4 rounded-lg">
+                        <div class="text-3xl font-bold text-green-600">5</div>
+                        <div class="text-sm text-gray-700">Active Services</div>
+                    </div>
+                    <div class="bg-yellow-100 p-4 rounded-lg">
+                        <div class="text-3xl font-bold text-yellow-600">2</div>
+                        <div class="text-sm text-gray-700">Pending Queries</div>
+                    </div>
+                    <div class="bg-purple-100 p-4 rounded-lg">
+                        <div class="text-3xl font-bold text-purple-600">$75K</div>
+                        <div class="text-sm text-gray-700">Total Revenue</div>
+                    </div>
+                </div>
+
+                <!-- Clients Table -->
+                <h3 class="text-xl font-bold text-gray-900 mb-4">👥 My Clients</h3>
+                <div class="overflow-x-auto mb-8">
+                    <table class="min-w-full bg-white border border-gray-200">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Client Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Contact</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Field</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Score</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            <!-- Our main character - newly assigned -->
+                            <tr class="bg-yellow-50 border-l-4 border-yellow-500">
+                                <td class="px-6 py-4">
+                                    <div class="font-bold text-blue-600">Rajesh Kumar ⭐ NEW</div>
+                                    <div class="text-xs text-gray-500">Assigned: Jan 20, 10:00 AM</div>
+                                </td>
+                                <td class="px-6 py-4 text-sm">
+                                    <a href="mailto:rajesh.kumar@techcorp.com" class="text-blue-600 hover:underline">rajesh.kumar@techcorp.com</a><br>
+                                    <a href="tel:+919876543210" class="text-blue-600 hover:underline">+91-98765-43210</a>
+                                </td>
+                                <td class="px-6 py-4 text-sm">AI / ML</td>
+                                <td class="px-6 py-4">
+                                    <div class="text-xl font-bold text-green-600">87%</div>
+                                    <div class="text-xs">7/10 criteria</div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="bg-yellow-200 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold">
+                                        📞 TO CONTACT
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <button class="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold hover:bg-blue-700">
+                                        Call Now
+                                    </button>
+                                </td>
+                            </tr>
+
+                            <!-- Other clients -->
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4">
+                                    <div class="font-semibold">Michael Chen</div>
+                                    <div class="text-xs text-gray-500">Client since: Jan 18</div>
+                                </td>
+                                <td class="px-6 py-4 text-sm">
+                                    <a href="mailto:mchen@fintech.com" class="text-blue-600 hover:underline">mchen@fintech.com</a><br>
+                                    <a href="tel:+16505550456" class="text-blue-600 hover:underline">+1-650-555-0456</a>
+                                </td>
+                                <td class="px-6 py-4 text-sm">FinTech</td>
+                                <td class="px-6 py-4">
+                                    <div class="text-xl font-bold text-green-600">91%</div>
+                                    <div class="text-xs">8/10 criteria</div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="bg-green-200 text-green-800 px-3 py-1 rounded-full text-xs font-bold">
+                                        ✓ ACTIVE
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <button class="bg-gray-600 text-white px-4 py-2 rounded text-xs font-bold hover:bg-gray-700">
+                                        View Details
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Services Management -->
+                <h3 class="text-xl font-bold text-gray-900 mb-4">💼 Active Services</h3>
+                <div class="space-y-4">
+                    <!-- Service 1: Michael Chen -->
+                    <div class="border-2 border-gray-200 rounded-lg p-6 hover:shadow-lg transition">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h4 class="text-lg font-bold text-gray-900">Michael Chen - EB-1A Application</h4>
+                                <p class="text-sm text-gray-600">Started: Jan 18, 2025 | Expected: July 18, 2025</p>
+                            </div>
+                            <span class="bg-green-200 text-green-800 px-3 py-1 rounded-full text-xs font-bold">ACTIVE</span>
+                        </div>
+                        <div class="mb-4">
+                            <div class="flex justify-between text-sm mb-2">
+                                <span class="font-semibold">Progress:</span>
+                                <span class="font-bold text-blue-600">35%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-4">
+                                <div class="bg-blue-600 h-4 rounded-full" style="width: 35%"></div>
+                            </div>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded mb-4">
+                            <p class="text-sm font-semibold text-gray-700">📝 Current Milestone:</p>
+                            <p class="text-gray-900">Evidence Package Assembly - Gathering recommendation letters</p>
+                        </div>
+                        <button class="bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700">
+                            Update Progress →
+                        </button>
+                    </div>
+
+                    <!-- Service 2: Placeholder for Rajesh (will be created) -->
+                    <div class="border-2 border-dashed border-yellow-400 rounded-lg p-6 bg-yellow-50">
+                        <div class="flex items-center">
+                            <i class="fas fa-hourglass-half text-3xl text-yellow-600 mr-4"></i>
+                            <div>
+                                <h4 class="text-lg font-bold text-gray-900">Rajesh Kumar - Service Pending</h4>
+                                <p class="text-sm text-gray-600">After initial consultation, service will be created here</p>
+                                <p class="text-xs text-yellow-700 mt-2">Expected: EB-1A Premium Package ($15,000)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Manager Action -->
+                <div class="mt-8 p-6 bg-green-50 border-2 border-green-300 rounded-lg">
+                    <h3 class="text-xl font-bold text-gray-900 mb-4">📞 Next Action: Contact Rajesh</h3>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-700 mb-2">Call Log:</p>
+                            <textarea class="w-full px-4 py-2 border rounded-lg" rows="3" placeholder="Call notes...">Called Rajesh at 10:30 AM. Very interested in EB-1A. Strong profile with 12 publications and 500+ citations. Scheduled detailed consultation for Jan 22, 2 PM. Sending EB-1A Premium Package proposal ($15,000).</textarea>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-gray-700 mb-2">Follow-up Actions:</p>
+                            <div class="space-y-2">
+                                <label class="flex items-center">
+                                    <input type="checkbox" checked class="mr-2">
+                                    <span class="text-sm">Initial call completed</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" checked class="mr-2">
+                                    <span class="text-sm">Sent package proposal email</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="mr-2">
+                                    <span class="text-sm">Consultation scheduled</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="mr-2">
+                                    <span class="text-sm">Contract signed</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="mt-4 bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition">
+                        ✓ Save Notes & Update Status (Demo)
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <div class="workflow-arrow">
+            <i class="fas fa-arrow-down"></i>
+            <p class="text-sm text-gray-600 mt-2">After contract signed, client gets portal access</p>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- STEP 4: CLIENT PORTAL -->
+        <!-- ============================================ -->
+        <section id="client-portal" class="mb-16">
+            <div class="bg-white rounded-xl shadow-xl p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-3xl font-bold text-gray-900">
+                        <span class="bg-orange-600 text-white px-4 py-2 rounded-full mr-3">Step 4</span>
+                        Client Portal - Rajesh's View
+                    </h2>
+                </div>
+
+                <div class="story-card">
+                    <p class="text-gray-700 mb-2"><strong>📖 Story Context:</strong></p>
+                    <p class="text-gray-600">
+                        After signing the contract on <strong>Jan 22, 2025</strong>, Rajesh receives login credentials 
+                        to his client portal. He can now track his EB-1A application progress in real-time, view payment 
+                        status, and communicate with Sandeep through the query system. Below is what Rajesh sees 
+                        (showing data 2 months into service).
+                    </p>
+                </div>
+
+                <!-- Welcome Section -->
+                <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-lg mb-6">
+                    <h3 class="text-2xl font-bold mb-2">Welcome back, Rajesh! 👋</h3>
+                    <p class="text-sm">Last login: March 20, 2025 at 9:45 AM</p>
+                </div>
+
+                <!-- Tabs -->
+                <div class="mb-6">
+                    <div class="flex space-x-4 border-b-2 border-gray-200">
+                        <button class="px-4 py-2 font-bold text-blue-600 border-b-4 border-blue-600">Overview</button>
+                        <button class="px-4 py-2 font-bold text-gray-500">Assessment</button>
+                        <button class="px-4 py-2 font-bold text-gray-500">Services</button>
+                        <button class="px-4 py-2 font-bold text-gray-500">Payments</button>
+                        <button class="px-4 py-2 font-bold text-gray-500">Queries</button>
+                    </div>
+                </div>
+
+                <!-- Overview Content -->
+                <div class="grid md:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-blue-50 p-6 rounded-lg border-l-4 border-blue-500">
+                        <h4 class="text-lg font-bold text-gray-900 mb-4">📊 Your Assessment Results</h4>
+                        <div class="space-y-3">
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-sm font-semibold">Overall Score:</span>
+                                    <span class="text-xl font-bold text-green-600">87%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-3">
+                                    <div class="bg-green-500 h-3 rounded-full" style="width: 87%"></div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 mt-4">
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-blue-600">7/10</div>
+                                    <div class="text-xs text-gray-600">Criteria Met</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-green-600">Strong</div>
+                                    <div class="text-xs text-gray-600">Profile Strength</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-green-50 p-6 rounded-lg border-l-4 border-green-500">
+                        <h4 class="text-lg font-bold text-gray-900 mb-4">💼 Active Service</h4>
+                        <div class="mb-3">
+                            <p class="font-bold text-gray-900">EB-1A Application Preparation</p>
+                            <p class="text-sm text-gray-600">Started: Jan 22, 2025</p>
+                        </div>
+                        <div class="mb-3">
+                            <div class="flex justify-between mb-1">
+                                <span class="text-sm font-semibold">Progress:</span>
+                                <span class="text-lg font-bold text-blue-600">60%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="bg-blue-600 h-3 rounded-full" style="width: 60%"></div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-3 rounded">
+                            <p class="text-xs font-semibold text-gray-700">Current Phase:</p>
+                            <p class="text-sm text-gray-900">📝 Evidence Package Assembly</p>
+                            <p class="text-xs text-gray-500 mt-1">Last updated: Mar 18, 2025</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Service Details -->
+                <div class="bg-white border-2 border-gray-200 rounded-lg p-6 mb-6">
+                    <h4 class="text-xl font-bold text-gray-900 mb-6">📈 Service Progress Timeline</h4>
+                    
+                    <div class="space-y-4">
+                        <!-- Completed Phase -->
+                        <div class="flex">
+                            <div class="flex flex-col items-center mr-4">
+                                <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold">
+                                    ✓
+                                </div>
+                                <div class="w-1 h-full bg-green-500"></div>
+                            </div>
+                            <div class="pb-8 flex-1">
+                                <div class="bg-green-50 p-4 rounded-lg">
+                                    <p class="font-bold text-gray-900">Phase 1: Initial Consultation & Planning</p>
+                                    <p class="text-sm text-gray-600">Jan 22 - Feb 5, 2025</p>
+                                    <p class="text-sm text-green-700 mt-2">✓ Completed - Strategy developed, criteria identified</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Completed Phase -->
+                        <div class="flex">
+                            <div class="flex flex-col items-center mr-4">
+                                <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold">
+                                    ✓
+                                </div>
+                                <div class="w-1 h-full bg-green-500"></div>
+                            </div>
+                            <div class="pb-8 flex-1">
+                                <div class="bg-green-50 p-4 rounded-lg">
+                                    <p class="font-bold text-gray-900">Phase 2: Evidence Collection</p>
+                                    <p class="text-sm text-gray-600">Feb 6 - Mar 10, 2025</p>
+                                    <p class="text-sm text-green-700 mt-2">✓ Completed - All documents gathered and verified</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Current Phase -->
+                        <div class="flex">
+                            <div class="flex flex-col items-center mr-4">
+                                <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold animate-pulse">
+                                    3
+                                </div>
+                                <div class="w-1 h-full bg-gray-300"></div>
+                            </div>
+                            <div class="pb-8 flex-1">
+                                <div class="bg-blue-50 p-4 rounded-lg border-2 border-blue-300">
+                                    <p class="font-bold text-gray-900">Phase 3: Evidence Package Assembly 🔄</p>
+                                    <p class="text-sm text-gray-600">Mar 11 - Apr 20, 2025 (In Progress)</p>
+                                    <p class="text-sm text-blue-700 mt-2">⏳ Currently working on recommendation letters (5/8 received)</p>
+                                    <div class="mt-3 bg-white p-2 rounded">
+                                        <p class="text-xs font-semibold text-gray-700">Latest Update (Mar 18):</p>
+                                        <p class="text-xs text-gray-600">Sandeep: "Received 5 strong recommendation letters. Awaiting 3 more from IEEE committee members. Draft petition outline 80% complete."</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Future Phase -->
+                        <div class="flex">
+                            <div class="flex flex-col items-center mr-4">
+                                <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
+                                    4
+                                </div>
+                                <div class="w-1 h-full bg-gray-300"></div>
+                            </div>
+                            <div class="pb-8 flex-1">
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="font-bold text-gray-700">Phase 4: Petition Preparation & Filing</p>
+                                    <p class="text-sm text-gray-500">Apr 21 - Jun 30, 2025 (Upcoming)</p>
+                                    <p class="text-sm text-gray-600 mt-2">Waiting for Phase 3 completion</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Future Phase -->
+                        <div class="flex">
+                            <div class="flex flex-col items-center mr-4">
+                                <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
+                                    5
+                                </div>
+                            </div>
+                            <div class="flex-1">
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="font-bold text-gray-700">Phase 5: USCIS Submission & Monitoring</p>
+                                    <p class="text-sm text-gray-500">Jul 1 - Jul 31, 2025 (Upcoming)</p>
+                                    <p class="text-sm text-gray-600 mt-2">Final phase - tracking and response preparation</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Status -->
+                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-purple-50 p-6 rounded-lg border-l-4 border-purple-500">
+                        <h4 class="text-lg font-bold text-gray-900 mb-4">💳 Payment Status</h4>
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-sm font-semibold">Total Amount:</span>
+                                <span class="text-lg font-bold text-gray-900">$15,000</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm font-semibold text-green-600">Amount Paid:</span>
+                                <span class="text-lg font-bold text-green-600">$7,500</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm font-semibold text-orange-600">Balance Due:</span>
+                                <span class="text-lg font-bold text-orange-600">$7,500</span>
+                            </div>
+                            <div class="pt-3 border-t">
+                                <span class="bg-yellow-200 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold">
+                                    Partial Payment
+                                </span>
+                                <p class="text-xs text-gray-600 mt-2">Next payment due: April 1, 2025</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-orange-50 p-6 rounded-lg border-l-4 border-orange-500">
+                        <h4 class="text-lg font-bold text-gray-900 mb-4">💬 Recent Communication</h4>
+                        <div class="space-y-3">
+                            <div class="bg-white p-3 rounded border-l-2 border-blue-500">
+                                <p class="text-xs font-semibold text-gray-700">From: Sandeep Kumar</p>
+                                <p class="text-xs text-gray-500">Mar 18, 2025 - 2:30 PM</p>
+                                <p class="text-sm text-gray-900 mt-2">"Hi Rajesh, great news! We've received 5 strong recommendation letters. The draft petition is 80% complete. I'll send you a preview by Friday."</p>
+                            </div>
+                            <button class="w-full bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700">
+                                Send Message to Sandeep
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Query System Demo -->
+                <div class="bg-white border-2 border-gray-200 rounded-lg p-6">
+                    <h4 class="text-xl font-bold text-gray-900 mb-6">💬 My Queries & Support</h4>
+                    
+                    <div class="space-y-4">
+                        <!-- Query 1: Resolved -->
+                        <div class="border rounded-lg p-4 bg-green-50 border-green-300">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <p class="font-bold text-gray-900">Question about recommendation letters</p>
+                                    <p class="text-xs text-gray-500">Submitted: Mar 10, 2025</p>
+                                </div>
+                                <span class="bg-green-200 text-green-800 px-3 py-1 rounded-full text-xs font-bold">
+                                    ✅ RESOLVED
+                                </span>
+                            </div>
+                            <div class="bg-white p-3 rounded mt-2">
+                                <p class="text-sm text-gray-700"><strong>My Question:</strong> "How many recommendation letters do I need? Can they be from colleagues in India?"</p>
+                                <hr class="my-2">
+                                <p class="text-sm text-gray-700"><strong>Sandeep's Response (Mar 11):</strong> "We recommend 6-8 letters. Yes, international letters are fine as long as they're from recognized experts in your field. I've sent you a template and guidelines."</p>
+                            </div>
+                        </div>
+
+                        <!-- Query 2: In Progress -->
+                        <div class="border rounded-lg p-4 bg-yellow-50 border-yellow-300">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <p class="font-bold text-gray-900">Timeline for USCIS filing</p>
+                                    <p class="text-xs text-gray-500">Submitted: Mar 18, 2025</p>
+                                </div>
+                                <span class="bg-yellow-200 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold">
+                                    ⏳ PENDING
+                                </span>
+                            </div>
+                            <div class="bg-white p-3 rounded mt-2">
+                                <p class="text-sm text-gray-700"><strong>My Question:</strong> "When do you expect we'll file with USCIS? I need to plan my travel accordingly."</p>
+                                <p class="text-xs text-gray-500 mt-2">Sandeep will respond within 24 hours...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit New Query Button -->
+                    <button class="mt-6 w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition">
+                        + Submit New Query
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Workflow Summary -->
+        <section class="mb-16">
+            <div class="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl shadow-xl p-8">
+                <h2 class="text-3xl font-bold text-center mb-6">🎯 Complete Workflow Summary</h2>
+                
+                <div class="grid md:grid-cols-5 gap-4">
+                    <div class="bg-white bg-opacity-20 p-4 rounded-lg text-center">
+                        <div class="text-4xl mb-2">1️⃣</div>
+                        <p class="font-bold">User Submits</p>
+                        <p class="text-sm">Rajesh fills assessment (87%)</p>
+                    </div>
+                    <div class="flex items-center justify-center">
+                        <i class="fas fa-arrow-right text-3xl"></i>
+                    </div>
+                    <div class="bg-white bg-opacity-20 p-4 rounded-lg text-center">
+                        <div class="text-4xl mb-2">2️⃣</div>
+                        <p class="font-bold">Admin Reviews</p>
+                        <p class="text-sm">Sarah assigns to Sandeep</p>
+                    </div>
+                    <div class="flex items-center justify-center">
+                        <i class="fas fa-arrow-right text-3xl"></i>
+                    </div>
+                    <div class="bg-white bg-opacity-20 p-4 rounded-lg text-center">
+                        <div class="text-4xl mb-2">3️⃣</div>
+                        <p class="font-bold">Manager Contacts</p>
+                        <p class="text-sm">Sandeep calls, signs contract</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-center my-4">
+                    <i class="fas fa-arrow-down text-3xl"></i>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-white bg-opacity-20 p-4 rounded-lg text-center">
+                        <div class="text-4xl mb-2">4️⃣</div>
+                        <p class="font-bold">Service Delivery</p>
+                        <p class="text-sm">Progress tracked: 0% → 60%</p>
+                    </div>
+                    <div class="bg-white bg-opacity-20 p-4 rounded-lg text-center">
+                        <div class="text-4xl mb-2">5️⃣</div>
+                        <p class="font-bold">Client Tracking</p>
+                        <p class="text-sm">Rajesh monitors 24/7 via portal</p>
+                    </div>
+                </div>
+
+                <div class="mt-6 text-center bg-white bg-opacity-10 p-4 rounded-lg">
+                    <p class="text-xl font-bold mb-2">📊 Demo Results</p>
+                    <p>From Lead (Jan 20) → Active Client (Jan 22) → 60% Progress (Mar 20)</p>
+                    <p class="text-sm mt-2">⏱️ Lead-to-Client: 2 days | Expected Completion: July 2025</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="bg-gray-800 text-white py-6 rounded-lg text-center">
+            <p class="text-xl font-bold mb-2">🎬 End of Static Demo</p>
+            <p class="text-sm">This prototype demonstrates the complete workflow with hardcoded realistic data.</p>
+            <p class="text-xs text-gray-400 mt-2">No backend required - Pure HTML/CSS/JS demonstration</p>
+        </footer>
+
+    </div>
+
+    <script>
+        // Smooth scrolling for navigation
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Demo console logs
+        console.log('%c🎬 STATIC DEMO PROTOTYPE', 'color: #667eea; font-size: 24px; font-weight: bold');
+        console.log('%cStory: Rajesh Kumar\'s EB-1A Journey', 'color: #764ba2; font-size: 18px');
+        console.log('%c✓ Step 1: User submits assessment (87% score)', 'color: #10b981; font-size: 14px');
+        console.log('%c✓ Step 2: Admin assigns to Sandeep Kumar', 'color: #10b981; font-size: 14px');
+        console.log('%c✓ Step 3: Manager contacts and signs contract', 'color: #10b981; font-size: 14px');
+        console.log('%c✓ Step 4: Service delivery (60% progress)', 'color: #10b981; font-size: 14px');
+        console.log('%c✓ Step 5: Client tracks via portal', 'color: #10b981; font-size: 14px');
+        console.log('%cAll data is hardcoded for demonstration - No backend needed!', 'color: #f59e0b; font-size: 12px');
+    </script>
+
+</body>
+</html>
