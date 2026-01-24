@@ -74,8 +74,24 @@ exports.protect = async (req, res, next) => {
   }
 };
 
-// Restrict to specific roles
+// Restrict to specific roles (alias for restrictTo)
 exports.restrictTo = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to perform this action'
+        }
+      });
+    }
+    next();
+  };
+};
+
+// Authorize specific roles (same as restrictTo but different name for compatibility)
+exports.authorize = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({

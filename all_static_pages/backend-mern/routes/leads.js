@@ -1,227 +1,62 @@
 const express = require('express');
 const router = express.Router();
 const { protect, restrictTo } = require('../middleware/auth');
-const Lead = require('../models/Lead');
+const leadController = require('../controllers/leadController');
+const { body } = require('express-validator');
 
-// @desc    Get all leads
+// Validation middleware
+const validateLeadCreation = [
+  body('name').notEmpty().withMessage('Name is required'),
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('phone').optional().isMobilePhone().withMessage('Valid phone number is required'),
+  body('source').optional().isIn(['website', 'referral', 'social', 'advertisement', 'other']).withMessage('Invalid source'),
+  body('priority').optional().isIn(['low', 'medium', 'high', 'urgent']).withMessage('Invalid priority')
+];
+
+const validateLeadUpdate = [
+  body('email').optional().isEmail().withMessage('Valid email is required'),
+  body('phone').optional().isMobilePhone().withMessage('Valid phone number is required'),
+  body('qualification_score').optional().isInt({ min: 0, max: 100 }).withMessage('Score must be between 0 and 100')
+];
+
 // @route   GET /api/leads
-// @access  Private (Lead Manager, CRM Manager, Admin)
-router.get('/', protect, restrictTo('admin', 'lead_manager', 'crm_manager'), async (req, res) => {
-  try {
-    const { page = 1, limit = 20, status, priority, source, assigned_to, search } = req.query;
-
-    // Build query
-    const query = {};
-    
-    if (status) query.status = status;
-    if (priority) query.priority = priority;
-    if (source) query.source = source;
-    if (assigned_to) query.assigned_to = assigned_to;
-    
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { university: { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    // Execute query with pagination
-    const leads = await Lead.find(query)
-      .populate('assigned_to', 'first_name last_name email')
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-
-    const total = await Lead.countDocuments(query);
-
-    res.json({
-      success: true,
-      data: leads,
-      pagination: {
-        total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total_pages: Math.ceil(total / limit)
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'FETCH_FAILED',
-        message: error.message
-      }
-    });
-  }
-});
-
-// @desc    Get single lead
-// @route   GET /api/leads/:id
-// @access  Private
-router.get('/:id', protect, async (req, res) => {
-  try {
-    const lead = await Lead.findById(req.params.id)
-      .populate('assigned_to', 'first_name last_name email')
-      .populate('converted_to_client');
-
-    if (!lead) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Lead not found'
-        }
-      });
-    }
-
-    res.json({
-      success: true,
-      data: lead
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'FETCH_FAILED',
-        message: error.message
-      }
-    });
-  }
-});
-
-// @desc    Create new lead
-// @route   POST /api/leads
-// @access  Public or Private
-router.post('/', async (req, res) => {
-  try {
-    const lead = await Lead.create(req.body);
-
-    res.status(201).json({
-      success: true,
-      message: 'Lead created successfully',
-      data: lead
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      error: {
-        code: 'CREATE_FAILED',
-        message: error.message
-      }
-    });
-  }
-});
-
-// @desc    Update lead
-// @route   PATCH /api/leads/:id
-// @access  Private
-router.patch('/:id', protect, async (req, res) => {
-  try {
-    const lead = await Lead.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-
-    if (!lead) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Lead not found'
-        }
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Lead updated successfully',
-      data: lead
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      error: {
-        code: 'UPDATE_FAILED',
-        message: error.message
-      }
-    });
-  }
-});
-
-// @desc    Delete lead
-// @route   DELETE /api/leads/:id
+// @desc    Get all leads with filters
 // @access  Private (Admin, Lead Manager)
-router.delete('/:id', protect, restrictTo('admin', 'lead_manager'), async (req, res) => {
-  try {
-    const lead = await Lead.findByIdAndDelete(req.params.id);
+router.get('/', protect, restrictTo('admin', 'lead_manager'), leadController.getLeads);
 
-    if (!lead) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Lead not found'
-        }
-      });
-    }
+// @route   GET /api/leads/stats/summary
+// @desc    Get lead statistics
+// @access  Private (Admin, Lead Manager)
+router.get('/stats/summary', protect, restrictTo('admin', 'lead_manager'), leadController.getLeadStats);
 
-    res.json({
-      success: true,
-      message: 'Lead deleted successfully'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'DELETE_FAILED',
-        message: error.message
-      }
-    });
-  }
-});
+// @route   GET /api/leads/:id
+// @desc    Get single lead
+// @access  Private (Admin, Assigned Lead Manager)
+router.get('/:id', protect, restrictTo('admin', 'lead_manager'), leadController.getLead);
 
-// @desc    Add interaction to lead
-// @route   POST /api/leads/:id/interactions
-// @access  Private
-router.post('/:id/interactions', protect, async (req, res) => {
-  try {
-    const lead = await Lead.findById(req.params.id);
+// @route   POST /api/leads
+// @desc    Create new lead
+// @access  Private (Admin, Lead Manager) or Public (website forms)
+router.post('/', validateLeadCreation, leadController.createLead);
 
-    if (!lead) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Lead not found'
-        }
-      });
-    }
+// @route   PATCH /api/leads/:id
+// @desc    Update lead
+// @access  Private (Admin, Assigned Lead Manager)
+router.patch('/:id', protect, restrictTo('admin', 'lead_manager'), validateLeadUpdate, leadController.updateLead);
 
-    lead.interactions.push({
-      ...req.body,
-      user: req.user.user_id,
-      date: new Date()
-    });
+// @route   POST /api/leads/:id/convert
+// @desc    Convert lead to client
+// @access  Private (Admin, Assigned Lead Manager)
+router.post('/:id/convert', protect, restrictTo('admin', 'lead_manager'), leadController.convertLead);
 
-    lead.last_contact = new Date();
-    await lead.save();
+// @route   PATCH /api/leads/:id/assign
+// @desc    Assign lead to manager
+// @access  Private (Admin only)
+router.patch('/:id/assign', protect, restrictTo('admin'), leadController.assignLead);
 
-    res.json({
-      success: true,
-      message: 'Interaction added successfully',
-      data: lead
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      error: {
-        code: 'ADD_INTERACTION_FAILED',
-        message: error.message
-      }
-    });
-  }
-});
+// @route   DELETE /api/leads/:id
+// @desc    Delete lead (soft delete)
+// @access  Private (Admin only)
+router.delete('/:id', protect, restrictTo('admin'), leadController.deleteLead);
 
 module.exports = router;
