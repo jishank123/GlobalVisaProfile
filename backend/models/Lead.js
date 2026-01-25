@@ -1,9 +1,14 @@
 const mongoose = require('mongoose');
 
 const leadSchema = new mongoose.Schema({
-  name: {
+  firstName: {
     type: String,
-    required: [true, 'Name is required'],
+    required: [true, 'First name is required'],
+    trim: true
+  },
+  lastName: {
+    type: String,
+    required: [true, 'Last name is required'],
     trim: true
   },
   email: {
@@ -21,14 +26,26 @@ const leadSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  service_interest: {
+  country: {
     type: String,
-    required: [true, 'Service interest is required'],
     trim: true
   },
+  degree: {
+    type: String,
+    enum: ['Bachelors', 'Masters', 'PhD'],
+    trim: true
+  },
+  fieldOfStudy: {
+    type: String,
+    trim: true
+  },
+  interestedServices: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Service'
+  }],
   status: {
     type: String,
-    enum: ['new', 'contacted', 'qualified', 'converted', 'lost'],
+    enum: ['new', 'contacted', 'qualified', 'negotiation', 'converted', 'lost'],
     default: 'new'
   },
   priority: {
@@ -38,10 +55,10 @@ const leadSchema = new mongoose.Schema({
   },
   source: {
     type: String,
-    enum: ['website', 'referral', 'social_media', 'cold_call', 'email_campaign', 'other'],
+    enum: ['website', 'referral', 'social_media', 'advertisement', 'event', 'cold_call', 'email_campaign', 'other'],
     default: 'website'
   },
-  assigned_to: {
+  assignedTo: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
@@ -49,19 +66,36 @@ const leadSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  last_contact: {
+  estimatedValue: {
+    type: Number,
+    min: 0
+  },
+  nextFollowUp: {
     type: Date
   },
-  converted_to_client: {
+  lastContact: {
+    type: Date
+  },
+  convertedToClient: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Client'
+  },
+  convertedAt: {
+    type: Date
+  },
+  convertedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   interactions: [{
     type: {
       type: String,
       enum: ['email', 'phone', 'meeting', 'note']
     },
-    date: Date,
+    date: {
+      type: Date,
+      default: Date.now
+    },
     note: String,
     user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -72,10 +106,16 @@ const leadSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Virtual for full name
+leadSchema.virtual('fullName').get(function() {
+  return `${this.firstName} ${this.lastName}`;
+});
+
 // Indexes for better query performance
 leadSchema.index({ email: 1 });
 leadSchema.index({ status: 1 });
-leadSchema.index({ assigned_to: 1 });
+leadSchema.index({ assignedTo: 1 });
 leadSchema.index({ createdAt: -1 });
+leadSchema.index({ nextFollowUp: 1 });
 
 module.exports = mongoose.model('Lead', leadSchema);

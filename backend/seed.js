@@ -54,52 +54,58 @@ const seedDatabase = async () => {
     
     const users = await User.insertMany([
       {
-        name: 'Admin User',
+        first_name: 'Admin',
+        last_name: 'User',
         email: 'admin@academicerp.com',
         password: hashedPassword,
         role: 'admin',
         phone: '+1-555-0100',
-        isActive: true
+        status: 'active'
       },
       {
-        name: 'Sandeep Kumar',
+        first_name: 'Sandeep',
+        last_name: 'Kumar',
         email: 'sandeep@academicerp.com',
         password: hashedPassword,
         role: 'crm_manager',
         phone: '+1-555-0101',
-        isActive: true
+        status: 'active'
       },
       {
-        name: 'Preet Singh',
+        first_name: 'Preet',
+        last_name: 'Singh',
         email: 'preet@academicerp.com',
         password: hashedPassword,
         role: 'crm_manager',
         phone: '+1-555-0102',
-        isActive: true
+        status: 'active'
       },
       {
-        name: 'Deepali Sharma',
+        first_name: 'Deepali',
+        last_name: 'Sharma',
         email: 'deepali@academicerp.com',
         password: hashedPassword,
         role: 'crm_manager',
         phone: '+1-555-0103',
-        isActive: true
+        status: 'active'
       },
       {
-        name: 'John Smith',
+        first_name: 'John',
+        last_name: 'Smith',
         email: 'john@academicerp.com',
         password: hashedPassword,
         role: 'lead_manager',
         phone: '+1-555-0104',
-        isActive: true
+        status: 'active'
       },
       {
-        name: 'Sarah Wilson',
+        first_name: 'Sarah',
+        last_name: 'Wilson',
         email: 'sarah@academicerp.com',
         password: hashedPassword,
         role: 'lead_manager',
         phone: '+1-555-0105',
-        isActive: true
+        status: 'active'
       }
     ]);
     
@@ -277,18 +283,19 @@ const seedDatabase = async () => {
     for (let i = 0; i < 15; i++) {
       // Create user account for client
       const clientUser = await User.create({
-        name: `Client ${i + 1}`,
+        first_name: `Client`,
+        last_name: `${i + 1}`,
         email: `client${i + 1}@email.com`,
         password: hashedPassword,
         role: 'client',
         phone: `+1-555-${2000 + i}`,
-        isActive: true
+        status: 'active'
       });
       
       clientUsers.push(clientUser);
       
       // Create client profile
-      const statusOptions = ['active', 'inactive', 'on_hold'];
+      const statusOptions = ['active', 'inactive', 'vip'];
       const manager = i % 3 === 0 ? sandeep : i % 3 === 1 ? preet : deepali;
       
       clients.push({
@@ -301,9 +308,9 @@ const seedDatabase = async () => {
         degree: i % 3 === 0 ? 'PhD' : i % 3 === 1 ? 'Masters' : 'Bachelors',
         fieldOfStudy: i % 4 === 0 ? 'Computer Science' : i % 4 === 1 ? 'Engineering' : i % 4 === 2 ? 'Business' : 'Life Sciences',
         status: statusOptions[i % 3],
-        assignedManager: manager._id,
+        crm_manager: manager._id,
         totalSpent: (i + 1) * 3000,
-        notes: `Active client. Assigned to ${manager.name}`
+        notes: `Active client. Assigned to ${manager.first_name} ${manager.last_name}`
       });
     }
     

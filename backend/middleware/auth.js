@@ -149,11 +149,14 @@ const auth = (requiredRoles = []) => {
 
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('🔐 Token decoded:', decoded);
 
-      // Find user account
-      const user = await User.findById(decoded.user_id);
+      // Find user account - handle both id and user_id formats
+      const userId = decoded.user_id || decoded.id;
+      const user = await User.findById(userId);
       
       if (!user) {
+        console.log('❌ User not found with ID:', userId);
         return res.status(401).json({
           success: false,
           error: {
@@ -162,6 +165,8 @@ const auth = (requiredRoles = []) => {
           }
         });
       }
+
+      console.log('✅ User authenticated:', user.email, 'Role:', user.role);
 
       // Check role requirements
       if (requiredRoles.length > 0 && !requiredRoles.includes(user.role)) {

@@ -27,8 +27,8 @@ exports.getServices = async (req, res) => {
   try {
     const { search, category, status, page = 1, limit = 20 } = req.query;
     
-    // Build query
-    let query = {};
+    // Build query - by default only show active services
+    let query = { isActive: true };
     
     // Apply filters
     if (search) {
@@ -39,8 +39,11 @@ exports.getServices = async (req, res) => {
     }
     
     if (category) query.category = category;
+    
+    // Override default active filter if status is explicitly specified
     if (status === 'active') query.isActive = true;
     if (status === 'inactive') query.isActive = false;
+    if (status === 'all') delete query.isActive; // Show all services
     
     console.log('📋 Query filters:', query);
     

@@ -24,6 +24,7 @@
             padding: 25px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             transition: transform 0.3s;
+            cursor: pointer;
         }
         
         .stat-card:hover {
@@ -69,7 +70,8 @@
         .badge-new { background: #fef3c7; color: #92400e; padding: 5px 12px; border-radius: 15px; }
         .badge-contacted { background: #dbeafe; color: #1e40af; padding: 5px 12px; border-radius: 15px; }
         .badge-qualified { background: #d1fae5; color: #065f46; padding: 5px 12px; border-radius: 15px; }
-        .badge-converted { background: #e0e7ff; color: #3730a3; padding: 5px 12px; border-radius: 15px; }
+        .badge-negotiation { background: #e0e7ff; color: #3730a3; padding: 5px 12px; border-radius: 15px; }
+        .badge-converted { background: #dcfce7; color: #166534; padding: 5px 12px; border-radius: 15px; }
         .badge-lost { background: #fee2e2; color: #991b1b; padding: 5px 12px; border-radius: 15px; }
         
         .priority-high { color: #ef4444; font-weight: 600; }
@@ -84,12 +86,15 @@
             font-weight: 500;
             cursor: pointer;
             transition: all 0.3s;
+            margin: 2px;
         }
         
         .btn-view { background: #3b82f6; color: white; }
         .btn-view:hover { background: #2563eb; }
-        .btn-assign { background: #10b981; color: white; }
-        .btn-assign:hover { background: #059669; }
+        .btn-contact { background: #10b981; color: white; }
+        .btn-contact:hover { background: #059669; }
+        .btn-convert { background: #8b5cf6; color: white; }
+        .btn-convert:hover { background: #7c3aed; }
         .btn-reject { background: #ef4444; color: white; }
         .btn-reject:hover { background: #dc2626; }
         
@@ -113,6 +118,30 @@
         .quick-action-card:hover {
             transform: translateY(-3px);
         }
+        
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+        
+        .source-badge {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 12px;
+        }
+        
+        .source-website { background: #dbeafe; color: #1e40af; }
+        .source-referral { background: #d1fae5; color: #065f46; }
+        .source-social_media { background: #e0e7ff; color: #3730a3; }
+        .source-advertisement { background: #fef3c7; color: #92400e; }
+        .source-event { background: #f3e8ff; color: #6b21a8; }
     </style>
 </head>
 <body>
@@ -129,7 +158,7 @@
                 <a href="/" class="btn btn-light btn-sm me-2">
                     <i class="fas fa-home me-1"></i>Home
                 </a>
-                <span class="me-3">Lead Manager</span>
+                <span class="me-3" id="user-name">Lead Manager</span>
                 <button id="logout-btn" class="btn btn-outline-light btn-sm">
                     <i class="fas fa-sign-out-alt me-1"></i>Logout
                 </button>
@@ -141,31 +170,31 @@
 <div class="container mt-4">
     
     <!-- Stats Overview -->
-    <div class="row mb-4">
+    <div class="row mb-4" id="stats-section">
         <div class="col-md-3">
-            <div class="stat-card">
-                <div class="stat-number">247</div>
+            <div class="stat-card" onclick="filterByStatus('')">
+                <div class="stat-number" id="total-leads">-</div>
                 <div class="stat-label">Total Leads</div>
-                <small class="text-success"><i class="fas fa-arrow-up"></i> +15% this month</small>
+                <small class="text-success" id="total-trend"><i class="fas fa-spinner fa-spin"></i> Loading...</small>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="stat-card">
-                <div class="stat-number">68</div>
+            <div class="stat-card" onclick="filterByStatus('new')">
+                <div class="stat-number" id="new-leads">-</div>
                 <div class="stat-label">New Leads (This Week)</div>
                 <small class="text-info"><i class="fas fa-clock"></i> Needs attention</small>
             </div>
         </div>
         <div class="col-md-3">
             <div class="stat-card">
-                <div class="stat-number">42%</div>
+                <div class="stat-number" id="conversion-rate">-</div>
                 <div class="stat-label">Conversion Rate</div>
-                <small class="text-success"><i class="fas fa-trophy"></i> Above target</small>
+                <small class="text-success"><i class="fas fa-trophy"></i> Performance</small>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="stat-card">
-                <div class="stat-number">89</div>
+            <div class="stat-card" onclick="filterByStatus('qualified')">
+                <div class="stat-number" id="qualified-leads">-</div>
                 <div class="stat-label">Qualified Leads</div>
                 <small class="text-warning"><i class="fas fa-star"></i> Ready to convert</small>
             </div>
@@ -175,25 +204,25 @@
     <!-- Quick Actions -->
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="quick-action-card">
+            <div class="quick-action-card" onclick="showAddLeadModal()">
                 <i class="fas fa-plus-circle fs-3 mb-2"></i>
                 <div>Add New Lead</div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="quick-action-card">
-                <i class="fas fa-file-import fs-3 mb-2"></i>
-                <div>Import Leads</div>
+            <div class="quick-action-card" onclick="refreshData()">
+                <i class="fas fa-sync-alt fs-3 mb-2"></i>
+                <div>Refresh Data</div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="quick-action-card">
+            <div class="quick-action-card" onclick="showAnalytics()">
                 <i class="fas fa-chart-line fs-3 mb-2"></i>
                 <div>View Analytics</div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="quick-action-card">
+            <div class="quick-action-card" onclick="exportLeads()">
                 <i class="fas fa-download fs-3 mb-2"></i>
                 <div>Export Report</div>
             </div>
@@ -205,54 +234,65 @@
         <div class="row align-items-end">
             <div class="col-md-3">
                 <label class="form-label">Search</label>
-                <input type="text" class="form-control" placeholder="Name, email, or phone...">
+                <input type="text" id="search-input" class="form-control" placeholder="Name, email, or phone...">
             </div>
             <div class="col-md-2">
                 <label class="form-label">Status</label>
-                <select class="form-select">
-                    <option>All Status</option>
-                    <option>New</option>
-                    <option>Contacted</option>
-                    <option>Qualified</option>
-                    <option>Converted</option>
-                    <option>Lost</option>
+                <select id="status-filter" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="new">New</option>
+                    <option value="contacted">Contacted</option>
+                    <option value="qualified">Qualified</option>
+                    <option value="negotiation">Negotiation</option>
+                    <option value="converted">Converted</option>
+                    <option value="lost">Lost</option>
                 </select>
             </div>
             <div class="col-md-2">
                 <label class="form-label">Source</label>
-                <select class="form-select">
-                    <option>All Sources</option>
-                    <option>Website</option>
-                    <option>Referral</option>
-                    <option>Social Media</option>
-                    <option>Cold Call</option>
+                <select id="source-filter" class="form-select">
+                    <option value="">All Sources</option>
+                    <option value="website">Website</option>
+                    <option value="referral">Referral</option>
+                    <option value="social_media">Social Media</option>
+                    <option value="advertisement">Advertisement</option>
+                    <option value="event">Event</option>
                 </select>
             </div>
             <div class="col-md-2">
                 <label class="form-label">Priority</label>
-                <select class="form-select">
-                    <option>All Priorities</option>
-                    <option>High</option>
-                    <option>Medium</option>
-                    <option>Low</option>
+                <select id="priority-filter" class="form-select">
+                    <option value="">All Priorities</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
                 </select>
             </div>
             <div class="col-md-3">
-                <button class="btn btn-primary w-100">
+                <button class="btn btn-primary w-100" onclick="applyFilters()">
                     <i class="fas fa-filter me-2"></i>Apply Filters
                 </button>
             </div>
         </div>
     </div>
     
+    <!-- Loading Spinner -->
+    <div class="loading-spinner" id="loading-spinner">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading leads...</p>
+    </div>
+    
     <!-- Leads Table -->
-    <div class="data-table">
+    <div class="data-table" id="leads-table-container">
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>Lead Name</th>
-                    <th>Email & Phone</th>
+                    <th>Contact Info</th>
+                    <th>University</th>
                     <th>Source</th>
                     <th>Service Interest</th>
                     <th>Status</th>
@@ -261,249 +301,922 @@
                     <th>Actions</th>
                 </tr>
             </thead>
-            <tbody>
-                <tr>
-                    <td><strong>LD-001</strong></td>
-                    <td>
-                        <strong>Dr. Sarah Mitchell</strong><br>
-                        <small class="text-muted">Stanford University</small>
-                    </td>
-                    <td>
-                        <small>sarah.m@stanford.edu</small><br>
-                        <small>+1 650-555-0123</small>
-                    </td>
-                    <td><span class="badge bg-info">Website</span></td>
-                    <td>Research Paper Publication</td>
-                    <td><span class="badge-qualified">Qualified</span></td>
-                    <td><span class="priority-high">High</span></td>
-                    <td>
-                        <small>Jan 23, 2025</small><br>
-                        <small class="text-muted">2 hours ago</small>
-                    </td>
-                    <td>
-                        <button class="action-btn btn-view mb-1">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="action-btn btn-assign">
-                            <i class="fas fa-user-plus"></i> Assign
-                        </button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>LD-002</strong></td>
-                    <td>
-                        <strong>Prof. James Chen</strong><br>
-                        <small class="text-muted">MIT</small>
-                    </td>
-                    <td>
-                        <small>j.chen@mit.edu</small><br>
-                        <small>+1 617-555-0456</small>
-                    </td>
-                    <td><span class="badge bg-success">Referral</span></td>
-                    <td>Thesis Assistance</td>
-                    <td><span class="badge-new">New</span></td>
-                    <td><span class="priority-high">High</span></td>
-                    <td>
-                        <small>Jan 23, 2025</small><br>
-                        <small class="text-muted">5 hours ago</small>
-                    </td>
-                    <td>
-                        <button class="action-btn btn-view mb-1">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="action-btn btn-assign">
-                            <i class="fas fa-phone"></i> Contact
-                        </button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>LD-003</strong></td>
-                    <td>
-                        <strong>Dr. Priya Patel</strong><br>
-                        <small class="text-muted">Oxford University</small>
-                    </td>
-                    <td>
-                        <small>p.patel@oxford.ac.uk</small><br>
-                        <small>+44 1865-555-789</small>
-                    </td>
-                    <td><span class="badge bg-primary">Social Media</span></td>
-                    <td>Grant Writing</td>
-                    <td><span class="badge-contacted">Contacted</span></td>
-                    <td><span class="priority-medium">Medium</span></td>
-                    <td>
-                        <small>Jan 22, 2025</small><br>
-                        <small class="text-muted">1 day ago</small>
-                    </td>
-                    <td>
-                        <button class="action-btn btn-view mb-1">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="action-btn btn-assign">
-                            <i class="fas fa-comment"></i> Follow-up
-                        </button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>LD-004</strong></td>
-                    <td>
-                        <strong>Michael Johnson</strong><br>
-                        <small class="text-muted">Harvard University</small>
-                    </td>
-                    <td>
-                        <small>mjohnson@harvard.edu</small><br>
-                        <small>+1 617-555-0789</small>
-                    </td>
-                    <td><span class="badge bg-info">Website</span></td>
-                    <td>Conference Paper</td>
-                    <td><span class="badge-qualified">Qualified</span></td>
-                    <td><span class="priority-medium">Medium</span></td>
-                    <td>
-                        <small>Jan 22, 2025</small><br>
-                        <small class="text-muted">1 day ago</small>
-                    </td>
-                    <td>
-                        <button class="action-btn btn-view mb-1">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="action-btn btn-assign">
-                            <i class="fas fa-user-plus"></i> Assign
-                        </button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>LD-005</strong></td>
-                    <td>
-                        <strong>Dr. Emma Williams</strong><br>
-                        <small class="text-muted">Cambridge University</small>
-                    </td>
-                    <td>
-                        <small>e.williams@cam.ac.uk</small><br>
-                        <small>+44 1223-555-321</small>
-                    </td>
-                    <td><span class="badge bg-warning">Cold Call</span></td>
-                    <td>Literature Review</td>
-                    <td><span class="badge-new">New</span></td>
-                    <td><span class="priority-low">Low</span></td>
-                    <td>
-                        <small>Jan 21, 2025</small><br>
-                        <small class="text-muted">2 days ago</small>
-                    </td>
-                    <td>
-                        <button class="action-btn btn-view mb-1">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="action-btn btn-assign">
-                            <i class="fas fa-phone"></i> Contact
-                        </button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>LD-006</strong></td>
-                    <td>
-                        <strong>Prof. Robert Lee</strong><br>
-                        <small class="text-muted">Yale University</small>
-                    </td>
-                    <td>
-                        <small>r.lee@yale.edu</small><br>
-                        <small>+1 203-555-9876</small>
-                    </td>
-                    <td><span class="badge bg-success">Referral</span></td>
-                    <td>Research Paper + Grant</td>
-                    <td><span class="badge-converted">Converted</span></td>
-                    <td><span class="priority-high">High</span></td>
-                    <td>
-                        <small>Jan 20, 2025</small><br>
-                        <small class="text-muted">3 days ago</small>
-                    </td>
-                    <td>
-                        <button class="action-btn btn-view mb-1">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="action-btn btn-assign" style="background: #6b7280;">
-                            <i class="fas fa-check"></i> Converted
-                        </button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>LD-007</strong></td>
-                    <td>
-                        <strong>Dr. Lisa Anderson</strong><br>
-                        <small class="text-muted">Princeton University</small>
-                    </td>
-                    <td>
-                        <small>l.anderson@princeton.edu</small><br>
-                        <small>+1 609-555-4321</small>
-                    </td>
-                    <td><span class="badge bg-primary">Social Media</span></td>
-                    <td>Publication Support</td>
-                    <td><span class="badge-contacted">Contacted</span></td>
-                    <td><span class="priority-high">High</span></td>
-                    <td>
-                        <small>Jan 23, 2025</small><br>
-                        <small class="text-muted">4 hours ago</small>
-                    </td>
-                    <td>
-                        <button class="action-btn btn-view mb-1">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="action-btn btn-assign">
-                            <i class="fas fa-calendar"></i> Schedule
-                        </button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>LD-008</strong></td>
-                    <td>
-                        <strong>Dr. David Wilson</strong><br>
-                        <small class="text-muted">Columbia University</small>
-                    </td>
-                    <td>
-                        <small>d.wilson@columbia.edu</small><br>
-                        <small>+1 212-555-7890</small>
-                    </td>
-                    <td><span class="badge bg-info">Website</span></td>
-                    <td>Thesis Editing</td>
-                    <td><span class="badge-lost">Lost</span></td>
-                    <td><span class="priority-low">Low</span></td>
-                    <td>
-                        <small>Jan 18, 2025</small><br>
-                        <small class="text-muted">5 days ago</small>
-                    </td>
-                    <td>
-                        <button class="action-btn btn-view mb-1">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="action-btn btn-reject">
-                            <i class="fas fa-times"></i> Lost
-                        </button>
-                    </td>
-                </tr>
+            <tbody id="leads-table-body">
+                <!-- Dynamic content will be loaded here -->
             </tbody>
         </table>
     </div>
     
+    <!-- Empty State -->
+    <div class="empty-state" id="empty-state" style="display: none;">
+        <i class="fas fa-users fa-3x mb-3"></i>
+        <h5>No leads found</h5>
+        <p>Try adjusting your filters or add a new lead to get started.</p>
+        <button class="btn btn-primary" onclick="showAddLeadModal()">
+            <i class="fas fa-plus me-2"></i>Add New Lead
+        </button>
+    </div>
+    
     <!-- Pagination -->
-    <div class="d-flex justify-content-between align-items-center mt-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-4" id="pagination-section">
         <div>
-            <small class="text-muted">Showing 8 of 247 leads</small>
+            <small class="text-muted" id="pagination-info">Loading...</small>
         </div>
         <nav>
-            <ul class="pagination mb-0">
-                <li class="page-item disabled"><a class="page-link" href="#">Previous</a></li>
-                <li class="page-item active"><a class="page-link" href="#">1</a></li>
-                <li class="page-item"><a class="page-link" href="#">2</a></li>
-                <li class="page-item"><a class="page-link" href="#">3</a></li>
-                <li class="page-item"><a class="page-link" href="#">...</a></li>
-                <li class="page-item"><a class="page-link" href="#">31</a></li>
-                <li class="page-item"><a class="page-link" href="#">Next</a></li>
+            <ul class="pagination mb-0" id="pagination-controls">
+                <!-- Dynamic pagination will be loaded here -->
             </ul>
         </nav>
     </div>
     
 </div>
 
+<!-- Add Lead Modal -->
+<div class="modal fade" id="addLeadModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Lead</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-lead-form">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">First Name *</label>
+                                <input type="text" class="form-control" name="firstName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Last Name *</label>
+                                <input type="text" class="form-control" name="lastName" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Email *</label>
+                                <input type="email" class="form-control" name="email" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Phone</label>
+                                <input type="tel" class="form-control" name="phone">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">University</label>
+                                <input type="text" class="form-control" name="university">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Country</label>
+                                <input type="text" class="form-control" name="country">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Source</label>
+                                <select class="form-select" name="source">
+                                    <option value="website">Website</option>
+                                    <option value="referral">Referral</option>
+                                    <option value="social_media">Social Media</option>
+                                    <option value="advertisement">Advertisement</option>
+                                    <option value="event">Event</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Priority</label>
+                                <select class="form-select" name="priority">
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="low">Low</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Estimated Value</label>
+                                <input type="number" class="form-control" name="estimatedValue" min="0">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitAddLead()">
+                    <i class="fas fa-plus me-2"></i>Add Lead
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+// Global variables
+let currentPage = 1;
+let currentFilters = {};
+let allLeads = [];
+
+// API Base URL
+const API_BASE = 'http://localhost:5000/api';
+
+// Authentication token - try multiple sources
+let authToken = localStorage.getItem('client_token') || localStorage.getItem('token');
+
+// API Helper function
+async function apiCall(endpoint, options = {}) {
+    const url = `${API_BASE}${endpoint}`;
+    const config = {
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+        },
+        ...options
+    };
+    
+    try {
+        console.log('🌐 API Call:', url, config.method || 'GET');
+        const response = await fetch(url, config);
+        const data = await response.json();
+        
+        if (!response.ok) {
+            console.error('❌ API Error:', response.status, data);
+            throw new Error(data.error?.message || `HTTP ${response.status}`);
+        }
+        
+        console.log('✅ API Success:', data);
+        return data;
+    } catch (error) {
+        console.error('❌ API Error:', error);
+        throw error;
+    }
+}
+
+// Load dashboard data
+async function loadDashboard() {
+    try {
+        console.log('🎯 Loading lead manager dashboard...');
+        
+        // Show loading
+        document.getElementById('loading-spinner').style.display = 'block';
+        document.getElementById('leads-table-container').style.display = 'none';
+        
+        // Load stats and leads in parallel
+        await Promise.all([
+            loadStats(),
+            loadLeads()
+        ]);
+        
+        console.log('✅ Dashboard loaded successfully');
+    } catch (error) {
+        console.error('❌ Dashboard load error:', error);
+        showError('Failed to load dashboard: ' + error.message);
+    }
+}
+
+// Load statistics
+async function loadStats() {
+    try {
+        console.log('📊 Loading lead statistics...');
+        const response = await apiCall('/leads/stats/summary');
+        
+        if (response.success) {
+            const stats = response.data;
+            
+            // Update stat cards
+            document.getElementById('total-leads').textContent = stats.total || 0;
+            document.getElementById('new-leads').textContent = stats.newThisWeek || 0;
+            document.getElementById('conversion-rate').textContent = stats.conversionRate + '%';
+            document.getElementById('qualified-leads').textContent = stats.qualifiedCount || 0;
+            
+            // Update trend
+            document.getElementById('total-trend').innerHTML = '<i class="fas fa-chart-line"></i> Updated';
+            
+            console.log('✅ Statistics loaded:', stats);
+        }
+    } catch (error) {
+        console.error('❌ Stats load error:', error);
+        document.getElementById('total-trend').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error';
+    }
+}
+
+// Load leads
+async function loadLeads(page = 1) {
+    try {
+        console.log('🎯 Loading leads, page:', page);
+        
+        // Build query parameters
+        const params = new URLSearchParams({
+            page: page,
+            limit: 20,
+            ...currentFilters
+        });
+        
+        const response = await apiCall(`/leads?${params}`);
+        
+        if (response.success) {
+            allLeads = response.data;
+            currentPage = response.page;
+            
+            // Update table
+            updateLeadsTable(allLeads);
+            
+            // Update pagination
+            updatePagination(response);
+            
+            // Hide loading, show table
+            document.getElementById('loading-spinner').style.display = 'none';
+            document.getElementById('leads-table-container').style.display = 'block';
+            
+            console.log('✅ Leads loaded:', allLeads.length);
+        }
+    } catch (error) {
+        console.error('❌ Leads load error:', error);
+        document.getElementById('loading-spinner').style.display = 'none';
+        showError('Failed to load leads: ' + error.message);
+    }
+}
+
+// Update leads table
+function updateLeadsTable(leads) {
+    const tbody = document.getElementById('leads-table-body');
+    
+    if (leads.length === 0) {
+        document.getElementById('leads-table-container').style.display = 'none';
+        document.getElementById('empty-state').style.display = 'block';
+        return;
+    }
+    
+    document.getElementById('empty-state').style.display = 'none';
+    
+    tbody.innerHTML = leads.map(lead => {
+        const fullName = `${lead.firstName} ${lead.lastName}`;
+        const services = lead.interestedServices?.map(s => s.name).join(', ') || 'Not specified';
+        const lastContact = lead.lastContact ? new Date(lead.lastContact).toLocaleDateString() : 'Never';
+        const createdDate = new Date(lead.createdAt).toLocaleDateString();
+        
+        return `
+            <tr>
+                <td><strong>LD-${lead._id.slice(-4).toUpperCase()}</strong></td>
+                <td>
+                    <strong>${fullName}</strong><br>
+                    <small class="text-muted">${lead.degree || ''} ${lead.fieldOfStudy || ''}</small>
+                </td>
+                <td>
+                    <small>${lead.email}</small><br>
+                    <small>${lead.phone || 'No phone'}</small>
+                </td>
+                <td>
+                    <small>${lead.university || 'Not specified'}</small><br>
+                    <small class="text-muted">${lead.country || ''}</small>
+                </td>
+                <td><span class="source-badge source-${lead.source}">${formatSource(lead.source)}</span></td>
+                <td>${services}</td>
+                <td><span class="badge-${lead.status}">${formatStatus(lead.status)}</span></td>
+                <td><span class="priority-${lead.priority}">${formatPriority(lead.priority)}</span></td>
+                <td>
+                    <small>${lastContact}</small><br>
+                    <small class="text-muted">Created: ${createdDate}</small>
+                </td>
+                <td>
+                    <button class="action-btn btn-view" onclick="viewLead('${lead._id}')">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                    ${getActionButtons(lead)}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Get action buttons based on lead status
+function getActionButtons(lead) {
+    switch (lead.status) {
+        case 'new':
+            return `<button class="action-btn btn-contact" onclick="contactLead('${lead._id}')">
+                        <i class="fas fa-phone"></i> Contact
+                    </button>`;
+        case 'contacted':
+            return `<button class="action-btn btn-contact" onclick="followUpLead('${lead._id}')">
+                        <i class="fas fa-comment"></i> Follow-up
+                    </button>`;
+        case 'qualified':
+            return `<button class="action-btn btn-convert" onclick="convertLead('${lead._id}')">
+                        <i class="fas fa-user-plus"></i> Convert
+                    </button>`;
+        case 'negotiation':
+            return `<button class="action-btn btn-convert" onclick="convertLead('${lead._id}')">
+                        <i class="fas fa-handshake"></i> Close Deal
+                    </button>`;
+        case 'converted':
+            return `<button class="action-btn" style="background: #6b7280; color: white;">
+                        <i class="fas fa-check"></i> Converted
+                    </button>`;
+        case 'lost':
+            return `<button class="action-btn btn-reject">
+                        <i class="fas fa-times"></i> Lost
+                    </button>`;
+        default:
+            return '';
+    }
+}
+
+// Format functions
+function formatStatus(status) {
+    const statusMap = {
+        'new': 'New',
+        'contacted': 'Contacted',
+        'qualified': 'Qualified',
+        'negotiation': 'Negotiation',
+        'converted': 'Converted',
+        'lost': 'Lost'
+    };
+    return statusMap[status] || status;
+}
+
+function formatPriority(priority) {
+    return priority.charAt(0).toUpperCase() + priority.slice(1);
+}
+
+function formatSource(source) {
+    const sourceMap = {
+        'website': 'Website',
+        'referral': 'Referral',
+        'social_media': 'Social Media',
+        'advertisement': 'Advertisement',
+        'event': 'Event'
+    };
+    return sourceMap[source] || source;
+}
+
+// Update pagination
+function updatePagination(response) {
+    const info = document.getElementById('pagination-info');
+    const controls = document.getElementById('pagination-controls');
+    
+    const start = ((response.page - 1) * 20) + 1;
+    const end = Math.min(response.page * 20, response.total);
+    
+    info.textContent = `Showing ${start}-${end} of ${response.total} leads`;
+    
+    // Generate pagination controls
+    let paginationHTML = '';
+    
+    // Previous button
+    if (response.page > 1) {
+        paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="loadLeads(${response.page - 1})">Previous</a></li>`;
+    } else {
+        paginationHTML += `<li class="page-item disabled"><a class="page-link" href="#">Previous</a></li>`;
+    }
+    
+    // Page numbers
+    const totalPages = response.totalPages;
+    const currentPage = response.page;
+    
+    for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+        if (i === currentPage) {
+            paginationHTML += `<li class="page-item active"><a class="page-link" href="#">${i}</a></li>`;
+        } else {
+            paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="loadLeads(${i})">${i}</a></li>`;
+        }
+    }
+    
+    // Next button
+    if (response.page < totalPages) {
+        paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="loadLeads(${response.page + 1})">Next</a></li>`;
+    } else {
+        paginationHTML += `<li class="page-item disabled"><a class="page-link" href="#">Next</a></li>`;
+    }
+    
+    controls.innerHTML = paginationHTML;
+}
+
+// Filter functions
+function applyFilters() {
+    currentFilters = {
+        search: document.getElementById('search-input').value,
+        status: document.getElementById('status-filter').value,
+        source: document.getElementById('source-filter').value,
+        priority: document.getElementById('priority-filter').value
+    };
+    
+    // Remove empty filters
+    Object.keys(currentFilters).forEach(key => {
+        if (!currentFilters[key]) {
+            delete currentFilters[key];
+        }
+    });
+    
+    console.log('🔍 Applying filters:', currentFilters);
+    loadLeads(1);
+}
+
+function filterByStatus(status) {
+    document.getElementById('status-filter').value = status;
+    applyFilters();
+}
+
+// Action functions
+async function viewLead(leadId) {
+    console.log('👁️ View lead:', leadId);
+    try {
+        const response = await apiCall(`/leads/${leadId}`);
+        if (response.success) {
+            showLeadDetails(response.data);
+        }
+    } catch (error) {
+        showError('Failed to load lead details: ' + error.message);
+    }
+}
+
+async function contactLead(leadId) {
+    console.log('📞 Contact lead:', leadId);
+    try {
+        const response = await apiCall(`/leads/${leadId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+                status: 'contacted',
+                lastContact: new Date().toISOString(),
+                notes: 'Lead contacted by phone/email'
+            })
+        });
+        
+        if (response.success) {
+            alert('Lead marked as contacted successfully!');
+            loadLeads(currentPage);
+        }
+    } catch (error) {
+        showError('Failed to update lead: ' + error.message);
+    }
+}
+
+async function followUpLead(leadId) {
+    console.log('📧 Follow up lead:', leadId);
+    try {
+        const response = await apiCall(`/leads/${leadId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+                lastContact: new Date().toISOString(),
+                notes: 'Follow-up contact made'
+            })
+        });
+        
+        if (response.success) {
+            alert('Follow-up recorded successfully!');
+            loadLeads(currentPage);
+        }
+    } catch (error) {
+        showError('Failed to record follow-up: ' + error.message);
+    }
+}
+
+async function convertLead(leadId) {
+    console.log('🔄 Convert lead:', leadId);
+    if (confirm('Are you sure you want to convert this lead to a client?')) {
+        try {
+            const response = await apiCall(`/leads/${leadId}/convert`, {
+                method: 'POST'
+            });
+            
+            if (response.success) {
+                alert('Lead converted to client successfully!');
+                loadLeads(currentPage);
+                loadStats(); // Refresh stats
+            }
+        } catch (error) {
+            showError('Failed to convert lead: ' + error.message);
+        }
+    }
+}
+
+// Show lead details modal
+function showLeadDetails(lead) {
+    console.log('👁️ Showing lead details:', lead);
+    
+    const fullName = `${lead.firstName} ${lead.lastName}`;
+    const services = lead.interestedServices?.map(s => s.name).join(', ') || 'Not specified';
+    const lastContact = lead.lastContact ? new Date(lead.lastContact).toLocaleDateString() : 'Never';
+    const createdDate = new Date(lead.createdAt).toLocaleDateString();
+    const nextFollowUp = lead.nextFollowUp ? new Date(lead.nextFollowUp).toLocaleDateString() : 'Not scheduled';
+    
+    // Create modal HTML
+    const modalHTML = `
+        <div class="modal fade" id="leadDetailsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-user me-2"></i>Lead Details - ${fullName}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-info-circle me-2"></i>Basic Information</h6>
+                                <table class="table table-sm">
+                                    <tr><td><strong>Name:</strong></td><td>${fullName}</td></tr>
+                                    <tr><td><strong>Email:</strong></td><td>${lead.email}</td></tr>
+                                    <tr><td><strong>Phone:</strong></td><td>${lead.phone || 'Not provided'}</td></tr>
+                                    <tr><td><strong>University:</strong></td><td>${lead.university || 'Not specified'}</td></tr>
+                                    <tr><td><strong>Country:</strong></td><td>${lead.country || 'Not specified'}</td></tr>
+                                    <tr><td><strong>Degree:</strong></td><td>${lead.degree || 'Not specified'}</td></tr>
+                                    <tr><td><strong>Field of Study:</strong></td><td>${lead.fieldOfStudy || 'Not specified'}</td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-chart-line me-2"></i>Lead Status</h6>
+                                <table class="table table-sm">
+                                    <tr><td><strong>Status:</strong></td><td><span class="badge-${lead.status}">${formatStatus(lead.status)}</span></td></tr>
+                                    <tr><td><strong>Priority:</strong></td><td><span class="priority-${lead.priority}">${formatPriority(lead.priority)}</span></td></tr>
+                                    <tr><td><strong>Source:</strong></td><td><span class="source-badge source-${lead.source}">${formatSource(lead.source)}</span></td></tr>
+                                    <tr><td><strong>Estimated Value:</strong></td><td>$${lead.estimatedValue || 0}</td></tr>
+                                    <tr><td><strong>Created:</strong></td><td>${createdDate}</td></tr>
+                                    <tr><td><strong>Last Contact:</strong></td><td>${lastContact}</td></tr>
+                                    <tr><td><strong>Next Follow-up:</strong></td><td>${nextFollowUp}</td></tr>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <h6><i class="fas fa-cogs me-2"></i>Interested Services</h6>
+                                <p class="bg-light p-2 rounded">${services}</p>
+                            </div>
+                        </div>
+                        
+                        ${lead.notes ? `
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <h6><i class="fas fa-sticky-note me-2"></i>Notes</h6>
+                                <p class="bg-light p-2 rounded">${lead.notes}</p>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${lead.interactions && lead.interactions.length > 0 ? `
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <h6><i class="fas fa-history me-2"></i>Interaction History</h6>
+                                <div class="bg-light p-2 rounded">
+                                    ${lead.interactions.map(interaction => `
+                                        <div class="border-bottom pb-2 mb-2">
+                                            <strong>${interaction.type.toUpperCase()}</strong> - ${new Date(interaction.date).toLocaleDateString()}
+                                            ${interaction.note ? `<br><small>${interaction.note}</small>` : ''}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        ${getActionButtons(lead)}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('leadDetailsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('leadDetailsModal'));
+    modal.show();
+    
+    // Clean up modal after hiding
+    document.getElementById('leadDetailsModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+// Quick action functions
+function showAddLeadModal() {
+    const modal = new bootstrap.Modal(document.getElementById('addLeadModal'));
+    modal.show();
+}
+
+async function submitAddLead() {
+    console.log('➕ Add new lead');
+    
+    const form = document.getElementById('add-lead-form');
+    const formData = new FormData(form);
+    
+    const leadData = {
+        firstName: formData.get('firstName'),
+        lastName: formData.get('lastName'),
+        email: formData.get('email'),
+        phone: formData.get('phone'),
+        university: formData.get('university'),
+        country: formData.get('country'),
+        source: formData.get('source'),
+        priority: formData.get('priority'),
+        estimatedValue: parseInt(formData.get('estimatedValue')) || 0,
+        notes: formData.get('notes')
+    };
+    
+    // Basic validation
+    if (!leadData.firstName || !leadData.lastName || !leadData.email) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    try {
+        const response = await apiCall('/leads', {
+            method: 'POST',
+            body: JSON.stringify(leadData)
+        });
+        
+        if (response.success) {
+            alert('Lead added successfully!');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addLeadModal'));
+            modal.hide();
+            
+            // Reset form
+            form.reset();
+            
+            // Refresh data
+            loadLeads(currentPage);
+            loadStats();
+        }
+    } catch (error) {
+        showError('Failed to add lead: ' + error.message);
+    }
+}
+
+function refreshData() {
+    console.log('🔄 Refreshing data...');
+    loadDashboard();
+}
+
+function showAnalytics() {
+    console.log('📊 Show analytics');
+    
+    // Create analytics modal HTML
+    const modalHTML = `
+        <div class="modal fade" id="analyticsModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-chart-line me-2"></i>Lead Analytics Dashboard
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="card text-center">
+                                    <div class="card-body">
+                                        <h3 class="text-primary" id="analytics-total">-</h3>
+                                        <p class="mb-0">Total Leads</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card text-center">
+                                    <div class="card-body">
+                                        <h3 class="text-success" id="analytics-converted">-</h3>
+                                        <p class="mb-0">Converted</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card text-center">
+                                    <div class="card-body">
+                                        <h3 class="text-warning" id="analytics-qualified">-</h3>
+                                        <p class="mb-0">Qualified</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card text-center">
+                                    <div class="card-body">
+                                        <h3 class="text-info" id="analytics-conversion-rate">-</h3>
+                                        <p class="mb-0">Conversion Rate</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="fas fa-chart-pie me-2"></i>Leads by Status</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="status-breakdown">Loading...</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="fas fa-chart-bar me-2"></i>Leads by Source</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="source-breakdown">Loading...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Leads by Priority</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="priority-breakdown">Loading...</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="fas fa-clock me-2"></i>Recent Activity</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="recent-activity">Loading...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" onclick="exportAnalytics()">
+                            <i class="fas fa-download me-2"></i>Export Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('analyticsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('analyticsModal'));
+    modal.show();
+    
+    // Load analytics data
+    loadAnalyticsData();
+    
+    // Clean up modal after hiding
+    document.getElementById('analyticsModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+// Load analytics data
+async function loadAnalyticsData() {
+    try {
+        const response = await apiCall('/leads/stats/summary');
+        
+        if (response.success) {
+            const stats = response.data;
+            
+            // Update summary cards
+            document.getElementById('analytics-total').textContent = stats.total || 0;
+            document.getElementById('analytics-converted').textContent = stats.byStatus.find(s => s._id === 'converted')?.count || 0;
+            document.getElementById('analytics-qualified').textContent = stats.qualifiedCount || 0;
+            document.getElementById('analytics-conversion-rate').textContent = stats.conversionRate + '%';
+            
+            // Status breakdown
+            const statusHTML = stats.byStatus.map(status => `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge-${status._id}">${formatStatus(status._id)}</span>
+                    <span><strong>${status.count}</strong></span>
+                </div>
+            `).join('');
+            document.getElementById('status-breakdown').innerHTML = statusHTML;
+            
+            // Source breakdown
+            const sourceHTML = stats.bySource.map(source => `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="source-badge source-${source._id}">${formatSource(source._id)}</span>
+                    <span><strong>${source.count}</strong></span>
+                </div>
+            `).join('');
+            document.getElementById('source-breakdown').innerHTML = sourceHTML;
+            
+            // Priority breakdown
+            const priorityHTML = stats.byPriority.map(priority => `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="priority-${priority._id}">${formatPriority(priority._id)}</span>
+                    <span><strong>${priority.count}</strong></span>
+                </div>
+            `).join('');
+            document.getElementById('priority-breakdown').innerHTML = priorityHTML;
+            
+            // Recent activity
+            const activityHTML = stats.recentLeads.slice(0, 5).map(lead => `
+                <div class="border-bottom pb-2 mb-2">
+                    <strong>${lead.firstName} ${lead.lastName}</strong>
+                    <span class="badge-${lead.status} ms-2">${formatStatus(lead.status)}</span>
+                    <br><small class="text-muted">${new Date(lead.createdAt).toLocaleDateString()}</small>
+                </div>
+            `).join('');
+            document.getElementById('recent-activity').innerHTML = activityHTML || '<p class="text-muted">No recent activity</p>';
+        }
+    } catch (error) {
+        console.error('❌ Analytics load error:', error);
+        document.getElementById('status-breakdown').innerHTML = '<p class="text-danger">Failed to load analytics</p>';
+    }
+}
+
+// Export analytics report
+function exportAnalytics() {
+    console.log('📥 Export analytics');
+    alert('Analytics export functionality will be implemented');
+}
+
+function exportLeads() {
+    console.log('📥 Export leads');
+    
+    if (allLeads.length === 0) {
+        alert('No leads to export');
+        return;
+    }
+    
+    // Create CSV content
+    const headers = ['Name', 'Email', 'Phone', 'University', 'Country', 'Status', 'Priority', 'Source', 'Estimated Value', 'Created Date'];
+    const csvContent = [
+        headers.join(','),
+        ...allLeads.map(lead => [
+            `"${lead.firstName} ${lead.lastName}"`,
+            `"${lead.email}"`,
+            `"${lead.phone || ''}"`,
+            `"${lead.university || ''}"`,
+            `"${lead.country || ''}"`,
+            `"${lead.status}"`,
+            `"${lead.priority}"`,
+            `"${lead.source}"`,
+            `"${lead.estimatedValue || 0}"`,
+            `"${new Date(lead.createdAt).toLocaleDateString()}"`
+        ].join(','))
+    ].join('\n');
+    
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `leads-export-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    alert('Leads exported successfully!');
+}
+
+// Utility functions
+function showError(message) {
+    console.error('❌ Error:', message);
+    // TODO: Implement proper error display
+    alert('Error: ' + message);
+}
+
 // Logout function
 function logout() {
     console.log('🚪 Logging out...');
@@ -512,6 +1225,7 @@ function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('userRole');
+    localStorage.removeItem('client_token');
     
     // Show logout message
     alert('You have been logged out successfully.');
@@ -520,21 +1234,33 @@ function logout() {
     window.location.href = '/login';
 }
 
-// Add logout button listener
+// Event listeners
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🎯 Lead Manager Dashboard initializing...');
+    
+    // Check authentication
+    if (!authToken) {
+        console.log('❌ No auth token found, redirecting to login');
+        window.location.href = '/login';
+        return;
+    }
+    
+    // Attach logout button listener
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', logout);
         console.log('✅ Logout button event listener attached');
     }
-});
-
-// Demo functionality - in real app, this connects to backend
-document.querySelectorAll('.action-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const action = this.textContent.trim();
-        alert(`Action: ${action}\nThis will connect to backend API in production.`);
+    
+    // Attach filter listeners
+    document.getElementById('search-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            applyFilters();
+        }
     });
+    
+    // Load dashboard data
+    loadDashboard();
 });
 </script>
 

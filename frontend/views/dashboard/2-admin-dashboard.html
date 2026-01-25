@@ -127,7 +127,7 @@
         <i class="fas fa-briefcase me-2"></i>Services Management
     </a>
     <a href="#clients" class="sidebar-item">
-        <i class="fas fa-user-tie me-2"></i>Client Management
+        <!-- <i class="fas fa-user-tie me-2"></i>Client Management -->
     </a>
     <a href="#financial" class="sidebar-item">
         <i class="fas fa-dollar-sign me-2"></i>Financial Overview
@@ -1254,6 +1254,7 @@ function displayServices(services) {
 // Create a service table row
 function createServiceRow(service) {
     const row = document.createElement('tr');
+    row.setAttribute('data-service-id', service._id); // Add service ID for easy identification
     
     // Format price range
     const priceRange = service.pricing.type === 'fixed' ? 
@@ -1588,7 +1589,7 @@ async function deleteService(serviceId, serviceName) {
     
     if (!confirm(`Are you sure you want to delete the service: ${serviceName}?
     
-This will deactivate the service (soft delete).`)) {
+This will permanently remove the service from the active services list.`)) {
         return;
     }
     
@@ -1600,6 +1601,13 @@ This will deactivate the service (soft delete).`)) {
         }
         
         console.log('🔑 Using token for service deletion:', token.substring(0, 30) + '...');
+        
+        // Show loading state for the specific service row
+        const serviceRow = document.querySelector(`tr[data-service-id="${serviceId}"]`);
+        if (serviceRow) {
+            serviceRow.style.opacity = '0.5';
+            serviceRow.style.pointerEvents = 'none';
+        }
         
         const response = await fetch(`${API_BASE_URL}/services/${serviceId}`, {
             method: 'DELETE',
@@ -1621,14 +1629,37 @@ This will deactivate the service (soft delete).`)) {
         console.log('📋 Delete service response data:', data);
         
         if (data.success) {
+            // Show success message
             alert('Service deleted successfully!');
-            loadServicesManagement(); // Refresh the list
+            
+            // Remove the row from the table immediately for better UX
+            if (serviceRow) {
+                serviceRow.remove();
+            }
+            
+            // Refresh the list to ensure consistency
+            setTimeout(() => {
+                loadServicesManagement();
+            }, 500);
         } else {
+            // Restore row state on error
+            if (serviceRow) {
+                serviceRow.style.opacity = '1';
+                serviceRow.style.pointerEvents = 'auto';
+            }
             alert('Error deleting service: ' + (data.error?.message || 'Unknown error'));
         }
         
     } catch (error) {
         console.error('💥 Error deleting service:', error);
+        
+        // Restore row state on error
+        const serviceRow = document.querySelector(`tr[data-service-id="${serviceId}"]`);
+        if (serviceRow) {
+            serviceRow.style.opacity = '1';
+            serviceRow.style.pointerEvents = 'auto';
+        }
+        
         alert('Error deleting service. Please try again.');
     }
 }

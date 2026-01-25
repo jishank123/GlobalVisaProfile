@@ -24,7 +24,11 @@ const logActivity = async (userId, action, details, ipAddress) => {
 // @access  Private (Admin, Lead Manager)
 exports.getLeads = async (req, res) => {
   try {
-    const { search, status, source, assignedTo, page = 1, limit = 20 } = req.query;
+    console.log('🎯 === GET LEADS REQUEST ===');
+    console.log('🎯 User:', req.user?.email, 'Role:', req.user?.role);
+    console.log('🎯 Query params:', req.query);
+    
+    const { search, status, source, priority, assignedTo, page = 1, limit = 20 } = req.query;
     
     // Build query with security filters
     let query = {};
@@ -32,7 +36,8 @@ exports.getLeads = async (req, res) => {
     // Role-based access control
     if (req.user.role === 'lead_manager') {
       // Lead managers can only see their assigned leads
-      query.assignedTo = req.user.user_id;
+      query.assignedTo = req.user._id;
+      console.log('🎯 Lead manager filter applied:', req.user._id);
     } else if (req.user.role === 'crm_manager') {
       // CRM managers cannot access leads
       return res.status(403).json({
@@ -47,33 +52,32 @@ exports.getLeads = async (req, res) => {
     // Apply filters
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
+        { firstName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
         { phone: { $regex: search, $options: 'i' } },
-        { company: { $regex: search, $options: 'i' } }
+        { university: { $regex: search, $options: 'i' } }
       ];
     }
     
     if (status) query.status = status;
     if (source) query.source = source;
+    if (priority) query.priority = priority;
     if (assignedTo && req.user.role === 'admin') query.assignedTo = assignedTo;
     
+    console.log('🎯 Final query:', query);
+    
     const leads = await Lead.find(query)
-      .populate('assignedTo', 'first_name last_name email')
+      .populate('assignedTo', 'name email')
+      .populate('interestedServices', 'name')
       .populate('convertedToClient', 'name email')
-      .sort({ created_at: -1 })
+      .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
     
     const count = await Lead.countDocuments(query);
     
-    // Log activity
-    await logActivity(
-      req.user.user_id,
-      'VIEW_LEADS',
-      `Viewed leads list. Role: ${req.user.role}, Filters: ${JSON.stringify(req.query)}`,
-      req.ip
-    );
+    console.log('🎯 Found leads:', leads.length, 'Total:', count);
     
     res.json({
       success: true,
@@ -84,6 +88,7 @@ exports.getLeads = async (req, res) => {
       data: leads
     });
   } catch (error) {
+    console.error('❌ Get leads error:', error);
     res.status(500).json({
       success: false,
       error: {
@@ -116,7 +121,7 @@ exports.getLead = async (req, res) => {
     
     // Security check - role-based access control
     if (req.user.role === 'lead_manager' && 
-        (!lead.assignedTo || lead.assignedTo._id.toString() !== req.user.user_id)) {
+        (!lead.assignedTo || lead.assignedTo._id.toString() !== req.user._id.toString())) {
       return res.status(403).json({
         success: false,
         error: {
@@ -128,7 +133,7 @@ exports.getLead = async (req, res) => {
     
     // Log activity
     await logActivity(
-      req.user.user_id,
+      req.user._id,
       'VIEW_LEAD',
       `Viewed lead: ${lead.name} (${lead.email})`,
       req.ip
@@ -167,7 +172,7 @@ exports.createLead = async (req, res) => {
       });
     }
     
-    const { name, email, phone, company, source, notes, priority } = req.body;
+    const { firstName, lastName, email, phone, university, country, source, notes, priority, estimatedValue } = req.body;
     
     // Check if lead already exists
     const existingLead = await Lead.findOne({ email });
@@ -182,15 +187,18 @@ exports.createLead = async (req, res) => {
     }
     
     const leadData = {
-      name,
+      firstName,
+      lastName,
       email,
       phone,
-      company,
+      university,
+      country,
       source: source || 'website',
       notes,
       priority: priority || 'medium',
+      estimatedValue: estimatedValue || 0,
       status: 'new',
-      created_by: req.user ? req.user.user_id : null
+      created_by: req.user ? req.user._id : null
     };
     
     // Auto-assign to a lead manager if not specified
@@ -221,9 +229,9 @@ exports.createLead = async (req, res) => {
     // Log activity
     if (req.user) {
       await logActivity(
-        req.user.user_id,
+        req.user._id,
         'CREATE_LEAD',
-        `Created new lead: ${lead.name} (${lead.email})`,
+        `Created new lead: ${lead.firstName} ${lead.lastName} (${lead.email})`,
         req.ip
       );
     }
@@ -276,7 +284,7 @@ exports.updateLead = async (req, res) => {
     
     // Security check - role-based access control
     if (req.user.role === 'lead_manager' && 
-        (!lead.assignedTo || lead.assignedTo.toString() !== req.user.user_id)) {
+        (!lead.assignedTo || lead.assignedTo.toString() !== req.user._id.toString())) {
       return res.status(403).json({
         success: false,
         error: {
@@ -287,7 +295,7 @@ exports.updateLead = async (req, res) => {
     }
     
     // Define allowed fields based on role
-    let allowedFields = ['name', 'phone', 'company', 'status', 'priority', 'notes', 'qualification_score'];
+    let allowedFields = ['firstName', 'lastName', 'phone', 'university', 'country', 'status', 'priority', 'notes', 'estimatedValue', 'lastContact'];
     
     if (req.user.role === 'admin') {
       allowedFields.push('assignedTo', 'source');
@@ -302,13 +310,13 @@ exports.updateLead = async (req, res) => {
     });
     
     // Validate qualification score
-    if (updateData.qualification_score !== undefined) {
-      if (updateData.qualification_score < 0 || updateData.qualification_score > 100) {
+    if (updateData.estimatedValue !== undefined) {
+      if (updateData.estimatedValue < 0) {
         return res.status(400).json({
           success: false,
           error: {
-            code: 'INVALID_SCORE',
-            message: 'Qualification score must be between 0 and 100'
+            code: 'INVALID_VALUE',
+            message: 'Estimated value must be greater than or equal to 0'
           }
         });
       }
@@ -323,9 +331,9 @@ exports.updateLead = async (req, res) => {
     
     // Log activity
     await logActivity(
-      req.user.user_id,
+      req.user._id,
       'UPDATE_LEAD',
-      `Updated lead: ${lead.name}. Fields: ${Object.keys(updateData).join(', ')}`,
+      `Updated lead: ${lead.firstName} ${lead.lastName}. Fields: ${Object.keys(updateData).join(', ')}`,
       req.ip
     );
     
@@ -364,7 +372,7 @@ exports.convertLead = async (req, res) => {
     
     // Security check
     if (req.user.role === 'lead_manager' && 
-        (!lead.assignedTo || lead.assignedTo.toString() !== req.user.user_id)) {
+        (!lead.assignedTo || lead.assignedTo.toString() !== req.user._id.toString())) {
       return res.status(403).json({
         success: false,
         error: {
@@ -403,14 +411,14 @@ exports.convertLead = async (req, res) => {
     
     // Create client record
     const clientData = {
-      name: lead.name,
+      name: `${lead.firstName} ${lead.lastName}`,
       email: lead.email,
       phone: lead.phone,
-      company: lead.company,
+      company: lead.university || 'Unknown',
       country: lead.country || 'Unknown',
       status: 'active',
       assignedManager: assignedManager || null,
-      created_by: req.user.user_id,
+      created_by: req.user._id,
       converted_from_lead: lead._id
     };
     
@@ -420,7 +428,7 @@ exports.convertLead = async (req, res) => {
     lead.status = 'converted';
     lead.convertedToClient = client._id;
     lead.converted_at = new Date();
-    lead.converted_by = req.user.user_id;
+    lead.converted_by = req.user._id;
     await lead.save();
     
     // Populate client data
@@ -428,9 +436,9 @@ exports.convertLead = async (req, res) => {
     
     // Log activity
     await logActivity(
-      req.user.user_id,
+      req.user._id,
       'CONVERT_LEAD',
-      `Converted lead ${lead.name} to client. Assigned to: ${client.assignedManager ? client.assignedManager.email : 'Unassigned'}`,
+      `Converted lead ${lead.firstName} ${lead.lastName} to client. Assigned to: ${client.assignedManager ? client.assignedManager.email : 'Unassigned'}`,
       req.ip
     );
     
@@ -473,14 +481,14 @@ exports.deleteLead = async (req, res) => {
     // Soft delete - change status instead of actual deletion
     lead.status = 'deleted';
     lead.deleted_at = new Date();
-    lead.deleted_by = req.user.user_id;
+    lead.deleted_by = req.user._id;
     await lead.save();
     
     // Log activity
     await logActivity(
-      req.user.user_id,
+      req.user._id,
       'DELETE_LEAD',
-      `Deleted lead: ${lead.name} (${lead.email})`,
+      `Deleted lead: ${lead.firstName} ${lead.lastName} (${lead.email})`,
       req.ip
     );
     
@@ -504,14 +512,19 @@ exports.deleteLead = async (req, res) => {
 // @access  Private (Admin, Lead Manager)
 exports.getLeadStats = async (req, res) => {
   try {
-    let query = { status: { $ne: 'deleted' } };
+    console.log('📊 === GET LEAD STATS REQUEST ===');
+    console.log('📊 User:', req.user?.email, 'Role:', req.user?.role);
+    
+    let query = {};
     
     // Filter by assigned leads for lead managers
     if (req.user.role === 'lead_manager') {
-      query.assignedTo = req.user.user_id;
+      query.assignedTo = req.user._id;
+      console.log('📊 Lead manager filter applied:', req.user._id);
     }
     
     const total = await Lead.countDocuments(query);
+    console.log('📊 Total leads:', total);
     
     const byStatus = await Lead.aggregate([
       { $match: query },
@@ -534,7 +547,18 @@ exports.getLeadStats = async (req, res) => {
       { $sort: { count: -1 } }
     ]);
     
-    const conversionRate = await Lead.aggregate([
+    const byPriority = await Lead.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: '$priority',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Calculate conversion rate
+    const conversionStats = await Lead.aggregate([
       { $match: query },
       {
         $group: {
@@ -546,43 +570,52 @@ exports.getLeadStats = async (req, res) => {
             }
           }
         }
-      },
-      {
-        $project: {
-          conversionRate: {
-            $multiply: [
-              { $divide: ['$converted', '$total'] },
-              100
-            ]
-          }
-        }
       }
     ]);
     
+    const conversionRate = conversionStats.length > 0 
+      ? Math.round((conversionStats[0].converted / conversionStats[0].total) * 100) 
+      : 0;
+    
+    // Get recent leads
     const recentLeads = await Lead.find(query)
-      .populate('assignedTo', 'first_name last_name')
-      .sort({ created_at: -1 })
+      .populate('assignedTo', 'name email')
+      .populate('interestedServices', 'name')
+      .sort({ createdAt: -1 })
       .limit(5);
     
-    // Log activity
-    await logActivity(
-      req.user.user_id,
-      'VIEW_LEAD_STATS',
-      `Viewed lead statistics. Role: ${req.user.role}`,
-      req.ip
-    );
+    // Get this week's new leads
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - 7);
+    
+    const newThisWeek = await Lead.countDocuments({
+      ...query,
+      createdAt: { $gte: weekStart }
+    });
+    
+    // Get qualified leads count
+    const qualifiedCount = await Lead.countDocuments({
+      ...query,
+      status: 'qualified'
+    });
+    
+    console.log('📊 Stats calculated successfully');
     
     res.json({
       success: true,
       data: {
         total,
+        newThisWeek,
+        conversionRate,
+        qualifiedCount,
         byStatus,
         bySource,
-        conversionRate: conversionRate[0]?.conversionRate || 0,
+        byPriority,
         recentLeads
       }
     });
   } catch (error) {
+    console.error('❌ Get lead stats error:', error);
     res.status(500).json({
       success: false,
       error: {
@@ -643,9 +676,9 @@ exports.assignLead = async (req, res) => {
     
     // Log activity
     await logActivity(
-      req.user.user_id,
+      req.user._id,
       'ASSIGN_LEAD',
-      `Assigned lead ${lead.name} to manager ${manager.email}`,
+      `Assigned lead ${lead.firstName} ${lead.lastName} to manager ${manager.email}`,
       req.ip
     );
     
