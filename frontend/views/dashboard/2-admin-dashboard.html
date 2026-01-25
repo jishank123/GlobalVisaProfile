@@ -237,7 +237,7 @@
     <div id="services" class="management-card">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5><i class="fas fa-briefcase me-2"></i>Services Management</h5>
-            <button id="add-service-btn" class="btn btn-primary btn-sm">
+            <button id="add-service-btn" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addServiceModal">
                 <i class="fas fa-plus me-1"></i>Add New Service
             </button>
         </div>
@@ -389,7 +389,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="addUserModalLabel">
+                <h5 class="modal-title fw-bold" id="addUserModalLabel">
                     <i class="fas fa-user-plus me-2"></i>Add New User
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -399,13 +399,13 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="firstName" class="form-label">First Name <span class="text-danger">*</span></label>
+                                <label for="firstName" class="form-label fw-bold">First Name <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="firstName" name="first_name" required>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="lastName" class="form-label">Last Name <span class="text-danger">*</span></label>
+                                <label for="lastName" class="form-label fw-bold">Last Name <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="lastName" name="last_name" required>
                             </div>
                         </div>
@@ -414,13 +414,13 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="email" class="form-label">Email Address <span class="text-danger">*</span></label>
+                                <label for="email" class="form-label fw-bold">Email Address <span class="text-danger">*</span></label>
                                 <input type="email" class="form-control" id="email" name="email" required>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
+                                <label for="password" class="form-label fw-bold">Password <span class="text-danger">*</span></label>
                                 <input type="password" class="form-control" id="password" name="password" minlength="8" required>
                                 <div class="form-text">Minimum 8 characters</div>
                             </div>
@@ -430,7 +430,7 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
+                                <label for="role" class="form-label fw-bold">Role <span class="text-danger">*</span></label>
                                 <select class="form-select" id="role" name="role" required>
                                     <option value="">Select Role</option>
                                     <option value="client">Client</option>
@@ -441,7 +441,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="phone" class="form-label">Phone Number</label>
+                                <label for="phone" class="form-label fw-bold">Phone Number</label>
                                 <input type="tel" class="form-control" id="phone" name="phone">
                             </div>
                         </div>
@@ -450,13 +450,13 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="company" class="form-label">Company</label>
+                                <label for="company" class="form-label fw-bold">Company</label>
                                 <input type="text" class="form-control" id="company" name="company">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="country" class="form-label">Country</label>
+                                <label for="country" class="form-label fw-bold">Country</label>
                                 <input type="text" class="form-control" id="country" name="country">
                             </div>
                         </div>
@@ -467,6 +467,207 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" id="saveUserBtn">
                     <i class="fas fa-save me-1"></i>Create User
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Service Modal -->
+<div class="modal fade" id="addServiceModal" tabindex="-1" aria-labelledby="addServiceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="addServiceModalLabel">
+                    <i class="fas fa-briefcase me-2"></i>Add New Service
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addServiceForm">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="serviceName" class="form-label">Service Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="serviceName" name="name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="serviceCategory" class="form-label">Category <span class="text-danger">*</span></label>
+                                <select class="form-select" id="serviceCategory" name="category" required>
+                                    <option value="">Select Category</option>
+                                    <option value="Research">Research</option>
+                                    <option value="Writing">Writing</option>
+                                    <option value="Editing">Editing</option>
+                                    <option value="Consulting">Consulting</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="serviceDescription" class="form-label">Description <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="serviceDescription" name="description" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="pricingType" class="form-label">Pricing Type <span class="text-danger">*</span></label>
+                                <select class="form-select" id="pricingType" name="pricing_type" required>
+                                    <option value="">Select Type</option>
+                                    <option value="fixed">Fixed Price</option>
+                                    <option value="hourly">Hourly Rate</option>
+                                    <option value="range">Price Range</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="minPrice" class="form-label">Min Price ($) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="minPrice" name="min_price" min="0" step="0.01" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="maxPrice" class="form-label">Max Price ($) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="maxPrice" name="max_price" min="0" step="0.01" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="serviceDuration" class="form-label">Duration</label>
+                                <input type="text" class="form-control" id="serviceDuration" name="duration" placeholder="e.g., 2-4 weeks">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="serviceStatus" class="form-label">Status</label>
+                                <select class="form-select" id="serviceStatus" name="is_active">
+                                    <option value="true">Active</option>
+                                    <option value="false">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="serviceFeatures" class="form-label">Features (one per line)</label>
+                        <textarea class="form-control" id="serviceFeatures" name="features" rows="4" placeholder="Enter each feature on a new line"></textarea>
+                        <div class="form-text">Each line will be treated as a separate feature</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveServiceBtn">
+                    <i class="fas fa-save me-1"></i>Create Service
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Service Modal -->
+<div class="modal fade" id="editServiceModal" tabindex="-1" aria-labelledby="editServiceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editServiceModalLabel">
+                    <i class="fas fa-edit me-2"></i>Edit Service
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editServiceForm">
+                    <input type="hidden" id="editServiceId" name="service_id">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="editServiceName" class="form-label">Service Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="editServiceName" name="name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="editServiceCategory" class="form-label">Category <span class="text-danger">*</span></label>
+                                <select class="form-select" id="editServiceCategory" name="category" required>
+                                    <option value="">Select Category</option>
+                                    <option value="Research">Research</option>
+                                    <option value="Writing">Writing</option>
+                                    <option value="Editing">Editing</option>
+                                    <option value="Consulting">Consulting</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editServiceDescription" class="form-label">Description <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="editServiceDescription" name="description" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="editPricingType" class="form-label">Pricing Type <span class="text-danger">*</span></label>
+                                <select class="form-select" id="editPricingType" name="pricing_type" required>
+                                    <option value="">Select Type</option>
+                                    <option value="fixed">Fixed Price</option>
+                                    <option value="hourly">Hourly Rate</option>
+                                    <option value="range">Price Range</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="editMinPrice" class="form-label">Min Price ($) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="editMinPrice" name="min_price" min="0" step="0.01" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="editMaxPrice" class="form-label">Max Price ($) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="editMaxPrice" name="max_price" min="0" step="0.01" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editServiceDuration" class="form-label">Duration</label>
+                                <input type="text" class="form-control" id="editServiceDuration" name="duration" placeholder="e.g., 2-4 weeks">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editServiceStatus" class="form-label">Status</label>
+                                <select class="form-select" id="editServiceStatus" name="is_active">
+                                    <option value="true">Active</option>
+                                    <option value="false">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editServiceFeatures" class="form-label">Features (one per line)</label>
+                        <textarea class="form-control" id="editServiceFeatures" name="features" rows="4" placeholder="Enter each feature on a new line"></textarea>
+                        <div class="form-text">Each line will be treated as a separate feature</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="updateServiceBtn">
+                    <i class="fas fa-save me-1"></i>Update Service
                 </button>
             </div>
         </div>
@@ -1093,7 +1294,251 @@ function createServiceRow(service) {
 // Edit service
 async function editService(serviceId) {
     console.log('✏️ Editing service:', serviceId);
-    alert('Service editing functionality will be implemented in the next update. For now, you can toggle status or delete services.');
+    
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            alert('Authentication token not found. Please login again.');
+            return;
+        }
+        
+        // Fetch service details
+        const response = await fetch(`${API_BASE_URL}/services/${serviceId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const service = data.data;
+            
+            // Populate edit form
+            document.getElementById('editServiceId').value = service._id;
+            document.getElementById('editServiceName').value = service.name;
+            document.getElementById('editServiceCategory').value = service.category;
+            document.getElementById('editServiceDescription').value = service.description;
+            document.getElementById('editPricingType').value = service.pricing.type;
+            document.getElementById('editMinPrice').value = service.pricing.minPrice;
+            document.getElementById('editMaxPrice').value = service.pricing.maxPrice;
+            document.getElementById('editServiceDuration').value = service.duration || '';
+            document.getElementById('editServiceStatus').value = service.isActive.toString();
+            document.getElementById('editServiceFeatures').value = service.features ? service.features.join('\n') : '';
+            
+            // Show edit modal
+            const modal = new bootstrap.Modal(document.getElementById('editServiceModal'));
+            modal.show();
+            
+        } else {
+            alert('Error loading service details: ' + (data.error?.message || 'Unknown error'));
+        }
+        
+    } catch (error) {
+        console.error('💥 Error loading service for edit:', error);
+        alert('Error loading service details. Please try again.');
+    }
+}
+
+// Save new service from modal
+async function saveNewService() {
+    console.log('💾 Saving new service...');
+    
+    const form = document.getElementById('addServiceForm');
+    const formData = new FormData(form);
+    
+    // Validate required fields
+    const requiredFields = ['name', 'category', 'description', 'pricing_type', 'min_price', 'max_price'];
+    for (const field of requiredFields) {
+        if (!formData.get(field)) {
+            alert(`Please fill in the ${field.replace('_', ' ')} field.`);
+            return;
+        }
+    }
+    
+    // Validate pricing
+    const minPrice = parseFloat(formData.get('min_price'));
+    const maxPrice = parseFloat(formData.get('max_price'));
+    
+    if (minPrice < 0 || maxPrice < 0) {
+        alert('Prices cannot be negative.');
+        return;
+    }
+    
+    if (minPrice > maxPrice) {
+        alert('Minimum price cannot be greater than maximum price.');
+        return;
+    }
+    
+    // Prepare service data
+    const features = formData.get('features') ? 
+        formData.get('features').split('\n').filter(f => f.trim()).map(f => f.trim()) : [];
+    
+    const serviceData = {
+        name: formData.get('name'),
+        category: formData.get('category'),
+        description: formData.get('description'),
+        pricing: {
+            type: formData.get('pricing_type'),
+            minPrice: minPrice,
+            maxPrice: maxPrice,
+            currency: 'USD'
+        },
+        duration: formData.get('duration') || '2-4 weeks',
+        features: features,
+        isActive: formData.get('is_active') === 'true'
+    };
+    
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            alert('Authentication token not found. Please login again.');
+            return;
+        }
+        
+        // Disable save button to prevent double submission
+        const saveBtn = document.getElementById('saveServiceBtn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Creating...';
+        
+        const response = await fetch(`${API_BASE_URL}/services`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(serviceData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Service created successfully!');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addServiceModal'));
+            modal.hide();
+            
+            // Reset form
+            form.reset();
+            
+            // Refresh services list
+            loadServicesManagement();
+        } else {
+            alert('Error creating service: ' + (data.error?.message || 'Unknown error'));
+        }
+        
+    } catch (error) {
+        console.error('💥 Error creating service:', error);
+        alert('Error creating service. Please try again.');
+    } finally {
+        // Re-enable save button
+        const saveBtn = document.getElementById('saveServiceBtn');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>Create Service';
+    }
+}
+
+// Update service from edit modal
+async function updateService() {
+    console.log('💾 Updating service...');
+    
+    const form = document.getElementById('editServiceForm');
+    const formData = new FormData(form);
+    const serviceId = formData.get('service_id');
+    
+    // Validate required fields
+    const requiredFields = ['name', 'category', 'description', 'pricing_type', 'min_price', 'max_price'];
+    for (const field of requiredFields) {
+        if (!formData.get(field)) {
+            alert(`Please fill in the ${field.replace('_', ' ')} field.`);
+            return;
+        }
+    }
+    
+    // Validate pricing
+    const minPrice = parseFloat(formData.get('min_price'));
+    const maxPrice = parseFloat(formData.get('max_price'));
+    
+    if (minPrice < 0 || maxPrice < 0) {
+        alert('Prices cannot be negative.');
+        return;
+    }
+    
+    if (minPrice > maxPrice) {
+        alert('Minimum price cannot be greater than maximum price.');
+        return;
+    }
+    
+    // Prepare service data
+    const features = formData.get('features') ? 
+        formData.get('features').split('\n').filter(f => f.trim()).map(f => f.trim()) : [];
+    
+    const serviceData = {
+        name: formData.get('name'),
+        category: formData.get('category'),
+        description: formData.get('description'),
+        pricing: {
+            type: formData.get('pricing_type'),
+            minPrice: minPrice,
+            maxPrice: maxPrice,
+            currency: 'USD'
+        },
+        duration: formData.get('duration') || '2-4 weeks',
+        features: features,
+        isActive: formData.get('is_active') === 'true'
+    };
+    
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            alert('Authentication token not found. Please login again.');
+            return;
+        }
+        
+        // Disable update button to prevent double submission
+        const updateBtn = document.getElementById('updateServiceBtn');
+        updateBtn.disabled = true;
+        updateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Updating...';
+        
+        const response = await fetch(`${API_BASE_URL}/services/${serviceId}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(serviceData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Service updated successfully!');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editServiceModal'));
+            modal.hide();
+            
+            // Refresh services list
+            loadServicesManagement();
+        } else {
+            alert('Error updating service: ' + (data.error?.message || 'Unknown error'));
+        }
+        
+    } catch (error) {
+        console.error('💥 Error updating service:', error);
+        alert('Error updating service. Please try again.');
+    } finally {
+        // Re-enable update button
+        const updateBtn = document.getElementById('updateServiceBtn');
+        updateBtn.disabled = false;
+        updateBtn.innerHTML = '<i class="fas fa-save me-1"></i>Update Service';
+    }
 }
 
 // Toggle service status (activate/deactivate)
@@ -1142,6 +1587,13 @@ This will deactivate the service (soft delete).`)) {
     
     try {
         const token = getAuthToken();
+        if (!token) {
+            alert('Authentication token not found. Please login again.');
+            return;
+        }
+        
+        console.log('🔑 Using token for service deletion:', token.substring(0, 30) + '...');
+        
         const response = await fetch(`${API_BASE_URL}/services/${serviceId}`, {
             method: 'DELETE',
             headers: {
@@ -1150,7 +1602,16 @@ This will deactivate the service (soft delete).`)) {
             }
         });
         
+        console.log('📡 Delete service response status:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Delete service response error:', errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+        
         const data = await response.json();
+        console.log('📋 Delete service response data:', data);
         
         if (data.success) {
             alert('Service deleted successfully!');
@@ -1198,6 +1659,22 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ Save User button event listener attached');
     } else {
         console.error('❌ Save User button not found');
+    }
+    
+    const saveServiceBtn = document.getElementById('saveServiceBtn');
+    if (saveServiceBtn) {
+        saveServiceBtn.addEventListener('click', saveNewService);
+        console.log('✅ Save Service button event listener attached');
+    } else {
+        console.error('❌ Save Service button not found');
+    }
+    
+    const updateServiceBtn = document.getElementById('updateServiceBtn');
+    if (updateServiceBtn) {
+        updateServiceBtn.addEventListener('click', updateService);
+        console.log('✅ Update Service button event listener attached');
+    } else {
+        console.error('❌ Update Service button not found');
     }
     
     // Refresh stats every 5 minutes

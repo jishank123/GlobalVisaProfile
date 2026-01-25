@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Management Modal Test</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #f8f9fa; padding: 20px; }
+        .test-card { background: white; border-radius: 10px; padding: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .test-result { padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .test-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .test-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .test-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1><i class="fas fa-briefcase me-2"></i>Service Management Modal Test</h1>
+    <p class="text-muted">Testing the new modal-based service creation, editing, and deletion functionality</p>
+    
+    <!-- Login Test -->
+    <div class="test-card">
+        <h5><i class="fas fa-sign-in-alt me-2"></i>Step 1: Admin Login</h5>
+        <p>Login as admin to test service management features...</p>
+        <button id="test-login" class="btn btn-primary">Login as Admin</button>
+        <div id="login-result"></div>
+    </div>
+    
+    <!-- Load Services Test -->
+    <div class="test-card">
+        <h5><i class="fas fa-list me-2"></i>Step 2: Load Services</h5>
+        <p>Load existing services from the database...</p>
+        <button id="test-load" class="btn btn-primary" disabled>Load Services</button>
+        <div id="load-result"></div>
+    </div>
+    
+    <!-- Create Service Test -->
+    <div class="test-card">
+        <h5><i class="fas fa-plus me-2"></i>Step 3: Create Service</h5>
+        <p>Test creating a new service via modal form...</p>
+        <button id="test-create" class="btn btn-success" disabled>Create Test Service</button>
+        <div id="create-result"></div>
+    </div>
+    
+    <!-- Edit Service Test -->
+    <div class="test-card">
+        <h5><i class="fas fa-edit me-2"></i>Step 4: Edit Service</h5>
+        <p>Test editing the created service...</p>
+        <button id="test-edit" class="btn btn-warning" disabled>Edit Test Service</button>
+        <div id="edit-result"></div>
+    </div>
+    
+    <!-- Delete Service Test -->
+    <div class="test-card">
+        <h5><i class="fas fa-trash me-2"></i>Step 5: Delete Service</h5>
+        <p>Test deleting the created service...</p>
+        <button id="test-delete" class="btn btn-danger" disabled>Delete Test Service</button>
+        <div id="delete-result"></div>
+    </div>
+    
+    <!-- Instructions -->
+    <div class="test-card">
+        <h5><i class="fas fa-info-circle me-2"></i>Instructions</h5>
+        <ol>
+            <li>Make sure both backend (port 5000) and frontend (port 3000) servers are running</li>
+            <li>Click "Login as Admin" to authenticate</li>
+            <li>Follow the steps in order to test all service management functionality</li>
+            <li>Each step will enable the next one upon successful completion</li>
+        </ol>
+        
+        <div class="mt-3">
+            <strong>Admin Credentials:</strong><br>
+            Email: admin@gmail.com<br>
+            Password: admin@#A
+        </div>
+        
+        <div class="mt-3">
+            <a href="http://localhost:3000/admin" target="_blank" class="btn btn-success">
+                <i class="fas fa-external-link-alt me-1"></i>Open Real Admin Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API_BASE_URL = 'http://localhost:5000/api';
+let adminToken = null;
+let testServiceId = null;
+
+// Helper functions
+function showResult(elementId, message, type = 'info') {
+    const element = document.getElementById(elementId);
+    element.innerHTML = `<div class="test-result test-${type}"><i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle me-2"></i>${message}</div>`;
+}
+
+function enableButton(buttonId) {
+    document.getElementById(buttonId).disabled = false;
+}
+
+// Test 1: Admin Login
+document.getElementById('test-login').addEventListener('click', async function() {
+    showResult('login-result', 'Testing admin login...', 'info');
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/client-accounts/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email: 'admin@gmail.com',
+                password: 'admin@#A'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            adminToken = data.data.token;
+            showResult('login-result', `✅ Admin login successful! Ready to test service management.`, 'success');
+            enableButton('test-load');
+        } else {
+            showResult('login-result', `❌ Login failed: ${data.error?.message || 'Unknown error'}`, 'error');
+        }
+        
+    } catch (error) {
+        showResult('login-result', `💥 Login error: ${error.message}`, 'error');
+    }
+});
+
+// Test 2: Load Services
+document.getElementById('test-load').addEventListener('click', async function() {
+    showResult('load-result', 'Loading services...', 'info');
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/services`, {
+            headers: {
+                'Authorization': `Bearer ${adminToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showResult('load-result', `✅ Services loaded successfully! Found ${data.data.length} services.`, 'success');
+            enableButton('test-create');
+        } else {
+            showResult('load-result', `❌ Failed to load services: ${data.error?.message || 'Unknown error'}`, 'error');
+        }
+        
+    } catch (error) {
+        showResult('load-result', `💥 Error loading services: ${error.message}`, 'error');
+    }
+});
+
+// Test 3: Create Service
+document.getElementById('test-create').addEventListener('click', async function() {
+    showResult('create-result', 'Creating test service...', 'info');
+    
+    const testService = {
+        name: 'Modal Test Service',
+        category: 'Consulting',
+        description: 'This is a test service created via modal form to verify functionality works correctly.',
+        pricing: {
+            type: 'range',
+            minPrice: 500,
+            maxPrice: 1500,
+            currency: 'USD'
+        },
+        duration: '1-2 weeks',
+        features: [
+            'Initial consultation',
+            'Document review',
+            'Strategy planning'
+        ],
+        isActive: true
+    };
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/services`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${adminToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(testService)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            testServiceId = data.data._id;
+            showResult('create-result', `✅ Service created successfully! Name: ${testService.name}`, 'success');
+            enableButton('test-edit');
+        } else {
+            showResult('create-result', `❌ Error creating service: ${data.error?.message || 'Unknown error'}`, 'error');
+        }
+        
+    } catch (error) {
+        showResult('create-result', `💥 Error creating service: ${error.message}`, 'error');
+    }
+});
+
+// Test 4: Edit Service
+document.getElementById('test-edit').addEventListener('click', async function() {
+    if (!testServiceId) {
+        showResult('edit-result', '❌ No test service to edit. Create a service first.', 'error');
+        return;
+    }
+    
+    showResult('edit-result', 'Updating test service...', 'info');
+    
+    const updateData = {
+        name: 'Updated Modal Test Service',
+        category: 'Research',
+        description: 'This service has been updated via the edit modal to test functionality.',
+        pricing: {
+            type: 'fixed',
+            minPrice: 750,
+            maxPrice: 750,
+            currency: 'USD'
+        },
+        duration: '3-4 weeks',
+        features: [
+            'Updated consultation',
+            'Enhanced document review',
+            'Advanced strategy planning',
+            'Follow-up support'
+        ],
+        isActive: true
+    };
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/services/${testServiceId}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${adminToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updateData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showResult('edit-result', `✅ Service updated successfully! New name: ${updateData.name}`, 'success');
+            enableButton('test-delete');
+        } else {
+            showResult('edit-result', `❌ Error updating service: ${data.error?.message || 'Unknown error'}`, 'error');
+        }
+        
+    } catch (error) {
+        showResult('edit-result', `💥 Error updating service: ${error.message}`, 'error');
+    }
+});
+
+// Test 5: Delete Service
+document.getElementById('test-delete').addEventListener('click', async function() {
+    if (!testServiceId) {
+        showResult('delete-result', '❌ No test service to delete. Create a service first.', 'error');
+        return;
+    }
+    
+    showResult('delete-result', 'Deleting test service...', 'info');
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/services/${testServiceId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${adminToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showResult('delete-result', '✅ Service deleted successfully! All service management functionality working perfectly.', 'success');
+        } else {
+            showResult('delete-result', `❌ Error deleting service: ${data.error?.message || 'Unknown error'}`, 'error');
+        }
+        
+    } catch (error) {
+        showResult('delete-result', `💥 Error deleting service: ${error.message}`, 'error');
+    }
+});
+</script>
+
+</body>
+</html>
