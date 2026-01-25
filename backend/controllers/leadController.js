@@ -156,9 +156,20 @@ exports.getLead = async (req, res) => {
 
 // @desc    Create new lead
 // @route   POST /api/leads
-// @access  Private (Admin, Lead Manager) or Public (from website forms)
+// @access  Private (Admin only) - Lead managers cannot create leads
 exports.createLead = async (req, res) => {
   try {
+    // Only admins can create leads directly
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only administrators can create leads. Leads are created from website forms or by admin assignment.'
+        }
+      });
+    }
+    
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -172,7 +183,7 @@ exports.createLead = async (req, res) => {
       });
     }
     
-    const { firstName, lastName, email, phone, university, country, source, notes, priority, estimatedValue } = req.body;
+    const { firstName, lastName, email, phone, university, country, source, notes, priority, estimatedValue, assignedTo } = req.body;
     
     // Check if lead already exists
     const existingLead = await Lead.findOne({ email });
@@ -186,6 +197,20 @@ exports.createLead = async (req, res) => {
       });
     }
     
+    // Verify assigned manager if provided
+    if (assignedTo) {
+      const manager = await User.findById(assignedTo);
+      if (!manager || manager.role !== 'lead_manager') {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_MANAGER',
+            message: 'Invalid manager ID or user is not a lead manager'
+          }
+        });
+      }
+    }
+    
     const leadData = {
       firstName,
       lastName,
@@ -193,33 +218,14 @@ exports.createLead = async (req, res) => {
       phone,
       university,
       country,
-      source: source || 'website',
+      source: source || 'admin_created',
       notes,
       priority: priority || 'medium',
       estimatedValue: estimatedValue || 0,
       status: 'new',
-      created_by: req.user ? req.user._id : null
+      assignedTo: assignedTo || null,
+      created_by: req.user._id
     };
-    
-    // Auto-assign to a lead manager if not specified
-    if (!leadData.assignedTo && req.user && req.user.role === 'admin') {
-      // Find available lead manager with least leads
-      const leadManagers = await User.find({ role: 'lead_manager', status: 'active' });
-      if (leadManagers.length > 0) {
-        const leadCounts = await Promise.all(
-          leadManagers.map(async (manager) => ({
-            manager: manager._id,
-            count: await Lead.countDocuments({ assignedTo: manager._id, status: { $ne: 'converted' } })
-          }))
-        );
-        
-        const leastBusyManager = leadCounts.reduce((min, current) => 
-          current.count < min.count ? current : min
-        );
-        
-        leadData.assignedTo = leastBusyManager.manager;
-      }
-    }
     
     const lead = await Lead.create(leadData);
     
@@ -227,14 +233,12 @@ exports.createLead = async (req, res) => {
     await lead.populate('assignedTo', 'first_name last_name email');
     
     // Log activity
-    if (req.user) {
-      await logActivity(
-        req.user._id,
-        'CREATE_LEAD',
-        `Created new lead: ${lead.firstName} ${lead.lastName} (${lead.email})`,
-        req.ip
-      );
-    }
+    await logActivity(
+      req.user._id,
+      'CREATE_LEAD',
+      `Admin created new lead: ${lead.firstName} ${lead.lastName} (${lead.email})${assignedTo ? ` and assigned to manager` : ''}`,
+      req.ip
+    );
     
     res.status(201).json({
       success: true,
@@ -620,6 +624,92 @@ exports.getLeadStats = async (req, res) => {
       success: false,
       error: {
         code: 'FETCH_LEAD_STATS_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Create lead from form submission (internal system use)
+// @route   POST /api/leads/from-form
+// @access  Private (Admin only) or Internal system
+exports.createLeadFromForm = async (req, res) => {
+  try {
+    const { firstName, lastName, email, phone, university, country, source, notes, priority, estimatedValue, formType, formId } = req.body;
+    
+    // Check if lead already exists
+    const existingLead = await Lead.findOne({ email });
+    if (existingLead) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'LEAD_EXISTS',
+          message: 'Lead with this email already exists'
+        }
+      });
+    }
+    
+    const leadData = {
+      firstName,
+      lastName,
+      email,
+      phone,
+      university,
+      country,
+      source: source || 'website_form',
+      notes: notes || `Created from ${formType} form`,
+      priority: priority || 'medium',
+      estimatedValue: estimatedValue || 0,
+      status: 'new',
+      created_by: req.user ? req.user._id : null,
+      form_source: {
+        type: formType,
+        id: formId
+      }
+    };
+    
+    // Auto-assign to available lead manager with least workload
+    const leadManagers = await User.find({ role: 'lead_manager', status: 'active' });
+    if (leadManagers.length > 0) {
+      const leadCounts = await Promise.all(
+        leadManagers.map(async (manager) => ({
+          manager: manager._id,
+          count: await Lead.countDocuments({ assignedTo: manager._id, status: { $ne: 'converted' } })
+        }))
+      );
+      
+      const leastBusyManager = leadCounts.reduce((min, current) => 
+        current.count < min.count ? current : min
+      );
+      
+      leadData.assignedTo = leastBusyManager.manager;
+    }
+    
+    const lead = await Lead.create(leadData);
+    
+    // Populate the created lead
+    await lead.populate('assignedTo', 'first_name last_name email');
+    
+    // Log activity
+    if (req.user) {
+      await logActivity(
+        req.user._id,
+        'CREATE_LEAD_FROM_FORM',
+        `Created lead from ${formType}: ${lead.firstName} ${lead.lastName} (${lead.email})`,
+        req.ip
+      );
+    }
+    
+    res.status(201).json({
+      success: true,
+      message: 'Lead created from form successfully',
+      data: lead
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'CREATE_LEAD_FROM_FORM_FAILED',
         message: error.message
       }
     });

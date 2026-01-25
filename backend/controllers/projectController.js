@@ -37,10 +37,13 @@ exports.getProjects = async (req, res) => {
       query.client = { $in: clientIds };
     } else if (req.user.role === 'client') {
       // Clients can only see their own projects
-      const clientRecord = await Client.findOne({ user: req.user.user_id });
+      // Find client record by email since there's no direct user link
+      const clientRecord = await Client.findOne({ email: req.user.email });
       if (clientRecord) {
         query.client = clientRecord._id;
+        console.log('🔍 Client query:', { clientId: clientRecord._id, email: req.user.email });
       } else {
+        console.log('❌ No client record found for email:', req.user.email);
         // No client record found, return empty result
         return res.json({
           success: true,
@@ -68,12 +71,16 @@ exports.getProjects = async (req, res) => {
     const projects = await Project.find(query)
       .populate('client', 'name email company')
       .populate('service', 'name category price')
-      .populate('assignedTo', 'first_name last_name email')
-      .sort({ created_at: -1 })
+      .populate('assigned_to', 'first_name last_name email')
+      .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
     
+    console.log('🔍 Query executed:', query);
+    console.log('📊 Projects found:', projects.length);
+    
     const count = await Project.countDocuments(query);
+    console.log('📊 Total count:', count);
     
     // Log activity
     await logActivity(
@@ -125,7 +132,8 @@ exports.getProject = async (req, res) => {
     
     // Security check - role-based access control
     if (req.user.role === 'client') {
-      const clientRecord = await Client.findOne({ user: req.user.user_id });
+      // Find client record by email since there's no direct user link
+      const clientRecord = await Client.findOne({ email: req.user.email });
       if (!clientRecord || project.client._id.toString() !== clientRecord._id.toString()) {
         return res.status(403).json({
           success: false,

@@ -614,18 +614,50 @@ const convertToLead = async (req, res) => {
 
     // Create lead from contact form
     const Lead = require('../models/Lead');
-    const lead = new Lead({
-      name: contactForm.name,
+    const User = require('../models/User');
+    
+    // Prepare lead data
+    const leadData = {
+      firstName: contactForm.name.split(' ')[0],
+      lastName: contactForm.name.split(' ').slice(1).join(' ') || 'Unknown',
       email: contactForm.email,
       phone: contactForm.phone,
-      service_interest: service_interest || contactForm.visa_type_display,
-      priority: priority || contactForm.priority,
-      assigned_to: assigned_to,
+      university: 'Unknown',
+      country: 'Unknown',
+      source: 'contact_form',
       notes: notes || contactForm.message,
-      source: 'website'
-    });
-
+      priority: priority || contactForm.priority,
+      estimatedValue: 0,
+      status: 'new',
+      created_by: req.user._id,
+      form_source: {
+        type: 'contact_form',
+        id: contactForm._id
+      }
+    };
+    
+    // Auto-assign to available lead manager with least workload
+    const leadManagers = await User.find({ role: 'lead_manager', status: 'active' });
+    if (leadManagers.length > 0) {
+      const leadCounts = await Promise.all(
+        leadManagers.map(async (manager) => ({
+          manager: manager._id,
+          count: await Lead.countDocuments({ assignedTo: manager._id, status: { $ne: 'converted' } })
+        }))
+      );
+      
+      const leastBusyManager = leadCounts.reduce((min, current) => 
+        current.count < min.count ? current : min
+      );
+      
+      leadData.assignedTo = leastBusyManager.manager;
+    }
+    
+    const lead = new Lead(leadData);
     await lead.save();
+    
+    // Populate the created lead
+    await lead.populate('assignedTo', 'first_name last_name email');
 
     // Update contact form with conversion
     await contactForm.convertToLead(lead);

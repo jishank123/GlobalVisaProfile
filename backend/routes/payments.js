@@ -1,12 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const Payment = require('../models/Payment');
-const { auth } = require('../middleware/auth');
+const Client = require('../models/Client');
+const { auth, authenticateClient } = require('../middleware/auth');
+
+// Fixed auth middleware usage
 
 // @route   GET /api/payments
 // @desc    Get all payments with filters
 // @access  Private
-router.get('/', ...auth(), async (req, res) => {
+router.get('/', authenticateClient, async (req, res) => {
   try {
     const { client, project, status, page = 1, limit = 50 } = req.query;
     
@@ -17,19 +20,36 @@ router.get('/', ...auth(), async (req, res) => {
     if (project) query.project = project;
     if (status) query.status = status;
     
-    // Role-based filtering
-    if (req.user.role === 'client') {
-      query.client = req.user.clientProfile;
+    // For clients, only show their own payments
+    // Find client record by email from the authenticated client account
+    const clientRecord = await Client.findOne({ email: req.client.email });
+    if (clientRecord) {
+      query.client = clientRecord._id;
+      console.log('🔍 Client payments query:', { clientId: clientRecord._id, email: req.client.email });
+    } else {
+      console.log('❌ No client record found for email:', req.client.email);
+      return res.json({
+        success: true,
+        count: 0,
+        total: 0,
+        page: parseInt(page),
+        totalPages: 0,
+        data: []
+      });
     }
     
     const payments = await Payment.find(query)
       .populate('client', 'name email')
-      .populate('project', 'title')
+      .populate('project', 'project_id service_name')
       .sort({ paymentDate: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
     
+    console.log('🔍 Payments query executed:', query);
+    console.log('💳 Payments found:', payments.length);
+    
     const count = await Payment.countDocuments(query);
+    console.log('💳 Total count:', count);
     
     res.json({
       success: true,
@@ -51,7 +71,7 @@ router.get('/', ...auth(), async (req, res) => {
 // @route   GET /api/payments/:id
 // @desc    Get single payment
 // @access  Private
-router.get('/:id', ...auth(), async (req, res) => {
+router.get('/:id', auth(['admin', 'lead_manager', 'crm_manager', 'client']), async (req, res) => {
   try {
     const payment = await Payment.findById(req.params.id)
       .populate('client', 'name email phone')
@@ -65,11 +85,16 @@ router.get('/:id', ...auth(), async (req, res) => {
     }
     
     // Check access permission
-    if (req.user.role === 'client' && payment.client._id.toString() !== req.user.clientProfile.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied'
-      });
+    if (req.user.role === 'client') {
+      // Find client record by email since there's no direct user link
+      const Client = require('../models/Client');
+      const clientRecord = await Client.findOne({ email: req.user.email });
+      if (!clientRecord || payment.client._id.toString() !== clientRecord._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied'
+        });
+      }
     }
     
     res.json({
@@ -88,7 +113,7 @@ router.get('/:id', ...auth(), async (req, res) => {
 // @route   POST /api/payments
 // @desc    Create new payment
 // @access  Private (Admin, CRM Manager)
-router.post('/', ...auth(['admin', 'crm_manager']), async (req, res) => {
+router.post('/', auth(['admin', 'crm_manager']), async (req, res) => {
   try {
     // Generate transaction ID if not provided
     if (!req.body.transactionId) {
@@ -114,7 +139,7 @@ router.post('/', ...auth(['admin', 'crm_manager']), async (req, res) => {
 // @route   PATCH /api/payments/:id
 // @desc    Update payment
 // @access  Private (Admin, CRM Manager)
-router.patch('/:id', ...auth(['admin', 'crm_manager']), async (req, res) => {
+router.patch('/:id', auth(['admin', 'crm_manager']), async (req, res) => {
   try {
     const payment = await Payment.findByIdAndUpdate(
       req.params.id,
@@ -149,7 +174,7 @@ router.patch('/:id', ...auth(['admin', 'crm_manager']), async (req, res) => {
 // @route   DELETE /api/payments/:id
 // @desc    Delete payment
 // @access  Private (Admin only)
-router.delete('/:id', ...auth(['admin']), async (req, res) => {
+router.delete('/:id', auth(['admin']), async (req, res) => {
   try {
     const payment = await Payment.findByIdAndDelete(req.params.id);
     
@@ -176,7 +201,7 @@ router.delete('/:id', ...auth(['admin']), async (req, res) => {
 // @route   GET /api/payments/stats/summary
 // @desc    Get payment statistics
 // @access  Private (Admin, CRM Manager)
-router.get('/stats/summary', ...auth(['admin', 'crm_manager']), async (req, res) => {
+router.get('/stats/summary', auth(['admin', 'crm_manager']), async (req, res) => {
   try {
     const totalPayments = await Payment.aggregate([
       {

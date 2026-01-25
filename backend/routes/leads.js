@@ -35,9 +35,19 @@ router.get('/stats/summary', auth(['admin', 'lead_manager']), leadController.get
 router.get('/:id', auth(['admin', 'lead_manager']), leadController.getLead);
 
 // @route   POST /api/leads
-// @desc    Create new lead
-// @access  Private (Admin, Lead Manager) or Public (website forms)
-router.post('/', validateLeadCreation, leadController.createLead);
+// @desc    Create new lead (Admin only)
+// @access  Private (Admin only)
+router.post('/', auth(['admin']), validateLeadCreation, leadController.createLead);
+
+// @route   POST /api/leads/from-form
+// @desc    Create lead from form submission
+// @access  Private (Admin only) or Internal system
+router.post('/from-form', auth(['admin']), leadController.createLeadFromForm);
+
+// @route   PATCH /api/leads/:id/assign
+// @desc    Assign lead to manager
+// @access  Private (Admin only)
+router.patch('/:id/assign', auth(['admin']), leadController.assignLead);
 
 // @route   PATCH /api/leads/:id
 // @desc    Update lead

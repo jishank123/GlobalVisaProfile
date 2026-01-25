@@ -120,6 +120,12 @@
     <a href="#overview" class="sidebar-item active">
         <i class="fas fa-tachometer-alt me-2"></i>Dashboard Overview
     </a>
+    <a href="#forms" class="sidebar-item">
+        <i class="fas fa-clipboard-list me-2"></i>Forms Management
+    </a>
+    <a href="#leads" class="sidebar-item">
+        <i class="fas fa-user-plus me-2"></i>Lead Management
+    </a>
     <a href="#users" class="sidebar-item">
         <i class="fas fa-users me-2"></i>User Management
     </a>
@@ -127,7 +133,7 @@
         <i class="fas fa-briefcase me-2"></i>Services Management
     </a>
     <a href="#clients" class="sidebar-item">
-        <!-- <i class="fas fa-user-tie me-2"></i>Client Management -->
+        <i class="fas fa-user-tie me-2"></i>Client Management
     </a>
     <a href="#financial" class="sidebar-item">
         <i class="fas fa-dollar-sign me-2"></i>Financial Overview
@@ -136,7 +142,7 @@
         <i class="fas fa-chart-bar me-2"></i>Reports & Analytics
     </a>
     <a href="#settings" class="sidebar-item">
-        <!-- <i class="fas fa-cog me-2"></i>System Settings -->
+        <i class="fas fa-cog me-2"></i>System Settings
     </a>
 </div>
 
@@ -188,6 +194,331 @@
                     <i class="fas fa-user-friends fa-2x text-info"></i>
                 </div>
             </div>
+        </div>
+    </div>
+    
+    <!-- Forms Management Section -->
+    <div id="forms" class="management-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5><i class="fas fa-clipboard-list me-2"></i>Forms Management</h5>
+            <div class="btn-group" role="group">
+                <button class="btn btn-outline-primary btn-sm" onclick="refreshFormsData()">
+                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="exportFormsData()">
+                    <i class="fas fa-download me-1"></i>Export
+                </button>
+            </div>
+        </div>
+        
+        <!-- Forms Statistics -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <i class="fas fa-user-check fa-2x text-primary mb-2"></i>
+                        <h4 id="contact-forms-count" class="text-primary">-</h4>
+                        <small class="text-muted">Contact Forms</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <i class="fas fa-chart-line fa-2x text-success mb-2"></i>
+                        <h4 id="assessments-count" class="text-success">-</h4>
+                        <small class="text-muted">Profile Assessments</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <i class="fas fa-calendar-check fa-2x text-warning mb-2"></i>
+                        <h4 id="appointments-count" class="text-warning">-</h4>
+                        <small class="text-muted">Appointment Requests</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Forms Tabs -->
+        <ul class="nav nav-tabs" id="formsTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="contact-tab" data-bs-toggle="tab" data-bs-target="#contact-forms" type="button" role="tab">
+                    <i class="fas fa-envelope me-1"></i>Contact Forms
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="assessment-tab" data-bs-toggle="tab" data-bs-target="#assessments" type="button" role="tab">
+                    <i class="fas fa-chart-line me-1"></i>Profile Assessments
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="appointment-tab" data-bs-toggle="tab" data-bs-target="#appointments" type="button" role="tab">
+                    <i class="fas fa-calendar-check me-1"></i>Appointments
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content mt-3" id="formsTabContent">
+            <!-- Contact Forms Tab -->
+            <div class="tab-pane fade show active" id="contact-forms" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex gap-2">
+                        <select class="form-select form-select-sm" id="contact-status-filter" onchange="filterContactForms()">
+                            <option value="">All Status</option>
+                            <option value="new">New</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                        </select>
+                        <select class="form-select form-select-sm" id="contact-visa-filter" onchange="filterContactForms()">
+                            <option value="">All Visa Types</option>
+                            <option value="eb1a">EB-1A</option>
+                            <option value="eb2-niw">EB-2 NIW</option>
+                            <option value="o1">O-1 Visa</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-success btn-sm" onclick="convertSelectedToLeads()">
+                        <i class="fas fa-user-plus me-1"></i>Convert to Leads
+                    </button>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="select-all-contacts"></th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Visa Type</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Submitted</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contact-forms-tbody">
+                            <tr>
+                                <td colspan="8" class="text-center">
+                                    <div class="spinner-border spinner-border-sm me-2"></div>
+                                    Loading contact forms...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Profile Assessments Tab -->
+            <div class="tab-pane fade" id="assessments" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex gap-2">
+                        <select class="form-select form-select-sm" id="assessment-strength-filter" onchange="filterAssessments()">
+                            <option value="">All Strengths</option>
+                            <option value="Excellent Profile Strength">Excellent</option>
+                            <option value="Good Profile Strength">Good</option>
+                            <option value="Moderate Profile Strength">Moderate</option>
+                            <option value="Needs Development">Needs Development</option>
+                        </select>
+                        <input type="number" class="form-control form-control-sm" placeholder="Min Score" id="assessment-score-filter" onchange="filterAssessments()">
+                    </div>
+                    <button class="btn btn-success btn-sm" onclick="convertSelectedAssessmentsToLeads()">
+                        <i class="fas fa-user-plus me-1"></i>Convert to Leads
+                    </button>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="select-all-assessments"></th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Score</th>
+                                <th>Strength</th>
+                                <th>Field</th>
+                                <th>Experience</th>
+                                <th>Submitted</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assessments-tbody">
+                            <tr>
+                                <td colspan="9" class="text-center">
+                                    <div class="spinner-border spinner-border-sm me-2"></div>
+                                    Loading assessments...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Appointments Tab -->
+            <div class="tab-pane fade" id="appointments" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex gap-2">
+                        <select class="form-select form-select-sm" id="appointment-status-filter" onchange="filterAppointments()">
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="scheduled">Scheduled</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                        <select class="form-select form-select-sm" id="appointment-visa-filter" onchange="filterAppointments()">
+                            <option value="">All Visa Types</option>
+                            <option value="eb1a">EB-1A</option>
+                            <option value="eb2-niw">EB-2 NIW</option>
+                            <option value="o1">O-1 Visa</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="scheduleSelectedAppointments()">
+                        <i class="fas fa-calendar-plus me-1"></i>Schedule Selected
+                    </button>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="select-all-appointments"></th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Visa Category</th>
+                                <th>Status</th>
+                                <th>Timezone</th>
+                                <th>Preferred Date</th>
+                                <th>Submitted</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="appointments-tbody">
+                            <tr>
+                                <td colspan="9" class="text-center">
+                                    <div class="spinner-border spinner-border-sm me-2"></div>
+                                    Loading appointments...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Lead Management Section -->
+    <div id="leads" class="management-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5><i class="fas fa-user-plus me-2"></i>Lead Management</h5>
+            <div class="btn-group" role="group">
+                <button class="btn btn-outline-primary btn-sm" onclick="refreshLeadsData()">
+                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                </button>
+                <button class="btn btn-success btn-sm" onclick="showAssignLeadsModal()">
+                    <i class="fas fa-user-cog me-1"></i>Assign Leads
+                </button>
+            </div>
+        </div>
+        
+        <!-- Lead Statistics -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card border-info">
+                    <div class="card-body text-center">
+                        <i class="fas fa-users fa-2x text-info mb-2"></i>
+                        <h4 id="total-leads-count" class="text-info">-</h4>
+                        <small class="text-muted">Total Leads</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <i class="fas fa-user-clock fa-2x text-warning mb-2"></i>
+                        <h4 id="unassigned-leads-count" class="text-warning">-</h4>
+                        <small class="text-muted">Unassigned</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <i class="fas fa-user-check fa-2x text-success mb-2"></i>
+                        <h4 id="qualified-leads-count" class="text-success">-</h4>
+                        <small class="text-muted">Qualified</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <i class="fas fa-percentage fa-2x text-primary mb-2"></i>
+                        <h4 id="conversion-rate" class="text-primary">-%</h4>
+                        <small class="text-muted">Conversion Rate</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Lead Filters and Actions -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex gap-2">
+                <select class="form-select form-select-sm" id="lead-status-filter" onchange="filterLeads()">
+                    <option value="">All Status</option>
+                    <option value="new">New</option>
+                    <option value="contacted">Contacted</option>
+                    <option value="qualified">Qualified</option>
+                    <option value="negotiation">Negotiation</option>
+                    <option value="converted">Converted</option>
+                </select>
+                <select class="form-select form-select-sm" id="lead-manager-filter" onchange="filterLeads()">
+                    <option value="">All Managers</option>
+                    <option value="unassigned">Unassigned</option>
+                </select>
+                <select class="form-select form-select-sm" id="lead-priority-filter" onchange="filterLeads()">
+                    <option value="">All Priority</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                </select>
+            </div>
+            <div class="btn-group" role="group">
+                <button class="btn btn-warning btn-sm" onclick="assignSelectedLeads()">
+                    <i class="fas fa-user-cog me-1"></i>Assign Selected
+                </button>
+                <button class="btn btn-success btn-sm" onclick="convertSelectedLeads()">
+                    <i class="fas fa-user-tie me-1"></i>Convert to Clients
+                </button>
+            </div>
+        </div>
+        
+        <!-- Leads Table -->
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="select-all-leads"></th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Assigned To</th>
+                        <th>Source</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="leads-tbody">
+                    <tr>
+                        <td colspan="10" class="text-center">
+                            <div class="spinner-border spinner-border-sm me-2"></div>
+                            Loading leads...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
     
@@ -1928,6 +2259,386 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Refresh stats every 5 minutes
     setInterval(loadDashboardStats, 5 * 60 * 1000);
+});
+
+// Forms Management Functions
+async function loadFormsData() {
+    try {
+        console.log('📋 Loading forms data...');
+        
+        // Load contact forms
+        const contactResponse = await fetch('/api/contact', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const contactData = await contactResponse.json();
+        
+        if (contactData.success) {
+            document.getElementById('contact-forms-count').textContent = contactData.data.contact_forms.length;
+            displayContactForms(contactData.data.contact_forms);
+        }
+        
+        // Load profile assessments
+        const assessmentResponse = await fetch('/api/profile-assessments', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const assessmentData = await assessmentResponse.json();
+        
+        if (assessmentData.success) {
+            document.getElementById('assessments-count').textContent = assessmentData.data.assessments.length;
+            displayAssessments(assessmentData.data.assessments);
+        }
+        
+        // Load appointments
+        const appointmentResponse = await fetch('/api/appointments', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const appointmentData = await appointmentResponse.json();
+        
+        if (appointmentData.success) {
+            document.getElementById('appointments-count').textContent = appointmentData.data.appointments.length;
+            displayAppointments(appointmentData.data.appointments);
+        }
+        
+        console.log('✅ Forms data loaded successfully');
+    } catch (error) {
+        console.error('❌ Error loading forms data:', error);
+    }
+}
+
+function displayContactForms(forms) {
+    const tbody = document.getElementById('contact-forms-tbody');
+    if (forms.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No contact forms found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = forms.map(form => `
+        <tr>
+            <td><input type="checkbox" class="contact-checkbox" value="${form._id}"></td>
+            <td>${form.name}</td>
+            <td>${form.email}</td>
+            <td><span class="badge bg-info">${form.visa_type_display || form.visa_type}</span></td>
+            <td><span class="badge bg-${getStatusColor(form.status)}">${form.status}</span></td>
+            <td><span class="badge bg-${getPriorityColor(form.priority)}">${form.priority}</span></td>
+            <td>${new Date(form.createdAt).toLocaleDateString()}</td>
+            <td>
+                <button class="action-btn btn-edit" onclick="viewContactForm('${form._id}')">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="action-btn btn-activate" onclick="convertContactToLead('${form._id}')">
+                    <i class="fas fa-user-plus"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function displayAssessments(assessments) {
+    const tbody = document.getElementById('assessments-tbody');
+    if (assessments.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No assessments found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = assessments.map(assessment => `
+        <tr>
+            <td><input type="checkbox" class="assessment-checkbox" value="${assessment._id}"></td>
+            <td>${assessment.client_name}</td>
+            <td>${assessment.client_email}</td>
+            <td><strong>${assessment.overall_score}%</strong></td>
+            <td><span class="badge bg-${getStrengthColor(assessment.profile_strength)}">${assessment.profile_strength}</span></td>
+            <td>${assessment.field_of_expertise}</td>
+            <td>${assessment.years_of_experience} years</td>
+            <td>${new Date(assessment.createdAt).toLocaleDateString()}</td>
+            <td>
+                <button class="action-btn btn-edit" onclick="viewAssessment('${assessment._id}')">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="action-btn btn-activate" onclick="convertAssessmentToLead('${assessment._id}')">
+                    <i class="fas fa-user-plus"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function displayAppointments(appointments) {
+    const tbody = document.getElementById('appointments-tbody');
+    if (appointments.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No appointments found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = appointments.map(appointment => `
+        <tr>
+            <td><input type="checkbox" class="appointment-checkbox" value="${appointment._id}"></td>
+            <td>${appointment.name}</td>
+            <td>${appointment.email}</td>
+            <td><span class="badge bg-info">${appointment.visa_category_display || appointment.visa_category}</span></td>
+            <td><span class="badge bg-${getStatusColor(appointment.status)}">${appointment.status_display || appointment.status}</span></td>
+            <td>${appointment.timezone}</td>
+            <td>${appointment.preferred_date || 'Not specified'}</td>
+            <td>${new Date(appointment.createdAt).toLocaleDateString()}</td>
+            <td>
+                <button class="action-btn btn-edit" onclick="viewAppointment('${appointment._id}')">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="action-btn btn-activate" onclick="scheduleAppointment('${appointment._id}')">
+                    <i class="fas fa-calendar-plus"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Lead Management Functions
+async function loadLeadsData() {
+    try {
+        console.log('👥 Loading leads data...');
+        
+        const response = await fetch('/api/leads', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('total-leads-count').textContent = data.total;
+            displayLeads(data.data);
+            
+            // Load lead statistics
+            const statsResponse = await fetch('/api/leads/stats/summary', {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const statsData = await statsResponse.json();
+            
+            if (statsData.success) {
+                document.getElementById('qualified-leads-count').textContent = statsData.data.qualifiedCount;
+                document.getElementById('conversion-rate').textContent = statsData.data.conversionRate + '%';
+                
+                // Count unassigned leads
+                const unassignedCount = data.data.filter(lead => !lead.assignedTo).length;
+                document.getElementById('unassigned-leads-count').textContent = unassignedCount;
+            }
+        }
+        
+        // Load lead managers for assignment dropdown
+        await loadLeadManagers();
+        
+        console.log('✅ Leads data loaded successfully');
+    } catch (error) {
+        console.error('❌ Error loading leads data:', error);
+    }
+}
+
+function displayLeads(leads) {
+    const tbody = document.getElementById('leads-tbody');
+    if (leads.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">No leads found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = leads.map(lead => `
+        <tr>
+            <td><input type="checkbox" class="lead-checkbox" value="${lead._id}"></td>
+            <td>${lead.firstName} ${lead.lastName}</td>
+            <td>${lead.email}</td>
+            <td>${lead.phone || 'N/A'}</td>
+            <td><span class="badge bg-${getStatusColor(lead.status)}">${lead.status}</span></td>
+            <td><span class="badge bg-${getPriorityColor(lead.priority)}">${lead.priority}</span></td>
+            <td>${lead.assignedTo ? lead.assignedTo.name || lead.assignedTo.email : '<span class="text-warning">Unassigned</span>'}</td>
+            <td>${lead.source}</td>
+            <td>${new Date(lead.createdAt).toLocaleDateString()}</td>
+            <td>
+                <button class="action-btn btn-edit" onclick="viewLead('${lead._id}')">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="action-btn btn-activate" onclick="assignLead('${lead._id}')">
+                    <i class="fas fa-user-cog"></i>
+                </button>
+                <button class="action-btn btn-delete" onclick="convertLead('${lead._id}')">
+                    <i class="fas fa-user-tie"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function loadLeadManagers() {
+    try {
+        const response = await fetch('/api/users?role=lead_manager', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            const select = document.getElementById('lead-manager-filter');
+            data.data.forEach(manager => {
+                const option = document.createElement('option');
+                option.value = manager._id;
+                option.textContent = `${manager.first_name} ${manager.last_name}`;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('❌ Error loading lead managers:', error);
+    }
+}
+
+// Utility Functions
+function getStatusColor(status) {
+    const colors = {
+        'new': 'primary',
+        'in_progress': 'warning',
+        'resolved': 'success',
+        'pending': 'warning',
+        'scheduled': 'info',
+        'completed': 'success',
+        'cancelled': 'danger',
+        'contacted': 'info',
+        'qualified': 'success',
+        'negotiation': 'warning',
+        'converted': 'success'
+    };
+    return colors[status] || 'secondary';
+}
+
+function getPriorityColor(priority) {
+    const colors = {
+        'high': 'danger',
+        'medium': 'warning',
+        'low': 'success'
+    };
+    return colors[priority] || 'secondary';
+}
+
+function getStrengthColor(strength) {
+    if (strength.includes('Excellent')) return 'success';
+    if (strength.includes('Good')) return 'info';
+    if (strength.includes('Moderate')) return 'warning';
+    return 'danger';
+}
+
+// Action Functions
+async function convertContactToLead(contactId) {
+    if (!confirm('Convert this contact form to a lead?')) return;
+    
+    try {
+        const response = await fetch(`/api/contact/${contactId}/convert-to-lead`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            alert('Contact form converted to lead successfully!');
+            loadFormsData();
+            loadLeadsData();
+        } else {
+            alert('Error: ' + data.error.message);
+        }
+    } catch (error) {
+        console.error('❌ Error converting contact to lead:', error);
+        alert('Error converting contact to lead');
+    }
+}
+
+async function assignLead(leadId) {
+    const managerId = prompt('Enter Lead Manager ID to assign this lead:');
+    if (!managerId) return;
+    
+    try {
+        const response = await fetch(`/api/leads/${leadId}/assign`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ managerId })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            alert('Lead assigned successfully!');
+            loadLeadsData();
+        } else {
+            alert('Error: ' + data.error.message);
+        }
+    } catch (error) {
+        console.error('❌ Error assigning lead:', error);
+        alert('Error assigning lead');
+    }
+}
+
+// Refresh Functions
+function refreshFormsData() {
+    loadFormsData();
+}
+
+function refreshLeadsData() {
+    loadLeadsData();
+}
+
+// Filter Functions
+function filterContactForms() {
+    console.log('Filtering contact forms...');
+}
+
+function filterAssessments() {
+    console.log('Filtering assessments...');
+}
+
+function filterAppointments() {
+    console.log('Filtering appointments...');
+}
+
+function filterLeads() {
+    console.log('Filtering leads...');
+}
+
+// View Functions
+function viewContactForm(id) {
+    console.log('Viewing contact form:', id);
+}
+
+function viewAssessment(id) {
+    console.log('Viewing assessment:', id);
+}
+
+function viewAppointment(id) {
+    console.log('Viewing appointment:', id);
+}
+
+function viewLead(id) {
+    console.log('Viewing lead:', id);
+}
+
+// Initialize sidebar click handlers for new sections
+document.querySelectorAll('.sidebar-item').forEach(item => {
+    item.addEventListener('click', function(e) {
+        e.preventDefault();
+        document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+        this.classList.add('active');
+        
+        const target = this.getAttribute('href').substring(1);
+        document.querySelectorAll('.management-card').forEach(card => {
+            card.style.display = 'none';
+        });
+        
+        const targetCard = document.getElementById(target);
+        if (targetCard) {
+            targetCard.style.display = 'block';
+            
+            // Load data when section is accessed
+            if (target === 'forms') {
+                loadFormsData();
+            } else if (target === 'leads') {
+                loadLeadsData();
+            }
+        }
+    });
 });
 </script>
 

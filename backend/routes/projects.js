@@ -1,12 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const Project = require('../models/Project');
-const { auth } = require('../middleware/auth');
+const Client = require('../models/Client');
+const { auth, authenticateClient } = require('../middleware/auth');
+
+// Fixed auth middleware usage - all instances
 
 // @route   GET /api/projects
 // @desc    Get all projects with filters
 // @access  Private
-router.get('/', ...auth(), async (req, res) => {
+router.get('/', authenticateClient, async (req, res) => {
   try {
     const { client, service, status, priority, manager, page = 1, limit = 20 } = req.query;
     
@@ -19,23 +22,37 @@ router.get('/', ...auth(), async (req, res) => {
     if (priority) query.priority = priority;
     if (manager) query.assignedTeam = manager;
     
-    // Role-based filtering
-    if (req.user.role === 'client') {
-      query.client = req.user.clientProfile;
-    } else if (req.user.role === 'crm_manager') {
-      query.assignedTeam = req.user._id;
+    // For clients, only show their own projects
+    // Find client record by email from the authenticated client account
+    const clientRecord = await Client.findOne({ email: req.client.email });
+    if (clientRecord) {
+      query.client = clientRecord._id;
+      console.log('🔍 Client projects query:', { clientId: clientRecord._id, email: req.client.email });
+    } else {
+      console.log('❌ No client record found for email:', req.client.email);
+      return res.json({
+        success: true,
+        count: 0,
+        total: 0,
+        page: parseInt(page),
+        totalPages: 0,
+        data: []
+      });
     }
     
     const projects = await Project.find(query)
       .populate('client', 'name email phone')
       .populate('service', 'name category')
-      .populate('assignedTeam', 'name email')
-      .populate('createdBy', 'name email')
+      .populate('assigned_to', 'first_name last_name email')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
     
+    console.log('🔍 Query executed:', query);
+    console.log('📊 Projects found:', projects.length);
+    
     const count = await Project.countDocuments(query);
+    console.log('📊 Total count:', count);
     
     res.json({
       success: true,
@@ -46,6 +63,7 @@ router.get('/', ...auth(), async (req, res) => {
       data: projects
     });
   } catch (error) {
+    console.error('❌ Projects API error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -57,7 +75,7 @@ router.get('/', ...auth(), async (req, res) => {
 // @route   GET /api/projects/:id
 // @desc    Get single project
 // @access  Private
-router.get('/:id', ...auth(), async (req, res) => {
+router.get('/:id', auth(['admin', 'lead_manager', 'crm_manager', 'client']), async (req, res) => {
   try {
     const project = await Project.findById(req.params.id)
       .populate('client', 'name email phone country')
@@ -107,7 +125,7 @@ router.get('/:id', ...auth(), async (req, res) => {
 // @route   POST /api/projects
 // @desc    Create new project
 // @access  Private (Admin, Managers)
-router.post('/', ...auth(['admin', 'lead_manager', 'crm_manager']), async (req, res) => {
+router.post('/', auth(['admin', 'lead_manager', 'crm_manager']), async (req, res) => {
   try {
     req.body.createdBy = req.user._id;
     
@@ -132,7 +150,7 @@ router.post('/', ...auth(['admin', 'lead_manager', 'crm_manager']), async (req, 
 // @route   PATCH /api/projects/:id
 // @desc    Update project
 // @access  Private
-router.patch('/:id', ...auth(), async (req, res) => {
+router.patch('/:id', auth(['admin', 'lead_manager', 'crm_manager']), async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
     
@@ -182,7 +200,7 @@ router.patch('/:id', ...auth(), async (req, res) => {
 // @route   PATCH /api/projects/:id/progress
 // @desc    Update project progress
 // @access  Private (Team Members)
-router.patch('/:id/progress', ...auth(), async (req, res) => {
+router.patch('/:id/progress', auth(['admin', 'lead_manager', 'crm_manager']), async (req, res) => {
   try {
     const { progress } = req.body;
     
@@ -237,7 +255,7 @@ router.patch('/:id/progress', ...auth(), async (req, res) => {
 // @route   POST /api/projects/:id/milestones
 // @desc    Add milestone to project
 // @access  Private (Team Members)
-router.post('/:id/milestones', ...auth(), async (req, res) => {
+router.post('/:id/milestones', auth(['admin', 'lead_manager', 'crm_manager']), async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
     
@@ -268,7 +286,7 @@ router.post('/:id/milestones', ...auth(), async (req, res) => {
 // @route   PATCH /api/projects/:id/milestones/:milestoneId
 // @desc    Update milestone
 // @access  Private (Team Members)
-router.patch('/:id/milestones/:milestoneId', ...auth(), async (req, res) => {
+router.patch('/:id/milestones/:milestoneId', auth(['admin', 'lead_manager', 'crm_manager']), async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
     
@@ -314,7 +332,7 @@ router.patch('/:id/milestones/:milestoneId', ...auth(), async (req, res) => {
 // @route   DELETE /api/projects/:id
 // @desc    Delete project
 // @access  Private (Admin only)
-router.delete('/:id', ...auth(['admin']), async (req, res) => {
+router.delete('/:id', auth(['admin']), async (req, res) => {
   try {
     const project = await Project.findByIdAndDelete(req.params.id);
     
@@ -341,7 +359,7 @@ router.delete('/:id', ...auth(['admin']), async (req, res) => {
 // @route   GET /api/projects/stats/summary
 // @desc    Get project statistics
 // @access  Private (Admin, Managers)
-router.get('/stats/summary', ...auth(['admin', 'lead_manager', 'crm_manager']), async (req, res) => {
+router.get('/stats/summary', auth(['admin', 'lead_manager', 'crm_manager']), async (req, res) => {
   try {
     let query = {};
     
