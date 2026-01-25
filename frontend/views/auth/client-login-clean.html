@@ -15,7 +15,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Custom Styles -->
-    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="/css/style.css">
     
     <script>
         tailwind.config = {
@@ -54,6 +54,17 @@
 
                 <!-- Login Form -->
                 <div class="bg-white rounded-2xl shadow-xl p-8">
+                    <!-- Admin Login Info -->
+                    <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-info-circle text-blue-600 mr-2"></i>
+                            <span class="text-sm font-semibold text-blue-800">Admin Access</span>
+                        </div>
+                        <p class="text-xs text-blue-700">
+                            Admin login: <code class="bg-blue-100 px-1 rounded">admin@gmail.com</code> / <code class="bg-blue-100 px-1 rounded">admin@#A</code>
+                        </p>
+                    </div>
+                    
                     <form id="login-form" class="space-y-6">
                         
                         <!-- CSRF Protection -->
@@ -134,7 +145,7 @@
                     <div class="mt-6 text-center">
                         <p class="text-gray-600">
                             Don't have an account? 
-                            <a href="client-signup-clean.html" class="text-primary hover:underline font-semibold">Create one here</a>
+                            <a href="/signup" class="text-primary hover:underline font-semibold">Create one here</a>
                         </p>
                     </div>
                 </div>
@@ -145,11 +156,11 @@
                         <i class="fas fa-rocket text-blue-600 mr-2"></i>Quick Access
                     </h3>
                     <div class="grid grid-cols-2 gap-4">
-                        <a href="profile-assessment.html" class="text-center p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+                        <a href="/assessment" class="text-center p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
                             <i class="fas fa-chart-line text-blue-600 text-xl mb-2"></i>
                             <p class="text-sm font-medium text-gray-700">Free Assessment</p>
                         </a>
-                        <a href="schedule-appointment-clean.html" class="text-center p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
+                        <a href="/schedule" class="text-center p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
                             <i class="fas fa-calendar-alt text-purple-600 text-xl mb-2"></i>
                             <p class="text-sm font-medium text-gray-700">Schedule Call</p>
                         </a>
@@ -163,10 +174,10 @@
     <div id="footer-placeholder"></div>
 
     <!-- Scripts -->
-    <script src="../js/api.js"></script>
-    <script src="../js/utils.js"></script>
-    <script src="../js/navigation.js"></script>
-    <script src="../js/footer.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/utils.js"></script>
+    <script src="/js/navigation.js"></script>
+    <script src="/js/footer.js"></script>
     
     <script>
         // Password visibility toggle
@@ -210,7 +221,7 @@
                 console.log('🔍 Already logged in:', isLoggedIn);
                 if (isLoggedIn) {
                     console.log('🔄 User already logged in, redirecting to dashboard...');
-                    window.location.href = '../all_static_pages/backend-mern/3-client-profile.html';
+                    window.location.href = '/dashboard';
                     return;
                 }
             } else {
@@ -273,7 +284,7 @@
                                 
                                 setTimeout(() => {
                                     console.log('🔄 Redirecting to admin dashboard...');
-                                    window.location.href = '../all_static_pages/2-admin-dashboard.html';
+                                    window.location.href = '/admin';
                                 }, 1500);
                             } else {
                                 console.log('👤 Regular client login, redirecting to client dashboard...');
@@ -281,7 +292,7 @@
                                 
                                 setTimeout(() => {
                                     console.log('🔄 Redirecting to client dashboard...');
-                                    window.location.href = '../all_static_pages/backend-mern/3-client-profile.html';
+                                    window.location.href = '/dashboard';
                                 }, 1500);
                             }
                             

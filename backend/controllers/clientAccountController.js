@@ -184,42 +184,65 @@ exports.loginClient = async (req, res) => {
 
     const { email, password } = req.body;
 
-    // 🔑 HARDCODED ADMIN LOGIN CHECK
-    if ((email === 'admin' || email === 'admin@gmail.com') && password === 'admin') {
-      console.log('🔑 === ADMIN LOGIN DETECTED ===');
-      console.log('🔑 Admin credentials matched, generating admin token...');
+    // 🔑 CHECK FOR ADMIN LOGIN IN USERS COLLECTION
+    if (email === 'admin@gmail.com') {
+      console.log('🔑 === ADMIN LOGIN ATTEMPT ===');
+      console.log('🔑 Checking admin credentials in Users collection...');
       
-      // Create a fake admin user object for token generation
-      const adminUser = {
-        _id: 'admin_user_id',
-        email: 'admin',
-        full_name: 'System Administrator',
-        role: 'admin',
-        account_status: 'active'
-      };
-      
-      const adminToken = generateToken('admin_user_id');
-      
-      const cookieOptions = {
-        expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict'
-      };
+      try {
+        const User = require('../models/User');
+        const adminUser = await User.findOne({ email: 'admin@gmail.com', role: 'admin' }).select('+password');
+        
+        if (adminUser) {
+          console.log('🔑 Admin user found in database:', adminUser._id);
+          
+          // Verify password
+          const isPasswordValid = await adminUser.comparePassword(password);
+          console.log('🔑 Password verification result:', isPasswordValid);
+          
+          if (isPasswordValid) {
+            console.log('✅ Admin login successful, generating admin token...');
+            
+            const adminToken = generateToken(adminUser._id);
+            
+            const cookieOptions = {
+              expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+              httpOnly: true,
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'strict'
+            };
 
-      console.log('✅ Admin login successful, sending admin response...');
-      
-      return res.status(200)
-        .cookie('client_token', adminToken, cookieOptions)
-        .json({
-          success: true,
-          isAdmin: true,
-          data: {
-            token: adminToken,
-            client: adminUser,
-            redirectTo: '/all_static_pages/2-admin-dashboard.html'
+            console.log('✅ Admin login successful, sending admin response...');
+            
+            return res.status(200)
+              .cookie('client_token', adminToken, cookieOptions)
+              .json({
+                success: true,
+                isAdmin: true,
+                data: {
+                  token: adminToken,
+                  client: {
+                    _id: adminUser._id,
+                    email: adminUser.email,
+                    full_name: adminUser.full_name,
+                    role: adminUser.role,
+                    account_status: 'active'
+                  },
+                  redirectTo: '/admin'
+                }
+              });
+          } else {
+            console.log('❌ Admin password incorrect');
           }
-        });
+        } else {
+          console.log('❌ Admin user not found in database');
+        }
+      } catch (error) {
+        console.error('💥 Error checking admin login:', error);
+      }
+      
+      // If admin login failed, continue to regular client login check
+      console.log('🔑 Admin login failed, checking as regular client...');
     }
 
     // Find client by email and include password

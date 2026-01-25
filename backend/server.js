@@ -25,6 +25,7 @@ const appointmentRoutes = require('./routes/appointments');
 const contactRoutes = require('./routes/contact');
 const clientAccountRoutes = require('./routes/clientAccounts');
 const debugRoutes = require('./routes/debug');
+const dashboardRoutes = require('./routes/dashboard');
 
 // Initialize Express app
 const app = express();
@@ -120,6 +121,12 @@ app.use('/api/client-accounts', (req, res, next) => {
   console.log(`🛣️ Client accounts route hit: ${req.method} ${req.path}`);
   next();
 }, clientAccountRoutes);
+
+// Dashboard routes
+app.use('/api/dashboard', (req, res, next) => {
+  console.log(`🛣️ Dashboard route hit: ${req.method} ${req.path}`);
+  next();
+}, dashboardRoutes);
 
 // Debug routes (remove in production)
 app.use('/api/debug', debugRoutes);
