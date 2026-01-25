@@ -21,7 +21,7 @@ const authRoutes = require('./routes/auth');
 
 // Import new form routes
 const profileAssessmentRoutes = require('./routes/profileAssessments');
-// const appointmentRoutes = require('./routes/appointments');
+const appointmentRoutes = require('./routes/appointments');
 const contactRoutes = require('./routes/contact');
 const clientAccountRoutes = require('./routes/clientAccounts');
 const debugRoutes = require('./routes/debug');
@@ -108,7 +108,10 @@ app.use('/api/profile-assessments', (req, res, next) => {
   console.log(`🛣️ Profile assessments route hit: ${req.method} ${req.path}`);
   next();
 }, profileAssessmentRoutes);
-// app.use('/api/appointments', appointmentRoutes);
+app.use('/api/appointments', (req, res, next) => {
+  console.log(`🛣️ Appointments route hit: ${req.method} ${req.path}`);
+  next();
+}, appointmentRoutes);
 app.use('/api/contact', (req, res, next) => {
   console.log(`🛣️ Contact form route hit: ${req.method} ${req.path}`);
   next();

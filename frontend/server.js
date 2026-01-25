@@ -14,13 +14,29 @@ app.use('/views', express.static(path.join(__dirname, 'views')));
 
 // ===== MAIN ROUTES =====
 
-// Homepage - Main entry point
+// Homepage - Main entry point (MUST BE FIRST)
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'pages', 'index.html'));
+    console.log('📍 Homepage route accessed - serving index.html');
+    const filePath = path.join(__dirname, 'views', 'pages', 'index.html');
+    console.log('📁 File path:', filePath);
+    
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error('❌ Error serving homepage:', err);
+            res.status(500).send('Error loading homepage');
+        } else {
+            console.log('✅ Homepage served successfully');
+        }
+    });
 });
 
 // Root index.html redirect to main homepage
 app.get('/index.html', (req, res) => {
+    res.redirect('/');
+});
+
+// Explicit index route
+app.get('/index', (req, res) => {
     res.redirect('/');
 });
 
@@ -141,8 +157,14 @@ app.get('/pages/admin-dashboard-original.html', (req, res) => {
 // ===== DYNAMIC PAGE ROUTING =====
 
 // Serve any HTML page from views folder (with or without .html extension)
+// NOTE: This should come AFTER all specific routes to avoid conflicts
 app.get('/:page', (req, res) => {
     let pageName = req.params.page;
+    
+    // Skip if this is the root path (should be handled by '/' route above)
+    if (pageName === '' || pageName === 'index') {
+        return res.redirect('/');
+    }
     
     // Remove .html extension if present
     if (pageName.endsWith('.html')) {
@@ -153,7 +175,7 @@ app.get('/:page', (req, res) => {
     const knownRoutes = [
         'login', 'signup', 'dashboard', 'client-dashboard', 'admin', 'admin-dashboard',
         'assessment', 'schedule', 'services', 'eb1a', 'eb2-niw', 'o1-visa', 'profile-building',
-        'attorneys', 'faq', 'pricing'
+        'attorneys', 'faq', 'pricing', 'manager', 'crm'
     ];
     
     if (knownRoutes.includes(pageName)) {
@@ -242,6 +264,7 @@ app.listen(PORT, () => {
     console.log(`🌐 Frontend server running on http://localhost:${PORT}`);
     console.log(`📁 Serving files from: ${__dirname}`);
     console.log(`🔗 Backend API: http://localhost:5000`);
-    console.log(`📄 Pages available at: http://localhost:${PORT}/[page-name]`);
+    console.log(`🏠 Homepage: http://localhost:${PORT} (loads automatically)`);
+    console.log(`📄 Other pages: /login, /signup, /assessment, /services, etc.`);
     console.log(`📂 New folder structure implemented!`);
 });

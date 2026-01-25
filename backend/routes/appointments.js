@@ -171,7 +171,7 @@ router.post('/',
 // @desc    Get all appointment requests with pagination and filtering
 // @access  Private (Admin/Manager)
 router.get('/', 
-  ...auth(['admin', 'lead_manager', 'crm_manager']),
+  auth(['admin', 'lead_manager', 'crm_manager']),
   getAllAppointmentRequests
 );
 
@@ -179,7 +179,7 @@ router.get('/',
 // @desc    Get single appointment request by ID
 // @access  Private (Admin/Manager)
 router.get('/:id', 
-  ...auth(['admin', 'lead_manager', 'crm_manager']),
+  auth(['admin', 'lead_manager', 'crm_manager']),
   getAppointmentRequest
 );
 
@@ -187,7 +187,7 @@ router.get('/:id',
 // @desc    Update appointment request status and assignment
 // @access  Private (Admin/Manager)
 router.put('/:id/status', 
-  ...auth(['admin', 'lead_manager', 'crm_manager']),
+  auth(['admin', 'lead_manager', 'crm_manager']),
   validateStatusUpdate,
   updateAppointmentStatus
 );
@@ -196,7 +196,7 @@ router.put('/:id/status',
 // @desc    Schedule appointment with date, time, and meeting details
 // @access  Private (Admin/Manager)
 router.put('/:id/schedule', 
-  ...auth(['admin', 'lead_manager', 'crm_manager']),
+  auth(['admin', 'lead_manager', 'crm_manager']),
   validateScheduling,
   scheduleAppointment
 );
@@ -205,7 +205,7 @@ router.put('/:id/schedule',
 // @desc    Add communication to appointment request
 // @access  Private (Admin/Manager)
 router.post('/:id/communications', 
-  ...auth(['admin', 'lead_manager', 'crm_manager']),
+  auth(['admin', 'lead_manager', 'crm_manager']),
   validateCommunication,
   addCommunication
 );
@@ -214,7 +214,7 @@ router.post('/:id/communications',
 // @desc    Delete appointment request
 // @access  Private (Admin only)
 router.delete('/:id', 
-  ...auth(['admin']),
+  auth(['admin']),
   deleteAppointmentRequest
 );
 
