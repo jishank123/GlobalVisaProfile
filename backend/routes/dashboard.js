@@ -113,6 +113,11 @@ const adminAuth = async (req, res, next) => {
 // @access  Private (Admin only)
 router.get('/stats', adminAuth, dashboardController.getDashboardStats);
 
+// @route   GET /api/dashboard/financial
+// @desc    Get financial overview data
+// @access  Private (Admin only)
+router.get('/financial', adminAuth, dashboardController.getFinancialOverview);
+
 // @route   GET /api/dashboard/activity
 // @desc    Get recent activity
 // @access  Private (Admin only)

@@ -107,9 +107,9 @@
                     <i class="fas fa-home me-1"></i>Home
                 </a>
                 <span class="me-3">Administrator</span>
-                <a href="login.html" class="btn btn-outline-light btn-sm">
+                <button id="logout-btn" class="btn btn-outline-light btn-sm">
                     <i class="fas fa-sign-out-alt me-1"></i>Logout
-                </a>
+                </button>
             </div>
         </div>
     </div>
@@ -136,7 +136,7 @@
         <i class="fas fa-chart-bar me-2"></i>Reports & Analytics
     </a>
     <a href="#settings" class="sidebar-item">
-        <i class="fas fa-cog me-2"></i>System Settings
+        <!-- <i class="fas fa-cog me-2"></i>System Settings -->
     </a>
 </div>
 
@@ -277,69 +277,60 @@
     
     <!-- Financial Overview Section -->
     <div id="financial" class="management-card">
-        <h5 class="mb-3"><i class="fas fa-dollar-sign me-2"></i>Financial Overview</h5>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5><i class="fas fa-dollar-sign me-2"></i>Financial Overview</h5>
+            <button id="refresh-financial-btn" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-sync-alt me-1"></i>Refresh
+            </button>
+        </div>
         
-        <div class="row">
-            <div class="col-md-6">
-                <h6 class="text-muted mb-3">Revenue Breakdown (This Month)</h6>
-                <table class="table table-sm">
-                    <tr>
-                        <td>Research Papers</td>
-                        <td class="text-end"><strong>$98,500</strong></td>
-                    </tr>
-                    <tr>
-                        <td>Thesis/Dissertation</td>
-                        <td class="text-end"><strong>$75,000</strong></td>
-                    </tr>
-                    <tr>
-                        <td>Grant Writing</td>
-                        <td class="text-end"><strong>$42,800</strong></td>
-                    </tr>
-                    <tr>
-                        <td>Conference Papers</td>
-                        <td class="text-end"><strong>$28,700</strong></td>
-                    </tr>
-                    <tr class="table-primary fw-bold">
-                        <td>Total Revenue</td>
-                        <td class="text-end">$245,000</td>
-                    </tr>
-                </table>
+        <!-- Loading State -->
+        <div id="financial-loading" class="text-center py-4" style="display: none;">
+            <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+            <p class="mt-2 text-muted">Loading financial data...</p>
+        </div>
+        
+        <!-- Financial Data -->
+        <div id="financial-data" class="row">
+            <div class="col-md-12 m-auto">
+                <h6 class="text-muted mb-3">Revenue Breakdown (<span id="current-month">This Month</span>)</h6>
+                <div id="revenue-breakdown">
+                    <table class="table table-sm">
+                        <tbody id="revenue-breakdown-body">
+                            <!-- Revenue breakdown will be loaded here -->
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-primary fw-bold">
+                                <td>Total Revenue</td>
+                                <td class="text-end" id="total-monthly-revenue">$0</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-12 m-auto">
                 <h6 class="text-muted mb-3">Payment Status</h6>
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span>Paid Invoices</span>
-                        <span class="text-success fw-bold">$189,500 (77%)</span>
-                    </div>
-                    <div class="progress" style="height: 25px;">
-                        <div class="progress-bar bg-success" style="width: 77%">77%</div>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span>Pending Payments</span>
-                        <span class="text-warning fw-bold">$42,300 (17%)</span>
-                    </div>
-                    <div class="progress" style="height: 25px;">
-                        <div class="progress-bar bg-warning" style="width: 17%">17%</div>
-                    </div>
-                </div>
-                <div>
-                    <div class="d-flex justify-content-between mb-1">
-                        <span>Overdue</span>
-                        <span class="text-danger fw-bold">$13,200 (6%)</span>
-                    </div>
-                    <div class="progress" style="height: 25px;">
-                        <div class="progress-bar bg-danger" style="width: 6%">6%</div>
-                    </div>
+                <div id="payment-status">
+                    <!-- Payment status will be loaded here -->
                 </div>
             </div>
+        </div>
+        
+        <!-- No Financial Data Message -->
+        <div id="no-financial-data" class="text-center py-4" style="display: none;">
+            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No financial data available for this month</p>
+        </div>
+        
+        <!-- Error Message -->
+        <div id="financial-error" class="text-center py-4" style="display: none;">
+            <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+            <p class="text-danger">Error loading financial data. Please refresh the page.</p>
         </div>
     </div>
     
     <!-- System Settings Section -->
-    <div id="settings" class="management-card">
+    <!-- <div id="settings" class="management-card">
         <h5 class="mb-3"><i class="fas fa-cog me-2"></i>System Settings</h5>
         
         <div class="row">
@@ -380,7 +371,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div> -->
     
 </div>
 
@@ -682,6 +673,22 @@ const API_BASE_URL = 'http://localhost:5000/api';
 // Get auth token from localStorage
 function getAuthToken() {
     return localStorage.getItem('token');
+}
+
+// Logout function
+function logout() {
+    console.log('🚪 Logging out...');
+    
+    // Clear all auth data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('userRole');
+    
+    // Show logout message
+    alert('You have been logged out successfully.');
+    
+    // Redirect to login page
+    window.location.href = '/login';
 }
 
 // Fetch dashboard statistics
@@ -1638,6 +1645,196 @@ function showServicesError() {
     `;
 }
 
+// ============================================
+// FINANCIAL OVERVIEW FUNCTIONS
+// ============================================
+
+// Load financial overview data
+async function loadFinancialOverview() {
+    console.log('💰 Loading financial overview data...');
+    
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            console.error('❌ No auth token found');
+            return;
+        }
+        
+        // Show loading state
+        document.getElementById('financial-loading').style.display = 'block';
+        document.getElementById('financial-data').style.display = 'none';
+        document.getElementById('no-financial-data').style.display = 'none';
+        document.getElementById('financial-error').style.display = 'none';
+        
+        const response = await fetch(`${API_BASE_URL}/dashboard/financial`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('💰 Financial data received:', data);
+        
+        if (data.success) {
+            displayFinancialData(data.data);
+        } else {
+            console.error('❌ Financial API error:', data.error);
+            showFinancialError();
+        }
+        
+    } catch (error) {
+        console.error('💥 Error loading financial data:', error);
+        showFinancialError();
+    } finally {
+        // Hide loading state
+        document.getElementById('financial-loading').style.display = 'none';
+    }
+}
+
+// Display financial data
+function displayFinancialData(financialData) {
+    console.log('💰 Displaying financial data:', financialData);
+    
+    const dataContainer = document.getElementById('financial-data');
+    const noDataMessage = document.getElementById('no-financial-data');
+    
+    if (!financialData || financialData.monthlyRevenue === 0) {
+        dataContainer.style.display = 'none';
+        noDataMessage.style.display = 'block';
+        return;
+    }
+    
+    // Update month display
+    document.getElementById('current-month').textContent = financialData.month || 'This Month';
+    
+    // Update total monthly revenue
+    document.getElementById('total-monthly-revenue').textContent = 
+        new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(financialData.monthlyRevenue);
+    
+    // Display revenue breakdown
+    displayRevenueBreakdown(financialData.revenueBreakdown);
+    
+    // Display payment status
+    displayPaymentStatus(financialData.paymentStatus, financialData.overdueAmount, financialData.totalPayments);
+    
+    dataContainer.style.display = 'block';
+    noDataMessage.style.display = 'none';
+    
+    console.log('✅ Financial data displayed successfully');
+}
+
+// Display revenue breakdown by service category
+function displayRevenueBreakdown(revenueBreakdown) {
+    const tbody = document.getElementById('revenue-breakdown-body');
+    tbody.innerHTML = '';
+    
+    if (!revenueBreakdown || revenueBreakdown.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">No revenue data available</td></tr>';
+        return;
+    }
+    
+    revenueBreakdown.forEach(item => {
+        const row = document.createElement('tr');
+        const categoryName = item.category || 'Other Services';
+        const revenue = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(item.revenue);
+        
+        row.innerHTML = `
+            <td>${categoryName}</td>
+            <td class="text-end"><strong>${revenue}</strong></td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// Display payment status with progress bars
+function displayPaymentStatus(paymentStatus, overdueAmount, totalPayments) {
+    const container = document.getElementById('payment-status');
+    container.innerHTML = '';
+    
+    if (!paymentStatus || paymentStatus.length === 0) {
+        container.innerHTML = '<p class="text-muted">No payment data available</p>';
+        return;
+    }
+    
+    // Create payment status items
+    const statusConfig = {
+        'completed': { label: 'Paid Invoices', class: 'success' },
+        'pending': { label: 'Pending Payments', class: 'warning' },
+        'failed': { label: 'Failed Payments', class: 'danger' }
+    };
+    
+    paymentStatus.forEach(status => {
+        const config = statusConfig[status._id] || { label: status._id, class: 'secondary' };
+        const amount = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(status.totalAmount);
+        
+        const statusItem = document.createElement('div');
+        statusItem.className = 'mb-3';
+        statusItem.innerHTML = `
+            <div class="d-flex justify-content-between mb-1">
+                <span>${config.label}</span>
+                <span class="text-${config.class} fw-bold">${amount} (${status.percentage}%)</span>
+            </div>
+            <div class="progress" style="height: 25px;">
+                <div class="progress-bar bg-${config.class}" style="width: ${status.percentage}%">${status.percentage}%</div>
+            </div>
+        `;
+        container.appendChild(statusItem);
+    });
+    
+    // Add overdue payments if any
+    if (overdueAmount > 0) {
+        const overduePercentage = totalPayments > 0 ? Math.round((overdueAmount / totalPayments) * 100) : 0;
+        const overdueFormatted = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(overdueAmount);
+        
+        const overdueItem = document.createElement('div');
+        overdueItem.innerHTML = `
+            <div class="d-flex justify-content-between mb-1">
+                <span>Overdue</span>
+                <span class="text-danger fw-bold">${overdueFormatted} (${overduePercentage}%)</span>
+            </div>
+            <div class="progress" style="height: 25px;">
+                <div class="progress-bar bg-danger" style="width: ${overduePercentage}%">${overduePercentage}%</div>
+            </div>
+        `;
+        container.appendChild(overdueItem);
+    }
+}
+
+// Show error state for financial data
+function showFinancialError() {
+    console.log('⚠️ Showing financial error state...');
+    
+    document.getElementById('financial-data').style.display = 'none';
+    document.getElementById('no-financial-data').style.display = 'none';
+    document.getElementById('financial-error').style.display = 'block';
+}
+
 // Initialize dashboard when page loads
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Admin Dashboard initialized');
@@ -1651,6 +1848,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load services management data
     loadServicesManagement();
+    
+    // Load financial overview data
+    loadFinancialOverview();
     
     // Set up modal event listeners
     const saveUserBtn = document.getElementById('saveUserBtn');
@@ -1675,6 +1875,24 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ Update Service button event listener attached');
     } else {
         console.error('❌ Update Service button not found');
+    }
+    
+    // Add refresh financial data button listener
+    const refreshFinancialBtn = document.getElementById('refresh-financial-btn');
+    if (refreshFinancialBtn) {
+        refreshFinancialBtn.addEventListener('click', loadFinancialOverview);
+        console.log('✅ Refresh Financial button event listener attached');
+    } else {
+        console.error('❌ Refresh Financial button not found');
+    }
+    
+    // Add logout button listener
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+        console.log('✅ Logout button event listener attached');
+    } else {
+        console.error('❌ Logout button not found');
     }
     
     // Refresh stats every 5 minutes

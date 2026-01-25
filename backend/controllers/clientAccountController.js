@@ -184,66 +184,83 @@ exports.loginClient = async (req, res) => {
 
     const { email, password } = req.body;
 
-    // 🔑 CHECK FOR ADMIN LOGIN IN USERS COLLECTION
-    if (email === 'admin@gmail.com') {
-      console.log('🔑 === ADMIN LOGIN ATTEMPT ===');
-      console.log('🔑 Checking admin credentials in Users collection...');
+    // 🔑 CHECK FOR USER LOGIN IN USERS COLLECTION (ALL ROLES)
+    console.log('🔑 === CHECKING USER LOGIN IN USERS COLLECTION ===');
+    console.log('🔑 Checking user credentials for all roles...');
+    
+    try {
+      const User = require('../models/User');
+      const user = await User.findOne({ email }).select('+password');
       
-      try {
-        const User = require('../models/User');
-        const adminUser = await User.findOne({ email: 'admin@gmail.com', role: 'admin' }).select('+password');
+      if (user) {
+        console.log('🔑 User found in database:', user._id, 'Role:', user.role);
         
-        if (adminUser) {
-          console.log('🔑 Admin user found in database:', adminUser._id);
+        // Verify password
+        const isPasswordValid = await user.comparePassword(password);
+        console.log('🔑 Password verification result:', isPasswordValid);
+        
+        if (isPasswordValid) {
+          console.log('✅ User login successful, generating token...');
           
-          // Verify password
-          const isPasswordValid = await adminUser.comparePassword(password);
-          console.log('🔑 Password verification result:', isPasswordValid);
+          const userToken = generateToken(user._id);
           
-          if (isPasswordValid) {
-            console.log('✅ Admin login successful, generating admin token...');
-            
-            const adminToken = generateToken(adminUser._id);
-            
-            const cookieOptions = {
-              expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-              httpOnly: true,
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: 'strict'
-            };
+          const cookieOptions = {
+            expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict'
+          };
 
-            console.log('✅ Admin login successful, sending admin response...');
-            
-            return res.status(200)
-              .cookie('client_token', adminToken, cookieOptions)
-              .json({
-                success: true,
-                isAdmin: true,
-                data: {
-                  token: adminToken,
-                  client: {
-                    _id: adminUser._id,
-                    email: adminUser.email,
-                    full_name: adminUser.full_name,
-                    role: adminUser.role,
-                    account_status: 'active'
-                  },
-                  redirectTo: '/admin'
-                }
-              });
-          } else {
-            console.log('❌ Admin password incorrect');
+          // Determine redirect URL based on role
+          let redirectTo = '/client-profile'; // default
+          switch (user.role) {
+            case 'admin':
+              redirectTo = '/admin';
+              break;
+            case 'lead_manager':
+              redirectTo = '/lead-manager';
+              break;
+            case 'crm_manager':
+              redirectTo = '/crm-manager';
+              break;
+            case 'client':
+              redirectTo = '/client-profile';
+              break;
+            default:
+              redirectTo = '/client-profile';
           }
+
+          console.log(`✅ ${user.role} login successful, redirecting to: ${redirectTo}`);
+          
+          return res.status(200)
+            .cookie('client_token', userToken, cookieOptions)
+            .json({
+              success: true,
+              isAdmin: user.role === 'admin',
+              data: {
+                token: userToken,
+                client: {
+                  _id: user._id,
+                  email: user.email,
+                  full_name: user.full_name || `${user.first_name} ${user.last_name}`,
+                  role: user.role,
+                  account_status: 'active'
+                },
+                redirectTo: redirectTo
+              }
+            });
         } else {
-          console.log('❌ Admin user not found in database');
+          console.log('❌ User password incorrect');
         }
-      } catch (error) {
-        console.error('💥 Error checking admin login:', error);
+      } else {
+        console.log('❌ User not found in Users collection');
       }
-      
-      // If admin login failed, continue to regular client login check
-      console.log('🔑 Admin login failed, checking as regular client...');
+    } catch (error) {
+      console.error('💥 Error checking user login:', error);
     }
+    
+    // If user login failed, continue to regular client login check
+    console.log('🔑 User login failed, checking as regular client account...');
 
     // Find client by email and include password
     console.log('🔍 Searching for client with email:', email);

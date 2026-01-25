@@ -54,14 +54,19 @@ app.get('/signup', (req, res) => {
 
 // ===== DASHBOARD ROUTES =====
 
-// Client Dashboard - Main client portal
-app.get('/dashboard', (req, res) => {
+// Client Profile Dashboard
+app.get('/client-profile', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'dashboard', '3-client-profile.html'));
 });
 
-// Client Dashboard - Alternative routes
-app.get('/client-dashboard', (req, res) => {
-    res.redirect('/dashboard');
+// Lead Manager Dashboard
+app.get('/lead-manager', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'dashboard', '1-lead-manager.html'));
+});
+
+// CRM Manager Dashboard
+app.get('/crm-manager', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'dashboard', '4-crm-manager.html'));
 });
 
 // Admin Dashboard - Admin control panel (after admin login)
@@ -69,19 +74,25 @@ app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'dashboard', '2-admin-dashboard.html'));
 });
 
-// Admin Dashboard - Alternative routes
+// Legacy dashboard redirects
+app.get('/dashboard', (req, res) => {
+    res.redirect('/client-profile');
+});
+
+app.get('/client-dashboard', (req, res) => {
+    res.redirect('/client-profile');
+});
+
 app.get('/admin-dashboard', (req, res) => {
     res.redirect('/admin');
 });
 
-// Manager Dashboard - Manager control panel
 app.get('/manager', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'dashboard', '1-lead-manager.html'));
+    res.redirect('/lead-manager');
 });
 
-// CRM Manager Dashboard
 app.get('/crm', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'dashboard', '4-crm-manager.html'));
+    res.redirect('/crm-manager');
 });
 
 // ===== SERVICE PAGES =====
@@ -173,9 +184,10 @@ app.get('/:page', (req, res) => {
     
     // Check if it's a known route first
     const knownRoutes = [
-        'login', 'signup', 'dashboard', 'client-dashboard', 'admin', 'admin-dashboard',
+        'login', 'signup', 'client-profile', 'lead-manager', 'crm-manager', 'admin',
+        'dashboard', 'client-dashboard', 'admin-dashboard', 'manager', 'crm',
         'assessment', 'schedule', 'services', 'eb1a', 'eb2-niw', 'o1-visa', 'profile-building',
-        'attorneys', 'faq', 'pricing', 'manager', 'crm'
+        'attorneys', 'faq', 'pricing'
     ];
     
     if (knownRoutes.includes(pageName)) {

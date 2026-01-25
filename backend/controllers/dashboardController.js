@@ -3,6 +3,9 @@ const User = require('../models/User');
 const ProfileAssessment = require('../models/ProfileAssessment');
 const ContactForm = require('../models/ContactForm');
 const AppointmentRequest = require('../models/AppointmentRequest');
+const Payment = require('../models/Payment');
+const Project = require('../models/Project');
+const Service = require('../models/Service');
 
 /**
  * Get Admin Dashboard Statistics
@@ -36,9 +39,28 @@ exports.getDashboardStats = async (req, res) => {
     const appointmentRequests = await AppointmentRequest.countDocuments();
     console.log('📅 Appointment Requests:', appointmentRequests);
     
-    // Calculate monthly revenue (placeholder - you can implement based on your payment system)
-    const monthlyRevenue = activeProjects * 2500; // Assuming $2500 per project
-    console.log('💰 Estimated Monthly Revenue:', monthlyRevenue);
+    // Calculate real monthly revenue from payments
+    const currentMonth = new Date();
+    const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    
+    const monthlyPayments = await Payment.aggregate([
+      {
+        $match: {
+          paymentDate: { $gte: startOfMonth, $lte: endOfMonth },
+          status: 'completed'
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: '$amount' }
+        }
+      }
+    ]);
+    
+    const monthlyRevenue = monthlyPayments.length > 0 ? monthlyPayments[0].totalRevenue : 0;
+    console.log('💰 Real Monthly Revenue:', monthlyRevenue);
     
     // Get recent activity counts
     const recentClients = await ClientAccount.countDocuments({
@@ -83,6 +105,137 @@ exports.getDashboardStats = async (req, res) => {
   }
   
   console.log('📊 === DASHBOARD STATS REQUEST COMPLETED ===\n');
+};
+
+/**
+ * Get Financial Overview Data
+ * @route GET /api/dashboard/financial
+ * @access Private (Admin only)
+ */
+exports.getFinancialOverview = async (req, res) => {
+  console.log('\n💰 === FINANCIAL OVERVIEW REQUEST ===');
+  console.log('💰 Admin requesting financial overview');
+  
+  try {
+    const currentMonth = new Date();
+    const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    
+    // Get revenue breakdown by service category
+    const revenueByService = await Payment.aggregate([
+      {
+        $match: {
+          paymentDate: { $gte: startOfMonth, $lte: endOfMonth },
+          status: 'completed'
+        }
+      },
+      {
+        $lookup: {
+          from: 'projects',
+          localField: 'project',
+          foreignField: '_id',
+          as: 'projectData'
+        }
+      },
+      {
+        $lookup: {
+          from: 'services',
+          localField: 'projectData.service',
+          foreignField: '_id',
+          as: 'serviceData'
+        }
+      },
+      {
+        $group: {
+          _id: '$serviceData.category',
+          totalRevenue: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { totalRevenue: -1 }
+      }
+    ]);
+    
+    // Get payment status breakdown
+    const paymentStatus = await Payment.aggregate([
+      {
+        $match: {
+          paymentDate: { $gte: startOfMonth, $lte: endOfMonth }
+        }
+      },
+      {
+        $group: {
+          _id: '$status',
+          totalAmount: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Calculate overdue payments (past due date)
+    const overduePayments = await Payment.aggregate([
+      {
+        $match: {
+          status: 'pending',
+          dueDate: { $lt: new Date() }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalOverdue: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Get total revenue for the month
+    const totalMonthlyRevenue = revenueByService.reduce((sum, item) => sum + item.totalRevenue, 0);
+    
+    // Calculate payment status percentages
+    const totalPayments = paymentStatus.reduce((sum, item) => sum + item.totalAmount, 0);
+    const paymentStatusWithPercentages = paymentStatus.map(status => ({
+      ...status,
+      percentage: totalPayments > 0 ? Math.round((status.totalAmount / totalPayments) * 100) : 0
+    }));
+    
+    // Format revenue breakdown for frontend
+    const formattedRevenueBreakdown = revenueByService.map(item => ({
+      category: item._id && item._id.length > 0 ? item._id[0] : 'Other',
+      revenue: item.totalRevenue,
+      count: item.count
+    }));
+    
+    const financialData = {
+      monthlyRevenue: totalMonthlyRevenue,
+      revenueBreakdown: formattedRevenueBreakdown,
+      paymentStatus: paymentStatusWithPercentages,
+      overdueAmount: overduePayments.length > 0 ? overduePayments[0].totalOverdue : 0,
+      overdueCount: overduePayments.length > 0 ? overduePayments[0].count : 0,
+      totalPayments: totalPayments,
+      month: currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })
+    };
+    
+    console.log('💰 Financial overview data:', financialData);
+    
+    res.json({
+      success: true,
+      data: financialData
+    });
+    
+  } catch (error) {
+    console.error('💥 Financial overview error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'FINANCIAL_OVERVIEW_FAILED',
+        message: error.message
+      }
+    });
+  }
+  
+  console.log('💰 === FINANCIAL OVERVIEW REQUEST COMPLETED ===\n');
 };
 
 /**
