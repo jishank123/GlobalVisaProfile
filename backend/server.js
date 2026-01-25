@@ -9,7 +9,7 @@ require('dotenv').config();
 
 // Import routes
 const authRoutes = require('./routes/auth');
-// const userRoutes = require('./routes/users');
+const userRoutes = require('./routes/users');
 // const leadRoutes = require('./routes/leads');
 // const clientRoutes = require('./routes/clients');
 // const projectRoutes = require('./routes/projects');
@@ -94,7 +94,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 // API Routes
 console.log('🛣️ Setting up API routes...');
 app.use('/api/auth', authRoutes); 
-// app.use('/api/users', userRoutes); 
+app.use('/api/users', userRoutes); 
 // app.use('/api/leads', leadRoutes); 
 // app.use('/api/clients', clientRoutes); 
 // app.use('/api/projects', projectRoutes); 

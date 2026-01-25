@@ -149,7 +149,7 @@
             <div class="stat-card">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <div class="stat-number">156</div>
+                        <div id="total-clients" class="stat-number">156</div>
                         <div class="text-muted">Total Clients</div>
                     </div>
                     <i class="fas fa-users fa-2x text-primary"></i>
@@ -160,7 +160,7 @@
             <div class="stat-card">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <div class="stat-number">45</div>
+                        <div id="active-projects" class="stat-number">45</div>
                         <div class="text-muted">Active Projects</div>
                     </div>
                     <i class="fas fa-project-diagram fa-2x text-success"></i>
@@ -171,7 +171,7 @@
             <div class="stat-card">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <div class="stat-number">$245K</div>
+                        <div id="monthly-revenue" class="stat-number">$245K</div>
                         <div class="text-muted">Monthly Revenue</div>
                     </div>
                     <i class="fas fa-dollar-sign fa-2x text-warning"></i>
@@ -182,7 +182,7 @@
             <div class="stat-card">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <div class="stat-number">23</div>
+                        <div id="team-members" class="stat-number">23</div>
                         <div class="text-muted">Team Members</div>
                     </div>
                     <i class="fas fa-user-friends fa-2x text-info"></i>
@@ -195,74 +195,42 @@
     <div id="users" class="management-card">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5><i class="fas fa-users me-2"></i>User Management</h5>
-            <button class="btn btn-primary btn-sm">
+            <button id="add-user-btn" class="btn btn-primary btn-sm">
                 <i class="fas fa-plus me-1"></i>Add New User
             </button>
         </div>
         
-        <table class="table table-hover">
-            <thead>
-                <tr>
-                    <th>User ID</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Last Login</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><strong>USR-001</strong></td>
-                    <td>John Smith</td>
-                    <td>john.smith@company.com</td>
-                    <td><span class="badge bg-primary">Lead Manager</span></td>
-                    <td><span class="badge bg-success">Active</span></td>
-                    <td>Jan 23, 2025 09:15 AM</td>
-                    <td>
-                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>USR-002</strong></td>
-                    <td>Emily Roberts</td>
-                    <td>emily.r@company.com</td>
-                    <td><span class="badge bg-info">CRM Manager</span></td>
-                    <td><span class="badge bg-success">Active</span></td>
-                    <td>Jan 23, 2025 08:45 AM</td>
-                    <td>
-                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>USR-003</strong></td>
-                    <td>Michael Chen</td>
-                    <td>m.chen@company.com</td>
-                    <td><span class="badge bg-warning">Consultant</span></td>
-                    <td><span class="badge bg-success">Active</span></td>
-                    <td>Jan 22, 2025 05:30 PM</td>
-                    <td>
-                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>USR-004</strong></td>
-                    <td>Sarah Johnson</td>
-                    <td>s.johnson@company.com</td>
-                    <td><span class="badge bg-secondary">Writer</span></td>
-                    <td><span class="badge bg-warning">Inactive</span></td>
-                    <td>Jan 20, 2025 02:15 PM</td>
-                    <td>
-                        <button class="action-btn btn-activate"><i class="fas fa-check"></i></button>
-                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+        <!-- Loading State -->
+        <div id="users-loading" class="text-center py-4" style="display: none;">
+            <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+            <p class="mt-2 text-muted">Loading users...</p>
+        </div>
+        
+        <!-- Users Table -->
+        <div id="users-table-container">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>User ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Last Login</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="users-table-body">
+                    <!-- Users will be loaded here dynamically -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- No Users Message -->
+        <div id="no-users-message" class="text-center py-4" style="display: none;">
+            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No users found</p>
+        </div>
     </div>
     
     <!-- Services Management Section -->
@@ -514,21 +482,25 @@ function updateStatisticsCards(stats) {
     console.log('📊 Updating statistics cards with real data...');
     
     // Update Total Clients
-    const clientsCard = document.querySelector('.stat-card:nth-child(1) .stat-number');
+    const clientsCard = document.getElementById('total-clients');
     if (clientsCard) {
         clientsCard.textContent = stats.totalClients || 0;
         console.log('👥 Updated Total Clients:', stats.totalClients);
+    } else {
+        console.error('❌ Total clients card not found');
     }
     
     // Update Active Projects
-    const projectsCard = document.querySelector('.stat-card:nth-child(2) .stat-number');
+    const projectsCard = document.getElementById('active-projects');
     if (projectsCard) {
         projectsCard.textContent = stats.activeProjects || 0;
         console.log('📋 Updated Active Projects:', stats.activeProjects);
+    } else {
+        console.error('❌ Active projects card not found');
     }
     
     // Update Monthly Revenue
-    const revenueCard = document.querySelector('.stat-card:nth-child(3) .stat-number');
+    const revenueCard = document.getElementById('monthly-revenue');
     if (revenueCard) {
         const formattedRevenue = new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -538,13 +510,17 @@ function updateStatisticsCards(stats) {
         }).format(stats.monthlyRevenue || 0);
         revenueCard.textContent = formattedRevenue;
         console.log('💰 Updated Monthly Revenue:', formattedRevenue);
+    } else {
+        console.error('❌ Monthly revenue card not found');
     }
     
     // Update Team Members
-    const teamCard = document.querySelector('.stat-card:nth-child(4) .stat-number');
+    const teamCard = document.getElementById('team-members');
     if (teamCard) {
         teamCard.textContent = stats.teamMembers || 0;
         console.log('👨‍💼 Updated Team Members:', stats.teamMembers);
+    } else {
+        console.error('❌ Team members card not found');
     }
     
     console.log('✅ All statistics cards updated successfully');
@@ -578,6 +554,257 @@ document.querySelectorAll('.action-btn, .btn-primary').forEach(btn => {
     });
 });
 
+// ============================================
+// USER MANAGEMENT FUNCTIONS
+// ============================================
+
+// Load user management data
+async function loadUserManagement() {
+    console.log('👥 Loading user management data...');
+    
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            console.error('❌ No auth token found');
+            return;
+        }
+        
+        // Show loading state
+        document.getElementById('users-loading').style.display = 'block';
+        document.getElementById('users-table-container').style.display = 'none';
+        document.getElementById('no-users-message').style.display = 'none';
+        
+        const response = await fetch(`${API_BASE_URL}/users`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('👥 Users data received:', data);
+        
+        if (data.success) {
+            displayUsers(data.data);
+        } else {
+            console.error('❌ Users API error:', data.error);
+            showUsersError();
+        }
+        
+    } catch (error) {
+        console.error('💥 Error loading users:', error);
+        showUsersError();
+    } finally {
+        // Hide loading state
+        document.getElementById('users-loading').style.display = 'none';
+    }
+}
+
+// Display users in the table
+function displayUsers(users) {
+    console.log('👥 Displaying users:', users.length);
+    
+    const tbody = document.getElementById('users-table-body');
+    const tableContainer = document.getElementById('users-table-container');
+    const noUsersMessage = document.getElementById('no-users-message');
+    
+    if (!users || users.length === 0) {
+        tableContainer.style.display = 'none';
+        noUsersMessage.style.display = 'block';
+        return;
+    }
+    
+    // Clear existing rows
+    tbody.innerHTML = '';
+    
+    users.forEach(user => {
+        const row = createUserRow(user);
+        tbody.appendChild(row);
+    });
+    
+    tableContainer.style.display = 'block';
+    noUsersMessage.style.display = 'none';
+    
+    console.log('✅ Users displayed successfully');
+}
+
+// Create a user table row
+function createUserRow(user) {
+    const row = document.createElement('tr');
+    
+    // Format last login date
+    const lastLogin = user.last_login ? 
+        new Date(user.last_login).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }) : 'Never';
+    
+    // Get role badge class
+    const roleBadgeClass = getRoleBadgeClass(user.role);
+    
+    // Get status badge class
+    const statusBadgeClass = getStatusBadgeClass(user.status);
+    
+    row.innerHTML = `
+        <td><strong>${user._id.slice(-6).toUpperCase()}</strong></td>
+        <td>${user.full_name || `${user.first_name} ${user.last_name}`}</td>
+        <td>${user.email}</td>
+        <td><span class="badge ${roleBadgeClass}">${formatRole(user.role)}</span></td>
+        <td><span class="badge ${statusBadgeClass}">${formatStatus(user.status)}</span></td>
+        <td>${lastLogin}</td>
+        <td>
+            <button class="action-btn btn-edit" onclick="editUser('${user._id}')" title="Edit Role">
+                <i class="fas fa-user-cog"></i>
+            </button>
+            <button class="action-btn btn-delete" onclick="deleteUser('${user._id}', '${user.email}')" title="Delete User">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    `;
+    
+    return row;
+}
+
+// Get role badge CSS class
+function getRoleBadgeClass(role) {
+    const roleClasses = {
+        'admin': 'bg-danger',
+        'lead_manager': 'bg-primary',
+        'crm_manager': 'bg-info',
+        'client': 'bg-secondary'
+    };
+    return roleClasses[role] || 'bg-secondary';
+}
+
+// Get status badge CSS class
+function getStatusBadgeClass(status) {
+    const statusClasses = {
+        'active': 'bg-success',
+        'inactive': 'bg-warning',
+        'suspended': 'bg-danger',
+        'deleted': 'bg-dark'
+    };
+    return statusClasses[status] || 'bg-secondary';
+}
+
+// Format role for display
+function formatRole(role) {
+    const roleNames = {
+        'admin': 'Admin',
+        'lead_manager': 'Lead Manager',
+        'crm_manager': 'CRM Manager',
+        'client': 'Client'
+    };
+    return roleNames[role] || role;
+}
+
+// Format status for display
+function formatStatus(status) {
+    return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+// Edit user (assign role)
+async function editUser(userId) {
+    console.log('✏️ Editing user:', userId);
+    
+    // Show role selection modal
+    const newRole = prompt(`Select new role for user:
+    
+1. lead_manager (Lead Manager)
+2. crm_manager (CRM Manager)
+3. client (Client)
+
+Enter role name:`);
+    
+    if (!newRole) return;
+    
+    const validRoles = ['lead_manager', 'crm_manager', 'client'];
+    if (!validRoles.includes(newRole)) {
+        alert('Invalid role. Please enter: lead_manager, crm_manager, or client');
+        return;
+    }
+    
+    try {
+        const token = getAuthToken();
+        const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ role: newRole })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('User role updated successfully!');
+            loadUserManagement(); // Refresh the list
+        } else {
+            alert('Error updating user role: ' + (data.error?.message || 'Unknown error'));
+        }
+        
+    } catch (error) {
+        console.error('💥 Error updating user:', error);
+        alert('Error updating user role. Please try again.');
+    }
+}
+
+// Delete user
+async function deleteUser(userId, userEmail) {
+    console.log('🗑️ Deleting user:', userId, userEmail);
+    
+    if (!confirm(`Are you sure you want to delete user: ${userEmail}?
+    
+This action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const token = getAuthToken();
+        const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('User deleted successfully!');
+            loadUserManagement(); // Refresh the list
+        } else {
+            alert('Error deleting user: ' + (data.error?.message || 'Unknown error'));
+        }
+        
+    } catch (error) {
+        console.error('💥 Error deleting user:', error);
+        alert('Error deleting user. Please try again.');
+    }
+}
+
+// Show error state for users
+function showUsersError() {
+    console.log('⚠️ Showing users error state...');
+    
+    document.getElementById('users-table-container').style.display = 'none';
+    document.getElementById('no-users-message').style.display = 'block';
+    document.getElementById('no-users-message').innerHTML = `
+        <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+        <p class="text-danger">Error loading users. Please refresh the page.</p>
+    `;
+}
+
 // Initialize dashboard when page loads
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Admin Dashboard initialized');
@@ -585,6 +812,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load dashboard statistics
     loadDashboardStats();
+    
+    // Load user management data
+    loadUserManagement();
     
     // Refresh stats every 5 minutes
     setInterval(loadDashboardStats, 5 * 60 * 1000);

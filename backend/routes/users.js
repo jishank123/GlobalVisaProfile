@@ -1,8 +1,66 @@
 const express = require('express');
 const router = express.Router();
-const { auth } = require('../middleware/auth');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 const userController = require('../controllers/userController');
 const { body } = require('express-validator');
+
+// Admin authentication middleware (same as dashboard)
+const adminAuth = async (req, res, next) => {
+  console.log('\n🔐 === ADMIN AUTH FOR USER MANAGEMENT ===');
+  
+  try {
+    let token;
+
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          code: 'NO_TOKEN',
+          message: 'Access denied. No authentication token provided.'
+        }
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const adminUser = await User.findById(decoded.id);
+    
+    if (!adminUser || adminUser.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'ADMIN_ACCESS_REQUIRED',
+          message: 'Admin access required.'
+        }
+      });
+    }
+
+    req.user = {
+      user_id: adminUser._id,
+      _id: adminUser._id,
+      email: adminUser.email,
+      role: adminUser.role,
+      account: adminUser
+    };
+
+    console.log('✅ Admin authenticated for user management');
+    next();
+
+  } catch (error) {
+    console.error('🔐 Admin auth error:', error);
+    return res.status(401).json({
+      success: false,
+      error: {
+        code: 'INVALID_TOKEN',
+        message: 'Invalid authentication token.'
+      }
+    });
+  }
+};
 
 // Validation middleware
 const validateUserCreation = [
@@ -21,37 +79,37 @@ const validateUserUpdate = [
 
 // @route   GET /api/users
 // @desc    Get all users with filters
-// @access  Private (Admin, Lead Manager)
-router.get('/', ...auth(['admin', 'lead_manager']), userController.getUsers);
+// @access  Private (Admin only)
+router.get('/', adminAuth, userController.getUsers);
 
 // @route   GET /api/users/stats
 // @desc    Get user statistics
-// @access  Private (Admin, Lead Manager)
-router.get('/stats', ...auth(['admin', 'lead_manager']), userController.getUserStats);
+// @access  Private (Admin only)
+router.get('/stats', adminAuth, userController.getUserStats);
 
 // @route   GET /api/users/:id
 // @desc    Get single user
-// @access  Private (Admin, Lead Manager, Own Profile)
-router.get('/:id', ...auth(), userController.getUser);
+// @access  Private (Admin only)
+router.get('/:id', adminAuth, userController.getUser);
 
 // @route   POST /api/users
 // @desc    Create new user
 // @access  Private (Admin only)
-router.post('/', ...auth(['admin']), validateUserCreation, userController.createUser);
+router.post('/', adminAuth, validateUserCreation, userController.createUser);
 
 // @route   PATCH /api/users/:id
-// @desc    Update user
-// @access  Private (Admin, Own Profile)
-router.patch('/:id', ...auth(), validateUserUpdate, userController.updateUser);
+// @desc    Update user (assign role)
+// @access  Private (Admin only)
+router.patch('/:id', adminAuth, validateUserUpdate, userController.updateUser);
 
 // @route   PATCH /api/users/:id/assign-manager
 // @desc    Assign manager to user
-// @access  Private (Admin, Lead Manager)
-router.patch('/:id/assign-manager', ...auth(['admin', 'lead_manager']), userController.assignManager);
+// @access  Private (Admin only)
+router.patch('/:id/assign-manager', adminAuth, userController.assignManager);
 
 // @route   DELETE /api/users/:id
 // @desc    Delete user (soft delete)
 // @access  Private (Admin only)
-router.delete('/:id', ...auth(['admin']), userController.deleteUser);
+router.delete('/:id', adminAuth, userController.deleteUser);
 
 module.exports = router;
