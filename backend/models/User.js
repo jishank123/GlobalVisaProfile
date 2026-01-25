@@ -35,7 +35,7 @@ const userSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['active', 'inactive', 'suspended'],
+    enum: ['active', 'inactive', 'suspended', 'deleted'],
     default: 'active'
   },
   phone: {
@@ -62,7 +62,14 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  email_verification_token: String
+  email_verification_token: String,
+  deleted_at: {
+    type: Date
+  },
+  deleted_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }
 }, {
   timestamps: true,
   toJSON: { virtuals: true },

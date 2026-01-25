@@ -1,154 +1,116 @@
 const express = require('express');
 const router = express.Router();
-const Service = require('../models/Service');
-const { auth } = require('../middleware/auth');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const serviceController = require('../controllers/serviceController');
+const { body } = require('express-validator');
 
-// @route   GET /api/services
-// @desc    Get all services
-// @access  Public
-router.get('/', async (req, res) => {
+// Admin authentication middleware (same as other admin routes)
+const adminAuth = async (req, res, next) => {
+  console.log('\n🔐 === ADMIN AUTH FOR SERVICE MANAGEMENT ===');
+  
   try {
-    const { search, category, isActive, sort = '-popularity' } = req.query;
-    
-    // Build query
-    let query = {};
-    
-    if (search) {
-      query.$text = { $search: search };
+    let token;
+
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
     }
-    
-    if (category) {
-      query.category = category;
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          code: 'NO_TOKEN',
+          message: 'Access denied. No authentication token provided.'
+        }
+      });
     }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const adminUser = await User.findById(decoded.id);
     
-    if (isActive !== undefined) {
-      query.isActive = isActive === 'true';
+    if (!adminUser || adminUser.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'ADMIN_ACCESS_REQUIRED',
+          message: 'Admin access required.'
+        }
+      });
     }
-    
-    const services = await Service.find(query).sort(sort);
-    
-    res.json({
-      success: true,
-      count: services.length,
-      data: services
-    });
+
+    req.user = {
+      user_id: adminUser._id,
+      _id: adminUser._id,
+      email: adminUser.email,
+      role: adminUser.role,
+      account: adminUser
+    };
+
+    console.log('✅ Admin authenticated for service management');
+    next();
+
   } catch (error) {
-    res.status(500).json({
+    console.error('🔐 Admin auth error:', error);
+    return res.status(401).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      error: {
+        code: 'INVALID_TOKEN',
+        message: 'Invalid authentication token.'
+      }
     });
   }
-});
+};
+
+// Validation middleware
+const validateServiceCreation = [
+  body('name').notEmpty().withMessage('Service name is required'),
+  body('description').notEmpty().withMessage('Service description is required'),
+  body('category').isIn(['EB-1A', 'EB-2 NIW', 'O-1 Visa', 'Profile Building', 'Consultation', 'Other']).withMessage('Invalid category'),
+  body('pricing.minPrice').isNumeric().withMessage('Minimum price must be a number'),
+  body('pricing.maxPrice').isNumeric().withMessage('Maximum price must be a number'),
+  body('duration').notEmpty().withMessage('Duration is required')
+];
+
+const validateServiceUpdate = [
+  body('name').optional().notEmpty().withMessage('Service name cannot be empty'),
+  body('description').optional().notEmpty().withMessage('Service description cannot be empty'),
+  body('category').optional().isIn(['EB-1A', 'EB-2 NIW', 'O-1 Visa', 'Profile Building', 'Consultation', 'Other']).withMessage('Invalid category')
+];
+
+// @route   GET /api/services
+// @desc    Get all services with filters
+// @access  Private (Admin only)
+router.get('/', adminAuth, serviceController.getServices);
+
+// @route   GET /api/services/stats
+// @desc    Get service statistics
+// @access  Private (Admin only)
+router.get('/stats', adminAuth, serviceController.getServiceStats);
 
 // @route   GET /api/services/:id
 // @desc    Get single service
-// @access  Public
-router.get('/:id', async (req, res) => {
-  try {
-    const service = await Service.findById(req.params.id);
-    
-    if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service not found'
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: service
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
-});
+// @access  Private (Admin only)
+router.get('/:id', adminAuth, serviceController.getService);
 
 // @route   POST /api/services
 // @desc    Create new service
 // @access  Private (Admin only)
-router.post('/', ...auth(['admin']), async (req, res) => {
-  try {
-    const service = await Service.create(req.body);
-    
-    res.status(201).json({
-      success: true,
-      message: 'Service created successfully',
-      data: service
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to create service',
-      error: error.message
-    });
-  }
-});
+router.post('/', adminAuth, validateServiceCreation, serviceController.createService);
 
 // @route   PATCH /api/services/:id
 // @desc    Update service
 // @access  Private (Admin only)
-router.patch('/:id', ...auth(['admin']), async (req, res) => {
-  try {
-    const service = await Service.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true
-      }
-    );
-    
-    if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service not found'
-      });
-    }
-    
-    res.json({
-      success: true,
-      message: 'Service updated successfully',
-      data: service
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to update service',
-      error: error.message
-    });
-  }
-});
+router.patch('/:id', adminAuth, validateServiceUpdate, serviceController.updateService);
+
+// @route   PATCH /api/services/:id/toggle-status
+// @desc    Toggle service status (activate/deactivate)
+// @access  Private (Admin only)
+router.patch('/:id/toggle-status', adminAuth, serviceController.toggleServiceStatus);
 
 // @route   DELETE /api/services/:id
-// @desc    Delete service
+// @desc    Delete service (soft delete)
 // @access  Private (Admin only)
-router.delete('/:id', ...auth(['admin']), async (req, res) => {
-  try {
-    const service = await Service.findByIdAndDelete(req.params.id);
-    
-    if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service not found'
-      });
-    }
-    
-    res.json({
-      success: true,
-      message: 'Service deleted successfully'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
-});
+router.delete('/:id', adminAuth, serviceController.deleteService);
 
 module.exports = router;

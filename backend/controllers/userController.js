@@ -27,6 +27,9 @@ exports.getUsers = async (req, res) => {
     // Build query with security filters
     let query = {};
     
+    // Always exclude deleted users from the main list
+    query.status = { $ne: 'deleted' };
+    
     // Role-based access control
     if (req.user.role === 'lead_manager') {
       // Lead managers can only see clients and other lead managers
@@ -271,6 +274,28 @@ exports.updateUser = async (req, res) => {
       });
     }
     
+    // Prevent admin from changing their own role
+    if (req.body.role && req.params.id === req.user.user_id && req.user.role === 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'ADMIN_ROLE_CHANGE_FORBIDDEN',
+          message: 'Admin cannot change their own role'
+        }
+      });
+    }
+    
+    // Prevent changing another admin's role
+    if (req.body.role && user.role === 'admin' && req.params.id !== req.user.user_id) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'ADMIN_ROLE_CHANGE_FORBIDDEN',
+          message: 'Cannot change another admin\'s role'
+        }
+      });
+    }
+    
     // Update allowed fields only
     const allowedFields = ['first_name', 'last_name', 'phone', 'company', 'country'];
     if (req.user.role === 'admin') {
@@ -316,9 +341,14 @@ exports.updateUser = async (req, res) => {
 // @access  Private (Admin only)
 exports.deleteUser = async (req, res) => {
   try {
+    console.log('\n🗑️ === DELETE USER REQUEST ===');
+    console.log('User ID to delete:', req.params.id);
+    console.log('Requesting user:', req.user.email, 'Role:', req.user.role);
+    
     const user = await User.findById(req.params.id);
     
     if (!user) {
+      console.log('❌ User not found:', req.params.id);
       return res.status(404).json({
         success: false,
         error: {
@@ -328,8 +358,11 @@ exports.deleteUser = async (req, res) => {
       });
     }
     
+    console.log('👤 Found user to delete:', user.email, 'Role:', user.role);
+    
     // Prevent self-deletion
-    if (req.params.id === req.user.user_id) {
+    if (req.params.id === req.user.user_id.toString()) {
+      console.log('❌ Self-deletion attempt blocked');
       return res.status(400).json({
         success: false,
         error: {
@@ -339,11 +372,26 @@ exports.deleteUser = async (req, res) => {
       });
     }
     
+    // Prevent deleting other admins
+    if (user.role === 'admin') {
+      console.log('❌ Admin deletion attempt blocked');
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'ADMIN_DELETE_FORBIDDEN',
+          message: 'Cannot delete admin accounts'
+        }
+      });
+    }
+    
     // Soft delete - change status instead of actual deletion
+    console.log('🔄 Performing soft delete...');
     user.status = 'deleted';
     user.deleted_at = new Date();
     user.deleted_by = req.user.user_id;
+    
     await user.save();
+    console.log('✅ User soft deleted successfully');
     
     // Log activity
     await logActivity(
@@ -358,6 +406,7 @@ exports.deleteUser = async (req, res) => {
       message: 'User deleted successfully'
     });
   } catch (error) {
+    console.error('💥 Delete user error:', error);
     res.status(500).json({
       success: false,
       error: {

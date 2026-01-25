@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modal Functionality Test</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #f8f9fa; padding: 20px; }
+        .test-card { background: white; border-radius: 10px; padding: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .test-result { padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .test-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .test-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .test-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1><i class="fas fa-window-maximize me-2"></i>Modal Functionality Test</h1>
+    <p class="text-muted">Testing the new modal-based user creation and improved deletion functionality</p>
+    
+    <!-- Login Test -->
+    <div class="test-card">
+        <h5><i class="fas fa-sign-in-alt me-2"></i>Step 1: Admin Login</h5>
+        <p>Login as admin to test user management features...</p>
+        <button id="test-login" class="btn btn-primary">Login as Admin</button>
+        <div id="login-result"></div>
+    </div>
+    
+    <!-- Modal Test -->
+    <div class="test-card">
+        <h5><i class="fas fa-window-maximize me-2"></i>Step 2: Test Modal</h5>
+        <p>Test the new modal-based user creation form...</p>
+        <button id="test-modal" class="btn btn-primary" disabled data-bs-toggle="modal" data-bs-target="#testModal">Open Add User Modal</button>
+        <div id="modal-result"></div>
+    </div>
+    
+    <!-- Delete Test -->
+    <div class="test-card">
+        <h5><i class="fas fa-trash me-2"></i>Step 3: Test Deletion</h5>
+        <p>Test the improved user deletion functionality...</p>
+        <button id="test-delete" class="btn btn-danger" disabled>Test Delete User</button>
+        <div id="delete-result"></div>
+    </div>
+    
+    <!-- Instructions -->
+    <div class="test-card">
+        <h5><i class="fas fa-info-circle me-2"></i>Instructions</h5>
+        <ol>
+            <li>Make sure both backend (port 5000) and frontend (port 3000) servers are running</li>
+            <li>Click "Login as Admin" to authenticate</li>
+            <li>Click "Open Add User Modal" to test the new modal form</li>
+            <li>Fill out the form and submit to create a test user</li>
+            <li>Click "Test Delete User" to test deletion of the created user</li>
+        </ol>
+        
+        <div class="mt-3">
+            <strong>Admin Credentials:</strong><br>
+            Email: admin@gmail.com<br>
+            Password: admin@#A
+        </div>
+        
+        <div class="mt-3">
+            <a href="http://localhost:3000/admin" target="_blank" class="btn btn-success">
+                <i class="fas fa-external-link-alt me-1"></i>Open Real Admin Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Test Modal (similar to the real one) -->
+<div class="modal fade" id="testModal" tabindex="-1" aria-labelledby="testModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="testModalLabel">
+                    <i class="fas fa-user-plus me-2"></i>Add New User (Test)
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="testUserForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="testFirstName" class="form-label">First Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="testFirstName" name="first_name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="testLastName" class="form-label">Last Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="testLastName" name="last_name" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="testEmail" class="form-label">Email Address <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" id="testEmail" name="email" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="testPassword" class="form-label">Password <span class="text-danger">*</span></label>
+                                <input type="password" class="form-control" id="testPassword" name="password" minlength="8" required>
+                                <div class="form-text">Minimum 8 characters</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="testRole" class="form-label">Role <span class="text-danger">*</span></label>
+                                <select class="form-select" id="testRole" name="role" required>
+                                    <option value="">Select Role</option>
+                                    <option value="client">Client</option>
+                                    <option value="lead_manager">Lead Manager</option>
+                                    <option value="crm_manager">CRM Manager</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="testPhone" class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" id="testPhone" name="phone">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveTestUserBtn">
+                    <i class="fas fa-save me-1"></i>Create Test User
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API_BASE_URL = 'http://localhost:5000/api';
+let adminToken = null;
+let testUserId = null;
+
+// Helper functions
+function showResult(elementId, message, type = 'info') {
+    const element = document.getElementById(elementId);
+    element.innerHTML = `<div class="test-result test-${type}"><i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle me-2"></i>${message}</div>`;
+}
+
+function enableButton(buttonId) {
+    document.getElementById(buttonId).disabled = false;
+}
+
+// Test 1: Admin Login
+document.getElementById('test-login').addEventListener('click', async function() {
+    showResult('login-result', 'Testing admin login...', 'info');
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/client-accounts/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email: 'admin@gmail.com',
+                password: 'admin@#A'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            adminToken = data.data.token;
+            showResult('login-result', `✅ Admin login successful! Ready to test modal and deletion.`, 'success');
+            enableButton('test-modal');
+        } else {
+            showResult('login-result', `❌ Login failed: ${data.error?.message || 'Unknown error'}`, 'error');
+        }
+        
+    } catch (error) {
+        showResult('login-result', `💥 Login error: ${error.message}`, 'error');
+    }
+});
+
+// Test 2: Modal functionality
+document.getElementById('saveTestUserBtn').addEventListener('click', async function() {
+    const form = document.getElementById('testUserForm');
+    const formData = new FormData(form);
+    
+    // Pre-fill with test data if empty
+    if (!formData.get('first_name')) {
+        document.getElementById('testFirstName').value = 'Modal';
+        document.getElementById('testLastName').value = 'Test';
+        document.getElementById('testEmail').value = `modal.test.${Date.now()}@example.com`;
+        document.getElementById('testPassword').value = 'testpassword123';
+        document.getElementById('testRole').value = 'client';
+        document.getElementById('testPhone').value = '+1234567890';
+        
+        // Update formData
+        const newFormData = new FormData(form);
+        for (const [key, value] of newFormData.entries()) {
+            formData.set(key, value);
+        }
+    }
+    
+    const userData = {
+        first_name: formData.get('first_name'),
+        last_name: formData.get('last_name'),
+        email: formData.get('email'),
+        password: formData.get('password'),
+        role: formData.get('role'),
+        phone: formData.get('phone') || ''
+    };
+    
+    try {
+        const saveBtn = document.getElementById('saveTestUserBtn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Creating...';
+        
+        const response = await fetch(`${API_BASE_URL}/users`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${adminToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(userData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            testUserId = data.data.user_id;
+            showResult('modal-result', `✅ User created successfully via modal! Email: ${userData.email}`, 'success');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('testModal'));
+            modal.hide();
+            
+            enableButton('test-delete');
+        } else {
+            showResult('modal-result', `❌ Error creating user: ${data.error?.message || 'Unknown error'}`, 'error');
+        }
+        
+    } catch (error) {
+        showResult('modal-result', `💥 Error creating user: ${error.message}`, 'error');
+    } finally {
+        const saveBtn = document.getElementById('saveTestUserBtn');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>Create Test User';
+    }
+});
+
+// Test 3: Delete functionality
+document.getElementById('test-delete').addEventListener('click', async function() {
+    if (!testUserId) {
+        showResult('delete-result', '❌ No test user to delete. Create a user first.', 'error');
+        return;
+    }
+    
+    showResult('delete-result', 'Testing user deletion...', 'info');
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/users/${testUserId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${adminToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showResult('delete-result', '✅ User deleted successfully! Modal and deletion functionality working perfectly.', 'success');
+        } else {
+            showResult('delete-result', `❌ Error deleting user: ${data.error?.message || 'Unknown error'}`, 'error');
+        }
+        
+    } catch (error) {
+        showResult('delete-result', `💥 Error deleting user: ${error.message}`, 'error');
+    }
+});
+
+// Auto-fill modal when opened
+document.getElementById('testModal').addEventListener('show.bs.modal', function() {
+    showResult('modal-result', 'Modal opened! You can fill the form or click "Create Test User" to auto-fill and submit.', 'info');
+});
+</script>
+
+</body>
+</html>

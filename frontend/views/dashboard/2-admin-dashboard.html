@@ -195,7 +195,7 @@
     <div id="users" class="management-card">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5><i class="fas fa-users me-2"></i>User Management</h5>
-            <button id="add-user-btn" class="btn btn-primary btn-sm">
+            <button id="add-user-btn" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
                 <i class="fas fa-plus me-1"></i>Add New User
             </button>
         </div>
@@ -237,86 +237,42 @@
     <div id="services" class="management-card">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5><i class="fas fa-briefcase me-2"></i>Services Management</h5>
-            <button class="btn btn-primary btn-sm">
+            <button id="add-service-btn" class="btn btn-primary btn-sm">
                 <i class="fas fa-plus me-1"></i>Add New Service
             </button>
         </div>
         
-        <table class="table table-hover">
-            <thead>
-                <tr>
-                    <th>Service ID</th>
-                    <th>Service Name</th>
-                    <th>Category</th>
-                    <th>Base Price</th>
-                    <th>Duration</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><strong>SRV-001</strong></td>
-                    <td>Research Paper Publication</td>
-                    <td>Academic Writing</td>
-                    <td>$3,500 - $8,000</td>
-                    <td>6-12 weeks</td>
-                    <td><span class="badge bg-success">Active</span></td>
-                    <td>
-                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>SRV-002</strong></td>
-                    <td>Thesis/Dissertation Help</td>
-                    <td>Academic Writing</td>
-                    <td>$5,000 - $15,000</td>
-                    <td>12-24 weeks</td>
-                    <td><span class="badge bg-success">Active</span></td>
-                    <td>
-                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>SRV-003</strong></td>
-                    <td>Grant Writing Services</td>
-                    <td>Funding Support</td>
-                    <td>$2,500 - $10,000</td>
-                    <td>4-8 weeks</td>
-                    <td><span class="badge bg-success">Active</span></td>
-                    <td>
-                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>SRV-004</strong></td>
-                    <td>Conference Paper Assistance</td>
-                    <td>Academic Writing</td>
-                    <td>$1,500 - $4,000</td>
-                    <td>3-6 weeks</td>
-                    <td><span class="badge bg-success">Active</span></td>
-                    <td>
-                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>SRV-005</strong></td>
-                    <td>Literature Review</td>
-                    <td>Research Support</td>
-                    <td>$1,000 - $3,500</td>
-                    <td>2-4 weeks</td>
-                    <td><span class="badge bg-warning">Inactive</span></td>
-                    <td>
-                        <button class="action-btn btn-activate"><i class="fas fa-check"></i></button>
-                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+        <!-- Loading State -->
+        <div id="services-loading" class="text-center py-4" style="display: none;">
+            <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+            <p class="mt-2 text-muted">Loading services...</p>
+        </div>
+        
+        <!-- Services Table -->
+        <div id="services-table-container">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Service ID</th>
+                        <th>Service Name</th>
+                        <th>Category</th>
+                        <th>Price Range</th>
+                        <th>Duration</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="services-table-body">
+                    <!-- Services will be loaded here dynamically -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- No Services Message -->
+        <div id="no-services-message" class="text-center py-4" style="display: none;">
+            <i class="fas fa-briefcase fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No services found</p>
+        </div>
     </div>
     
     <!-- Financial Overview Section -->
@@ -426,6 +382,95 @@
         </div>
     </div>
     
+</div>
+
+<!-- Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addUserModalLabel">
+                    <i class="fas fa-user-plus me-2"></i>Add New User
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addUserForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="firstName" class="form-label">First Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="firstName" name="first_name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="lastName" class="form-label">Last Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="lastName" name="last_name" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email Address <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
+                                <input type="password" class="form-control" id="password" name="password" minlength="8" required>
+                                <div class="form-text">Minimum 8 characters</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
+                                <select class="form-select" id="role" name="role" required>
+                                    <option value="">Select Role</option>
+                                    <option value="client">Client</option>
+                                    <option value="lead_manager">Lead Manager</option>
+                                    <option value="crm_manager">CRM Manager</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="phone" class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" id="phone" name="phone">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="company" class="form-label">Company</label>
+                                <input type="text" class="form-control" id="company" name="company">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="country" class="form-label">Country</label>
+                                <input type="text" class="form-control" id="country" name="country">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveUserBtn">
+                    <i class="fas fa-save me-1"></i>Create User
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -547,13 +592,6 @@ document.querySelectorAll('.sidebar-item').forEach(item => {
     });
 });
 
-// Demo action buttons (will be replaced with real functionality later)
-document.querySelectorAll('.action-btn, .btn-primary').forEach(btn => {
-    btn.addEventListener('click', function() {
-        alert('This action will connect to backend API in production.');
-    });
-});
-
 // ============================================
 // USER MANAGEMENT FUNCTIONS
 // ============================================
@@ -653,6 +691,9 @@ function createUserRow(user) {
     // Get status badge class
     const statusBadgeClass = getStatusBadgeClass(user.status);
     
+    // Check if this is an admin user
+    const isAdmin = user.role === 'admin';
+    
     row.innerHTML = `
         <td><strong>${user._id.slice(-6).toUpperCase()}</strong></td>
         <td>${user.full_name || `${user.first_name} ${user.last_name}`}</td>
@@ -661,12 +702,15 @@ function createUserRow(user) {
         <td><span class="badge ${statusBadgeClass}">${formatStatus(user.status)}</span></td>
         <td>${lastLogin}</td>
         <td>
-            <button class="action-btn btn-edit" onclick="editUser('${user._id}')" title="Edit Role">
-                <i class="fas fa-user-cog"></i>
-            </button>
-            <button class="action-btn btn-delete" onclick="deleteUser('${user._id}', '${user.email}')" title="Delete User">
-                <i class="fas fa-trash"></i>
-            </button>
+            ${isAdmin ? 
+                '<span class="text-muted small"><i class="fas fa-shield-alt"></i> Protected</span>' :
+                `<button class="action-btn btn-edit" onclick="editUser('${user._id}')" title="Edit Role">
+                    <i class="fas fa-user-cog"></i>
+                </button>
+                <button class="action-btn btn-delete" onclick="deleteUser('${user._id}', '${user.email}')" title="Delete User">
+                    <i class="fas fa-trash"></i>
+                </button>`
+            }
         </td>
     `;
     
@@ -770,6 +814,13 @@ This action cannot be undone.`)) {
     
     try {
         const token = getAuthToken();
+        if (!token) {
+            alert('Authentication token not found. Please login again.');
+            return;
+        }
+        
+        console.log('🔑 Using token for deletion:', token.substring(0, 30) + '...');
+        
         const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
             method: 'DELETE',
             headers: {
@@ -778,7 +829,16 @@ This action cannot be undone.`)) {
             }
         });
         
+        console.log('📡 Delete response status:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Delete response error:', errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+        
         const data = await response.json();
+        console.log('📋 Delete response data:', data);
         
         if (data.success) {
             alert('User deleted successfully!');
@@ -790,6 +850,105 @@ This action cannot be undone.`)) {
     } catch (error) {
         console.error('💥 Error deleting user:', error);
         alert('Error deleting user. Please try again.');
+    }
+}
+
+// Add new user with modal
+function showAddUserModal() {
+    console.log('➕ Showing add user modal...');
+    
+    // Reset form
+    document.getElementById('addUserForm').reset();
+    
+    // Show modal (Bootstrap will handle this automatically with data-bs-toggle)
+}
+
+// Save new user from modal
+async function saveNewUser() {
+    console.log('💾 Saving new user...');
+    
+    const form = document.getElementById('addUserForm');
+    const formData = new FormData(form);
+    
+    // Validate required fields
+    const requiredFields = ['first_name', 'last_name', 'email', 'password', 'role'];
+    for (const field of requiredFields) {
+        if (!formData.get(field)) {
+            alert(`Please fill in the ${field.replace('_', ' ')} field.`);
+            return;
+        }
+    }
+    
+    // Validate password length
+    if (formData.get('password').length < 8) {
+        alert('Password must be at least 8 characters long.');
+        return;
+    }
+    
+    // Validate email format
+    const email = formData.get('email');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        alert('Please enter a valid email address.');
+        return;
+    }
+    
+    // Prepare user data
+    const userData = {
+        first_name: formData.get('first_name'),
+        last_name: formData.get('last_name'),
+        email: formData.get('email'),
+        password: formData.get('password'),
+        role: formData.get('role'),
+        phone: formData.get('phone') || '',
+        company: formData.get('company') || '',
+        country: formData.get('country') || ''
+    };
+    
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            alert('Authentication token not found. Please login again.');
+            return;
+        }
+        
+        // Disable save button to prevent double submission
+        const saveBtn = document.getElementById('saveUserBtn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Creating...';
+        
+        const response = await fetch(`${API_BASE_URL}/users`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(userData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('User created successfully!');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addUserModal'));
+            modal.hide();
+            
+            // Refresh user list
+            loadUserManagement();
+        } else {
+            alert('Error creating user: ' + (data.error?.message || 'Unknown error'));
+        }
+        
+    } catch (error) {
+        console.error('💥 Error creating user:', error);
+        alert('Error creating user. Please try again.');
+    } finally {
+        // Re-enable save button
+        const saveBtn = document.getElementById('saveUserBtn');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>Create User';
     }
 }
 
@@ -805,6 +964,219 @@ function showUsersError() {
     `;
 }
 
+// ============================================
+// SERVICES MANAGEMENT FUNCTIONS
+// ============================================
+
+// Load services management data
+async function loadServicesManagement() {
+    console.log('📋 Loading services management data...');
+    
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            console.error('❌ No auth token found');
+            return;
+        }
+        
+        // Show loading state
+        document.getElementById('services-loading').style.display = 'block';
+        document.getElementById('services-table-container').style.display = 'none';
+        document.getElementById('no-services-message').style.display = 'none';
+        
+        const response = await fetch(`${API_BASE_URL}/services`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('📋 Services data received:', data);
+        
+        if (data.success) {
+            displayServices(data.data);
+        } else {
+            console.error('❌ Services API error:', data.error);
+            showServicesError();
+        }
+        
+    } catch (error) {
+        console.error('💥 Error loading services:', error);
+        showServicesError();
+    } finally {
+        // Hide loading state
+        document.getElementById('services-loading').style.display = 'none';
+    }
+}
+
+// Display services in the table
+function displayServices(services) {
+    console.log('📋 Displaying services:', services.length);
+    
+    const tbody = document.getElementById('services-table-body');
+    const tableContainer = document.getElementById('services-table-container');
+    const noServicesMessage = document.getElementById('no-services-message');
+    
+    if (!services || services.length === 0) {
+        tableContainer.style.display = 'none';
+        noServicesMessage.style.display = 'block';
+        return;
+    }
+    
+    // Clear existing rows
+    tbody.innerHTML = '';
+    
+    services.forEach(service => {
+        const row = createServiceRow(service);
+        tbody.appendChild(row);
+    });
+    
+    tableContainer.style.display = 'block';
+    noServicesMessage.style.display = 'none';
+    
+    console.log('✅ Services displayed successfully');
+}
+
+// Create a service table row
+function createServiceRow(service) {
+    const row = document.createElement('tr');
+    
+    // Format price range
+    const priceRange = service.pricing.type === 'fixed' ? 
+        `$${service.pricing.minPrice.toLocaleString()}` :
+        `$${service.pricing.minPrice.toLocaleString()} - $${service.pricing.maxPrice.toLocaleString()}`;
+    
+    // Get status badge class
+    const statusBadgeClass = service.isActive ? 'bg-success' : 'bg-warning';
+    const statusText = service.isActive ? 'Active' : 'Inactive';
+    
+    row.innerHTML = `
+        <td><strong>${service._id.slice(-6).toUpperCase()}</strong></td>
+        <td>
+            <div class="fw-bold">${service.name}</div>
+            <small class="text-muted">${service.description.substring(0, 60)}...</small>
+        </td>
+        <td><span class="badge bg-info">${service.category}</span></td>
+        <td>${priceRange}</td>
+        <td>${service.duration}</td>
+        <td><span class="badge ${statusBadgeClass}">${statusText}</span></td>
+        <td>
+            ${service.isActive ? 
+                `<button class="action-btn btn-edit" onclick="editService('${service._id}')" title="Edit Service">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="action-btn btn-delete" onclick="toggleServiceStatus('${service._id}', '${service.name}', false)" title="Deactivate Service">
+                    <i class="fas fa-pause"></i>
+                </button>` :
+                `<button class="action-btn btn-activate" onclick="toggleServiceStatus('${service._id}', '${service.name}', true)" title="Activate Service">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button class="action-btn btn-edit" onclick="editService('${service._id}')" title="Edit Service">
+                    <i class="fas fa-edit"></i>
+                </button>`
+            }
+            <button class="action-btn btn-delete" onclick="deleteService('${service._id}', '${service.name}')" title="Delete Service">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    `;
+    
+    return row;
+}
+
+// Edit service
+async function editService(serviceId) {
+    console.log('✏️ Editing service:', serviceId);
+    alert('Service editing functionality will be implemented in the next update. For now, you can toggle status or delete services.');
+}
+
+// Toggle service status (activate/deactivate)
+async function toggleServiceStatus(serviceId, serviceName, activate) {
+    console.log(`🔄 ${activate ? 'Activating' : 'Deactivating'} service:`, serviceId, serviceName);
+    
+    const action = activate ? 'activate' : 'deactivate';
+    if (!confirm(`Are you sure you want to ${action} the service: ${serviceName}?`)) {
+        return;
+    }
+    
+    try {
+        const token = getAuthToken();
+        const response = await fetch(`${API_BASE_URL}/services/${serviceId}/toggle-status`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`Service ${activate ? 'activated' : 'deactivated'} successfully!`);
+            loadServicesManagement(); // Refresh the list
+        } else {
+            alert(`Error ${activate ? 'activating' : 'deactivating'} service: ` + (data.error?.message || 'Unknown error'));
+        }
+        
+    } catch (error) {
+        console.error('💥 Error toggling service status:', error);
+        alert(`Error ${activate ? 'activating' : 'deactivating'} service. Please try again.`);
+    }
+}
+
+// Delete service
+async function deleteService(serviceId, serviceName) {
+    console.log('🗑️ Deleting service:', serviceId, serviceName);
+    
+    if (!confirm(`Are you sure you want to delete the service: ${serviceName}?
+    
+This will deactivate the service (soft delete).`)) {
+        return;
+    }
+    
+    try {
+        const token = getAuthToken();
+        const response = await fetch(`${API_BASE_URL}/services/${serviceId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Service deleted successfully!');
+            loadServicesManagement(); // Refresh the list
+        } else {
+            alert('Error deleting service: ' + (data.error?.message || 'Unknown error'));
+        }
+        
+    } catch (error) {
+        console.error('💥 Error deleting service:', error);
+        alert('Error deleting service. Please try again.');
+    }
+}
+
+// Show error state for services
+function showServicesError() {
+    console.log('⚠️ Showing services error state...');
+    
+    document.getElementById('services-table-container').style.display = 'none';
+    document.getElementById('no-services-message').style.display = 'block';
+    document.getElementById('no-services-message').innerHTML = `
+        <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+        <p class="text-danger">Error loading services. Please refresh the page.</p>
+    `;
+}
+
 // Initialize dashboard when page loads
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Admin Dashboard initialized');
@@ -815,6 +1187,18 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load user management data
     loadUserManagement();
+    
+    // Load services management data
+    loadServicesManagement();
+    
+    // Set up modal event listeners
+    const saveUserBtn = document.getElementById('saveUserBtn');
+    if (saveUserBtn) {
+        saveUserBtn.addEventListener('click', saveNewUser);
+        console.log('✅ Save User button event listener attached');
+    } else {
+        console.error('❌ Save User button not found');
+    }
     
     // Refresh stats every 5 minutes
     setInterval(loadDashboardStats, 5 * 60 * 1000);
