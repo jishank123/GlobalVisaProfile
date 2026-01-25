@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Sign Up - ImmigrationPro</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#2563eb',
+                        'secondary': '#1e40af',
+                    },
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="font-sans antialiased bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen">
+    
+    <!-- Navigation -->
+    <nav class="bg-white/95 backdrop-blur-sm shadow-sm">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <a href="index.html" class="flex items-center space-x-2">
+                    <i class="fas fa-globe-americas text-3xl text-primary"></i>
+                    <span class="text-2xl font-bold text-gray-800">ImmigrationPro</span>
+                </a>
+                <div class="flex items-center space-x-4">
+                    <a href="client-login-clean.html" class="text-gray-700 hover:text-primary transition-colors">
+                        Already have an account? <strong>Log In</strong>
+                    </a>
+                    <a href="index.html" class="text-gray-600 hover:text-primary">
+                        <i class="fas fa-home"></i> Home
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sign Up Section -->
+    <section class="py-12 md:py-20">
+        <div class="container mx-auto px-4">
+            <div class="max-w-md mx-auto">
+                
+                <!-- Header -->
+                <div class="text-center mb-8">
+                    <div class="inline-block bg-blue-100 text-primary px-4 py-2 rounded-full text-sm font-semibold mb-4">
+                        CLIENT PORTAL
+                    </div>
+                    <h1 class="text-4xl font-bold text-gray-900 mb-4">Create Your Account</h1>
+                    <p class="text-gray-600">
+                        Track your profile assessment, services, and payment status all in one place
+                    </p>
+                </div>
+
+                <!-- Sign Up Form -->
+                <div class="bg-white rounded-2xl shadow-xl p-8">
+                    <form id="signup-form" class="space-y-6">
+                        
+                        <!-- Full Name -->
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2" for="full-name">
+                                Full Name *
+                            </label>
+                            <input type="text" id="full-name" name="full-name" required
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                   placeholder="John Doe">
+                        </div>
+
+                        <!-- Email -->
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2" for="email">
+                                Email Address *
+                            </label>
+                            <input type="email" id="email" name="email" required
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                   placeholder="john@example.com">
+                            <p class="text-sm text-gray-500 mt-1">This will be your username</p>
+                        </div>
+
+                        <!-- Phone -->
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2" for="phone">
+                                Phone Number *
+                            </label>
+                            <input type="tel" id="phone" name="phone" required
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                   placeholder="+1 (555) 123-4567">
+                        </div>
+
+                        <!-- Password -->
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2" for="password">
+                                Password *
+                            </label>
+                            <div class="relative">
+                                <input type="password" id="password" name="password" required
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                       placeholder="Minimum 8 characters">
+                                <button type="button" onclick="togglePassword('password')" 
+                                        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                                    <i class="fas fa-eye" id="password-eye"></i>
+                                </button>
+                            </div>
+                            <p class="text-sm text-gray-500 mt-1">At least 8 characters</p>
+                        </div>
+
+                        <!-- Confirm Password -->
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2" for="confirm-password">
+                                Confirm Password *
+                            </label>
+                            <div class="relative">
+                                <input type="password" id="confirm-password" name="confirm-password" required
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                       placeholder="Re-enter your password">
+                                <button type="button" onclick="togglePassword('confirm-password')" 
+                                        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                                    <i class="fas fa-eye" id="confirm-password-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Terms Agreement -->
+                        <div class="flex items-start">
+                            <input type="checkbox" id="terms" name="terms" required
+                                   class="mt-1 w-4 h-4 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary">
+                            <label for="terms" class="ml-2 text-sm text-gray-700">
+                                I agree to the <a href="#" class="text-primary hover:underline">Terms of Service</a> 
+                                and <a href="#" class="text-primary hover:underline">Privacy Policy</a>
+                            </label>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" 
+                                class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl text-lg font-bold hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg">
+                            <i class="fas fa-user-plus mr-2"></i>
+                            Create Account
+                        </button>
+
+                        <!-- Message -->
+                        <div id="signup-message" class="hidden mt-4 p-4 rounded-lg"></div>
+                    </form>
+
+                    <!-- Login Link -->
+                    <div class="mt-6 text-center text-gray-600">
+                        Already have an account? 
+                        <a href="client-login-clean.html" class="text-primary font-semibold hover:underline">Log In</a>
+                    </div>
+                </div>
+
+                <!-- Benefits -->
+                <div class="mt-8 bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">Your Client Portal Benefits:</h3>
+                    <ul class="space-y-3">
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-green-600 mt-1 mr-3"></i>
+                            <span class="text-gray-700">Track your profile assessment results</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-green-600 mt-1 mr-3"></i>
+                            <span class="text-gray-700">Monitor service progress in real-time</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-green-600 mt-1 mr-3"></i>
+                            <span class="text-gray-700">View payment status and history</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-green-600 mt-1 mr-3"></i>
+                            <span class="text-gray-700">Submit and track your queries</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-green-600 mt-1 mr-3"></i>
+                            <span class="text-gray-700">Access personalized recommendations</span>
+                        </li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- JavaScript -->
+    <script src="js/api.js"></script>
+    <script>
+        // Toggle password visibility
+        function togglePassword(fieldId) {
+            const field = document.getElementById(fieldId);
+            const eye = document.getElementById(fieldId + '-eye');
+            
+            if (field.type === 'password') {
+                field.type = 'text';
+                eye.classList.remove('fa-eye');
+                eye.classList.add('fa-eye-slash');
+            } else {
+                field.type = 'password';
+                eye.classList.remove('fa-eye-slash');
+                eye.classList.add('fa-eye');
+            }
+        }
+
+        // Simple password hashing (NOT secure for production - use bcrypt on server)
+        async function simpleHash(str) {
+            const msgUint8 = new TextEncoder().encode(str);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            return hashHex;
+        }
+
+        // Form submission
+        document.getElementById('signup-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const messageDiv = document.getElementById('signup-message');
+            const fullName = document.getElementById('full-name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            const terms = document.getElementById('terms').checked;
+            
+            // Validation
+            if (!fullName || !email || !phone || !password || !confirmPassword) {
+                showMessage('Please fill in all required fields', 'error');
+                return;
+            }
+            
+            if (password.length < 8) {
+                showMessage('Password must be at least 8 characters long', 'error');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                showMessage('Passwords do not match', 'error');
+                return;
+            }
+            
+            if (!terms) {
+                showMessage('Please agree to the Terms of Service', 'error');
+                return;
+            }
+            
+            // Show loading
+            showMessage('Creating your account...', 'loading');
+            
+            try {
+                // Create account using API
+                const registrationData = {
+                    full_name: fullName,
+                    email: email.toLowerCase(),
+                    phone: phone,
+                    password: password
+                };
+                
+                const result = await ClientAccountsAPI.register(registrationData);
+                
+                if (result.success) {
+                    console.log('Account created:', result);
+                    
+                    showMessage('Account created successfully! Redirecting to your dashboard...', 'success');
+                    
+                    // Redirect to dashboard after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = 'client-dashboard.html';
+                    }, 2000);
+                } else {
+                    throw new Error(result.error?.message || 'Failed to create account');
+                }
+                
+            } catch (error) {
+                console.error('Error creating account:', error);
+                showMessage(error.message || 'Error creating account. Please try again.', 'error');
+            }
+        });
+                    body: JSON.stringify(accountData)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Account created:', result);
+                    
+                    // Store session (simple version - not secure for production)
+                    sessionStorage.setItem('clientId', result.id);
+                    sessionStorage.setItem('clientEmail', email);
+                    sessionStorage.setItem('clientName', fullName);
+                    
+                    showMessage('Account created successfully! Redirecting to your dashboard...', 'success');
+                    
+                    // Redirect to dashboard after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = 'client-dashboard.html';
+                    }, 2000);
+                } else {
+                    throw new Error('Failed to create account');
+                }
+            } catch (error) {
+                console.error('Error creating account:', error);
+                showMessage('Error creating account. Please try again.', 'error');
+            }
+        });
+        
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('signup-message');
+            messageDiv.classList.remove('hidden');
+            
+            if (type === 'error') {
+                messageDiv.className = 'mt-4 p-4 rounded-lg bg-red-50 text-red-700 border border-red-200';
+                messageDiv.innerHTML = `<i class="fas fa-exclamation-circle mr-2"></i>${message}`;
+            } else if (type === 'success') {
+                messageDiv.className = 'mt-4 p-4 rounded-lg bg-green-50 text-green-700 border border-green-200';
+                messageDiv.innerHTML = `<i class="fas fa-check-circle mr-2"></i>${message}`;
+            } else if (type === 'loading') {
+                messageDiv.className = 'mt-4 p-4 rounded-lg bg-blue-50 text-blue-700 border border-blue-200';
+                messageDiv.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>${message}`;
+            }
+        }
+    </script>
+</body>
+</html>

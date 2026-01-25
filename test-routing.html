@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Routing Test - ImmigrationPro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 font-sans">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto">
+            <div class="bg-white rounded-2xl shadow-xl p-8">
+                <h1 class="text-4xl font-bold text-gray-900 mb-8 text-center">
+                    <i class="fas fa-route text-blue-600 mr-3"></i>
+                    Routing System Test
+                </h1>
+                
+                <div class="grid md:grid-cols-2 gap-8">
+                    <!-- Main Routes -->
+                    <div class="bg-blue-50 rounded-xl p-6">
+                        <h2 class="text-2xl font-bold text-gray-900 mb-4">
+                            <i class="fas fa-home text-blue-600 mr-2"></i>Main Routes
+                        </h2>
+                        <div class="space-y-2">
+                            <a href="/" class="block p-3 bg-white rounded-lg hover:bg-blue-100 transition-colors">
+                                <i class="fas fa-home mr-2"></i>Homepage (/)
+                            </a>
+                            <a href="/login" class="block p-3 bg-white rounded-lg hover:bg-blue-100 transition-colors">
+                                <i class="fas fa-sign-in-alt mr-2"></i>Client Login (/login)
+                            </a>
+                            <a href="/signup" class="block p-3 bg-white rounded-lg hover:bg-blue-100 transition-colors">
+                                <i class="fas fa-user-plus mr-2"></i>Client Signup (/signup)
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Dashboard Routes -->
+                    <div class="bg-green-50 rounded-xl p-6">
+                        <h2 class="text-2xl font-bold text-gray-900 mb-4">
+                            <i class="fas fa-tachometer-alt text-green-600 mr-2"></i>Dashboard Routes
+                        </h2>
+                        <div class="space-y-2">
+                            <a href="/dashboard" class="block p-3 bg-white rounded-lg hover:bg-green-100 transition-colors">
+                                <i class="fas fa-user mr-2"></i>Client Dashboard (/dashboard)
+                            </a>
+                            <a href="/admin" class="block p-3 bg-white rounded-lg hover:bg-green-100 transition-colors">
+                                <i class="fas fa-cog mr-2"></i>Admin Dashboard (/admin)
+                            </a>
+                            <a href="/client-dashboard" class="block p-3 bg-white rounded-lg hover:bg-green-100 transition-colors text-gray-600">
+                                <i class="fas fa-redirect mr-2"></i>Legacy Redirect (/client-dashboard)
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Service Routes -->
+                    <div class="bg-purple-50 rounded-xl p-6">
+                        <h2 class="text-2xl font-bold text-gray-900 mb-4">
+                            <i class="fas fa-tools text-purple-600 mr-2"></i>Service Routes
+                        </h2>
+                        <div class="space-y-2">
+                            <a href="/assessment" class="block p-3 bg-white rounded-lg hover:bg-purple-100 transition-colors">
+                                <i class="fas fa-chart-line mr-2"></i>Profile Assessment (/assessment)
+                            </a>
+                            <a href="/schedule" class="block p-3 bg-white rounded-lg hover:bg-purple-100 transition-colors">
+                                <i class="fas fa-calendar mr-2"></i>Schedule Appointment (/schedule)
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Information Routes -->
+                    <div class="bg-yellow-50 rounded-xl p-6">
+                        <h2 class="text-2xl font-bold text-gray-900 mb-4">
+                            <i class="fas fa-info-circle text-yellow-600 mr-2"></i>Information Routes
+                        </h2>
+                        <div class="space-y-2">
+                            <a href="/eb1a" class="block p-3 bg-white rounded-lg hover:bg-yellow-100 transition-colors">
+                                <i class="fas fa-trophy mr-2"></i>EB-1A Information (/eb1a)
+                            </a>
+                            <a href="/eb2-niw" class="block p-3 bg-white rounded-lg hover:bg-yellow-100 transition-colors">
+                                <i class="fas fa-star mr-2"></i>EB-2 NIW Information (/eb2-niw)
+                            </a>
+                            <a href="/attorneys" class="block p-3 bg-white rounded-lg hover:bg-yellow-100 transition-colors">
+                                <i class="fas fa-balance-scale mr-2"></i>Attorney Referrals (/attorneys)
+                            </a>
+                            <a href="/faq" class="block p-3 bg-white rounded-lg hover:bg-yellow-100 transition-colors">
+                                <i class="fas fa-question-circle mr-2"></i>FAQ (/faq)
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Test 404 -->
+                <div class="mt-8 bg-red-50 rounded-xl p-6">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4">
+                        <i class="fas fa-exclamation-triangle text-red-600 mr-2"></i>404 Testing
+                    </h2>
+                    <div class="space-y-2">
+                        <a href="/nonexistent-page" class="block p-3 bg-white rounded-lg hover:bg-red-100 transition-colors">
+                            <i class="fas fa-times mr-2"></i>Test 404 Page (/nonexistent-page)
+                        </a>
+                        <a href="/invalid-route" class="block p-3 bg-white rounded-lg hover:bg-red-100 transition-colors">
+                            <i class="fas fa-times mr-2"></i>Another 404 Test (/invalid-route)
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Status -->
+                <div class="mt-8 text-center">
+                    <div class="inline-flex items-center bg-green-100 text-green-800 px-4 py-2 rounded-full">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        Routing System Active
+                    </div>
+                    <p class="text-gray-600 mt-2">Click any link above to test the routing system</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

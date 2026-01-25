@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Dashboard API Test</h1>
+    <p>This page tests all the APIs used by the admin and client dashboards.</p>
+    
+    <button onclick="testAllAPIs()">🚀 Test All APIs</button>
+    <button onclick="clearResults()">🧹 Clear Results</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const baseURL = 'http://localhost:5000';
+        const resultsDiv = document.getElementById('results');
+
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = message;
+            resultsDiv.appendChild(div);
+        }
+
+        function clearResults() {
+            resultsDiv.innerHTML = '';
+        }
+
+        async function testAllAPIs() {
+            clearResults();
+            addResult('🧪 Starting API Tests...', 'info');
+            
+            // Test 1: Client Accounts API
+            try {
+                addResult('1️⃣ Testing Client Accounts API...', 'info');
+                const response = await fetch(`${baseURL}/api/client-accounts/all`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    addResult(`✅ Client Accounts API working - Found ${data.data.length} client accounts`, 'success');
+                    console.log('Client accounts data:', data.data);
+                } else {
+                    addResult(`❌ Client Accounts API failed: ${data.error?.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Client Accounts API error: ${error.message}`, 'error');
+            }
+            
+            // Test 2: Profile Assessments API
+            try {
+                addResult('2️⃣ Testing Profile Assessments API...', 'info');
+                const response = await fetch(`${baseURL}/api/profile-assessments`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const count = data.data.assessments ? data.data.assessments.length : 0;
+                    addResult(`✅ Profile Assessments API working - Found ${count} assessments`, 'success');
+                    console.log('Profile assessments data:', data.data);
+                } else {
+                    addResult(`❌ Profile Assessments API failed: ${data.error?.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Profile Assessments API error: ${error.message}`, 'error');
+            }
+            
+            // Test 3: Contact Forms API
+            try {
+                addResult('3️⃣ Testing Contact Forms API...', 'info');
+                const response = await fetch(`${baseURL}/api/contact`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const count = data.data.contact_forms ? data.data.contact_forms.length : 0;
+                    addResult(`✅ Contact Forms API working - Found ${count} contact forms`, 'success');
+                    console.log('Contact forms data:', data.data);
+                } else {
+                    addResult(`❌ Contact Forms API failed: ${data.error?.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Contact Forms API error: ${error.message}`, 'error');
+            }
+            
+            addResult('🎯 API Testing Complete!', 'info');
+        }
+
+        // Auto-run tests on page load
+        window.addEventListener('load', () => {
+            setTimeout(testAllAPIs, 1000);
+        });
+    </script>
+</body>
+</html>

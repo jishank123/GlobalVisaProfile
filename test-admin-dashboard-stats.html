@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Admin Dashboard Statistics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">Admin Dashboard Statistics Test</h1>
+        
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">Expected Statistics:</h2>
+            <ul class="list-disc list-inside space-y-2">
+                <li><strong>Total Clients:</strong> Count of all client accounts in database</li>
+                <li><strong>Active Projects:</strong> Count of assessments with status 'active', 'contacted', or 'converted'</li>
+                <li><strong>Monthly Revenue:</strong> Estimated based on active projects × $2,500</li>
+                <li><strong>Team Members:</strong> Calculated as max(5, clients ÷ 10)</li>
+            </ul>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">API Endpoints Used:</h2>
+            <ul class="list-disc list-inside space-y-2 text-sm">
+                <li><code>GET /api/client-accounts/all</code> - For total clients count</li>
+                <li><code>GET /api/profile-assessments</code> - For active projects and assessments data</li>
+                <li><code>GET /api/contact</code> - For contact submissions</li>
+            </ul>
+        </div>
+        
+        <div class="grid md:grid-cols-2 gap-6">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-bold mb-4">Quick Links</h3>
+                <div class="space-y-3">
+                    <a href="all_static_pages/2-admin-dashboard.html" class="block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors text-center">
+                        Admin Dashboard
+                    </a>
+                    <a href="pages/client-login-clean.html" class="block bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors text-center">
+                        Client Login (to create data)
+                    </a>
+                    <a href="pages/profile-assessment.html" class="block bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition-colors text-center">
+                        Profile Assessment (to create data)
+                    </a>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-bold mb-4">Test Scenarios</h3>
+                <ol class="list-decimal list-inside space-y-2 text-sm">
+                    <li>Create client accounts → Total Clients increases</li>
+                    <li>Submit profile assessments → Active Projects increases</li>
+                    <li>Change assessment status to 'active' → Active Projects updates</li>
+                    <li>Monthly Revenue auto-calculates based on active projects</li>
+                    <li>Team Members scales with client count</li>
+                </ol>
+            </div>
+        </div>
+        
+        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mt-6">
+            <p class="text-yellow-800">
+                <strong>Note:</strong> Make sure the backend server is running on port 5000 and has data in the database before testing.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

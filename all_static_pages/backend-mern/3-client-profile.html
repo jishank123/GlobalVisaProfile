@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Profile - ImmigrationPro</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="../../css/style.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#667eea',
+                        secondary: '#764ba2'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        /* Custom styles for enhanced design */
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .profile-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .tab-button.active {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .tab-button:hover {
+            color: #667eea;
+        }
+    </style>
+</head>
+<body class="font-sans min-h-screen p-5 gradient-bg">
+    <div class="max-w-7xl mx-auto">
+        <!-- Notification Area -->
+        <div id="notification-area" class="mb-4"></div>
+        
+        <!-- Header Section -->
+        <div class="bg-white rounded-2xl p-8 mb-6 shadow-xl">
+            <div class="flex flex-col md:flex-row items-center gap-6">
+                <div class="profile-avatar w-32 h-32 rounded-full flex items-center justify-center text-5xl text-white font-semibold">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="flex-1 text-center md:text-left">
+                    <h1 id="client-name" class="text-4xl font-bold text-gray-900 mb-2" style="cursor: default; pointer-events: none;">Loading...</h1>
+                    <p id="client-email" class="text-xl text-gray-600 mb-4" style="cursor: default;">Loading...</p>
+                    <div class="flex flex-wrap gap-4 justify-center md:justify-start">
+                        <div class="flex items-center gap-2 text-gray-600">
+                            <i class="fas fa-phone text-primary"></i>
+                            <span id="client-phone">Loading...</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-gray-600">
+                            <i class="fas fa-calendar text-primary"></i>
+                            <span>Member since <span id="member-since">Loading...</span></span>
+                        </div>
+                        <div class="flex items-center gap-2 text-gray-600">
+                            <i class="fas fa-clock text-primary"></i>
+                            <span>Last login: <span id="last-login">Loading...</span></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="ClientAuth.logout()" class="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="stat-card bg-white rounded-2xl p-6 shadow-lg transition-all duration-300">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">Active Cases</p>
+                        <p id="active-cases" class="text-3xl font-bold text-gray-900">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-briefcase text-2xl text-blue-600"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stat-card bg-white rounded-2xl p-6 shadow-lg transition-all duration-300">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">Completed Projects</p>
+                        <p id="completed-projects" class="text-3xl font-bold text-gray-900">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-check-circle text-2xl text-green-600"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stat-card bg-white rounded-2xl p-6 shadow-lg transition-all duration-300">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">Total Spent</p>
+                        <p id="total-spent" class="text-3xl font-bold text-gray-900">$0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-dollar-sign text-2xl text-purple-600"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stat-card bg-white rounded-2xl p-6 shadow-lg transition-all duration-300">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">Satisfaction Rating</p>
+                        <p id="satisfaction-rating" class="text-3xl font-bold text-gray-900">N/A</p>
+                    </div>
+                    <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-star text-2xl text-yellow-600"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Tabs -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+            <!-- Tab Navigation -->
+            <div class="border-b border-gray-200">
+                <nav class="flex space-x-8 px-8">
+                    <button onclick="showTab('cases')" id="tab-cases" class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors active">
+                        <i class="fas fa-briefcase mr-2"></i>Immigration Cases
+                    </button>
+                    <button onclick="showTab('payments')" id="tab-payments" class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors">
+                        <i class="fas fa-credit-card mr-2"></i>Payments
+                    </button>
+                    <button onclick="showTab('documents')" id="tab-documents" class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors">
+                        <i class="fas fa-file-alt mr-2"></i>Documents
+                    </button>
+                    <button onclick="showTab('timeline')" id="tab-timeline" class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors">
+                        <i class="fas fa-history mr-2"></i>Timeline
+                    </button>
+                    <button onclick="showTab('notes')" id="tab-notes" class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors">
+                        <i class="fas fa-sticky-note mr-2"></i>Notes
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="p-8">
+                <!-- Cases Tab -->
+                <div id="cases-content" class="tab-content">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-900">Your Immigration Cases</h2>
+                        <a href="/assessment" class="px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors">
+                            <i class="fas fa-plus mr-2"></i>New Assessment
+                        </a>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Case ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Service Type</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Start Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Progress</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cases-table-body" class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                                        <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+                                        <p>Loading your cases...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Other tabs content (simplified for now) -->
+                <div id="payments-content" class="tab-content hidden">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6">Payment History</h2>
+                    <div class="text-center py-12 text-gray-500">
+                        <i class="fas fa-credit-card text-4xl mb-4"></i>
+                        <p>No payment history available yet.</p>
+                    </div>
+                </div>
+
+                <div id="documents-content" class="tab-content hidden">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6">Documents</h2>
+                    <div class="text-center py-12 text-gray-500">
+                        <i class="fas fa-file-alt text-4xl mb-4"></i>
+                        <p>No documents uploaded yet.</p>
+                    </div>
+                </div>
+
+                <div id="timeline-content" class="tab-content hidden">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6">Case Timeline</h2>
+                    <div class="text-center py-12 text-gray-500">
+                        <i class="fas fa-history text-4xl mb-4"></i>
+                        <p>Timeline will appear here once you have active cases.</p>
+                    </div>
+                </div>
+
+                <div id="notes-content" class="tab-content hidden">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6">Notes & Communications</h2>
+                    <div class="text-center py-12 text-gray-500">
+                        <i class="fas fa-sticky-note text-4xl mb-4"></i>
+                        <p>No notes or communications yet.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../../js/api.js"></script>
+    <script src="../../js/utils.js"></script>
+    
+    <script>
+        // Require authentication
+        ClientAuth.requireAuth();
+        
+        // Tab functionality
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+                button.classList.remove('text-primary', 'border-primary');
+                button.classList.add('text-gray-500', 'border-transparent');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + '-content').classList.remove('hidden');
+            
+            // Add active class to selected tab
+            const activeTab = document.getElementById('tab-' + tabName);
+            activeTab.classList.add('active');
+            activeTab.classList.remove('text-gray-500', 'border-transparent');
+            activeTab.classList.add('text-primary', 'border-primary');
+        }
+        
+        // Load client data and dashboard analytics
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🎯 === CLIENT DASHBOARD INITIALIZATION ===');
+            
+            try {
+                await loadClientProfile();
+                await loadDashboardStats();
+                await loadCasesData();
+                
+                // Show cases tab by default
+                showTab('cases');
+                
+                console.log('✅ Client dashboard initialized successfully');
+            } catch (error) {
+                console.error('❌ Dashboard initialization error:', error);
+                showNotification('Error loading dashboard. Please refresh the page.', 'error');
+            }
+        });
+        
+        // Load client profile data
+        async function loadClientProfile() {
+            try {
+                console.log('👤 Loading client profile...');
+                
+                const clientData = ClientAuth.getClientData();
+                
+                if (clientData.name) {
+                    document.getElementById('client-name').textContent = clientData.name;
+                }
+                if (clientData.email) {
+                    document.getElementById('client-email').textContent = clientData.email;
+                }
+                if (clientData.phone) {
+                    document.getElementById('client-phone').textContent = clientData.phone;
+                }
+                
+                // Set default values for dates
+                document.getElementById('member-since').textContent = 'Recently';
+                document.getElementById('last-login').textContent = 'Today';
+                
+                console.log('✅ Client profile loaded');
+            } catch (error) {
+                console.error('❌ Error loading client profile:', error);
+            }
+        }
+        
+        // Load dashboard statistics
+        async function loadDashboardStats() {
+            try {
+                console.log('📊 Loading dashboard statistics...');
+                
+                // Show loading state
+                const statElements = [
+                    document.getElementById('completed-projects'),
+                    document.getElementById('total-spent'),
+                    document.getElementById('active-cases'),
+                    document.getElementById('satisfaction-rating')
+                ];
+                
+                statElements.forEach(element => {
+                    if (element) {
+                        element.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    }
+                });
+                
+                // Get client data
+                const clientData = ClientAuth.getClientData();
+                let stats = {
+                    activeCases: 0,
+                    completedCases: 0,
+                    totalSpent: 0,
+                    satisfactionRating: 'N/A'
+                };
+                
+                // Try to fetch real stats from profile assessments API
+                if (clientData.email) {
+                    try {
+                        const response = await fetch('http://localhost:5000/api/profile-assessments/client', {
+                            headers: {
+                                'Authorization': `Bearer ${AuthManager.getToken()}`,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.success && data.data) {
+                                const assessments = data.data;
+                                stats.activeCases = assessments.length;
+                                stats.completedCases = assessments.filter(a => a.overall_score >= 70).length;
+                                stats.totalSpent = assessments.length * 500; // $500 per assessment
+                                
+                                // Calculate satisfaction based on average score
+                                if (assessments.length > 0) {
+                                    const avgScore = assessments.reduce((sum, a) => sum + a.overall_score, 0) / assessments.length;
+                                    if (avgScore >= 80) stats.satisfactionRating = '5.0★';
+                                    else if (avgScore >= 60) stats.satisfactionRating = '4.5★';
+                                    else if (avgScore >= 40) stats.satisfactionRating = '4.0★';
+                                    else stats.satisfactionRating = '3.5★';
+                                }
+                            }
+                        }
+                    } catch (apiError) {
+                        console.log('API call failed, using default stats:', apiError);
+                    }
+                }
+                
+                // Animate the stats loading
+                setTimeout(() => {
+                    document.getElementById('completed-projects').textContent = stats.completedCases;
+                }, 200);
+                
+                setTimeout(() => {
+                    document.getElementById('total-spent').textContent = '$' + stats.totalSpent.toLocaleString();
+                }, 400);
+                
+                setTimeout(() => {
+                    document.getElementById('active-cases').textContent = stats.activeCases;
+                }, 600);
+                
+                setTimeout(() => {
+                    document.getElementById('satisfaction-rating').textContent = stats.satisfactionRating;
+                }, 800);
+                
+                console.log('✅ Dashboard stats loaded:', stats);
+            } catch (error) {
+                console.error('❌ Error loading dashboard stats:', error);
+                
+                // Show error state
+                const statElements = [
+                    document.getElementById('completed-projects'),
+                    document.getElementById('total-spent'),
+                    document.getElementById('active-cases'),
+                    document.getElementById('satisfaction-rating')
+                ];
+                
+                statElements.forEach(element => {
+                    if (element) {
+                        element.textContent = '0';
+                    }
+                });
+                
+                if (document.getElementById('satisfaction-rating')) {
+                    document.getElementById('satisfaction-rating').textContent = 'N/A';
+                }
+            }
+        }
+        
+        // Load cases data
+        async function loadCasesData() {
+            try {
+                console.log('📋 Loading cases data...');
+                
+                // Try to fetch real profile assessments from the database
+                const response = await fetch('http://localhost:5000/api/profile-assessments/client', {
+                    headers: {
+                        'Authorization': `Bearer ${AuthManager.getToken()}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const casesTableBody = document.getElementById('cases-table-body');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('📋 Profile assessments found:', data);
+                    
+                    if (data.success && data.data && data.data.length > 0) {
+                        // Clear loading state
+                        casesTableBody.innerHTML = '';
+                        
+                        // Add real cases
+                        data.data.forEach((assessment, index) => {
+                            const caseRow = createCaseRow(assessment, index);
+                            casesTableBody.innerHTML += caseRow;
+                        });
+                        
+                        // Update stats
+                        document.getElementById('active-cases').textContent = data.data.length;
+                        document.getElementById('completed-projects').textContent = data.data.filter(a => a.overall_score >= 70).length;
+                        
+                        showNotification(`Loaded ${data.data.length} profile assessment(s)`, 'success');
+                    } else {
+                        // Show empty state with real data structure
+                        loadEmptyCasesState();
+                    }
+                } else if (response.status === 401) {
+                    console.log('📋 Authentication required, redirecting to login');
+                    showNotification('Please log in to view your cases', 'warning');
+                    setTimeout(() => {
+                        window.location.href = '../../pages/client-login-clean.html';
+                    }, 2000);
+                } else {
+                    console.log('📋 API error, using empty state');
+                    loadEmptyCasesState();
+                }
+                
+                console.log('✅ Cases data loaded');
+            } catch (error) {
+                console.error('❌ Error loading cases:', error);
+                loadEmptyCasesState();
+                showNotification('Error loading your cases. Please refresh the page.', 'error');
+            }
+        }
+        
+        // Create case row HTML
+        function createCaseRow(assessment, index) {
+            const caseId = `CASE-${String(index + 1).padStart(4, '0')}`;
+            const serviceType = getServiceType(assessment.field_of_expertise);
+            const startDate = formatDate(assessment.createdAt);
+            const status = assessment.status || 'new';
+            const progress = calculateCaseProgress(assessment);
+            
+            return `
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-6 py-4"><strong>${caseId}</strong></td>
+                    <td class="px-6 py-4">${serviceType}</td>
+                    <td class="px-6 py-4">${startDate}</td>
+                    <td class="px-6 py-4">${getStatusBadge(status)}</td>
+                    <td class="px-6 py-4">
+                        <div class="w-full bg-gray-200 rounded-full h-2 mb-1">
+                            <div class="progress-bar h-2 rounded-full" style="width: ${progress}%"></div>
+                        </div>
+                        <span class="text-xs text-gray-500">${progress}%</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <button onclick="viewCase('${assessment._id}')" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+        
+        // Load empty cases state
+        function loadEmptyCasesState() {
+            const casesTableBody = document.getElementById('cases-table-body');
+            casesTableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        <i class="fas fa-briefcase text-4xl mb-4 text-gray-300"></i>
+                        <p class="mb-4">No immigration cases found. Start your journey today!</p>
+                        <a href="/assessment" class="inline-block px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+                            Begin Profile Assessment
+                        </a>
+                    </td>
+                </tr>
+            `;
+            document.getElementById('active-cases').textContent = '0';
+            document.getElementById('completed-projects').textContent = '0';
+        }
+        
+        // Helper functions
+        function getServiceType(field) {
+            const serviceMap = {
+                'Software Engineering': 'EB-1A Software Engineering',
+                'Data Science': 'EB-1A Data Science',
+                'Research': 'EB-1A Research',
+                'Business': 'EB-1A Business',
+                'Arts': 'EB-1A Arts',
+                'Athletics': 'EB-1A Athletics'
+            };
+            return serviceMap[field] || 'EB-1A Profile Assessment';
+        }
+        
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        }
+        
+        function getStatusBadge(status) {
+            const statusMap = {
+                'new': '<span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">New</span>',
+                'reviewed': '<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">Under Review</span>',
+                'contacted': '<span class="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-semibold">Contacted</span>',
+                'converted': '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">Active Case</span>',
+                'archived': '<span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold">Archived</span>'
+            };
+            return statusMap[status.toLowerCase()] || statusMap['new'];
+        }
+        
+        function calculateCaseProgress(assessment) {
+            // Calculate progress based on assessment score and status
+            const baseProgress = Math.min(assessment.overall_score || 0, 100);
+            const statusBonus = assessment.status === 'converted' ? 20 : 0;
+            return Math.min(baseProgress + statusBonus, 100);
+        }
+        
+        function viewCase(caseId) {
+            showNotification('Case details view will be implemented soon', 'info');
+        }
+        
+        // Notification system
+        function showNotification(message, type = 'info') {
+            const notificationArea = document.getElementById('notification-area');
+            const notification = document.createElement('div');
+            
+            const typeClasses = {
+                'success': 'bg-green-100 border-green-400 text-green-700',
+                'error': 'bg-red-100 border-red-400 text-red-700',
+                'warning': 'bg-yellow-100 border-yellow-400 text-yellow-700',
+                'info': 'bg-blue-100 border-blue-400 text-blue-700'
+            };
+            
+            notification.className = `border-l-4 p-4 rounded-lg ${typeClasses[type]} mb-4`;
+            notification.innerHTML = `
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm">${message}</p>
+                    </div>
+                </div>
+            `;
+            
+            notificationArea.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

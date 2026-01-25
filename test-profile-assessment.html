@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Assessment Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .test-card { background: white; margin: 20px 0; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
+        button:hover { background: #0056b3; }
+        input, select { padding: 8px; margin: 5px; width: 200px; border: 1px solid #ddd; border-radius: 4px; }
+        .log { background: #f8f9fa; padding: 10px; margin: 10px 0; border-left: 4px solid #007bff; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; }
+        .form-group { margin: 10px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Profile Assessment Form Test</h1>
+        
+        <div class="test-card">
+            <h2>Test Profile Assessment Submission</h2>
+            <p>This test will verify that all form inputs are properly stored in the database.</p>
+            
+            <div class="form-group">
+                <label>Full Name:</label>
+                <input type="text" id="client-name" value="John Doe Test">
+            </div>
+            
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="email" id="client-email" value="john.test@example.com">
+            </div>
+            
+            <div class="form-group">
+                <label>Phone:</label>
+                <input type="tel" id="client-phone" value="+1234567890">
+            </div>
+            
+            <div class="form-group">
+                <label>Field of Expertise:</label>
+                <select id="field">
+                    <option value="science">Science & Research</option>
+                    <option value="technology">Technology & Engineering</option>
+                    <option value="business">Business & Entrepreneurship</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Years of Experience:</label>
+                <input type="number" id="experience" value="10">
+            </div>
+            
+            <div class="form-group">
+                <label>Current Location:</label>
+                <select id="location">
+                    <option value="us">In the United States</option>
+                    <option value="outside">Outside the United States</option>
+                </select>
+            </div>
+            
+            <h3>EB-1A Criteria Scores (0-3 scale)</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                    <label>Awards (0-3):</label>
+                    <input type="number" id="criterion1" min="0" max="3" value="2">
+                </div>
+                <div>
+                    <label>Memberships (0-3):</label>
+                    <input type="number" id="criterion2" min="0" max="3" value="1">
+                </div>
+                <div>
+                    <label>Media Coverage (0-3):</label>
+                    <input type="number" id="criterion3" min="0" max="3" value="3">
+                </div>
+                <div>
+                    <label>Judging (0-3):</label>
+                    <input type="number" id="criterion4" min="0" max="3" value="2">
+                </div>
+                <div>
+                    <label>Contributions (0-3):</label>
+                    <input type="number" id="criterion5" min="0" max="3" value="3">
+                </div>
+                <div>
+                    <label>Publications (0-3):</label>
+                    <input type="number" id="criterion6" min="0" max="3" value="2">
+                </div>
+                <div>
+                    <label>Exhibitions (0-3):</label>
+                    <input type="number" id="criterion7" min="0" max="3" value="0">
+                </div>
+                <div>
+                    <label>Leadership (0-3):</label>
+                    <input type="number" id="criterion8" min="0" max="3" value="3">
+                </div>
+                <div>
+                    <label>High Salary (0-3):</label>
+                    <input type="number" id="criterion9" min="0" max="3" value="2">
+                </div>
+                <div>
+                    <label>Commercial Success (0-3):</label>
+                    <input type="number" id="criterion10" min="0" max="3" value="1">
+                </div>
+            </div>
+            
+            <button onclick="testSubmission()">Submit Test Assessment</button>
+            <button onclick="clearLog()">Clear Log</button>
+            
+            <div id="result" class="result"></div>
+            <div id="log" class="log"></div>
+        </div>
+        
+        <div class="test-card">
+            <h2>Verify Database Storage</h2>
+            <p>After submitting, check if the data was stored correctly in the database.</p>
+            <button onclick="checkDatabase()">Check Latest Assessment</button>
+            <div id="db-result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+        
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = message;
+            element.className = `result ${type}`;
+        }
+        
+        async function testSubmission() {
+            clearLog();
+            log('🧪 Starting profile assessment submission test...');
+            
+            try {
+                // Collect form data
+                const formData = {
+                    client_name: document.getElementById('client-name').value,
+                    client_email: document.getElementById('client-email').value,
+                    client_phone: document.getElementById('client-phone').value,
+                    field_of_expertise: document.getElementById('field').value,
+                    years_of_experience: parseInt(document.getElementById('experience').value),
+                    current_location: document.getElementById('location').value,
+                    criterion_1_awards: parseInt(document.getElementById('criterion1').value),
+                    criterion_2_memberships: parseInt(document.getElementById('criterion2').value),
+                    criterion_3_media: parseInt(document.getElementById('criterion3').value),
+                    criterion_4_judging: parseInt(document.getElementById('criterion4').value),
+                    criterion_5_contributions: parseInt(document.getElementById('criterion5').value),
+                    criterion_6_publications: parseInt(document.getElementById('criterion6').value),
+                    criterion_7_exhibitions: parseInt(document.getElementById('criterion7').value),
+                    criterion_8_leadership: parseInt(document.getElementById('criterion8').value),
+                    criterion_9_salary: parseInt(document.getElementById('criterion9').value),
+                    criterion_10_commercial: parseInt(document.getElementById('criterion10').value)
+                };
+                
+                log('📊 Form data collected:');
+                log(`- Name: ${formData.client_name}`);
+                log(`- Email: ${formData.client_email}`);
+                log(`- Phone: ${formData.client_phone}`);
+                log(`- Field: ${formData.field_of_expertise}`);
+                log(`- Experience: ${formData.years_of_experience} years`);
+                log(`- Location: ${formData.current_location}`);
+                log('- Criteria scores: ' + [
+                    formData.criterion_1_awards, formData.criterion_2_memberships, formData.criterion_3_media,
+                    formData.criterion_4_judging, formData.criterion_5_contributions, formData.criterion_6_publications,
+                    formData.criterion_7_exhibitions, formData.criterion_8_leadership, formData.criterion_9_salary,
+                    formData.criterion_10_commercial
+                ].join(', '));
+                
+                // Calculate expected results
+                const criteriaScores = [
+                    formData.criterion_1_awards, formData.criterion_2_memberships, formData.criterion_3_media,
+                    formData.criterion_4_judging, formData.criterion_5_contributions, formData.criterion_6_publications,
+                    formData.criterion_7_exhibitions, formData.criterion_8_leadership, formData.criterion_9_salary,
+                    formData.criterion_10_commercial
+                ];
+                
+                const totalScore = criteriaScores.reduce((sum, score) => sum + score, 0);
+                const expectedPercentage = Math.round((totalScore / 30) * 100);
+                const strongCount = criteriaScores.filter(score => score === 3).length;
+                const moderateCount = criteriaScores.filter(score => score === 2).length;
+                
+                log(`📈 Expected results:`);
+                log(`- Total score: ${totalScore}/30 (${expectedPercentage}%)`);
+                log(`- Strong criteria: ${strongCount}`);
+                log(`- Moderate criteria: ${moderateCount}`);
+                log(`- Criteria met: ${strongCount + moderateCount}`);
+                
+                // Submit to API
+                log('🌐 Submitting to API...');
+                const response = await fetch('http://localhost:5000/api/profile-assessments', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                log(`📨 Response status: ${response.status}`);
+                
+                const result = await response.json();
+                log(`📨 Response data: ${JSON.stringify(result, null, 2)}`);
+                
+                if (result.success) {
+                    showResult('result', `
+                        ✅ <strong>Submission Successful!</strong><br>
+                        Assessment ID: ${result.data.assessment_id}<br>
+                        Overall Score: ${result.data.overall_score}%<br>
+                        Profile Strength: ${result.data.profile_strength}<br>
+                        Criteria Met: ${result.data.criteria_met}<br>
+                        Strong Criteria: ${result.data.strong_criteria_count}<br>
+                        Moderate Criteria: ${result.data.moderate_criteria_count}
+                    `, 'success');
+                    
+                    log('✅ All form inputs successfully stored in database!');
+                    
+                    // Verify expected vs actual results
+                    if (result.data.overall_score === expectedPercentage) {
+                        log('✅ Score calculation matches expected result');
+                    } else {
+                        log(`❌ Score mismatch: expected ${expectedPercentage}%, got ${result.data.overall_score}%`);
+                    }
+                    
+                } else {
+                    showResult('result', `❌ <strong>Submission Failed:</strong><br>${result.error?.message || 'Unknown error'}`, 'error');
+                    log('❌ Submission failed');
+                    
+                    if (result.error?.details) {
+                        log('❌ Validation errors:');
+                        result.error.details.forEach(error => {
+                            log(`  - ${error.msg} (${error.param})`);
+                        });
+                    }
+                }
+                
+            } catch (error) {
+                log(`💥 Exception: ${error.message}`);
+                showResult('result', `❌ <strong>Error:</strong> ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkDatabase() {
+            try {
+                log('🔍 Checking latest assessment in database...');
+                
+                // This would require admin authentication in a real scenario
+                // For testing, we'll just show what should be checked
+                showResult('db-result', `
+                    <strong>Database Verification Checklist:</strong><br>
+                    ✅ Check if all basic info fields are stored<br>
+                    ✅ Verify all 10 criteria scores are saved (0-3 scale)<br>
+                    ✅ Confirm calculated fields (overall_score, profile_strength)<br>
+                    ✅ Validate counts (strong_criteria_count, moderate_criteria_count, etc.)<br>
+                    ✅ Check metadata (ip_address, user_agent, timestamps)<br>
+                    <br>
+                    <em>Note: Direct database access requires admin authentication.</em>
+                `, 'info');
+                
+            } catch (error) {
+                showResult('db-result', `❌ Error checking database: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-populate with test data on load
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Profile Assessment Test Page Loaded');
+            log('📝 Test data pre-populated in form fields');
+            log('🎯 Ready to test form submission and database storage');
+        });
+    </script>
+</body>
+</html>

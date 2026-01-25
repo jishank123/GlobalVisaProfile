@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homepage Links Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+    </style>
+</head>
+<body>
+    <h1>🔗 Homepage Links Test</h1>
+    <p>Testing all navigation links from the main homepage to identify broken paths.</p>
+
+    <div id="test-results"></div>
+
+    <script>
+        const results = document.getElementById('test-results');
+
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+
+        // Define the links to test (relative to pages/ directory)
+        const linksToTest = [
+            { name: 'Client Login (Client Portal)', url: 'pages/client-login-clean.html' },
+            { name: 'Profile Assessment', url: 'pages/profile-assessment.html' },
+            { name: 'Schedule Appointment', url: 'pages/schedule-appointment-clean.html' },
+            { name: 'EB-1A Eligibility', url: 'pages/eb1a-eligibility.html' },
+            { name: 'Profile Building', url: 'pages/profile-building.html' },
+            { name: 'EB-2 NIW', url: 'pages/eb2-niw.html' },
+            { name: 'O-1 Visa', url: 'pages/o1-visa.html' },
+            { name: 'Pricing', url: 'pages/pricing.html' },
+            { name: 'FAQ', url: 'pages/faq.html' },
+            { name: 'Attorney Referrals', url: 'pages/attorney-referrals.html' },
+            { name: 'Client Dashboard', url: 'all_static_pages/client-dashboard.html' },
+            { name: 'Admin Dashboard', url: 'all_static_pages/2-admin-dashboard.html' }
+        ];
+
+        addResult('🔍 Testing homepage navigation links...', 'info');
+
+        // Test each link
+        linksToTest.forEach(link => {
+            fetch(link.url)
+                .then(response => {
+                    if (response.ok) {
+                        addResult(`✅ ${link.name}: File exists and accessible`, 'success');
+                    } else {
+                        addResult(`❌ ${link.name}: HTTP ${response.status} - ${response.statusText}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    addResult(`❌ ${link.name}: Error - ${error.message}`, 'error');
+                });
+        });
+
+        // Test CSS and JS files
+        setTimeout(() => {
+            addResult('🎨 Testing CSS and JS files...', 'info');
+            
+            const assetsToTest = [
+                { name: 'Main CSS', url: 'css/style.css' },
+                { name: 'API JS', url: 'js/api.js' },
+                { name: 'Utils JS', url: 'js/utils.js' },
+                { name: 'Dashboard Data JS', url: 'js/dashboard-data.js' }
+            ];
+
+            assetsToTest.forEach(asset => {
+                fetch(asset.url)
+                    .then(response => {
+                        if (response.ok) {
+                            addResult(`✅ ${asset.name}: File exists`, 'success');
+                        } else {
+                            addResult(`⚠️ ${asset.name}: HTTP ${response.status} - May not be critical`, 'warning');
+                        }
+                    })
+                    .catch(error => {
+                        addResult(`⚠️ ${asset.name}: ${error.message} - May not be critical`, 'warning');
+                    });
+            });
+        }, 1000);
+
+        // Summary after tests
+        setTimeout(() => {
+            addResult('📋 Summary and Recommendations:', 'info');
+            addResult('• If Client Portal shows 404: The file exists, check if you\'re accessing from correct location', 'info');
+            addResult('• Main homepage should be accessed from: imm/pages/index.html', 'info');
+            addResult('• Client dashboard is located at: imm/all_static_pages/client-dashboard.html', 'info');
+            addResult('• After login, users should be redirected to the client dashboard', 'info');
+        }, 2000);
+    </script>
+</body>
+</html>

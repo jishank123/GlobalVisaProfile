@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        input { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 4px; }
+        .form-group { margin: 10px 0; }
+        label { display: inline-block; width: 100px; }
+        #results { margin-top: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🔑 Admin Login Test</h1>
+    <p>Test the admin login functionality with hardcoded credentials.</p>
+    
+    <div class="test-section">
+        <h2>🧪 Quick Admin Login Test</h2>
+        <p>This will test the admin credentials (admin/admin) directly via API.</p>
+        <button onclick="testAdminLogin()">🚀 Test Admin Login</button>
+        <button onclick="testRegularLogin()">👤 Test Regular Login</button>
+        <button onclick="clearResults()">🧹 Clear Results</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>📝 Manual Login Test</h2>
+        <p>Enter credentials manually to test the login system.</p>
+        <form id="manual-test-form">
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="text" id="manual-email" value="admin@gmail.com" placeholder="Enter email or username">
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="manual-password" value="admin" placeholder="Enter password">
+            </div>
+            <button type="submit">🔐 Test Login</button>
+        </form>
+    </div>
+    
+    <div class="test-section">
+        <h2>🎯 Direct Dashboard Links</h2>
+        <p>Direct links to test dashboard access:</p>
+        <a href="all_static_pages/2-admin-dashboard.html" target="_blank">
+            <button>🔑 Open Admin Dashboard</button>
+        </a>
+        <a href="all_static_pages/backend-mern/3-client-profile.html" target="_blank">
+            <button>👤 Open Client Dashboard</button>
+        </a>
+        <a href="pages/client-login-clean.html" target="_blank">
+            <button>📝 Open Login Page</button>
+        </a>
+    </div>
+    
+    <div id="results"></div>
+
+    <script>
+        const baseURL = 'http://localhost:5000';
+        const resultsDiv = document.getElementById('results');
+
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            resultsDiv.appendChild(div);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        function clearResults() {
+            resultsDiv.innerHTML = '';
+        }
+
+        async function testAdminLogin() {
+            addResult('🔑 Testing admin login (admin@gmail.com/admin)...', 'info');
+            
+            try {
+                const response = await fetch(`${baseURL}/api/client-accounts/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'admin@gmail.com',
+                        password: 'admin'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                addResult(`📨 Response Status: ${response.status}`, 'info');
+                addResult(`📨 Response: ${JSON.stringify(data, null, 2)}`, 'info');
+                
+                if (response.ok && data.success && data.isAdmin) {
+                    addResult('✅ Admin login test PASSED!', 'success');
+                    addResult(`✅ Admin token: ${data.data.token ? 'Generated' : 'Missing'}`, 'success');
+                    addResult(`✅ Redirect URL: ${data.data.redirectTo}`, 'success');
+                    
+                    // Ask if user wants to redirect
+                    if (confirm('Admin login successful! Do you want to redirect to admin dashboard?')) {
+                        window.location.href = data.data.redirectTo;
+                    }
+                } else {
+                    addResult('❌ Admin login test FAILED', 'error');
+                }
+                
+            } catch (error) {
+                addResult(`❌ Admin login error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testRegularLogin() {
+            addResult('👤 Testing regular client login (test@example.com/password123)...', 'info');
+            
+            try {
+                const response = await fetch(`${baseURL}/api/client-accounts/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        password: 'password123'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                addResult(`📨 Response Status: ${response.status}`, 'info');
+                addResult(`📨 Response: ${JSON.stringify(data, null, 2)}`, 'info');
+                
+                if (!response.ok) {
+                    addResult('✅ Regular client login correctly failed for non-existent user', 'success');
+                } else if (data.success && !data.isAdmin) {
+                    addResult('✅ Regular client login succeeded', 'success');
+                } else {
+                    addResult('⚠️ Unexpected response for regular login', 'error');
+                }
+                
+            } catch (error) {
+                addResult(`❌ Regular login error: ${error.message}`, 'error');
+            }
+        }
+
+        // Manual form test
+        document.getElementById('manual-test-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('manual-email').value;
+            const password = document.getElementById('manual-password').value;
+            
+            addResult(`🔐 Testing manual login (${email}/****)...`, 'info');
+            
+            try {
+                const response = await fetch(`${baseURL}/api/client-accounts/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                addResult(`📨 Response Status: ${response.status}`, 'info');
+                addResult(`📨 Response: ${JSON.stringify(data, null, 2)}`, 'info');
+                
+                if (response.ok && data.success) {
+                    if (data.isAdmin) {
+                        addResult('✅ Admin login successful!', 'success');
+                        if (confirm('Redirect to admin dashboard?')) {
+                            window.location.href = data.data.redirectTo;
+                        }
+                    } else {
+                        addResult('✅ Client login successful!', 'success');
+                        if (confirm('Redirect to client dashboard?')) {
+                            window.location.href = '../all_static_pages/backend-mern/3-client-profile.html';
+                        }
+                    }
+                } else {
+                    addResult(`❌ Login failed: ${data.error?.message || 'Unknown error'}`, 'error');
+                }
+                
+            } catch (error) {
+                addResult(`❌ Manual login error: ${error.message}`, 'error');
+            }
+        });
+
+        // Auto-run admin test on page load
+        window.addEventListener('load', () => {
+            addResult('🚀 Admin Login Test Page Loaded', 'info');
+            addResult('💡 Use admin@gmail.com/admin for admin login', 'info');
+        });
+    </script>
+</body>
+</html>

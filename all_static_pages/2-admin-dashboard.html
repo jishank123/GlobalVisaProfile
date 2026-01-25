@@ -3,478 +3,1058 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Academic Consultancy ERP</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * { font-family: 'Inter', sans-serif; }
-        body { background: #f8f9fa; }
-        
-        .top-navbar {
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-            color: white;
-            padding: 15px 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    <title>Admin Dashboard - Profile Assessments | ImmigrationPro</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary': '#2563eb',
+                        'secondary': '#1e40af',
+                        'accent': '#3b82f6',
+                    }
+                }
+            }
         }
-        
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: 70px;
-            width: 250px;
-            height: calc(100vh - 70px);
-            background: white;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-            overflow-y: auto;
-        }
-        
-        .sidebar-item {
-            padding: 15px 20px;
-            color: #4b5563;
-            text-decoration: none;
-            display: block;
-            transition: all 0.3s;
-            border-left: 3px solid transparent;
-        }
-        
-        .sidebar-item:hover, .sidebar-item.active {
-            background: #f3f4f6;
-            color: #1e3a8a;
-            border-left-color: #1e3a8a;
-        }
-        
-        .main-content {
-            margin-left: 250px;
-            padding: 30px;
-        }
-        
-        .stat-card {
-            background: white;
-            border-radius: 10px;
-            padding: 25px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border-left: 4px solid #1e3a8a;
-        }
-        
-        .stat-number {
-            font-size: 32px;
-            font-weight: 700;
-            color: #1e3a8a;
-        }
-        
-        .management-card {
-            background: white;
-            border-radius: 10px;
-            padding: 25px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        
-        .table thead {
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-            color: white;
-        }
-        
-        .action-btn {
-            padding: 6px 12px;
-            border-radius: 5px;
-            border: none;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            margin: 2px;
-        }
-        
-        .btn-edit { background: #f59e0b; color: white; }
-        .btn-delete { background: #ef4444; color: white; }
-        .btn-activate { background: #10b981; color: white; }
-    </style>
+    </script>
 </head>
-<body>
+<body class="font-sans antialiased bg-gray-50">
+    
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-globe-americas text-3xl text-primary"></i>
+                    <span class="text-2xl font-bold text-gray-800">ImmigrationPro</span>
+                    <span class="bg-red-100 text-red-800 text-xs font-semibold px-2 py-1 rounded-full ml-2">ADMIN</span>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <a href="../pages/index.html" class="text-gray-600 hover:text-primary transition-colors">
+                        <i class="fas fa-home mr-2"></i>Back to Site
+                    </a>
+                    <button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
 
-<!-- Top Navigation -->
-<div class="top-navbar">
-    <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h4 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Admin Control Panel</h4>
-            </div>
-            <div>
-                <a href="index.html" class="btn btn-light btn-sm me-2">
-                    <i class="fas fa-home me-1"></i>Home
-                </a>
-                <span class="me-3">Administrator</span>
-                <a href="login.html" class="btn btn-outline-light btn-sm">
-                    <i class="fas fa-sign-out-alt me-1"></i>Logout
-                </a>
+    <!-- Header -->
+    <header class="bg-white border-b">
+        <div class="container mx-auto px-4 py-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Profile Assessment Dashboard</h1>
+                    <p class="text-gray-600 mt-1">Manage and review EB-1A profile assessment submissions</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="refreshData()" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-secondary transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                    <button onclick="exportData()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-download mr-2"></i>Export CSV
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
-</div>
+    </header>
 
-<!-- Sidebar -->
-<div class="sidebar">
-    <a href="#overview" class="sidebar-item active">
-        <i class="fas fa-tachometer-alt me-2"></i>Dashboard Overview
-    </a>
-    <a href="#users" class="sidebar-item">
-        <i class="fas fa-users me-2"></i>User Management
-    </a>
-    <a href="#services" class="sidebar-item">
-        <i class="fas fa-briefcase me-2"></i>Services Management
-    </a>
-    <a href="#clients" class="sidebar-item">
-        <i class="fas fa-user-tie me-2"></i>Client Management
-    </a>
-    <a href="#financial" class="sidebar-item">
-        <i class="fas fa-dollar-sign me-2"></i>Financial Overview
-    </a>
-    <a href="#reports" class="sidebar-item">
-        <i class="fas fa-chart-bar me-2"></i>Reports & Analytics
-    </a>
-    <a href="#settings" class="sidebar-item">
-        <i class="fas fa-cog me-2"></i>System Settings
-    </a>
-</div>
+    <!-- Stats Cards -->
+    <section class="py-6">
+        <div class="container mx-auto px-4">
+            <div class="grid md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mr-4">
+                            <i class="fas fa-users text-2xl text-blue-600"></i>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-gray-900" id="total-clients">0</div>
+                            <div class="text-gray-600">Total Clients</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="bg-green-100 w-12 h-12 rounded-full flex items-center justify-center mr-4">
+                            <i class="fas fa-project-diagram text-2xl text-green-600"></i>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-gray-900" id="active-projects">0</div>
+                            <div class="text-gray-600">Active Projects</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="bg-yellow-100 w-12 h-12 rounded-full flex items-center justify-center mr-4">
+                            <i class="fas fa-dollar-sign text-2xl text-yellow-600"></i>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-gray-900" id="monthly-revenue">$0</div>
+                            <div class="text-gray-600">Monthly Revenue</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="bg-purple-100 w-12 h-12 rounded-full flex items-center justify-center mr-4">
+                            <i class="fas fa-user-friends text-2xl text-purple-600"></i>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-gray-900" id="team-members">0</div>
+                            <div class="text-gray-600">Team Members</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
-<!-- Main Content -->
-<div class="main-content">
-    
-    <!-- Overview Stats -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="stat-card">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <div class="stat-number">156</div>
-                        <div class="text-muted">Total Clients</div>
-                    </div>
-                    <i class="fas fa-users fa-2x text-primary"></i>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stat-card">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <div class="stat-number">45</div>
-                        <div class="text-muted">Active Projects</div>
-                    </div>
-                    <i class="fas fa-project-diagram fa-2x text-success"></i>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stat-card">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <div class="stat-number">$245K</div>
-                        <div class="text-muted">Monthly Revenue</div>
-                    </div>
-                    <i class="fas fa-dollar-sign fa-2x text-warning"></i>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stat-card">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <div class="stat-number">23</div>
-                        <div class="text-muted">Team Members</div>
-                    </div>
-                    <i class="fas fa-user-friends fa-2x text-info"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- User Management Section -->
-    <div id="users" class="management-card">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5><i class="fas fa-users me-2"></i>User Management</h5>
-            <button class="btn btn-primary btn-sm">
-                <i class="fas fa-plus me-1"></i>Add New User
-            </button>
-        </div>
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 pb-8">
         
-        <table class="table table-hover">
-            <thead>
-                <tr>
-                    <th>User ID</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Last Login</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><strong>USR-001</strong></td>
-                    <td>John Smith</td>
-                    <td>john.smith@company.com</td>
-                    <td><span class="badge bg-primary">Lead Manager</span></td>
-                    <td><span class="badge bg-success">Active</span></td>
-                    <td>Jan 23, 2025 09:15 AM</td>
-                    <td>
-                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>USR-002</strong></td>
-                    <td>Emily Roberts</td>
-                    <td>emily.r@company.com</td>
-                    <td><span class="badge bg-info">CRM Manager</span></td>
-                    <td><span class="badge bg-success">Active</span></td>
-                    <td>Jan 23, 2025 08:45 AM</td>
-                    <td>
-                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>USR-003</strong></td>
-                    <td>Michael Chen</td>
-                    <td>m.chen@company.com</td>
-                    <td><span class="badge bg-warning">Consultant</span></td>
-                    <td><span class="badge bg-success">Active</span></td>
-                    <td>Jan 22, 2025 05:30 PM</td>
-                    <td>
-                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>USR-004</strong></td>
-                    <td>Sarah Johnson</td>
-                    <td>s.johnson@company.com</td>
-                    <td><span class="badge bg-secondary">Writer</span></td>
-                    <td><span class="badge bg-warning">Inactive</span></td>
-                    <td>Jan 20, 2025 02:15 PM</td>
-                    <td>
-                        <button class="action-btn btn-activate"><i class="fas fa-check"></i></button>
-                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-    
-    <!-- Services Management Section -->
-    <div id="services" class="management-card">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5><i class="fas fa-briefcase me-2"></i>Services Management</h5>
-            <button class="btn btn-primary btn-sm">
-                <i class="fas fa-plus me-1"></i>Add New Service
-            </button>
+        <!-- Tab Navigation -->
+        <div class="bg-white rounded-t-xl shadow-md">
+            <div class="border-b border-gray-200">
+                <nav class="flex space-x-8 px-6">
+                    <button onclick="showTab('users')" id="tab-users" class="py-4 px-2 border-b-2 border-primary text-primary font-medium text-sm uppercase tracking-wider">
+                        <i class="fas fa-users mr-2"></i>User Management
+                    </button>
+                    <button onclick="showTab('assessments')" id="tab-assessments" class="py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm uppercase tracking-wider">
+                        <i class="fas fa-clipboard-check mr-2"></i>Profile Assessments
+                    </button>
+                    <button onclick="showTab('contacts')" id="tab-contacts" class="py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm uppercase tracking-wider">
+                        <i class="fas fa-envelope mr-2"></i>Contact Submissions
+                    </button>
+                </nav>
+            </div>
         </div>
-        
-        <table class="table table-hover">
-            <thead>
-                <tr>
-                    <th>Service ID</th>
-                    <th>Service Name</th>
-                    <th>Category</th>
-                    <th>Base Price</th>
-                    <th>Duration</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><strong>SRV-001</strong></td>
-                    <td>Research Paper Publication</td>
-                    <td>Academic Writing</td>
-                    <td>$3,500 - $8,000</td>
-                    <td>6-12 weeks</td>
-                    <td><span class="badge bg-success">Active</span></td>
-                    <td>
-                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>SRV-002</strong></td>
-                    <td>Thesis/Dissertation Help</td>
-                    <td>Academic Writing</td>
-                    <td>$5,000 - $15,000</td>
-                    <td>12-24 weeks</td>
-                    <td><span class="badge bg-success">Active</span></td>
-                    <td>
-                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>SRV-003</strong></td>
-                    <td>Grant Writing Services</td>
-                    <td>Funding Support</td>
-                    <td>$2,500 - $10,000</td>
-                    <td>4-8 weeks</td>
-                    <td><span class="badge bg-success">Active</span></td>
-                    <td>
-                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>SRV-004</strong></td>
-                    <td>Conference Paper Assistance</td>
-                    <td>Academic Writing</td>
-                    <td>$1,500 - $4,000</td>
-                    <td>3-6 weeks</td>
-                    <td><span class="badge bg-success">Active</span></td>
-                    <td>
-                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>SRV-005</strong></td>
-                    <td>Literature Review</td>
-                    <td>Research Support</td>
-                    <td>$1,000 - $3,500</td>
-                    <td>2-4 weeks</td>
-                    <td><span class="badge bg-warning">Inactive</span></td>
-                    <td>
-                        <button class="action-btn btn-activate"><i class="fas fa-check"></i></button>
-                        <button class="action-btn btn-edit"><i class="fas fa-edit"></i></button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-    
-    <!-- Financial Overview Section -->
-    <div id="financial" class="management-card">
-        <h5 class="mb-3"><i class="fas fa-dollar-sign me-2"></i>Financial Overview</h5>
-        
-        <div class="row">
-            <div class="col-md-6">
-                <h6 class="text-muted mb-3">Revenue Breakdown (This Month)</h6>
-                <table class="table table-sm">
-                    <tr>
-                        <td>Research Papers</td>
-                        <td class="text-end"><strong>$98,500</strong></td>
-                    </tr>
-                    <tr>
-                        <td>Thesis/Dissertation</td>
-                        <td class="text-end"><strong>$75,000</strong></td>
-                    </tr>
-                    <tr>
-                        <td>Grant Writing</td>
-                        <td class="text-end"><strong>$42,800</strong></td>
-                    </tr>
-                    <tr>
-                        <td>Conference Papers</td>
-                        <td class="text-end"><strong>$28,700</strong></td>
-                    </tr>
-                    <tr class="table-primary fw-bold">
-                        <td>Total Revenue</td>
-                        <td class="text-end">$245,000</td>
-                    </tr>
+
+        <!-- User Management Table -->
+        <div id="users-section" class="bg-white rounded-b-xl shadow-md overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-bold text-gray-900">
+                        <i class="fas fa-users mr-2 text-green-600"></i>User Management
+                    </h2>
+                    <button onclick="loadUsers()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-sync mr-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Phone</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Registration Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                                <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+                                <p>Loading registered users...</p>
+                            </td>
+                        </tr>
+                    </tbody>
                 </table>
             </div>
-            <div class="col-md-6">
-                <h6 class="text-muted mb-3">Payment Status</h6>
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span>Paid Invoices</span>
-                        <span class="text-success fw-bold">$189,500 (77%)</span>
-                    </div>
-                    <div class="progress" style="height: 25px;">
-                        <div class="progress-bar bg-success" style="width: 77%">77%</div>
-                    </div>
+        </div>
+
+        <!-- Profile Assessments Table -->
+        <div id="assessments-section" class="bg-white rounded-b-xl shadow-md overflow-hidden hidden">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-bold text-gray-900">
+                        <i class="fas fa-clipboard-check mr-2 text-purple-600"></i>Profile Assessments
+                    </h2>
+                    <button onclick="loadAssessments()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
+                        <i class="fas fa-sync mr-2"></i>Refresh
+                    </button>
                 </div>
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span>Pending Payments</span>
-                        <span class="text-warning fw-bold">$42,300 (17%)</span>
-                    </div>
-                    <div class="progress" style="height: 25px;">
-                        <div class="progress-bar bg-warning" style="width: 17%">17%</div>
-                    </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Field</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Score</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Strength</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="assessments-table-body" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                                <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+                                <p>Loading profile assessments...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Contact Submissions Table -->
+        <div id="contacts-section" class="bg-white rounded-b-xl shadow-md overflow-hidden hidden">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-bold text-gray-900">
+                        <i class="fas fa-envelope mr-2 text-blue-600"></i>Contact Form Submissions
+                    </h2>
+                    <button onclick="loadContacts()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-sync mr-2"></i>Refresh
+                    </button>
                 </div>
-                <div>
-                    <div class="d-flex justify-content-between mb-1">
-                        <span>Overdue</span>
-                        <span class="text-danger fw-bold">$13,200 (6%)</span>
-                    </div>
-                    <div class="progress" style="height: 25px;">
-                        <div class="progress-bar bg-danger" style="width: 6%">6%</div>
-                    </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Phone</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Service</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="contacts-table-body" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                                <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+                                <p>Loading contact submissions...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Appointment Requests Table -->
+        <div id="appointments-section" class="bg-white rounded-b-xl shadow-md overflow-hidden hidden">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-bold text-gray-900">
+                        <i class="fas fa-calendar mr-2 text-green-600"></i>Appointment Requests
+                    </h2>
+                    <button onclick="loadAppointments()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-sync mr-2"></i>Refresh
+                    </button>
                 </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Phone</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Preferred Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="appointments-table-body" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                                <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+                                <p>Loading appointment requests...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Profile Assessments Table -->
+        <div id="assessments-section" class="bg-white rounded-b-xl shadow-md overflow-hidden hidden">
+
+    </div>
+
+    <!-- View Details Modal -->
+    <div id="details-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-2xl font-bold text-gray-900">Submission Details</h3>
+                    <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="modal-content" class="p-6">
+                <!-- Content will be inserted here -->
             </div>
         </div>
     </div>
-    
-    <!-- System Settings Section -->
-    <div id="settings" class="management-card">
-        <h5 class="mb-3"><i class="fas fa-cog me-2"></i>System Settings</h5>
+
+    <script>
+        // Load dashboard statistics
+        async function loadDashboardStats() {
+            try {
+                console.log('📊 Loading dashboard statistics...');
+                
+                // Load client accounts count
+                const clientsResponse = await fetch('http://localhost:5000/api/client-accounts/all');
+                let totalClients = 0;
+                if (clientsResponse.ok) {
+                    const clientsData = await clientsResponse.json();
+                    if (clientsData.success && clientsData.data) {
+                        totalClients = clientsData.data.length;
+                        document.getElementById('total-clients').textContent = totalClients;
+                    }
+                }
+                
+                // Load profile assessments count for active projects
+                const assessmentsResponse = await fetch('http://localhost:5000/api/profile-assessments');
+                let activeProjects = 0;
+                let totalRevenue = 0;
+                if (assessmentsResponse.ok) {
+                    const assessmentsData = await assessmentsResponse.json();
+                    if (assessmentsData.success && assessmentsData.data && assessmentsData.data.assessments) {
+                        const assessments = assessmentsData.data.assessments;
+                        // Count assessments with good scores as active projects
+                        activeProjects = assessments.filter(a => a.overall_score >= 60).length;
+                        // Calculate estimated revenue ($2000 per active project)
+                        totalRevenue = activeProjects * 2000;
+                    }
+                }
+                
+                document.getElementById('active-projects').textContent = activeProjects;
+                document.getElementById('monthly-revenue').textContent = '$' + totalRevenue.toLocaleString();
+                
+                // Team members count (scales with workload)
+                const teamMembers = Math.max(5, Math.ceil((totalClients + activeProjects) / 8));
+                document.getElementById('team-members').textContent = teamMembers;
+                
+                console.log('📊 Dashboard stats loaded:', {
+                    totalClients,
+                    activeProjects,
+                    totalRevenue,
+                    teamMembers
+                });
+                
+            } catch (error) {
+                console.error('Error loading dashboard stats:', error);
+                // Set default values on error
+                document.getElementById('total-clients').textContent = '0';
+                document.getElementById('active-projects').textContent = '0';
+                document.getElementById('monthly-revenue').textContent = '$0';
+                document.getElementById('team-members').textContent = '5';
+            }
+        }
+
+        // Load users from database
+        async function loadUsers() {
+            try {
+                console.log('👥 Loading users from database...');
+                const response = await fetch('http://localhost:5000/api/client-accounts/all');
+                
+                const tbody = document.getElementById('users-table-body');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('👥 User data received:', data);
+                    
+                    if (data.success && data.data && data.data.length > 0) {
+                        tbody.innerHTML = data.data.map((user, index) => `
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    USR-${String(index + 1).padStart(3, '0')}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    ${user.name}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <a href="mailto:${user.email}" class="text-primary hover:underline">
+                                        ${user.email}
+                                    </a>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <a href="tel:${user.phone}" class="text-primary hover:underline">
+                                        ${user.phone || 'N/A'}
+                                    </a>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    ${new Date(user.createdAt || user.created_at).toLocaleDateString()}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
+                                        Active
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                    <button onclick="viewDetails(${JSON.stringify(user).replace(/"/g, '&quot;')}, 'user')" 
+                                            class="text-blue-600 hover:text-blue-800">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                    <button onclick="manageUser('${user._id || user.id}')"
+                                            class="text-green-600 hover:text-green-800">
+                                        <i class="fas fa-cog"></i> Manage
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                                    <i class="fas fa-users text-4xl mb-4 text-gray-300"></i>
+                                    <p>No registered users found</p>
+                                    <p class="text-sm text-gray-400 mt-2">Users will appear here when they register</p>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                } else {
+                    console.error('Failed to load users:', response.status);
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="px-6 py-8 text-center text-red-500">
+                                <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                                <p>Error loading users</p>
+                                <p class="text-sm text-gray-400 mt-2">Please check if the backend server is running</p>
+                            </td>
+                        </tr>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+                const tbody = document.getElementById('users-table-body');
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="px-6 py-8 text-center text-red-500">
+                            <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                            <p>Error loading users</p>
+                            <p class="text-sm text-gray-400 mt-2">Please check if the backend server is running</p>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Load profile assessments from database
+        async function loadAssessments() {
+            try {
+                console.log('📋 Loading profile assessments from database...');
+                const response = await fetch('http://localhost:5000/api/profile-assessments');
+                
+                const tbody = document.getElementById('assessments-table-body');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('📋 Assessment data received:', data);
+                    
+                    if (data.success && data.data && data.data.assessments && data.data.assessments.length > 0) {
+                        tbody.innerHTML = data.data.assessments.map(assessment => `
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    ${new Date(assessment.createdAt).toLocaleDateString()}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    ${assessment.client_name}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <a href="mailto:${assessment.client_email}" class="text-primary hover:underline">
+                                        ${assessment.client_email}
+                                    </a>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
+                                        ${formatField(assessment.field_of_expertise)}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold ${getScoreColor(assessment.overall_score)}">
+                                    ${assessment.overall_score}%
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <span class="px-2 py-1 ${getStrengthColor(assessment.profile_strength)} rounded-full text-xs font-semibold">
+                                        ${assessment.profile_strength}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <span class="px-2 py-1 ${getStatusColor(assessment.status || 'new')} rounded-full text-xs font-semibold">
+                                        ${assessment.status || 'New'}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                    <button onclick="viewDetails(${JSON.stringify(assessment).replace(/"/g, '&quot;')}, 'assessment')" 
+                                            class="text-blue-600 hover:text-blue-800">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                    <button onclick="updateStatus('${assessment._id}', 'profile_assessments')"
+                                            class="text-green-600 hover:text-green-800">
+                                        <i class="fas fa-check"></i> Update
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                                    <i class="fas fa-clipboard-check text-4xl mb-4 text-gray-300"></i>
+                                    <p>No profile assessments found</p>
+                                    <p class="text-sm text-gray-400 mt-2">Profile assessments will appear here when submitted</p>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                } else {
+                    console.error('Failed to load assessments:', response.status);
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="px-6 py-8 text-center text-red-500">
+                                <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                                <p>Error loading profile assessments</p>
+                                <p class="text-sm text-gray-400 mt-2">Please check if the backend server is running</p>
+                            </td>
+                        </tr>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading assessments:', error);
+                const tbody = document.getElementById('assessments-table-body');
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="px-6 py-8 text-center text-red-500">
+                            <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                            <p>Error loading profile assessments</p>
+                            <p class="text-sm text-gray-400 mt-2">Please check if the backend server is running</p>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Load contacts from database
+        async function loadContacts() {
+            try {
+                console.log('📞 Loading contacts from database...');
+                const response = await fetch('http://localhost:5000/api/contact');
+                
+                const tbody = document.getElementById('contacts-table-body');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('📞 Contact data received:', data);
+                    
+                    if (data.success && data.data && data.data.length > 0) {
+                        document.getElementById('total-contacts').textContent = data.data.length;
+                        document.getElementById('new-contacts').textContent = data.data.filter(c => c.status === 'new').length;
+                        
+                        tbody.innerHTML = data.data.map(contact => `
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    ${new Date(contact.submission_date || contact.created_at).toLocaleString()}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    ${contact.name}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <a href="mailto:${contact.email}" class="text-primary hover:underline">
+                                        ${contact.email}
+                                    </a>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <a href="tel:${contact.phone}" class="text-primary hover:underline">
+                                        ${contact.phone || 'N/A'}
+                                    </a>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
+                                        ${contact.service_type || 'General Inquiry'}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <span class="px-2 py-1 ${getStatusColor(contact.status)} rounded-full text-xs font-semibold">
+                                        ${contact.status || 'New'}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                    <button onclick="viewDetails(${JSON.stringify(contact).replace(/"/g, '&quot;')}, 'contact')" 
+                                            class="text-blue-600 hover:text-blue-800">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                    <button onclick="updateStatus('${contact.id}', 'contact_submissions')"
+                                            class="text-green-600 hover:text-green-800">
+                                        <i class="fas fa-check"></i> Update
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                                    <i class="fas fa-inbox text-4xl mb-4 text-gray-300"></i>
+                                    <p>No contact submissions found</p>
+                                    <p class="text-sm text-gray-400 mt-2">Contact submissions will appear here</p>
+                                </td>
+                            </tr>
+                        `;
+                        document.getElementById('total-contacts').textContent = '0';
+                        document.getElementById('new-contacts').textContent = '0';
+                    }
+                } else {
+                    console.error('Failed to load contacts:', response.status);
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="px-6 py-8 text-center text-red-500">
+                                <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                                <p>Error loading contacts</p>
+                                <p class="text-sm text-gray-400 mt-2">Please check if the backend server is running</p>
+                            </td>
+                        </tr>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading contacts:', error);
+                const tbody = document.getElementById('contacts-table-body');
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="px-6 py-8 text-center text-red-500">
+                            <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                            <p>Error loading contacts</p>
+                            <p class="text-sm text-gray-400 mt-2">Please check if the backend server is running</p>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Load appointments (placeholder - no API endpoint yet)
+        async function loadAppointments() {
+            try {
+                console.log('📅 Loading appointments...');
+                const tbody = document.getElementById('appointments-table-body');
+                
+                // Placeholder for appointments - no API endpoint yet
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                            <i class="fas fa-calendar text-4xl mb-4 text-gray-300"></i>
+                            <p>No appointment requests found</p>
+                            <p class="text-sm text-gray-400 mt-2">Appointment requests will appear here when the feature is implemented</p>
+                        </td>
+                    </tr>
+                `;
+            } catch (error) {
+                console.error('Error loading appointments:', error);
+            }
+        }
+
+        // Show tab
+        function showTab(tab) {
+            // Hide all sections
+            document.getElementById('users-section').classList.add('hidden');
+            document.getElementById('assessments-section').classList.add('hidden');
+            document.getElementById('contacts-section').classList.add('hidden');
+            
+            // Reset all tab styles
+            document.getElementById('tab-users').classList.remove('border-primary', 'text-primary');
+            document.getElementById('tab-users').classList.add('border-transparent', 'text-gray-500');
+            document.getElementById('tab-assessments').classList.remove('border-primary', 'text-primary');
+            document.getElementById('tab-assessments').classList.add('border-transparent', 'text-gray-500');
+            document.getElementById('tab-contacts').classList.remove('border-primary', 'text-primary');
+            document.getElementById('tab-contacts').classList.add('border-transparent', 'text-gray-500');
+            
+            // Show selected section and activate tab
+            if (tab === 'users') {
+                document.getElementById('users-section').classList.remove('hidden');
+                document.getElementById('tab-users').classList.add('border-primary', 'text-primary');
+                document.getElementById('tab-users').classList.remove('border-transparent', 'text-gray-500');
+            } else if (tab === 'assessments') {
+                document.getElementById('assessments-section').classList.remove('hidden');
+                document.getElementById('tab-assessments').classList.add('border-primary', 'text-primary');
+                document.getElementById('tab-assessments').classList.remove('border-transparent', 'text-gray-500');
+            } else if (tab === 'contacts') {
+                document.getElementById('contacts-section').classList.remove('hidden');
+                document.getElementById('tab-contacts').classList.add('border-primary', 'text-primary');
+                document.getElementById('tab-contacts').classList.remove('border-transparent', 'text-gray-500');
+            }
+        }
+
+        // Get status color
+        function getStatusColor(status) {
+            const colors = {
+                'new': 'bg-yellow-100 text-yellow-800',
+                'New': 'bg-yellow-100 text-yellow-800',
+                'pending': 'bg-orange-100 text-orange-800',
+                'Pending': 'bg-orange-100 text-orange-800',
+                'contacted': 'bg-blue-100 text-blue-800',
+                'Contacted': 'bg-blue-100 text-blue-800',
+                'confirmed': 'bg-green-100 text-green-800',
+                'Confirmed': 'bg-green-100 text-green-800',
+                'completed': 'bg-gray-100 text-gray-800',
+                'Completed': 'bg-gray-100 text-gray-800',
+                'cancelled': 'bg-red-100 text-red-800',
+                'Cancelled': 'bg-red-100 text-red-800'
+            };
+            return colors[status] || 'bg-gray-100 text-gray-800';
+        }
         
-        <div class="row">
-            <div class="col-md-6">
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h6><i class="fas fa-envelope me-2"></i>Email Configuration</h6>
-                        <p class="text-muted small">Configure SMTP settings for system emails</p>
-                        <button class="btn btn-sm btn-outline-primary">Configure</button>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h6><i class="fas fa-database me-2"></i>Database Backup</h6>
-                        <p class="text-muted small">Last backup: Jan 23, 2025 02:00 AM</p>
-                        <button class="btn btn-sm btn-outline-success">Backup Now</button>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h6><i class="fas fa-shield-alt me-2"></i>Security Settings</h6>
-                        <p class="text-muted small">Password policies, 2FA, session timeout</p>
-                        <button class="btn btn-sm btn-outline-warning">Manage</button>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h6><i class="fas fa-file-export me-2"></i>Data Export</h6>
-                        <p class="text-muted small">Export system data for reporting</p>
-                        <button class="btn btn-sm btn-outline-info">Export</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-</div>
+        // Format field of expertise
+        function formatField(field) {
+            const fields = {
+                'science': 'Science & Research',
+                'technology': 'Technology & Engineering',
+                'business': 'Business & Entrepreneurship',
+                'arts': 'Arts & Design',
+                'education': 'Education',
+                'athletics': 'Athletics & Sports',
+                'other': 'Other'
+            };
+            return fields[field] || field;
+        }
+        
+        // Get score color
+        function getScoreColor(score) {
+            if (score >= 80) return 'text-green-600';
+            if (score >= 60) return 'text-blue-600';
+            if (score >= 40) return 'text-yellow-600';
+            return 'text-red-600';
+        }
+        
+        // Get strength color
+        function getStrengthColor(strength) {
+            const colors = {
+                'Excellent': 'bg-green-100 text-green-800',
+                'Good': 'bg-blue-100 text-blue-800',
+                'Moderate': 'bg-yellow-100 text-yellow-800',
+                'Needs Development': 'bg-red-100 text-red-800'
+            };
+            return colors[strength] || 'bg-gray-100 text-gray-800';
+        }
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-// Sidebar active state
-document.querySelectorAll('.sidebar-item').forEach(item => {
-    item.addEventListener('click', function(e) {
-        document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
-        this.classList.add('active');
-    });
-});
+        // View details
+        function viewDetails(data, type) {
+            const modal = document.getElementById('details-modal');
+            const content = document.getElementById('modal-content');
+            
+            if (type === 'user') {
+                content.innerHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Name:</label>
+                            <p class="text-gray-900">${data.name}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Email:</label>
+                            <p class="text-gray-900">${data.email}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Phone:</label>
+                            <p class="text-gray-900">${data.phone || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Registration Date:</label>
+                            <p class="text-gray-900">${new Date(data.createdAt || data.created_at).toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">User ID:</label>
+                            <p class="text-gray-900">${data._id || data.id}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Account Status:</label>
+                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
+                                Active
+                            </span>
+                        </div>
+                    </div>
+                `;
+            } else if (type === 'contact') {
+                content.innerHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Name:</label>
+                            <p class="text-gray-900">${data.name}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Email:</label>
+                            <p class="text-gray-900">${data.email}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Phone:</label>
+                            <p class="text-gray-900">${data.phone || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Service Type:</label>
+                            <p class="text-gray-900">${data.service_type || 'General Inquiry'}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Message:</label>
+                            <p class="text-gray-900 bg-gray-50 p-3 rounded">${data.message || 'No message provided'}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Submission Date:</label>
+                            <p class="text-gray-900">${new Date(data.submission_date || data.created_at).toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-gray-700">Status:</label>
+                            <span class="px-2 py-1 ${getStatusColor(data.status)} rounded-full text-xs font-semibold">
+                                ${data.status || 'New'}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            } else if (type === 'assessment') {
+                const criteriaNames = [
+                    'Awards & Prizes', 'Professional Memberships', 'Media Coverage', 
+                    'Judging Others\' Work', 'Original Contributions', 'Scholarly Publications',
+                    'Exhibitions', 'Leadership Roles', 'High Compensation', 'Commercial Success'
+                ];
+                const criteriaScores = [
+                    data.criterion_1_awards, data.criterion_2_memberships, data.criterion_3_media,
+                    data.criterion_4_judging, data.criterion_5_contributions, data.criterion_6_publications,
+                    data.criterion_7_exhibitions, data.criterion_8_leadership, data.criterion_9_salary,
+                    data.criterion_10_commercial
+                ];
+                const scoreLabels = ['None', 'Weak', 'Moderate', 'Strong'];
+                
+                content.innerHTML = `
+                    <div class="space-y-6">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-sm font-semibold text-gray-700">Name:</label>
+                                <p class="text-gray-900">${data.client_name}</p>
+                            </div>
+                            <div>
+                                <label class="text-sm font-semibold text-gray-700">Email:</label>
+                                <p class="text-gray-900">${data.client_email}</p>
+                            </div>
+                            <div>
+                                <label class="text-sm font-semibold text-gray-700">Phone:</label>
+                                <p class="text-gray-900">${data.client_phone || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <label class="text-sm font-semibold text-gray-700">Field:</label>
+                                <p class="text-gray-900">${data.field_of_expertise}</p>
+                            </div>
+                            <div>
+                                <label class="text-sm font-semibold text-gray-700">Experience:</label>
+                                <p class="text-gray-900">${data.years_of_experience} years</p>
+                            </div>
+                            <div>
+                                <label class="text-sm font-semibold text-gray-700">Location:</label>
+                                <p class="text-gray-900">${data.current_location}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="border-t pt-4">
+                            <h4 class="text-lg font-semibold text-gray-900 mb-4">Assessment Results</h4>
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div class="bg-blue-50 p-3 rounded">
+                                    <label class="text-sm font-semibold text-blue-700">Overall Score:</label>
+                                    <p class="text-2xl font-bold text-blue-900">${data.overall_score}%</p>
+                                </div>
+                                <div class="bg-green-50 p-3 rounded">
+                                    <label class="text-sm font-semibold text-green-700">Profile Strength:</label>
+                                    <p class="text-lg font-semibold text-green-900">${data.profile_strength}</p>
+                                </div>
+                                <div class="bg-purple-50 p-3 rounded">
+                                    <label class="text-sm font-semibold text-purple-700">Criteria Met:</label>
+                                    <p class="text-xl font-bold text-purple-900">${data.criteria_met}/10</p>
+                                </div>
+                                <div class="bg-yellow-50 p-3 rounded">
+                                    <label class="text-sm font-semibold text-yellow-700">Status:</label>
+                                    <span class="px-2 py-1 ${getStatusColor(data.status)} rounded-full text-xs font-semibold">
+                                        ${data.status || 'New'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="border-t pt-4">
+                            <h4 class="text-lg font-semibold text-gray-900 mb-4">EB-1A Criteria Breakdown</h4>
+                            <div class="space-y-2">
+                                ${criteriaNames.map((name, index) => `
+                                    <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                        <span class="text-sm text-gray-700">${name}</span>
+                                        <span class="px-2 py-1 text-xs font-semibold rounded ${
+                                            criteriaScores[index] === 3 ? 'bg-green-100 text-green-800' :
+                                            criteriaScores[index] === 2 ? 'bg-blue-100 text-blue-800' :
+                                            criteriaScores[index] === 1 ? 'bg-yellow-100 text-yellow-800' :
+                                            'bg-gray-100 text-gray-800'
+                                        }">
+                                            ${scoreLabels[criteriaScores[index]]}
+                                        </span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <div class="border-t pt-4">
+                            <label class="text-sm font-semibold text-gray-700">Submission Date:</label>
+                            <p class="text-gray-900">${new Date(data.createdAt).toLocaleString()}</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            modal.classList.remove('hidden');
+        }
 
-// Demo action buttons
-document.querySelectorAll('.action-btn, .btn-primary').forEach(btn => {
-    btn.addEventListener('click', function() {
-        alert('This action will connect to backend API in production.');
-    });
-});
-</script>
+        // Close modal
+        function closeModal() {
+            document.getElementById('details-modal').classList.add('hidden');
+        }
 
+        // Manage user function
+        function manageUser(userId) {
+            const action = prompt('Choose action:\n1. Activate\n2. Deactivate\n3. Reset Password\n4. Delete Account\n\nEnter number (1-4):');
+            
+            switch(action) {
+                case '1':
+                    alert('User activation feature will be implemented soon.');
+                    break;
+                case '2':
+                    alert('User deactivation feature will be implemented soon.');
+                    break;
+                case '3':
+                    alert('Password reset feature will be implemented soon.');
+                    break;
+                case '4':
+                    if (confirm('Are you sure you want to delete this user account? This action cannot be undone.')) {
+                        alert('Account deletion feature will be implemented soon.');
+                    }
+                    break;
+                default:
+                    if (action !== null) {
+                        alert('Invalid option selected.');
+                    }
+            }
+        }
+
+        // Update status
+        async function updateStatus(id, table) {
+            const newStatus = prompt('Enter new status (new, contacted, confirmed, completed, cancelled):');
+            if (!newStatus) return;
+            
+            try {
+                const response = await fetch(`tables/${table}/${id}`, {
+                    method: 'PATCH',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ status: newStatus })
+                });
+                
+                if (response.ok) {
+                    alert('Status updated successfully!');
+                    if (table === 'contact_submissions') {
+                        loadContacts();
+                    } else {
+                        loadAppointments();
+                    }
+                } else {
+                    alert('Failed to update status');
+                }
+            } catch (error) {
+                console.error('Error updating status:', error);
+                alert('Error updating status');
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🚀 Admin Dashboard Initializing...');
+            
+            // Load dashboard statistics first
+            await loadDashboardStats();
+            
+            // Load data for each section
+            loadUsers();
+            loadAssessments();
+            loadContacts();
+            
+            // Show users tab by default
+            showTab('users');
+            
+            console.log('✅ Admin Dashboard Initialized');
+            
+            // Auto-refresh every 30 seconds
+            setInterval(() => {
+                console.log('🔄 Auto-refreshing data...');
+                loadDashboardStats();
+                loadUsers();
+                loadAssessments();
+                loadContacts();
+            }, 30000);
+        });
+        
+        // Refresh data function
+        function refreshData() {
+            console.log('🔄 Manual refresh triggered');
+            loadDashboardStats();
+            loadUsers();
+            loadAssessments();
+            loadContacts();
+        }
+        
+        // Export data function
+        function exportData() {
+            alert('📊 Export functionality will be implemented in a future update.\n\nThis will allow you to export all data to CSV format.');
+        }
+        
+        // Logout function
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                // Clear any admin session data
+                localStorage.removeItem('adminToken');
+                localStorage.removeItem('token');
+                localStorage.removeItem('clientId');
+                localStorage.removeItem('clientEmail');
+                localStorage.removeItem('clientName');
+                localStorage.removeItem('clientPhone');
+                sessionStorage.clear();
+                
+                // Redirect to homepage
+                window.location.href = '../pages/index.html';
+            }
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('details-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+    </script>
 </body>
 </html>

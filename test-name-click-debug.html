@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Name Click Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .clickable { cursor: pointer; color: blue; text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1>🐛 Name Click Debug Test</h1>
+    <p>This test helps identify what happens when you click on your name in the dashboard.</p>
+
+    <div id="test-results"></div>
+
+    <h2>🧪 Test Scenarios</h2>
+    <div style="border: 1px solid #ccc; padding: 20px; margin: 20px 0; border-radius: 5px;">
+        <h3>Simulate Name Clicks:</h3>
+        <p>Click on these elements to see what happens:</p>
+        
+        <div style="margin: 10px 0;">
+            <span id="test-name-1" class="clickable">John Doe (Regular span)</span>
+        </div>
+        
+        <div style="margin: 10px 0;">
+            <a href="#" id="test-name-2" class="clickable">John Doe (Anchor tag)</a>
+        </div>
+        
+        <div style="margin: 10px 0;">
+            <a href="profile.html" id="test-name-3" class="clickable">John Doe (Link to profile.html)</a>
+        </div>
+        
+        <div style="margin: 10px 0;">
+            <a href="client-profile.html" id="test-name-4" class="clickable">John Doe (Link to client-profile.html)</a>
+        </div>
+    </div>
+
+    <script>
+        const results = document.getElementById('test-results');
+
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+
+        // Test 1: Check if client dashboard files exist
+        addResult('🔍 Test 1: Checking client dashboard files...', 'info');
+        
+        const dashboardFiles = [
+            { name: 'Client Dashboard (all_static_pages)', url: 'all_static_pages/client-dashboard.html' },
+            { name: 'Client Profile (backend-mern)', url: 'all_static_pages/backend-mern/3-client-profile.html' },
+            { name: 'Profile Assessment', url: 'pages/profile-assessment.html' }
+        ];
+
+        dashboardFiles.forEach(file => {
+            fetch(file.url)
+                .then(response => {
+                    if (response.ok) {
+                        addResult(`✅ ${file.name}: Accessible`, 'success');
+                    } else {
+                        addResult(`❌ ${file.name}: HTTP ${response.status}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    addResult(`❌ ${file.name}: ${error.message}`, 'error');
+                });
+        });
+
+        // Test 2: Check for common profile-related files that might be missing
+        setTimeout(() => {
+            addResult('🔍 Test 2: Checking for common profile files that might be missing...', 'info');
+            
+            const profileFiles = [
+                'profile.html',
+                'client-profile.html',
+                'user-profile.html',
+                'account.html',
+                'settings.html'
+            ];
+
+            profileFiles.forEach(file => {
+                fetch(file)
+                    .then(response => {
+                        if (response.ok) {
+                            addResult(`⚠️ Found: ${file} - This might be what your name is trying to link to`, 'warning');
+                        }
+                    })
+                    .catch(error => {
+                        // File doesn't exist, which is expected
+                    });
+            });
+        }, 1000);
+
+        // Add click handlers to test elements
+        document.getElementById('test-name-1').addEventListener('click', function(e) {
+            addResult('🖱️ Clicked on regular span - No navigation should occur', 'info');
+        });
+
+        document.getElementById('test-name-2').addEventListener('click', function(e) {
+            e.preventDefault();
+            addResult('🖱️ Clicked on anchor with href="#" - This would normally stay on same page', 'info');
+        });
+
+        document.getElementById('test-name-3').addEventListener('click', function(e) {
+            e.preventDefault();
+            addResult('🖱️ Clicked on link to profile.html - This would cause 404 if file doesn\'t exist', 'warning');
+        });
+
+        document.getElementById('test-name-4').addEventListener('click', function(e) {
+            e.preventDefault();
+            addResult('🖱️ Clicked on link to client-profile.html - This would cause 404 if file doesn\'t exist', 'warning');
+        });
+
+        // Summary after tests
+        setTimeout(() => {
+            addResult('📋 Possible Causes of Name Click 404:', 'info');
+            addResult('1. Your name might be wrapped in an <a> tag with a broken href', 'info');
+            addResult('2. JavaScript might be adding click handlers to name elements', 'info');
+            addResult('3. CSS might be making text look clickable when it shouldn\'t be', 'info');
+            addResult('4. You might be on a different dashboard than expected', 'info');
+            
+            addResult('🔧 Solutions:', 'info');
+            addResult('• Check browser developer tools (F12) to see the actual HTML around your name', 'info');
+            addResult('• Look for <a> tags or onclick attributes on name elements', 'info');
+            addResult('• Check the browser console for JavaScript errors', 'info');
+            addResult('• Verify which dashboard file you\'re actually viewing', 'info');
+        }, 2000);
+    </script>
+</body>
+</html>

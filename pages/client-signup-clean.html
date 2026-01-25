@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account - ImmigrationPro</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="../css/style.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#667eea',
+                        secondary: '#764ba2'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="font-sans antialiased bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen">
+    
+    <!-- Navigation Placeholder -->
+    <div id="navigation-placeholder"></div>
+
+    <!-- Main Content -->
+    <main class="pt-24 pb-16">
+        <div class="container mx-auto px-4">
+            <div class="max-w-md mx-auto">
+                
+                <!-- Header -->
+                <div class="text-center mb-8">
+                    <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-user-plus text-white text-2xl"></i>
+                    </div>
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">Create Your Account</h1>
+                    <p class="text-gray-600">Join thousands of professionals building their extraordinary profiles</p>
+                </div>
+
+                <!-- Signup Form -->
+                <div class="bg-white rounded-2xl shadow-xl p-8">
+                    <form id="signup-form" class="space-y-6">
+                        
+                        <!-- CSRF Protection -->
+                        <input type="hidden" name="_csrf" id="csrf-token" value="">
+                        
+                        <!-- Full Name -->
+                        <div>
+                            <label for="full-name" class="block text-sm font-semibold text-gray-700 mb-2">
+                                Full Name <span class="text-red-500">*</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                id="full-name" 
+                                name="full_name"
+                                required
+                                maxlength="100"
+                                pattern="[a-zA-Z\s\-\.\']{2,100}"
+                                title="Name can only contain letters, spaces, hyphens, dots, and apostrophes"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                                placeholder="Enter your full name"
+                            >
+                        </div>
+
+                        <!-- Email -->
+                        <div>
+                            <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">
+                                Email Address <span class="text-red-500">*</span>
+                            </label>
+                            <input 
+                                type="email" 
+                                id="email" 
+                                name="email"
+                                required
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                                placeholder="your.email@example.com"
+                            >
+                        </div>
+
+                        <!-- Phone -->
+                        <div>
+                            <label for="phone" class="block text-sm font-semibold text-gray-700 mb-2">
+                                Phone Number <span class="text-red-500">*</span>
+                            </label>
+                            <input 
+                                type="tel" 
+                                id="phone" 
+                                name="phone"
+                                required
+                                maxlength="20"
+                                pattern="[\+]?[\(\d][\d\s\-\(\)\.]{5,18}"
+                                title="Please enter a valid phone number"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                                placeholder="+1 (555) 123-4567"
+                            >
+                        </div>
+
+                        <!-- Password -->
+                        <div>
+                            <label for="password" class="block text-sm font-semibold text-gray-700 mb-2">
+                                Password <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <input 
+                                    type="password" 
+                                    id="password" 
+                                    name="password"
+                                    required
+                                    minlength="8"
+                                    pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$"
+                                    title="Password must contain at least 8 characters with uppercase, lowercase, and number"
+                                    class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                                    placeholder="Create a strong password"
+                                >
+                                <button 
+                                    type="button" 
+                                    onclick="togglePassword('password')"
+                                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                >
+                                    <i class="fas fa-eye" id="password-eye"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Must be at least 8 characters with uppercase, lowercase, and number</p>
+                        </div>
+
+                        <!-- Confirm Password -->
+                        <div>
+                            <label for="confirm-password" class="block text-sm font-semibold text-gray-700 mb-2">
+                                Confirm Password <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <input 
+                                    type="password" 
+                                    id="confirm-password" 
+                                    name="confirm_password"
+                                    required
+                                    class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                                    placeholder="Confirm your password"
+                                >
+                                <button 
+                                    type="button" 
+                                    onclick="togglePassword('confirm-password')"
+                                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                >
+                                    <i class="fas fa-eye" id="confirm-password-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Terms Agreement -->
+                        <div class="flex items-start space-x-3">
+                            <input 
+                                type="checkbox" 
+                                id="terms" 
+                                name="terms"
+                                required
+                                class="mt-1 w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                            >
+                            <label for="terms" class="text-sm text-gray-700">
+                                I agree to the <a href="#" class="text-primary hover:underline">Terms of Service</a> 
+                                and <a href="#" class="text-primary hover:underline">Privacy Policy</a>
+                            </label>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button 
+                            type="submit" 
+                            class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                        >
+                            <i class="fas fa-user-plus mr-2"></i>Create Account
+                        </button>
+
+                        <!-- Message Display -->
+                        <div id="signup-message" class="hidden"></div>
+                    </form>
+
+                    <!-- Login Link -->
+                    <div class="mt-6 text-center">
+                        <p class="text-gray-600">
+                            Already have an account? 
+                            <a href="client-login-clean.html" class="text-primary hover:underline font-semibold">Sign in here</a>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Benefits -->
+                <div class="mt-8 bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4 text-center">
+                        <i class="fas fa-star text-yellow-500 mr-2"></i>What You Get
+                    </h3>
+                    <ul class="space-y-3">
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-green-600 mt-1 mr-3"></i>
+                            <span class="text-gray-700">Track your profile assessment progress</span>
+                        </li>
+                        <li class="flex items-start">
+
+</content>
+</file>
+
+    <!-- Scripts -->
+    <script src="../js/api.js"></script>
+    <script src="../js/utils.js"></script>
+    
+    <script>
+        // Password validation functions
+        function validatePasswordMatch() {
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            
+            if (password !== confirmPassword) {
+                document.getElementById('confirm-password').setCustomValidity('Passwords do not match');
+                return false;
+            } else {
+                document.getElementById('confirm-password').setCustomValidity('');
+                return true;
+            }
+        }
+
+        // Input sanitization function
+        function sanitizeInput(input) {
+            if (typeof input !== 'string') return input;
+            
+            return input
+                .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+                .replace(/javascript:/gi, '')
+                .replace(/on\w+\s*=/gi, '')
+                .trim();
+        }
+
+        // Enhanced form validation
+        function validateSignupForm(formData) {
+            const errors = [];
+            
+            // Validate password match
+            if (!validatePasswordMatch()) {
+                errors.push('Passwords do not match');
+            }
+            
+            // Validate password strength
+            const password = formData.password;
+            if (password && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/.test(password)) {
+                errors.push('Password must contain at least 8 characters with uppercase, lowercase, and number');
+            }
+            
+            return errors;
+        }
+
+        // Add event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Password confirmation validation
+            document.getElementById('confirm-password').addEventListener('input', validatePasswordMatch);
+            document.getElementById('password').addEventListener('input', validatePasswordMatch);
+            
+            // Form submission
+            const signupForm = document.getElementById('signup-form');
+            if (signupForm) {
+                signupForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    console.log('📝 === SIGNUP FORM SUBMISSION STARTED ===');
+                    
+                    // Extract and sanitize form data
+                    const rawFormData = formHandler.extractFormData('signup-form');
+                    const formData = {};
+                    
+                    for (const [key, value] of Object.entries(rawFormData)) {
+                        formData[key] = sanitizeInput(value);
+                    }
+                    
+                    console.log('📊 Sanitized form data:', {
+                        full_name: formData.full_name,
+                        email: formData.email,
+                        phone: formData.phone,
+                        password: '[HIDDEN]'
+                    });
+                    
+                    // Validate form
+                    const errors = validateSignupForm(formData);
+                    if (errors.length > 0) {
+                        formHandler.showError('signup-message', errors.join('<br>'));
+                        return;
+                    }
+                    
+                    // Show loading
+                    formHandler.showLoading('signup-form', 'signup-message', 'Creating your account...');
+                    
+                    try {
+                        const response = await ClientAccountsAPI.register(formData);
+                        
+                        if (response.success) {
+                            formHandler.showSuccess('signup-message', 'Account created successfully! Please check your email for verification.');
+                            signupForm.reset();
+                            
+                            // Redirect to login after 3 seconds
+                            setTimeout(() => {
+                                window.location.href = 'client-login-clean.html';
+                            }, 3000);
+                        } else {
+                            formHandler.showError('signup-message', response.error?.message || 'Registration failed. Please try again.');
+                        }
+                    } catch (error) {
+                        console.error('Signup error:', error);
+                        formHandler.showError('signup-message', 'An error occurred during registration. Please try again.');
+                    }
+                    
+                    formHandler.resetLoading('signup-form');
+                });
+            }
+        });
+
+        // Toggle password visibility
+        function togglePassword(fieldId) {
+            const field = document.getElementById(fieldId);
+            const eye = document.getElementById(fieldId + '-eye');
+            
+            if (field.type === 'password') {
+                field.type = 'text';
+                eye.classList.remove('fa-eye');
+                eye.classList.add('fa-eye-slash');
+            } else {
+                field.type = 'password';
+                eye.classList.remove('fa-eye-slash');
+                eye.classList.add('fa-eye');
+            }
+        }
+    </script>
+                            <i class="fas fa-check-circle text-green-600 mt-1 mr-3"></i>
+                            <span class="text-gray-700">Access personalized recommendations</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-green-600 mt-1 mr-3"></i>
+                            <span class="text-gray-700">Schedule consultations easily</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-green-600 mt-1 mr-3"></i>
+                            <span class="text-gray-700">Secure document management</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer Placeholder -->
+    <div id="footer-placeholder"></div>
+
+    <!-- Scripts -->
+    <script src="../js/api.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/navigation.js"></script>
+    <script src="../js/footer.js"></script>
+    
+    <script>
+        // Password visibility toggle
+        function togglePassword(fieldId) {
+            const field = document.getElementById(fieldId);
+            const eye = document.getElementById(fieldId + '-eye');
+            
+            if (field.type === 'password') {
+                field.type = 'text';
+                eye.classList.remove('fa-eye');
+                eye.classList.add('fa-eye-slash');
+            } else {
+                field.type = 'password';
+                eye.classList.remove('fa-eye-slash');
+                eye.classList.add('fa-eye');
+            }
+        }
+
+        // Form validation rules
+        const validationRules = {
+            full_name: {
+                required: true,
+                minLength: 2,
+                maxLength: 100,
+                label: 'Full Name'
+            },
+            email: {
+                required: true,
+                pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                patternMessage: 'Please enter a valid email address',
+                label: 'Email'
+            },
+            phone: {
+                required: true,
+                minLength: 7,
+                maxLength: 20,
+                label: 'Phone Number'
+            },
+            password: {
+                required: true,
+                minLength: 8,
+                pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+                patternMessage: 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
+                label: 'Password'
+            }
+        };
+
+        // Form submission handler
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM loaded, initializing signup form...');
+            
+            // Check if user is already logged in
+            if (typeof ClientAuth !== 'undefined') {
+                ClientAuth.redirectIfLoggedIn();
+            }
+            
+            // Attach form submission handler
+            const signupForm = document.getElementById('signup-form');
+            if (signupForm) {
+                console.log('✅ Signup form found, attaching event listener');
+                
+                signupForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    console.log('🔐 SIGNUP ATTEMPT STARTED');
+                    
+                    try {
+                        // Check if required objects are available
+                        if (typeof formHandler === 'undefined') {
+                            console.error('❌ formHandler not available');
+                            alert('Error: Required scripts not loaded. Please refresh the page.');
+                            return;
+                        }
+                        
+                        if (typeof ClientAccountsAPI === 'undefined') {
+                            console.error('❌ ClientAccountsAPI not available');
+                            alert('Error: API scripts not loaded. Please refresh the page.');
+                            return;
+                        }
+                        
+                        // Extract form data
+                        const formData = formHandler.extractFormData('signup-form');
+                        console.log('📊 Form data extracted:', {
+                            full_name: formData.full_name,
+                            email: formData.email,
+                            phone: formData.phone,
+                            password: formData.password ? '[PROVIDED]' : '[MISSING]'
+                        });
+                        
+                        // Validate form
+                        const errors = formHandler.validateForm(formData, validationRules);
+                        
+                        // Check password confirmation
+                        if (formData.password !== formData.confirm_password) {
+                            errors.push('Passwords do not match');
+                        }
+                        
+                        // Check terms agreement
+                        if (!formData.terms) {
+                            errors.push('Please agree to the Terms of Service');
+                        }
+                        
+                        if (errors.length > 0) {
+                            formHandler.showError('signup-message', errors.join('<br>'), true);
+                            return;
+                        }
+                        
+                        // Show loading
+                        formHandler.showLoading('signup-form', 'signup-message', 'Creating your account...');
+                        
+                        // Submit to API
+                        console.log('🌐 Making API call to register...');
+                        const response = await ClientAccountsAPI.register({
+                            full_name: formData.full_name,
+                            email: formData.email,
+                            phone: formData.phone,
+                            password: formData.password
+                        });
+                        
+                        console.log('🌐 API response:', response);
+                        
+                        if (response && response.success) {
+                            console.log('✅ Registration successful!');
+                            formHandler.showSuccess('signup-message', 'Account created successfully! Redirecting to your dashboard...');
+                            
+                            // Redirect to dashboard
+                            setTimeout(() => {
+                                console.log('🔄 Redirecting to dashboard...');
+                                window.location.href = '../all_static_pages/backend-mern/3-client-profile.html';
+                            }, 1500);
+                        } else {
+                            console.log('❌ Registration failed');
+                            let errorMessage = 'Registration failed';
+                            
+                            if (response && response.error) {
+                                errorMessage = response.error.message || 'Unknown error occurred';
+                            }
+                            
+                            formHandler.showError('signup-message', errorMessage);
+                            formHandler.resetLoading('signup-form');
+                        }
+                        
+                    } catch (error) {
+                        console.error('💥 Registration error:', error);
+                        formHandler.showError('signup-message', 'Registration failed: ' + error.message);
+                        formHandler.resetLoading('signup-form');
+                    }
+                });
+                
+            } else {
+                console.error('❌ Signup form not found!');
+            }
+        });
+    </script>
+</body>
+</html>

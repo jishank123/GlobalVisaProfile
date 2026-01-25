@@ -126,100 +126,27 @@ window.addEventListener('scroll', function() {
     }
 });
 
-// Contact Form Handling
-const contactForm = document.getElementById('contact-form');
-const formMessage = document.getElementById('form-message');
+// Contact Form Handling - REMOVED
+// Contact form handling has been moved to individual pages with enhanced logging
+// See index.html for the enhanced contact form implementation
 
-if (contactForm) {
-    contactForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        // Get form data
-        const formData = {
-            name: document.getElementById('name').value,
-            email: document.getElementById('email').value,
-            phone: document.getElementById('phone').value || '',
-            visa_type: document.getElementById('visa-type').value,
-            message: document.getElementById('message').value,
-            submission_date: new Date().toISOString(),
-            status: 'new'
-        };
-        
-        // Validate form
-        if (!formData.name || !formData.email || !formData.visa_type || !formData.message) {
-            showMessage('Please fill in all required fields.', 'error');
-            return;
-        }
-        
-        // Email validation
-        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailPattern.test(formData.email)) {
-            showMessage('Please enter a valid email address.', 'error');
-            return;
-        }
-        
-        // Add loading state
-        contactForm.classList.add('form-loading');
-        
-        try {
-            // Save to database using RESTful Table API
-            const response = await fetch('tables/contact_submissions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(formData)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('Contact form saved to database:', result);
-                
-                // Remove loading state
-                contactForm.classList.remove('form-loading');
-                
-                // Show success message
-                showMessage('✅ Thank you! Your inquiry has been submitted. We will contact you within 24 hours.', 'success');
-                
-                // Reset form
-                contactForm.reset();
-            } else {
-                throw new Error('Failed to save contact form');
-            }
-        } catch (error) {
-            console.error('Error saving contact form:', error);
-            
-            // Remove loading state
-            contactForm.classList.remove('form-loading');
-            
-            // Still show success to user (data saved to localStorage as fallback)
-            showMessage('✅ Thank you! Your inquiry has been submitted. We will contact you within 24 hours.', 'success');
-            
-            // Fallback: Store in localStorage
-            storeFormSubmission(formData);
-            
-            // Reset form
-            contactForm.reset();
-        }
-    });
-}
-
-// Show Message Function
-function showMessage(message, type) {
-    if (!formMessage) return;
+// Show Message Function - Generic message display utility
+function showMessage(message, type, targetElementId = 'form-message') {
+    const messageElement = document.getElementById(targetElementId);
+    if (!messageElement) return;
     
-    formMessage.textContent = message;
-    formMessage.classList.remove('hidden', 'message-success', 'message-error');
+    messageElement.textContent = message;
+    messageElement.classList.remove('hidden', 'message-success', 'message-error');
     
     if (type === 'success') {
-        formMessage.classList.add('message-success');
+        messageElement.classList.add('message-success');
     } else {
-        formMessage.classList.add('message-error');
+        messageElement.classList.add('message-error');
     }
     
     // Hide message after 5 seconds
     setTimeout(function() {
-        formMessage.classList.add('hidden');
+        messageElement.classList.add('hidden');
     }, 5000);
 }
 
