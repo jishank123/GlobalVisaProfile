@@ -40,38 +40,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Mobile Menu Toggle
-document.addEventListener('DOMContentLoaded', function() {
-    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-    const mobileMenu = document.getElementById('mobile-menu');
-    
-    if (mobileMenuBtn && mobileMenu) {
-        mobileMenuBtn.addEventListener('click', function() {
-            mobileMenu.classList.toggle('hidden');
-            
-            // Toggle icon
-            const icon = mobileMenuBtn.querySelector('i');
-            if (mobileMenu.classList.contains('hidden')) {
-                icon.classList.remove('fa-times');
-                icon.classList.add('fa-bars');
-            } else {
-                icon.classList.remove('fa-bars');
-                icon.classList.add('fa-times');
-            }
-        });
-        
-        // Close mobile menu when clicking on a link
-        const mobileLinks = mobileMenu.querySelectorAll('a');
-        mobileLinks.forEach(link => {
-            link.addEventListener('click', function() {
-                mobileMenu.classList.add('hidden');
-                const icon = mobileMenuBtn.querySelector('i');
-                icon.classList.remove('fa-times');
-                icon.classList.add('fa-bars');
-            });
-        });
-    }
-});
+// Mobile Menu Toggle is handled by navigation.js - removed duplicate code
 
 // Smooth Scroll for Navigation Links
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
@@ -238,7 +207,7 @@ const statsObserver = new IntersectionObserver(function(entries) {
     entries.forEach(entry => {
         if (entry.isIntersecting && !entry.target.classList.contains('animated')) {
             entry.target.classList.add('animated');
-            const statElements = entry.target.querySelectorAll('.text-3xl');
+            const statElements = entry.target.querySelectorAll('.text-3xl, .text-4xl');
             
             statElements.forEach(el => {
                 const text = el.textContent;
@@ -253,7 +222,7 @@ const statsObserver = new IntersectionObserver(function(entries) {
 
 // Observe stats section
 document.addEventListener('DOMContentLoaded', function() {
-    const statsSection = document.querySelector('.grid.grid-cols-3.gap-4');
+    const statsSection = document.querySelector('.grid.grid-cols-3.gap-6');
     if (statsSection) {
         statsObserver.observe(statsSection);
     }
@@ -262,6 +231,16 @@ document.addEventListener('DOMContentLoaded', function() {
 // Scroll Progress Bar
 const progressBar = document.createElement('div');
 progressBar.className = 'scroll-progress';
+progressBar.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0%;
+    height: 3px;
+    background: linear-gradient(90deg, #2563eb, #3b82f6);
+    z-index: 9999;
+    transition: width 0.1s ease;
+`;
 document.body.prepend(progressBar);
 
 window.addEventListener('scroll', function() {
@@ -302,25 +281,41 @@ if ('IntersectionObserver' in window) {
     });
 }
 
-// Testimonial Carousel Animation (Optional Enhancement)
-function initTestimonialHover() {
-    const testimonials = document.querySelectorAll('.bg-white.rounded-xl.p-6.shadow-lg');
-    testimonials.forEach(card => {
-        card.classList.add('testimonial-card');
-    });
-}
+// Back to Top Button Styles
+const backToTopStyles = `
+    #back-to-top {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #2563eb, #3b82f6);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        cursor: pointer;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+    
+    #back-to-top.show {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    #back-to-top:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+    }
+`;
 
-document.addEventListener('DOMContentLoaded', initTestimonialHover);
-
-// Service Card Click Tracking (Analytics)
-const serviceCards = document.querySelectorAll('.service-card');
-serviceCards.forEach(card => {
-    card.addEventListener('click', function(e) {
-        const serviceName = this.querySelector('h3').textContent;
-        console.log('Service card clicked:', serviceName);
-        // Here you can add analytics tracking code
-    });
-});
+// Add styles to head
+const styleSheet = document.createElement('style');
+styleSheet.textContent = backToTopStyles;
+document.head.appendChild(styleSheet);
 
 // Phone Number Formatting
 const phoneInput = document.getElementById('phone');
@@ -347,11 +342,8 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         const mobileMenu = document.getElementById('mobile-menu');
         if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
-            mobileMenu.classList.add('hidden');
-            const icon = document.querySelector('#mobile-menu-btn i');
-            if (icon) {
-                icon.classList.remove('fa-times');
-                icon.classList.add('fa-bars');
+            if (window.toggleMobileMenu) {
+                window.toggleMobileMenu();
             }
         }
     }
@@ -375,20 +367,6 @@ function sharePage() {
         navigator.clipboard.writeText(window.location.href).then(() => {
             alert('Link copied to clipboard!');
         });
-    }
-}
-
-// Performance Monitoring (Optional)
-if ('PerformanceObserver' in window) {
-    try {
-        const perfObserver = new PerformanceObserver((list) => {
-            list.getEntries().forEach((entry) => {
-                console.log('Performance metric:', entry.name, entry.duration);
-            });
-        });
-        perfObserver.observe({ entryTypes: ['measure', 'navigation'] });
-    } catch (e) {
-        console.log('Performance monitoring not available');
     }
 }
 

@@ -4,41 +4,43 @@ const fs = require('fs');
 const app = express();
 const PORT = 3000;
 
-// Serve static files
-app.use('/css', express.static(path.join(__dirname, 'css')));
-app.use('/js', express.static(path.join(__dirname, 'js')));
-app.use('/pages', express.static(path.join(__dirname, 'pages')));
-app.use('/all_static_pages', express.static(path.join(__dirname, 'all_static_pages')));
+// Serve static files from public directory
+app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
+app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
+app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
+
+// Serve static files from views directory (for backward compatibility)
+app.use('/views', express.static(path.join(__dirname, 'views')));
 
 // ===== MAIN ROUTES =====
 
 // Homepage - Main entry point
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages', 'index.html'));
+    res.sendFile(path.join(__dirname, 'views', 'pages', 'index.html'));
 });
 
-// Root index.html redirect to pages/index.html
+// Root index.html redirect to main homepage
 app.get('/index.html', (req, res) => {
-    res.redirect('/pages/index.html');
+    res.redirect('/');
 });
 
 // ===== AUTHENTICATION ROUTES =====
 
 // Client Login
 app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages', 'client-login-clean.html'));
+    res.sendFile(path.join(__dirname, 'views', 'auth', 'client-login-clean.html'));
 });
 
 // Client Signup
 app.get('/signup', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages', 'client-signup-clean.html'));
+    res.sendFile(path.join(__dirname, 'views', 'auth', 'client-signup-clean.html'));
 });
 
 // ===== DASHBOARD ROUTES =====
 
 // Client Dashboard - Main client portal
 app.get('/dashboard', (req, res) => {
-    res.sendFile(path.join(__dirname, 'all_static_pages', 'backend-mern', '3-client-profile.html'));
+    res.sendFile(path.join(__dirname, 'views', 'dashboard', '3-client-profile.html'));
 });
 
 // Client Dashboard - Alternative routes
@@ -46,9 +48,9 @@ app.get('/client-dashboard', (req, res) => {
     res.redirect('/dashboard');
 });
 
-// Admin Dashboard - Admin control panel
+// Admin Dashboard - Admin control panel (after admin login)
 app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'all_static_pages', '2-admin-dashboard.html'));
+    res.sendFile(path.join(__dirname, 'views', 'dashboard', '2-admin-dashboard.html'));
 });
 
 // Admin Dashboard - Alternative routes
@@ -56,53 +58,68 @@ app.get('/admin-dashboard', (req, res) => {
     res.redirect('/admin');
 });
 
+// Manager Dashboard - Manager control panel
+app.get('/manager', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'dashboard', '1-lead-manager.html'));
+});
+
+// CRM Manager Dashboard
+app.get('/crm', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'dashboard', '4-crm-manager.html'));
+});
+
 // ===== SERVICE PAGES =====
 
 // Profile Assessment - Main service
 app.get('/assessment', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages', 'profile-assessment.html'));
+    res.sendFile(path.join(__dirname, 'views', 'pages', 'profile-assessment.html'));
 });
 
 // Schedule Appointment
 app.get('/schedule', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages', 'schedule-appointment-clean.html'));
+    res.sendFile(path.join(__dirname, 'views', 'pages', 'schedule-appointment-clean.html'));
 });
 
 // ===== INFORMATION PAGES =====
 
 // Services
 app.get('/services', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages', 'services-detailed.html'));
+    res.sendFile(path.join(__dirname, 'views', 'pages', 'services-detailed.html'));
 });
 
 // EB-1A Information
 app.get('/eb1a', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages', 'eb1a-eligibility.html'));
+    res.sendFile(path.join(__dirname, 'views', 'pages', 'eb1a-eligibility.html'));
 });
 
 // EB-2 NIW Information
 app.get('/eb2-niw', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages', 'eb2-niw.html'));
+    res.sendFile(path.join(__dirname, 'views', 'pages', 'eb2-niw.html'));
+});
+
+// O-1 Visa Information
+app.get('/o1-visa', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'pages', 'o1-visa.html'));
 });
 
 // Profile Building
 app.get('/profile-building', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages', 'profile-building.html'));
+    res.sendFile(path.join(__dirname, 'views', 'pages', 'profile-building.html'));
 });
 
 // Attorney Referrals
 app.get('/attorneys', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages', 'attorney-referrals.html'));
+    res.sendFile(path.join(__dirname, 'views', 'pages', 'attorney-referrals.html'));
 });
 
 // FAQ
 app.get('/faq', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages', 'faq.html'));
+    res.sendFile(path.join(__dirname, 'views', 'pages', 'faq.html'));
 });
 
 // Pricing
 app.get('/pricing', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages', 'pricing.html'));
+    res.sendFile(path.join(__dirname, 'views', 'pages', 'pricing.html'));
 });
 
 // ===== LEGACY REDIRECTS =====
@@ -123,7 +140,7 @@ app.get('/pages/admin-dashboard-original.html', (req, res) => {
 
 // ===== DYNAMIC PAGE ROUTING =====
 
-// Serve any HTML page from pages folder (with or without .html extension)
+// Serve any HTML page from views folder (with or without .html extension)
 app.get('/:page', (req, res) => {
     let pageName = req.params.page;
     
@@ -135,7 +152,7 @@ app.get('/:page', (req, res) => {
     // Check if it's a known route first
     const knownRoutes = [
         'login', 'signup', 'dashboard', 'client-dashboard', 'admin', 'admin-dashboard',
-        'assessment', 'schedule', 'services', 'eb1a', 'eb2-niw', 'profile-building',
+        'assessment', 'schedule', 'services', 'eb1a', 'eb2-niw', 'o1-visa', 'profile-building',
         'attorneys', 'faq', 'pricing'
     ];
     
@@ -144,13 +161,14 @@ app.get('/:page', (req, res) => {
         return res.redirect(`/${pageName}`);
     }
     
-    const filePath = path.join(__dirname, 'pages', `${pageName}.html`);
+    // Try to find the file in pages directory
+    const filePath = path.join(__dirname, 'views', 'pages', `${pageName}.html`);
     res.sendFile(filePath, (err) => {
         if (err) {
-            // Try without -clean suffix for backward compatibility
-            const fallbackPath = path.join(__dirname, 'pages', `${pageName.replace('-clean', '')}.html`);
-            res.sendFile(fallbackPath, (fallbackErr) => {
-                if (fallbackErr) {
+            // Try in auth directory
+            const authPath = path.join(__dirname, 'views', 'auth', `${pageName}.html`);
+            res.sendFile(authPath, (authErr) => {
+                if (authErr) {
                     // Generate 404 page with available routes
                     res.status(404).send(generate404Page(pageName));
                 }
@@ -198,6 +216,7 @@ function generate404Page(requestedPage) {
                                         <li><a href="/schedule" class="text-blue-600 hover:underline"><i class="fas fa-calendar mr-2"></i>Schedule Appointment</a></li>
                                         <li><a href="/eb1a" class="text-blue-600 hover:underline"><i class="fas fa-trophy mr-2"></i>EB-1A Information</a></li>
                                         <li><a href="/eb2-niw" class="text-blue-600 hover:underline"><i class="fas fa-star mr-2"></i>EB-2 NIW Information</a></li>
+                                        <li><a href="/o1-visa" class="text-blue-600 hover:underline"><i class="fas fa-medal mr-2"></i>O-1 Visa Information</a></li>
                                     </ul>
                                 </div>
                             </div>
@@ -224,4 +243,5 @@ app.listen(PORT, () => {
     console.log(`📁 Serving files from: ${__dirname}`);
     console.log(`🔗 Backend API: http://localhost:5000`);
     console.log(`📄 Pages available at: http://localhost:${PORT}/[page-name]`);
+    console.log(`📂 New folder structure implemented!`);
 });
