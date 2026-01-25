@@ -267,24 +267,35 @@
                         if (response && response.success) {
                             console.log('✅ Login successful!');
                             
-                            // Check if this is an admin login
-                            if (response.isAdmin) {
-                                console.log('🔑 Admin login detected, redirecting to admin dashboard...');
-                                formHandler.showSuccess('login-message', 'Admin login successful! Redirecting to admin dashboard...');
-                                
-                                setTimeout(() => {
-                                    console.log('🔄 Redirecting to admin dashboard...');
-                                    window.location.href = '/admin';
-                                }, 1500);
-                            } else {
-                                console.log('👤 Regular client login, redirecting to client dashboard...');
-                                formHandler.showSuccess('login-message', 'Login successful! Redirecting to your dashboard...');
-                                
-                                setTimeout(() => {
-                                    console.log('🔄 Redirecting to client dashboard...');
-                                    window.location.href = '/dashboard';
-                                }, 1500);
+                            // Get the redirect URL from backend response
+                            const redirectUrl = response.data?.redirectTo || '/client-profile';
+                            const userRole = response.data?.client?.role || 'client';
+                            
+                            console.log(`🔑 ${userRole} login detected, redirecting to: ${redirectUrl}`);
+                            
+                            // Show appropriate success message based on role
+                            let successMessage = 'Login successful! Redirecting to your dashboard...';
+                            switch (userRole) {
+                                case 'admin':
+                                    successMessage = 'Admin login successful! Redirecting to admin dashboard...';
+                                    break;
+                                case 'lead_manager':
+                                    successMessage = 'Lead Manager login successful! Redirecting to your dashboard...';
+                                    break;
+                                case 'crm_manager':
+                                    successMessage = 'CRM Manager login successful! Redirecting to your dashboard...';
+                                    break;
+                                case 'client':
+                                    successMessage = 'Client login successful! Redirecting to your profile...';
+                                    break;
                             }
+                            
+                            formHandler.showSuccess('login-message', successMessage);
+                            
+                            setTimeout(() => {
+                                console.log(`🔄 Redirecting to: ${redirectUrl}`);
+                                window.location.href = redirectUrl;
+                            }, 1500);
                             
                         } else {
                             console.log('❌ Login failed');
