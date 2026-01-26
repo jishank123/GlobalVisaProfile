@@ -633,14 +633,14 @@
         </div>
         <ul class="sidebar-menu">
             <li><a href="#" class="active"><i class="fas fa-th-large"></i> Dashboard</a></li>
-            <li><a href="#"><i class="fas fa-users"></i> My Clients (23)</a></li>
-            <li><a href="#"><i class="fas fa-briefcase"></i> Active Projects (45)</a></li>
-            <li><a href="#"><i class="fas fa-question-circle"></i> Queries (7)</a></li>
-            <li><a href="#"><i class="fas fa-calendar-alt"></i> Meetings</a></li>
-            <li><a href="#"><i class="fas fa-comments"></i> Messages</a></li>
-            <li><a href="#"><i class="fas fa-file-invoice-dollar"></i> Payments</a></li>
-            <li><a href="#"><i class="fas fa-chart-line"></i> Analytics</a></li>
-            <li><a href="#"><i class="fas fa-cog"></i> Settings</a></li>
+            <li><a href="#"><i class="fas fa-users"></i> My Clients (0)</a></li>
+            <li><a href="#"><i class="fas fa-briefcase"></i> Active Projects (0)</a></li>
+            <li><a href="#"><i class="fas fa-question-circle"></i> Queries (0)</a></li>
+            <!-- <li><a href="#"><i class="fas fa-calendar-alt"></i> Meetings</a></li> -->
+            <!-- <li><a href="#"><i class="fas fa-comments"></i> Messages</a></li> -->
+            <!-- <li><a href="#"><i class="fas fa-file-invoice-dollar"></i> Payments</a></li> -->
+            <!-- <li><a href="#"><i class="fas fa-chart-line"></i> Analytics</a></li> -->
+            <!-- <li><a href="#"><i class="fas fa-cog"></i> Settings</a></li> -->
             <li><a href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
         </ul>
     </div>
@@ -666,40 +666,48 @@
                 <div class="stat-icon" style="background: #dbeafe; color: #1e40af;">
                     <i class="fas fa-users"></i>
                 </div>
-                <div class="stat-value" style="color: #1e40af;">23</div>
+                <div class="stat-value" style="color: #1e40af;">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
                 <div class="stat-label">Assigned Clients</div>
                 <div class="stat-change positive">
-                    <i class="fas fa-arrow-up"></i> +3 this month
+                    <i class="fas fa-arrow-up"></i> Loading...
                 </div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon" style="background: #fef3c7; color: #92400e;">
                     <i class="fas fa-briefcase"></i>
                 </div>
-                <div class="stat-value" style="color: #92400e;">45</div>
+                <div class="stat-value" style="color: #92400e;">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
                 <div class="stat-label">Active Projects</div>
                 <div class="stat-change positive">
-                    <i class="fas fa-arrow-up"></i> +7 this week
+                    <i class="fas fa-arrow-up"></i> Loading...
                 </div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon" style="background: #d1fae5; color: #065f46;">
                     <i class="fas fa-dollar-sign"></i>
                 </div>
-                <div class="stat-value" style="color: #065f46;">$345K</div>
+                <div class="stat-value" style="color: #065f46;">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
                 <div class="stat-label">Portfolio Value</div>
                 <div class="stat-change positive">
-                    <i class="fas fa-arrow-up"></i> +$45K this quarter
+                    <i class="fas fa-arrow-up"></i> Loading...
                 </div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon" style="background: #fee2e2; color: #991b1b;">
                     <i class="fas fa-question-circle"></i>
                 </div>
-                <div class="stat-value" style="color: #991b1b;">7</div>
+                <div class="stat-value" style="color: #991b1b;">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
                 <div class="stat-label">Pending Queries</div>
                 <div class="stat-change positive">
-                    <i class="fas fa-arrow-down"></i> -2 today
+                    <i class="fas fa-arrow-down"></i> Loading...
                 </div>
             </div>
         </div>
@@ -709,12 +717,17 @@
             <div class="section-header">
                 <div class="section-title">
                     <i class="fas fa-briefcase"></i> Active Projects
+                    <span id="projects-count" class="badge bg-primary ms-2">Loading...</span>
                 </div>
-                <button class="btn-action btn-view">
+                <button class="btn-action btn-view" onclick="viewAllProjects()">
                     <i class="fas fa-eye"></i> View All
                 </button>
             </div>
-            <div class="table-responsive">
+            <div id="projects-loading" class="text-center py-4">
+                <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+                <p class="mt-2">Loading active projects...</p>
+            </div>
+            <div class="table-responsive" id="projects-table" style="display: none;">
                 <table class="table table-custom">
                     <thead>
                         <tr>
@@ -728,144 +741,15 @@
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>#PRJ-2145</strong></td>
-                            <td>
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <div style="width: 35px; height: 35px; border-radius: 50%; background: #667eea; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">SM</div>
-                                    <div>
-                                        <div style="font-weight: 600;">Dr. Sarah Mitchell</div>
-                                        <div style="font-size: 12px; color: #718096;">Stanford University</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>Research Paper</td>
-                            <td><span class="status-badge status-active">Active</span></td>
-                            <td>
-                                <div>75%</div>
-                                <div class="progress-custom">
-                                    <div class="progress-bar-custom" style="width: 75%;"></div>
-                                </div>
-                            </td>
-                            <td>Feb 15, 2025</td>
-                            <td><span class="priority-badge priority-high">HIGH</span></td>
-                            <td>
-                                <button class="btn-action btn-view">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>#PRJ-2098</strong></td>
-                            <td>
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <div style="width: 35px; height: 35px; border-radius: 50%; background: #10b981; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">JC</div>
-                                    <div>
-                                        <div style="font-weight: 600;">Prof. James Chen</div>
-                                        <div style="font-size: 12px; color: #718096;">MIT</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>Grant Writing</td>
-                            <td><span class="status-badge status-active">Active</span></td>
-                            <td>
-                                <div>45%</div>
-                                <div class="progress-custom">
-                                    <div class="progress-bar-custom" style="width: 45%;"></div>
-                                </div>
-                            </td>
-                            <td>Mar 1, 2025</td>
-                            <td><span class="priority-badge priority-high">HIGH</span></td>
-                            <td>
-                                <button class="btn-action btn-view">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>#PRJ-1987</strong></td>
-                            <td>
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <div style="width: 35px; height: 35px; border-radius: 50%; background: #f59e0b; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">PP</div>
-                                    <div>
-                                        <div style="font-weight: 600;">Dr. Priya Patel</div>
-                                        <div style="font-size: 12px; color: #718096;">Oxford University</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>Conference Paper</td>
-                            <td><span class="status-badge status-active">Active</span></td>
-                            <td>
-                                <div>90%</div>
-                                <div class="progress-custom">
-                                    <div class="progress-bar-custom" style="width: 90%;"></div>
-                                </div>
-                            </td>
-                            <td>Jan 28, 2025</td>
-                            <td><span class="priority-badge priority-medium">MEDIUM</span></td>
-                            <td>
-                                <button class="btn-action btn-view">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>#PRJ-1856</strong></td>
-                            <td>
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <div style="width: 35px; height: 35px; border-radius: 50%; background: #ef4444; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">MJ</div>
-                                    <div>
-                                        <div style="font-weight: 600;">Michael Johnson</div>
-                                        <div style="font-size: 12px; color: #718096;">Harvard Business School</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>Thesis Help</td>
-                            <td><span class="status-badge status-active">Active</span></td>
-                            <td>
-                                <div>60%</div>
-                                <div class="progress-custom">
-                                    <div class="progress-bar-custom" style="width: 60%;"></div>
-                                </div>
-                            </td>
-                            <td>Feb 28, 2025</td>
-                            <td><span class="priority-badge priority-high">HIGH</span></td>
-                            <td>
-                                <button class="btn-action btn-view">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>#PRJ-1745</strong></td>
-                            <td>
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <div style="width: 35px; height: 35px; border-radius: 50%; background: #8b5cf6; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">EW</div>
-                                    <div>
-                                        <div style="font-weight: 600;">Dr. Emma Williams</div>
-                                        <div style="font-size: 12px; color: #718096;">Cambridge University</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>Literature Review</td>
-                            <td><span class="status-badge status-pending">Pending</span></td>
-                            <td>
-                                <div>20%</div>
-                                <div class="progress-custom">
-                                    <div class="progress-bar-custom" style="width: 20%;"></div>
-                                </div>
-                            </td>
-                            <td>Feb 10, 2025</td>
-                            <td><span class="priority-badge priority-low">LOW</span></td>
-                            <td>
-                                <button class="btn-action btn-view">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </td>
-                        </tr>
+                    <tbody id="projects-tbody">
+                        <!-- Dynamic content will be loaded here -->
                     </tbody>
                 </table>
+            </div>
+            <div id="projects-empty" class="text-center py-5" style="display: none;">
+                <i class="fas fa-briefcase fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Active Projects</h5>
+                <p class="text-muted">You don't have any active projects assigned yet.</p>
             </div>
         </div>
 
@@ -873,74 +757,27 @@
         <div class="content-section">
             <div class="section-header">
                 <div class="section-title">
-                    <i class="fas fa-question-circle"></i> Pending Client Queries (7)
+                    <i class="fas fa-question-circle"></i> Pending Client Queries
+                    <span id="queries-count" class="badge bg-warning ms-2">Loading...</span>
                 </div>
-                <button class="btn-action btn-view">
+                <button class="btn-action btn-view" onclick="viewAllQueries()">
                     <i class="fas fa-eye"></i> View All
                 </button>
             </div>
 
-            <div class="query-item">
-                <div class="query-header">
-                    <div>
-                        <div class="query-title">Dr. Sarah Mitchell - Project Timeline Question</div>
-                        <span class="priority-badge priority-high">URGENT</span>
-                    </div>
-                    <div class="query-time">2 hours ago</div>
-                </div>
-                <div class="query-text">
-                    "Hi Emily, can we schedule a call to discuss the publication timeline? I have a conference deadline coming up and need to expedite the review process."
-                </div>
-                <div class="query-actions">
-                    <button class="btn-action btn-message">
-                        <i class="fas fa-reply"></i> Reply
-                    </button>
-                    <button class="btn-action btn-view">
-                        <i class="fas fa-calendar"></i> Schedule Meeting
-                    </button>
-                </div>
+            <div id="queries-loading" class="text-center py-4">
+                <i class="fas fa-spinner fa-spin fa-2x text-warning"></i>
+                <p class="mt-2">Loading client queries...</p>
             </div>
 
-            <div class="query-item">
-                <div class="query-header">
-                    <div>
-                        <div class="query-title">Prof. James Chen - Payment Status</div>
-                        <span class="priority-badge priority-medium">NORMAL</span>
-                    </div>
-                    <div class="query-time">5 hours ago</div>
-                </div>
-                <div class="query-text">
-                    "I made the payment yesterday but haven't received confirmation. Can you check the status?"
-                </div>
-                <div class="query-actions">
-                    <button class="btn-action btn-message">
-                        <i class="fas fa-reply"></i> Reply
-                    </button>
-                    <button class="btn-action btn-view">
-                        <i class="fas fa-search"></i> Check Payment
-                    </button>
-                </div>
+            <div id="queries-container" style="display: none;">
+                <!-- Dynamic queries will be loaded here -->
             </div>
 
-            <div class="query-item">
-                <div class="query-header">
-                    <div>
-                        <div class="query-title">Dr. Priya Patel - Document Upload Issue</div>
-                        <span class="priority-badge priority-low">LOW</span>
-                    </div>
-                    <div class="query-time">1 day ago</div>
-                </div>
-                <div class="query-text">
-                    "I'm trying to upload additional research data but getting an error. File size is about 50MB. Is there a limit?"
-                </div>
-                <div class="query-actions">
-                    <button class="btn-action btn-message">
-                        <i class="fas fa-reply"></i> Reply
-                    </button>
-                    <button class="btn-action btn-edit">
-                        <i class="fas fa-tools"></i> Technical Support
-                    </button>
-                </div>
+            <div id="queries-empty" class="text-center py-5" style="display: none;">
+                <i class="fas fa-question-circle fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Pending Queries</h5>
+                <p class="text-muted">All client queries have been resolved. Great work!</p>
             </div>
         </div>
 
@@ -948,181 +785,27 @@
         <div class="content-section">
             <div class="section-header">
                 <div class="section-title">
-                    <i class="fas fa-users"></i> My Clients (23)
+                    <i class="fas fa-users"></i> My Clients
+                    <span id="clients-count" class="badge bg-success ms-2">Loading...</span>
                 </div>
-                <button class="btn-action btn-view">
+                <button class="btn-action btn-view" onclick="viewAllClients()">
                     <i class="fas fa-eye"></i> View All
                 </button>
             </div>
 
-            <div class="client-cards">
-                <div class="client-card">
-                    <div class="client-header">
-                        <div class="client-avatar">SM</div>
-                        <div class="client-info">
-                            <h4>Dr. Sarah Mitchell</h4>
-                            <p>Stanford University</p>
-                        </div>
-                    </div>
-                    <div class="client-stats">
-                        <div class="client-stat">
-                            <div class="client-stat-value">12</div>
-                            <div class="client-stat-label">Projects</div>
-                        </div>
-                        <div class="client-stat">
-                            <div class="client-stat-value">$48.5K</div>
-                            <div class="client-stat-label">Total Spent</div>
-                        </div>
-                    </div>
-                    <div style="margin-top: 15px; display: flex; gap: 10px;">
-                        <button class="btn-action btn-view" style="flex: 1;">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="btn-action btn-message" style="flex: 1;">
-                            <i class="fas fa-comments"></i> Message
-                        </button>
-                    </div>
-                </div>
+            <div id="clients-loading" class="text-center py-4">
+                <i class="fas fa-spinner fa-spin fa-2x text-success"></i>
+                <p class="mt-2">Loading assigned clients...</p>
+            </div>
 
-                <div class="client-card">
-                    <div class="client-header">
-                        <div class="client-avatar">JC</div>
-                        <div class="client-info">
-                            <h4>Prof. James Chen</h4>
-                            <p>MIT</p>
-                        </div>
-                    </div>
-                    <div class="client-stats">
-                        <div class="client-stat">
-                            <div class="client-stat-value">8</div>
-                            <div class="client-stat-label">Projects</div>
-                        </div>
-                        <div class="client-stat">
-                            <div class="client-stat-value">$32.8K</div>
-                            <div class="client-stat-label">Total Spent</div>
-                        </div>
-                    </div>
-                    <div style="margin-top: 15px; display: flex; gap: 10px;">
-                        <button class="btn-action btn-view" style="flex: 1;">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="btn-action btn-message" style="flex: 1;">
-                            <i class="fas fa-comments"></i> Message
-                        </button>
-                    </div>
-                </div>
+            <div id="clients-container" class="client-cards" style="display: none;">
+                <!-- Dynamic client cards will be loaded here -->
+            </div>
 
-                <div class="client-card">
-                    <div class="client-header">
-                        <div class="client-avatar">PP</div>
-                        <div class="client-info">
-                            <h4>Dr. Priya Patel</h4>
-                            <p>Oxford University</p>
-                        </div>
-                    </div>
-                    <div class="client-stats">
-                        <div class="client-stat">
-                            <div class="client-stat-value">6</div>
-                            <div class="client-stat-label">Projects</div>
-                        </div>
-                        <div class="client-stat">
-                            <div class="client-stat-value">$27.4K</div>
-                            <div class="client-stat-label">Total Spent</div>
-                        </div>
-                    </div>
-                    <div style="margin-top: 15px; display: flex; gap: 10px;">
-                        <button class="btn-action btn-view" style="flex: 1;">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="btn-action btn-message" style="flex: 1;">
-                            <i class="fas fa-comments"></i> Message
-                        </button>
-                    </div>
-                </div>
-
-                <div class="client-card">
-                    <div class="client-header">
-                        <div class="client-avatar">MJ</div>
-                        <div class="client-info">
-                            <h4>Michael Johnson</h4>
-                            <p>Harvard Business School</p>
-                        </div>
-                    </div>
-                    <div class="client-stats">
-                        <div class="client-stat">
-                            <div class="client-stat-value">5</div>
-                            <div class="client-stat-label">Projects</div>
-                        </div>
-                        <div class="client-stat">
-                            <div class="client-stat-value">$21.9K</div>
-                            <div class="client-stat-label">Total Spent</div>
-                        </div>
-                    </div>
-                    <div style="margin-top: 15px; display: flex; gap: 10px;">
-                        <button class="btn-action btn-view" style="flex: 1;">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="btn-action btn-message" style="flex: 1;">
-                            <i class="fas fa-comments"></i> Message
-                        </button>
-                    </div>
-                </div>
-
-                <div class="client-card">
-                    <div class="client-header">
-                        <div class="client-avatar">EW</div>
-                        <div class="client-info">
-                            <h4>Dr. Emma Williams</h4>
-                            <p>Cambridge University</p>
-                        </div>
-                    </div>
-                    <div class="client-stats">
-                        <div class="client-stat">
-                            <div class="client-stat-value">4</div>
-                            <div class="client-stat-label">Projects</div>
-                        </div>
-                        <div class="client-stat">
-                            <div class="client-stat-value">$18.6K</div>
-                            <div class="client-stat-label">Total Spent</div>
-                        </div>
-                    </div>
-                    <div style="margin-top: 15px; display: flex; gap: 10px;">
-                        <button class="btn-action btn-view" style="flex: 1;">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="btn-action btn-message" style="flex: 1;">
-                            <i class="fas fa-comments"></i> Message
-                        </button>
-                    </div>
-                </div>
-
-                <div class="client-card">
-                    <div class="client-header">
-                        <div class="client-avatar">RL</div>
-                        <div class="client-info">
-                            <h4>Prof. Robert Lee</h4>
-                            <p>Yale University</p>
-                        </div>
-                    </div>
-                    <div class="client-stats">
-                        <div class="client-stat">
-                            <div class="client-stat-value">9</div>
-                            <div class="client-stat-label">Projects</div>
-                        </div>
-                        <div class="client-stat">
-                            <div class="client-stat-value">$39.2K</div>
-                            <div class="client-stat-label">Total Spent</div>
-                        </div>
-                    </div>
-                    <div style="margin-top: 15px; display: flex; gap: 10px;">
-                        <button class="btn-action btn-view" style="flex: 1;">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="btn-action btn-message" style="flex: 1;">
-                            <i class="fas fa-comments"></i> Message
-                        </button>
-                    </div>
-                </div>
+            <div id="clients-empty" class="text-center py-5" style="display: none;">
+                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Clients Assigned</h5>
+                <p class="text-muted">You don't have any clients assigned yet. Contact your admin to get started.</p>
             </div>
         </div>
     </div>
@@ -1436,21 +1119,90 @@
             try {
                 console.log('👥 Loading assigned clients...');
                 
+                // Show loading state
+                document.getElementById('clients-loading').style.display = 'block';
+                document.getElementById('clients-container').style.display = 'none';
+                document.getElementById('clients-empty').style.display = 'none';
+                
                 const response = await apiCall('/clients/my-clients');
                 
-                if (response.success && response.data) {
+                if (response.success && response.data && response.data.length > 0) {
                     clientsData = response.data;
-                    updateClientsDisplay();
+                    renderClientsSection();
                     updateClientStats();
                     console.log('✅ Clients loaded:', clientsData.length);
                 } else {
-                    throw new Error('No clients found');
+                    // Show empty state
+                    document.getElementById('clients-loading').style.display = 'none';
+                    document.getElementById('clients-empty').style.display = 'block';
+                    clientsData = [];
+                    updateClientStats();
                 }
             } catch (error) {
                 console.error('❌ Clients load error:', error);
+                // Show empty state on error
+                document.getElementById('clients-loading').style.display = 'none';
+                document.getElementById('clients-empty').style.display = 'block';
                 clientsData = [];
                 updateClientStats();
             }
+        }
+
+        // Render clients section
+        function renderClientsSection() {
+            const container = document.getElementById('clients-container');
+            const loading = document.getElementById('clients-loading');
+            
+            if (!container) return;
+            
+            // Hide loading, show container
+            loading.style.display = 'none';
+            container.style.display = 'grid';
+            
+            // Update count badge
+            document.getElementById('clients-count').textContent = clientsData.length;
+            
+            container.innerHTML = clientsData.slice(0, 8).map(client => {
+                const initials = getClientInitials(client.name);
+                const totalProjects = projectsData.filter(p => 
+                    p.client?._id === client._id || p.client === client._id
+                ).length;
+                
+                const totalSpent = paymentsData
+                    .filter(p => p.client?._id === client._id || p.client === client._id)
+                    .filter(p => p.status === 'completed' || p.status === 'paid')
+                    .reduce((sum, p) => sum + (p.amount || 0), 0);
+                
+                return `
+                    <div class="client-card">
+                        <div class="client-header">
+                            <div class="client-avatar" style="background: ${getRandomColor()};">${initials}</div>
+                            <div class="client-info">
+                                <h4>${client.name || 'Unknown Client'}</h4>
+                                <p>${client.university || client.email || 'No university'}</p>
+                            </div>
+                        </div>
+                        <div class="client-stats">
+                            <div class="client-stat">
+                                <div class="client-stat-value">${totalProjects}</div>
+                                <div class="client-stat-label">Projects</div>
+                            </div>
+                            <div class="client-stat">
+                                <div class="client-stat-value">$${formatCurrency(totalSpent)}</div>
+                                <div class="client-stat-label">Total Spent</div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 15px; display: flex; gap: 10px;">
+                            <button class="btn-action btn-view" onclick="viewClient('${client._id}')" style="flex: 1;">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <button class="btn-action btn-message" onclick="messageClient('${client._id}')" style="flex: 1;">
+                                <i class="fas fa-envelope"></i> Message
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         // Load projects for assigned clients
@@ -1458,21 +1210,95 @@
             try {
                 console.log('📊 Loading projects for assigned clients...');
                 
+                // Show loading state
+                document.getElementById('projects-loading').style.display = 'block';
+                document.getElementById('projects-table').style.display = 'none';
+                document.getElementById('projects-empty').style.display = 'none';
+                
                 const response = await apiCall('/projects');
                 
-                if (response.success && response.data) {
+                if (response.success && response.data && response.data.length > 0) {
                     projectsData = response.data;
-                    updateProjectsDisplay();
+                    renderProjectsTable();
                     updateProjectStats();
                     console.log('✅ Projects loaded:', projectsData.length);
                 } else {
-                    throw new Error('No projects found');
+                    // Show empty state
+                    document.getElementById('projects-loading').style.display = 'none';
+                    document.getElementById('projects-empty').style.display = 'block';
+                    projectsData = [];
+                    updateProjectStats();
                 }
             } catch (error) {
                 console.error('❌ Projects load error:', error);
+                // Show empty state on error
+                document.getElementById('projects-loading').style.display = 'none';
+                document.getElementById('projects-empty').style.display = 'block';
                 projectsData = [];
                 updateProjectStats();
             }
+        }
+
+        // Render projects table
+        function renderProjectsTable() {
+            const tbody = document.getElementById('projects-tbody');
+            const projectsTable = document.getElementById('projects-table');
+            const projectsLoading = document.getElementById('projects-loading');
+            
+            if (!tbody) return;
+            
+            // Hide loading, show table
+            projectsLoading.style.display = 'none';
+            projectsTable.style.display = 'block';
+            
+            // Update count badge
+            document.getElementById('projects-count').textContent = projectsData.length;
+            
+            tbody.innerHTML = projectsData.slice(0, 10).map(project => {
+                const client = clientsData.find(c => c._id === project.client?._id || c._id === project.client) || 
+                              { name: 'Unknown Client', university: 'Not specified' };
+                
+                const clientInitials = getClientInitials(client.name);
+                const dueDate = formatDate(project.due_date || project.deadline);
+                const progress = project.progress || 0;
+                const projectId = project.project_id || project._id?.slice(-6) || 'PRJ-001';
+                
+                return `
+                    <tr>
+                        <td><strong>#${projectId}</strong></td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 35px; height: 35px; border-radius: 50%; background: ${getRandomColor()}; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">${clientInitials}</div>
+                                <div>
+                                    <div style="font-weight: 600;">${client.name}</div>
+                                    <div style="font-size: 12px; color: #718096;">${client.university}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>${project.service_name || project.title || 'Unknown Service'}</td>
+                        <td><span class="status-badge status-${getStatusClass(project.status)}">${formatStatus(project.status || 'active')}</span></td>
+                        <td>
+                            <div>${progress}%</div>
+                            <div class="progress-custom">
+                                <div class="progress-bar-custom" style="width: ${progress}%;"></div>
+                            </div>
+                        </td>
+                        <td>${dueDate}</td>
+                        <td><span class="priority-badge priority-${project.priority || 'medium'}">${(project.priority || 'medium').toUpperCase()}</span></td>
+                        <td>
+                            <button class="btn-action btn-view" onclick="viewProject('${project._id}')" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn-action btn-edit" onclick="updateProgress('${project._id}')" title="Update Progress">
+                                <i class="fas fa-chart-line"></i>
+                            </button>
+                            <button class="btn-action btn-message" onclick="contactClient('${project.client?._id || project.client}')" title="Contact Client">
+                                <i class="fas fa-envelope"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         // Load client queries
@@ -1480,21 +1306,84 @@
             try {
                 console.log('❓ Loading client queries...');
                 
-                const response = await apiCall('/queries');
+                // Show loading state
+                document.getElementById('queries-loading').style.display = 'block';
+                document.getElementById('queries-container').style.display = 'none';
+                document.getElementById('queries-empty').style.display = 'none';
                 
-                if (response.success && response.data) {
+                const response = await apiCall('/queries?status=open,pending,new');
+                
+                if (response.success && response.data && response.data.length > 0) {
                     queriesData = response.data;
-                    updateQueriesDisplay();
+                    renderQueriesSection();
                     updateQueryStats();
                     console.log('✅ Queries loaded:', queriesData.length);
                 } else {
-                    throw new Error('No queries found');
+                    // Show empty state
+                    document.getElementById('queries-loading').style.display = 'none';
+                    document.getElementById('queries-empty').style.display = 'block';
+                    queriesData = [];
+                    updateQueryStats();
                 }
             } catch (error) {
                 console.error('❌ Queries load error:', error);
+                // Show empty state on error
+                document.getElementById('queries-loading').style.display = 'none';
+                document.getElementById('queries-empty').style.display = 'block';
                 queriesData = [];
                 updateQueryStats();
             }
+        }
+
+        // Render queries section
+        function renderQueriesSection() {
+            const container = document.getElementById('queries-container');
+            const loading = document.getElementById('queries-loading');
+            
+            if (!container) return;
+            
+            // Hide loading, show container
+            loading.style.display = 'none';
+            container.style.display = 'block';
+            
+            // Update count badge
+            document.getElementById('queries-count').textContent = queriesData.length;
+            
+            container.innerHTML = queriesData.slice(0, 5).map(query => {
+                const client = clientsData.find(c => c._id === query.client?._id || c._id === query.client) || 
+                              { name: 'Unknown Client' };
+                
+                const timeAgo = getTimeAgo(query.created_at || query.createdAt);
+                const priority = query.priority || 'medium';
+                
+                return `
+                    <div class="query-item">
+                        <div class="query-header">
+                            <div>
+                                <div class="query-title">${client.name} - ${query.subject || 'General Query'}</div>
+                                <span class="priority-badge priority-${priority}">${priority.toUpperCase()}</span>
+                            </div>
+                            <div class="query-time">${timeAgo}</div>
+                        </div>
+                        <div class="query-text">
+                            ${truncateText(query.message || query.description || 'No message content', 150)}
+                        </div>
+                        <div class="query-actions">
+                            <button class="btn-action btn-message" onclick="replyToQuery('${query._id}')">
+                                <i class="fas fa-reply"></i> Reply
+                            </button>
+                            <button class="btn-action btn-view" onclick="viewQuery('${query._id}')">
+                                <i class="fas fa-eye"></i> View Details
+                            </button>
+                            ${query.priority === 'urgent' ? `
+                                <button class="btn-action btn-edit" onclick="markUrgent('${query._id}')">
+                                    <i class="fas fa-exclamation-triangle"></i> Urgent
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         // Load payments for assigned clients
@@ -1765,6 +1654,86 @@
 
         function contactClient(clientId) {
             messageClient(clientId);
+        }
+
+        // Utility functions
+        function getClientInitials(name) {
+            if (!name) return 'CL';
+            const parts = name.split(' ');
+            if (parts.length >= 2) {
+                return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
+            }
+            return name.substring(0, 2).toUpperCase();
+        }
+
+        function getRandomColor() {
+            const colors = ['#667eea', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'No due date';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+            });
+        }
+
+        function formatCurrency(amount) {
+            if (amount >= 1000) {
+                return `${(amount / 1000).toFixed(1)}K`;
+            }
+            return amount.toFixed(0);
+        }
+
+        function getStatusClass(status) {
+            const statusMap = {
+                'active': 'active',
+                'in_progress': 'active',
+                'planning': 'pending',
+                'completed': 'completed',
+                'pending': 'pending',
+                'on_hold': 'on-hold',
+                'cancelled': 'overdue'
+            };
+            return statusMap[status] || 'active';
+        }
+
+        function truncateText(text, maxLength) {
+            if (!text) return '';
+            if (text.length <= maxLength) return text;
+            return text.substring(0, maxLength) + '...';
+        }
+
+        function getTimeAgo(dateString) {
+            if (!dateString) return 'Unknown time';
+            
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
+            
+            if (diffInHours < 1) return 'Just now';
+            if (diffInHours < 24) return `${diffInHours} hours ago`;
+            
+            const diffInDays = Math.floor(diffInHours / 24);
+            if (diffInDays < 7) return `${diffInDays} days ago`;
+            
+            return date.toLocaleDateString();
+        }
+
+        // View All functions
+        function viewAllProjects() {
+            alert(`Viewing all ${projectsData.length} projects. This would typically open a detailed projects page.`);
+        }
+
+        function viewAllQueries() {
+            alert(`Viewing all ${queriesData.length} queries. This would typically open a detailed queries page.`);
+        }
+
+        function viewAllClients() {
+            alert(`Viewing all ${clientsData.length} clients. This would typically open a detailed clients page.`);
         }
 
         function viewProject(projectId) {
