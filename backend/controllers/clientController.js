@@ -31,7 +31,7 @@ exports.getClients = async (req, res) => {
     // Role-based access control
     if (req.user.role === 'crm_manager') {
       // CRM managers can only see their assigned clients
-      query.assignedManager = req.user.user_id;
+      query.crm_manager = req.user.user_id;
     }
     
     // Apply filters
@@ -47,7 +47,7 @@ exports.getClients = async (req, res) => {
     if (status) query.status = status;
     if (country) query.country = country;
     if (manager && req.user.role !== 'crm_manager') {
-      query.assignedManager = manager;
+      query.crm_manager = manager;
     }
     
     const clients = await Client.find(query)
@@ -117,7 +117,7 @@ exports.getClient = async (req, res) => {
     }
     
     if (req.user.role === 'crm_manager' && 
-        (!client.assignedManager || client.assignedManager._id.toString() !== req.user.user_id)) {
+        (!client.crm_manager || client.crm_manager._id.toString() !== req.user.user_id)) {
       return res.status(403).json({
         success: false,
         error: {
@@ -418,7 +418,7 @@ exports.getClientStats = async (req, res) => {
     
     // Filter by assigned manager for CRM managers
     if (req.user.role === 'crm_manager') {
-      query.assignedManager = req.user.user_id;
+      query.crm_manager = req.user.user_id;
     }
     
     const total = await Client.countDocuments(query);

@@ -985,6 +985,463 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
+        // Global variables
+        let crmManagerData = null;
+        let clientsData = [];
+        let projectsData = [];
+        let queriesData = [];
+        let paymentsData = [];
+        let analyticsData = {};
+
+        // API Base URL
+        const API_BASE = 'http://localhost:5000/api';
+
+        // Authentication token
+        let authToken = localStorage.getItem('token');
+
+        console.log('🎯 CRM Manager Dashboard Loading...');
+        console.log('🔑 Auth Token:', authToken ? 'Present' : 'Missing');
+
+        // API Helper function
+        async function apiCall(endpoint, options = {}) {
+            const url = `${API_BASE}${endpoint}`;
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                ...options
+            };
+            
+            try {
+                console.log('🌐 API Call:', url, config.method || 'GET');
+                const response = await fetch(url, config);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    console.error('❌ API Error:', response.status, data);
+                    throw new Error(data.error?.message || data.message || `HTTP ${response.status}`);
+                }
+                
+                console.log('✅ API Success:', data);
+                return data;
+            } catch (error) {
+                console.error('❌ API Error:', error);
+                throw error;
+            }
+        }
+
+        // Load CRM Manager profile
+        async function loadCRMManagerProfile() {
+            try {
+                console.log('👤 Loading CRM Manager profile...');
+                
+                const response = await apiCall('/users/profile');
+                
+                if (response.success) {
+                    crmManagerData = response.data;
+                    updateProfileDisplay();
+                    console.log('✅ CRM Manager profile loaded:', crmManagerData);
+                }
+            } catch (error) {
+                console.error('❌ Profile load error:', error);
+                // Use fallback data
+                crmManagerData = {
+                    first_name: 'CRM',
+                    last_name: 'Manager',
+                    email: 'crm@manager.com',
+                    role: 'crm_manager'
+                };
+                updateProfileDisplay();
+            }
+        }
+
+        // Update profile display
+        function updateProfileDisplay() {
+            if (!crmManagerData) return;
+            
+            const name = `${crmManagerData.first_name || 'CRM'} ${crmManagerData.last_name || 'Manager'}`;
+            document.querySelector('.sidebar-header h3').textContent = 'CRM Manager';
+            document.querySelector('.sidebar-header .user-info').innerHTML = `<i class="fas fa-user-circle"></i> ${name}`;
+            document.querySelector('.header-left h1').textContent = 'CRM Manager Dashboard';
+            document.querySelector('.header-left p').textContent = `Welcome back, ${crmManagerData.first_name || 'CRM'}! Here's your portfolio overview.`;
+        }
+
+        // Load assigned clients
+        async function loadMyClients() {
+            try {
+                console.log('👥 Loading assigned clients...');
+                
+                const response = await apiCall('/clients/my-clients');
+                
+                if (response.success && response.data) {
+                    clientsData = response.data;
+                    updateClientsDisplay();
+                    updateClientStats();
+                    console.log('✅ Clients loaded:', clientsData.length);
+                } else {
+                    throw new Error('No clients found');
+                }
+            } catch (error) {
+                console.error('❌ Clients load error:', error);
+                clientsData = [];
+                updateClientStats();
+            }
+        }
+
+        // Load projects for assigned clients
+        async function loadMyProjects() {
+            try {
+                console.log('📊 Loading projects for assigned clients...');
+                
+                const response = await apiCall('/projects');
+                
+                if (response.success && response.data) {
+                    projectsData = response.data;
+                    updateProjectsDisplay();
+                    updateProjectStats();
+                    console.log('✅ Projects loaded:', projectsData.length);
+                } else {
+                    throw new Error('No projects found');
+                }
+            } catch (error) {
+                console.error('❌ Projects load error:', error);
+                projectsData = [];
+                updateProjectStats();
+            }
+        }
+
+        // Load client queries
+        async function loadClientQueries() {
+            try {
+                console.log('❓ Loading client queries...');
+                
+                const response = await apiCall('/queries');
+                
+                if (response.success && response.data) {
+                    queriesData = response.data;
+                    updateQueriesDisplay();
+                    updateQueryStats();
+                    console.log('✅ Queries loaded:', queriesData.length);
+                } else {
+                    throw new Error('No queries found');
+                }
+            } catch (error) {
+                console.error('❌ Queries load error:', error);
+                queriesData = [];
+                updateQueryStats();
+            }
+        }
+
+        // Load payments for assigned clients
+        async function loadClientPayments() {
+            try {
+                console.log('💳 Loading client payments...');
+                
+                const response = await apiCall('/payments');
+                
+                if (response.success && response.data) {
+                    paymentsData = response.data;
+                    updatePaymentStats();
+                    console.log('✅ Payments loaded:', paymentsData.length);
+                } else {
+                    throw new Error('No payments found');
+                }
+            } catch (error) {
+                console.error('❌ Payments load error:', error);
+                paymentsData = [];
+                updatePaymentStats();
+            }
+        }
+
+        // Load analytics
+        async function loadAnalytics() {
+            try {
+                console.log('📈 Loading CRM Manager analytics...');
+                
+                const response = await apiCall('/analytics');
+                
+                if (response.success && response.data) {
+                    analyticsData = response.data;
+                    console.log('✅ Analytics loaded:', analyticsData);
+                }
+            } catch (error) {
+                console.error('❌ Analytics load error:', error);
+                analyticsData = {};
+            }
+        }
+
+        // Update clients display
+        function updateClientsDisplay() {
+            const clientCards = document.querySelector('.client-cards');
+            if (!clientCards) return;
+            
+            if (clientsData.length === 0) {
+                clientCards.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #6c757d;">
+                        <i class="fas fa-users fa-3x mb-3"></i>
+                        <h5>No Clients Assigned</h5>
+                        <p>You don't have any clients assigned yet.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            clientCards.innerHTML = clientsData.map(client => {
+                const initials = `${client.name?.charAt(0) || 'C'}${client.name?.split(' ')[1]?.charAt(0) || 'L'}`;
+                const totalProjects = projectsData.filter(p => p.client?._id === client._id || p.client === client._id).length;
+                const totalSpent = paymentsData
+                    .filter(p => p.client?._id === client._id || p.client === client._id)
+                    .filter(p => p.status === 'completed' || p.status === 'paid')
+                    .reduce((sum, p) => sum + (p.amount || 0), 0);
+                
+                return `
+                    <div class="client-card">
+                        <div class="client-header">
+                            <div class="client-avatar">${initials}</div>
+                            <div class="client-info">
+                                <h4>${client.name || 'Unknown Client'}</h4>
+                                <p>${client.university || client.email || 'No university'}</p>
+                            </div>
+                        </div>
+                        <div class="client-stats">
+                            <div class="client-stat">
+                                <div class="client-stat-value">${totalProjects}</div>
+                                <div class="client-stat-label">Projects</div>
+                            </div>
+                            <div class="client-stat">
+                                <div class="client-stat-value">$${(totalSpent / 1000).toFixed(1)}K</div>
+                                <div class="client-stat-label">Total Spent</div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 15px; display: flex; gap: 10px;">
+                            <button class="btn-action btn-view" onclick="viewClient('${client._id}')">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <button class="btn-action btn-message" onclick="messageClient('${client._id}')">
+                                <i class="fas fa-envelope"></i> Message
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update projects display
+        function updateProjectsDisplay() {
+            const tbody = document.querySelector('.table-custom tbody');
+            if (!tbody) return;
+            
+            if (projectsData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #6c757d;">
+                            <i class="fas fa-briefcase fa-2x mb-3"></i><br>
+                            No active projects found
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = projectsData.slice(0, 5).map(project => {
+                const client = clientsData.find(c => c._id === project.client?._id || c._id === project.client) || {};
+                const clientInitials = `${client.name?.charAt(0) || 'C'}${client.name?.split(' ')[1]?.charAt(0) || 'L'}`;
+                const dueDate = new Date(project.due_date || project.deadline || Date.now()).toLocaleDateString();
+                const progress = project.progress || 0;
+                
+                return `
+                    <tr>
+                        <td><strong>#${project.project_id || project._id?.slice(-6) || 'PRJ-001'}</strong></td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 35px; height: 35px; border-radius: 50%; background: #667eea; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">${clientInitials}</div>
+                                <div>
+                                    <div style="font-weight: 600;">${client.name || 'Unknown Client'}</div>
+                                    <div style="font-size: 12px; color: #718096;">${client.university || 'No university'}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>${project.service_name || project.title || 'Unknown Service'}</td>
+                        <td><span class="status-badge status-${project.status || 'active'}">${formatStatus(project.status || 'active')}</span></td>
+                        <td>
+                            <div>${progress}%</div>
+                            <div class="progress-custom">
+                                <div class="progress-bar-custom" style="width: ${progress}%;"></div>
+                            </div>
+                        </td>
+                        <td>${dueDate}</td>
+                        <td><span class="priority-badge priority-${project.priority || 'medium'}">${(project.priority || 'medium').toUpperCase()}</span></td>
+                        <td>
+                            <button class="btn-action btn-view" onclick="viewProject('${project._id}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Update queries display
+        function updateQueriesDisplay() {
+            const queriesContainer = document.querySelector('.content-section:nth-of-type(3)');
+            if (!queriesContainer) return;
+            
+            const queriesSection = queriesContainer.querySelector('.query-item')?.parentElement;
+            if (!queriesSection) return;
+            
+            if (queriesData.length === 0) {
+                queriesSection.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6c757d;">
+                        <i class="fas fa-question-circle fa-3x mb-3"></i>
+                        <h5>No Pending Queries</h5>
+                        <p>All client queries have been resolved.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            queriesSection.innerHTML = queriesData.slice(0, 3).map(query => {
+                const client = clientsData.find(c => c._id === query.client?._id || c._id === query.client) || {};
+                const timeAgo = getTimeAgo(query.created_at || query.createdAt);
+                
+                return `
+                    <div class="query-item">
+                        <div class="query-header">
+                            <div>
+                                <div class="query-title">${client.name || 'Unknown Client'} - ${query.subject || 'General Query'}</div>
+                                <span class="priority-badge priority-${query.priority || 'medium'}">${(query.priority || 'normal').toUpperCase()}</span>
+                            </div>
+                            <div class="query-time">${timeAgo}</div>
+                        </div>
+                        <div class="query-text">
+                            ${query.message || query.description || 'No message content'}
+                        </div>
+                        <div class="query-actions">
+                            <button class="btn-action btn-message" onclick="replyToQuery('${query._id}')">
+                                <i class="fas fa-reply"></i> Reply
+                            </button>
+                            <button class="btn-action btn-view" onclick="viewQuery('${query._id}')">
+                                <i class="fas fa-eye"></i> View Details
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update statistics
+        function updateClientStats() {
+            const clientCount = clientsData.length;
+            document.querySelector('.stat-card:nth-child(1) .stat-value').textContent = clientCount;
+            
+            // Update sidebar count
+            const clientMenuItem = document.querySelector('.sidebar-menu a[href="#"]:nth-child(2)');
+            if (clientMenuItem) {
+                clientMenuItem.innerHTML = `<i class="fas fa-users"></i> My Clients (${clientCount})`;
+            }
+        }
+
+        function updateProjectStats() {
+            const activeProjects = projectsData.filter(p => ['active', 'in_progress', 'planning'].includes(p.status)).length;
+            document.querySelector('.stat-card:nth-child(2) .stat-value').textContent = activeProjects;
+            
+            // Update sidebar count
+            const projectMenuItem = document.querySelector('.sidebar-menu a[href="#"]:nth-child(3)');
+            if (projectMenuItem) {
+                projectMenuItem.innerHTML = `<i class="fas fa-briefcase"></i> Active Projects (${activeProjects})`;
+            }
+        }
+
+        function updateQueryStats() {
+            const pendingQueries = queriesData.filter(q => q.status === 'new' || q.status === 'pending').length;
+            document.querySelector('.stat-card:nth-child(4) .stat-value').textContent = pendingQueries;
+            
+            // Update sidebar count
+            const queryMenuItem = document.querySelector('.sidebar-menu a[href="#"]:nth-child(4)');
+            if (queryMenuItem) {
+                queryMenuItem.innerHTML = `<i class="fas fa-question-circle"></i> Queries (${pendingQueries})`;
+            }
+        }
+
+        function updatePaymentStats() {
+            const totalValue = paymentsData
+                .filter(p => p.status === 'completed' || p.status === 'paid')
+                .reduce((sum, p) => sum + (p.amount || 0), 0);
+            
+            document.querySelector('.stat-card:nth-child(3) .stat-value').textContent = `$${Math.round(totalValue / 1000)}K`;
+        }
+
+        // Action functions
+        function viewClient(clientId) {
+            const client = clientsData.find(c => c._id === clientId);
+            if (client) {
+                alert(`Client Details:\n\nName: ${client.name}\nEmail: ${client.email}\nUniversity: ${client.university || 'Not specified'}\nStatus: ${client.status}\nPhone: ${client.phone || 'Not provided'}`);
+            }
+        }
+
+        function messageClient(clientId) {
+            const client = clientsData.find(c => c._id === clientId);
+            if (client) {
+                const message = prompt(`Send message to ${client.name}:`);
+                if (message) {
+                    alert(`Message sent to ${client.name}: "${message}"`);
+                }
+            }
+        }
+
+        function viewProject(projectId) {
+            const project = projectsData.find(p => p._id === projectId);
+            if (project) {
+                const client = clientsData.find(c => c._id === project.client?._id || c._id === project.client) || {};
+                alert(`Project Details:\n\nID: ${project.project_id || project._id}\nClient: ${client.name}\nService: ${project.service_name || project.title}\nStatus: ${project.status}\nProgress: ${project.progress || 0}%\nDescription: ${project.description || 'No description'}`);
+            }
+        }
+
+        function replyToQuery(queryId) {
+            const query = queriesData.find(q => q._id === queryId);
+            if (query) {
+                const reply = prompt(`Reply to query: "${query.subject || 'General Query'}"`);
+                if (reply) {
+                    alert(`Reply sent: "${reply}"`);
+                }
+            }
+        }
+
+        function viewQuery(queryId) {
+            const query = queriesData.find(q => q._id === queryId);
+            if (query) {
+                const client = clientsData.find(c => c._id === query.client?._id || c._id === query.client) || {};
+                alert(`Query Details:\n\nFrom: ${client.name}\nSubject: ${query.subject}\nMessage: ${query.message}\nPriority: ${query.priority}\nStatus: ${query.status}`);
+            }
+        }
+
+        // Utility functions
+        function formatStatus(status) {
+            const statusMap = {
+                'active': 'Active',
+                'in_progress': 'In Progress',
+                'planning': 'Planning',
+                'completed': 'Completed',
+                'pending': 'Pending',
+                'on_hold': 'On Hold',
+                'cancelled': 'Cancelled'
+            };
+            return statusMap[status] || status;
+        }
+
+        function getTimeAgo(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
+            
+            if (diffInHours < 1) return 'Just now';
+            if (diffInHours < 24) return `${diffInHours} hours ago`;
+            const diffInDays = Math.floor(diffInHours / 24);
+            if (diffInDays < 7) return `${diffInDays} days ago`;
+            return date.toLocaleDateString();
+        }
+
         // Logout function
         function logout() {
             console.log('🚪 Logging out...');
@@ -1001,8 +1458,31 @@
             window.location.href = '/login';
         }
 
-        // Add logout button listener
+        // Refresh all data
+        async function refreshAllData() {
+            console.log('🔄 Refreshing all data...');
+            
+            try {
+                await Promise.all([
+                    loadCRMManagerProfile(),
+                    loadMyClients(),
+                    loadMyProjects(),
+                    loadClientQueries(),
+                    loadClientPayments(),
+                    loadAnalytics()
+                ]);
+                
+                console.log('✅ All data refreshed successfully');
+            } catch (error) {
+                console.error('❌ Error refreshing data:', error);
+            }
+        }
+
+        // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎯 CRM Manager Dashboard initializing...');
+            
+            // Attach logout button listener
             const logoutBtn = document.getElementById('logout-btn');
             if (logoutBtn) {
                 logoutBtn.addEventListener('click', function(e) {
@@ -1011,15 +1491,26 @@
                 });
                 console.log('✅ Logout button event listener attached');
             }
+            
+            // Load initial data
+            console.log('🚀 Loading initial data...');
+            refreshAllData();
+            
+            console.log('✅ CRM Manager Dashboard initialized successfully!');
         });
 
-        // Auto-refresh simulation
+        // Auto-refresh every 60 seconds
         let countdown = 60;
         setInterval(() => {
             countdown--;
+            const refreshBtn = document.querySelector('.refresh-btn');
+            if (refreshBtn) {
+                refreshBtn.innerHTML = `<i class="fas fa-sync-alt"></i> Auto-Refresh (${countdown}s)`;
+            }
+            
             if (countdown <= 0) {
                 countdown = 60;
-                console.log('Auto-refresh triggered (demo mode - no actual refresh)');
+                refreshAllData();
             }
         }, 1000);
     </script>

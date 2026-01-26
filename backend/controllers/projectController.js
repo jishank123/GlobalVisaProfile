@@ -32,7 +32,7 @@ exports.getProjects = async (req, res) => {
     // Role-based access control
     if (req.user.role === 'crm_manager') {
       // CRM managers can only see projects for their assigned clients
-      const assignedClients = await Client.find({ assignedManager: req.user.user_id }).select('_id');
+      const assignedClients = await Client.find({ crm_manager: req.user.user_id }).select('_id');
       const clientIds = assignedClients.map(client => client._id);
       query.client = { $in: clientIds };
     } else if (req.user.role === 'client') {

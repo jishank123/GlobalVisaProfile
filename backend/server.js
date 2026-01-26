@@ -11,13 +11,13 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const leadRoutes = require('./routes/leads');
-// const clientRoutes = require('./routes/clients');
+const clientRoutes = require('./routes/clients');
 const projectRoutes = require('./routes/projects');
 const paymentRoutes = require('./routes/payments');
-// const queryRoutes = require('./routes/queries');
+const queryRoutes = require('./routes/queries');
 const serviceRoutes = require('./routes/services');
 // const documentRoutes = require('./routes/documents');
-// const analyticsRoutes = require('./routes/analytics');
+const analyticsRoutes = require('./routes/analytics');
 
 // Import new form routes
 const profileAssessmentRoutes = require('./routes/profileAssessments');
@@ -96,16 +96,16 @@ console.log('🛣️ Setting up API routes...');
 app.use('/api/auth', authRoutes); 
 app.use('/api/users', userRoutes); 
 app.use('/api/leads', leadRoutes); 
-// app.use('/api/clients', clientRoutes); 
+app.use('/api/clients', clientRoutes); 
 app.use('/api/projects', projectRoutes); 
 app.use('/api/payments', paymentRoutes); 
-// app.use('/api/queries', queryRoutes); 
+app.use('/api/queries', queryRoutes); 
 app.use('/api/services', (req, res, next) => {
   console.log(`🛣️ Services route hit: ${req.method} ${req.path}`);
   next();
 }, serviceRoutes); 
 // app.use('/api/documents', documentRoutes); 
-// app.use('/api/analytics', analyticsRoutes); 
+app.use('/api/analytics', analyticsRoutes); 
  
 // New form API routes
 app.use('/api/profile-assessments', (req, res, next) => {
