@@ -29,7 +29,7 @@ const clientSchema = new mongoose.Schema({
   crm_manager: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'CRM manager is required']
+    required: false // Made optional for client self-registration
   },
   satisfaction_rating: {
     type: Number,

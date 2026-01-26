@@ -204,19 +204,21 @@ class ClientAuth {
         
         // Clear all authentication data
         localStorage.removeItem('token');
+        localStorage.removeItem('client_token');
         localStorage.removeItem('clientId');
         localStorage.removeItem('clientEmail');
         localStorage.removeItem('clientName');
         localStorage.removeItem('clientPhone');
         sessionStorage.removeItem('token');
+        sessionStorage.removeItem('client_token');
         sessionStorage.removeItem('clientId');
         sessionStorage.removeItem('clientEmail');
         sessionStorage.removeItem('clientName');
         sessionStorage.removeItem('clientPhone');
         
         console.log('🧹 All authentication data cleared');
-        console.log('🔄 Redirecting to homepage...');
-        window.location.href = '../pages/index.html';
+        console.log('🔄 Redirecting to login page...');
+        window.location.href = '/login';
     }
 
     static redirectIfLoggedIn() {

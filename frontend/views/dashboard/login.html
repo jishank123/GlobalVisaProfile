@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Academic ERP</title>
+    <title>Login - ImmigrationPro CRM</title>
     
     <!-- Bootstrap 5.3.0 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -182,9 +182,10 @@
 <body>
     <div class="login-container">
         <div class="login-left">
-            <h1>Welcome to Academic ERP</h1>
+            <h1>Welcome to ImmigrationPro</h1>
             <p>
-                Streamline your academic consultancy business with our comprehensive ERP system. 
+                Access your personalized dashboard to manage your immigration journey, track progress, and connect with our expert team.
+            </p> 
                 Manage leads, clients, projects, and teams all in one place.
             </p>
             <div style="margin-top: 40px;">
@@ -227,8 +228,8 @@
             </form>
 
             <div class="footer-links">
-                Don't have an account? <a href="register.html">Sign Up</a> | 
-                <a href="index.html">Back to Home</a>
+                Don't have an account? <a href="/signup">Sign Up</a> | 
+                <a href="/">Back to Home</a>
             </div>
         </div>
     </div>
@@ -381,7 +382,14 @@
                     
                     // Redirect after a short delay
                     setTimeout(() => {
-                        redirectToDashboard(data.data.role);
+                        // Use redirectTo from backend if available, otherwise use role-based redirect
+                        const redirectUrl = data.data.redirectTo || null;
+                        if (redirectUrl) {
+                            console.log(`🔄 Redirecting to: ${redirectUrl}`);
+                            window.location.href = redirectUrl;
+                        } else {
+                            redirectToDashboard(data.data.role);
+                        }
                     }, 1000);
                     
                 } else {

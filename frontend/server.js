@@ -42,19 +42,19 @@ app.get('/index', (req, res) => {
 
 // ===== AUTHENTICATION ROUTES =====
 
-// Admin/Manager Login - Main login page for all roles
+// Single Login page for ALL users (admin, manager, client)
 app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'dashboard', 'login.html'));
 });
 
-// Client Login (alternative route)
-app.get('/client-login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'auth', 'client-login-clean.html'));
+// Single Signup page for CLIENT registration only
+app.get('/signup', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'dashboard', 'register.html'));
 });
 
-// Client Signup
-app.get('/signup', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'auth', 'client-signup-clean.html'));
+// Register page (alternative route)
+app.get('/register', (req, res) => {
+    res.redirect('/signup');
 });
 
 // ===== DASHBOARD ROUTES =====
@@ -243,7 +243,7 @@ function generate404Page(requestedPage) {
                                     <h3 class="font-semibold text-gray-800 mb-2">Main Pages</h3>
                                     <ul class="space-y-1 text-sm">
                                         <li><a href="/" class="text-blue-600 hover:underline"><i class="fas fa-home mr-2"></i>Homepage</a></li>
-                                        <li><a href="/login" class="text-blue-600 hover:underline"><i class="fas fa-sign-in-alt mr-2"></i>Client Login</a></li>
+                                        <li><a href="/login" class="text-blue-600 hover:underline"><i class="fas fa-sign-in-alt mr-2"></i>Login</a></li>
                                         <li><a href="/signup" class="text-blue-600 hover:underline"><i class="fas fa-user-plus mr-2"></i>Client Signup</a></li>
                                         <li><a href="/dashboard" class="text-blue-600 hover:underline"><i class="fas fa-tachometer-alt mr-2"></i>Client Dashboard</a></li>
                                     </ul>
@@ -266,7 +266,7 @@ function generate404Page(requestedPage) {
                                 <i class="fas fa-home mr-2"></i>Go to Homepage
                             </a>
                             <a href="/login" class="bg-gray-600 text-white px-8 py-3 rounded-lg hover:bg-gray-700 transition-colors">
-                                <i class="fas fa-sign-in-alt mr-2"></i>Client Portal
+                                <i class="fas fa-sign-in-alt mr-2"></i>Login Portal
                             </a>
                         </div>
                     </div>

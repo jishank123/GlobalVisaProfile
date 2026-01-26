@@ -1,29 +1,31 @@
 const { validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const ClientAccount = require('../models/ClientAccount');
+const User = require('../models/User');
+const Client = require('../models/Client');
 
 // Helper function to generate JWT token
-const generateToken = (id) => {
-  console.log('🔑 Generating JWT token for client ID:', id);
+const generateToken = (userId, role) => {
+  console.log('🔑 Generating JWT token for user ID:', userId, 'Role:', role);
   console.log('🔑 JWT_SECRET available:', process.env.JWT_SECRET ? 'YES' : 'NO');
-  console.log('🔑 JWT_EXPIRES_IN:', process.env.JWT_EXPIRES_IN || '24h');
   
-  const token = jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '24h'
-  });
+  const token = jwt.sign(
+    { user_id: userId, role: role },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+  );
   
   console.log('🔑 Token generated successfully:', token ? 'YES' : 'NO');
   return token;
 };
 
 // Helper function to send response with token
-const sendTokenResponse = (clientAccount, statusCode, res) => {
+const sendTokenResponse = (user, statusCode, res) => {
   console.log('🎫 === GENERATING TOKEN RESPONSE ===');
-  console.log('🎫 Client ID:', clientAccount._id);
+  console.log('🎫 User ID:', user._id, 'Role:', user.role);
   console.log('🎫 Status Code:', statusCode);
   
-  const token = generateToken(clientAccount._id);
+  const token = generateToken(user._id, user.role);
   console.log('🎫 JWT Token generated:', token ? 'YES' : 'NO');
   
   const cookieOptions = {
@@ -32,24 +34,40 @@ const sendTokenResponse = (clientAccount, statusCode, res) => {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict'
   };
-  console.log('🍪 Cookie options:', cookieOptions);
+
+  // Determine redirect URL based on role
+  let redirectTo = '/client-profile'; // default
+  switch (user.role) {
+    case 'admin':
+      redirectTo = '/admin';
+      break;
+    case 'lead_manager':
+      redirectTo = '/lead-manager';
+      break;
+    case 'crm_manager':
+      redirectTo = '/crm-manager';
+      break;
+    case 'client':
+      redirectTo = '/client-profile';
+      break;
+    default:
+      redirectTo = '/client-profile';
+  }
 
   const responseData = {
     success: true,
     data: {
       token,
-      client: clientAccount
+      client: {
+        _id: user._id,
+        email: user.email,
+        full_name: user.full_name || `${user.first_name} ${user.last_name}`,
+        role: user.role,
+        account_status: user.status || 'active'
+      },
+      redirectTo: redirectTo
     }
   };
-  console.log('📤 Response data prepared:', {
-    success: responseData.success,
-    token: responseData.data.token ? 'PRESENT' : 'MISSING',
-    client: {
-      id: responseData.data.client._id,
-      email: responseData.data.client.email,
-      full_name: responseData.data.client.full_name
-    }
-  });
 
   res.status(statusCode)
      .cookie('client_token', token, cookieOptions)
@@ -92,11 +110,11 @@ exports.registerClient = async (req, res) => {
 
     const { full_name, email, phone, password } = req.body;
 
-    // Check if client already exists
-    console.log('🔍 Checking if client already exists with email:', email);
-    const existingClient = await ClientAccount.findOne({ email });
-    if (existingClient) {
-      console.log('❌ Client already exists:', existingClient._id);
+    // Check if user already exists
+    console.log('🔍 Checking if user already exists with email:', email);
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      console.log('❌ User already exists:', existingUser._id);
       return res.status(400).json({
         success: false,
         error: {
@@ -107,34 +125,40 @@ exports.registerClient = async (req, res) => {
     }
     console.log('✅ Email is available');
 
-    // Get client IP and user agent
-    const ip_address = req.ip || req.connection.remoteAddress;
-    const user_agent = req.get('User-Agent');
-    console.log('📊 Client metadata:', { ip_address, user_agent });
+    // Split full name into first and last name
+    const nameParts = full_name.trim().split(' ');
+    const first_name = nameParts[0];
+    const last_name = nameParts.slice(1).join(' ') || nameParts[0];
 
-    // Create client account
-    console.log('💾 Creating new client account...');
-    const clientAccount = await ClientAccount.create({
-      full_name,
+    // Create user account with role 'client'
+    console.log('💾 Creating new user account with role client...');
+    const user = await User.create({
+      first_name,
+      last_name,
       email,
+      password,
+      role: 'client',
       phone,
-      password_hash: password, // Will be hashed by pre-save middleware
-      ip_address,
-      user_agent,
-      source: 'website'
+      status: 'active'
     });
-    console.log('✅ Client account created successfully:', clientAccount._id);
+    console.log('✅ User account created successfully:', user._id);
 
-    // Generate email verification token (if email verification is enabled)
-    // For now, we'll set email as verified
-    console.log('📧 Setting email as verified...');
-    clientAccount.email_verified = true;
-    await clientAccount.save();
-    console.log('✅ Email verification status updated');
+    // Create corresponding client profile
+    console.log('💾 Creating client profile...');
+    const client = await Client.create({
+      name: full_name,
+      email: email,
+      phone: phone || '',
+      status: 'active',
+      // We'll assign a CRM manager later or leave it for admin to assign
+      crm_manager: null,
+      notes: `Client registered on ${new Date().toLocaleDateString()}`
+    });
+    console.log('✅ Client profile created successfully:', client._id);
 
     // Send token response
     console.log('🎫 Generating JWT token and sending response...');
-    sendTokenResponse(clientAccount, 201, res);
+    sendTokenResponse(user, 201, res);
     console.log('✅ Registration completed successfully');
 
   } catch (error) {
@@ -184,91 +208,12 @@ exports.loginClient = async (req, res) => {
 
     const { email, password } = req.body;
 
-    // 🔑 CHECK FOR USER LOGIN IN USERS COLLECTION (ALL ROLES)
-    console.log('🔑 === CHECKING USER LOGIN IN USERS COLLECTION ===');
-    console.log('🔑 Checking user credentials for all roles...');
+    // Find user by email and include password
+    console.log('🔍 Searching for user with email:', email);
+    const user = await User.findOne({ email }).select('+password');
     
-    try {
-      const User = require('../models/User');
-      const user = await User.findOne({ email }).select('+password');
-      
-      if (user) {
-        console.log('🔑 User found in database:', user._id, 'Role:', user.role);
-        
-        // Verify password
-        const isPasswordValid = await user.comparePassword(password);
-        console.log('🔑 Password verification result:', isPasswordValid);
-        
-        if (isPasswordValid) {
-          console.log('✅ User login successful, generating token...');
-          
-          const userToken = generateToken(user._id);
-          
-          const cookieOptions = {
-            expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict'
-          };
-
-          // Determine redirect URL based on role
-          let redirectTo = '/client-profile'; // default
-          switch (user.role) {
-            case 'admin':
-              redirectTo = '/admin';
-              break;
-            case 'lead_manager':
-              redirectTo = '/lead-manager';
-              break;
-            case 'crm_manager':
-              redirectTo = '/crm-manager';
-              break;
-            case 'client':
-              redirectTo = '/client-profile';
-              break;
-            default:
-              redirectTo = '/client-profile';
-          }
-
-          console.log(`✅ ${user.role} login successful, redirecting to: ${redirectTo}`);
-          
-          return res.status(200)
-            .cookie('client_token', userToken, cookieOptions)
-            .json({
-              success: true,
-              isAdmin: user.role === 'admin',
-              data: {
-                token: userToken,
-                client: {
-                  _id: user._id,
-                  email: user.email,
-                  full_name: user.full_name || `${user.first_name} ${user.last_name}`,
-                  role: user.role,
-                  account_status: 'active'
-                },
-                redirectTo: redirectTo
-              }
-            });
-        } else {
-          console.log('❌ User password incorrect');
-        }
-      } else {
-        console.log('❌ User not found in Users collection');
-      }
-    } catch (error) {
-      console.error('💥 Error checking user login:', error);
-    }
-    
-    // If user login failed, continue to regular client login check
-    console.log('🔑 User login failed, checking as regular client account...');
-
-    // Find client by email and include password
-    console.log('🔍 Searching for client with email:', email);
-    const clientAccount = await ClientAccount.findOne({ email }).select('+password_hash');
-    
-    if (!clientAccount) {
-      console.log('❌ CLIENT NOT FOUND in database for email:', email);
-      console.log('💡 This means the user needs to register first');
+    if (!user) {
+      console.log('❌ USER NOT FOUND in database for email:', email);
       return res.status(401).json({
         success: false,
         error: {
@@ -278,51 +223,32 @@ exports.loginClient = async (req, res) => {
       });
     }
     
-    console.log('✅ Client found in database:', {
-      id: clientAccount._id,
-      email: clientAccount.email,
-      full_name: clientAccount.full_name,
-      account_status: clientAccount.account_status,
-      email_verified: clientAccount.email_verified,
-      failed_login_attempts: clientAccount.failed_login_attempts,
-      is_locked: clientAccount.is_locked
+    console.log('✅ User found in database:', {
+      id: user._id,
+      email: user.email,
+      role: user.role,
+      status: user.status
     });
 
-    // Check if account is locked
-    if (clientAccount.is_locked) {
-      console.log('❌ Account is locked until:', clientAccount.account_locked_until);
-      return res.status(423).json({
-        success: false,
-        error: {
-          code: 'ACCOUNT_LOCKED',
-          message: 'Account is temporarily locked due to too many failed login attempts'
-        }
-      });
-    }
-
     // Check if account is active
-    if (clientAccount.account_status !== 'active') {
-      console.log('❌ Account is not active. Status:', clientAccount.account_status);
+    if (user.status !== 'active') {
+      console.log('❌ Account is not active. Status:', user.status);
       return res.status(403).json({
         success: false,
         error: {
           code: 'ACCOUNT_INACTIVE',
-          message: `Account is ${clientAccount.account_status}. Please contact support.`
+          message: `Account is ${user.status}. Please contact support.`
         }
       });
     }
 
     // Check password
     console.log('🔐 Verifying password...');
-    const isPasswordCorrect = await clientAccount.correctPassword(password);
+    const isPasswordCorrect = await user.comparePassword(password);
     console.log('🔐 Password verification result:', isPasswordCorrect);
     
     if (!isPasswordCorrect) {
       console.log('❌ Password is incorrect');
-      // Handle failed login
-      console.log('📊 Updating failed login attempts...');
-      await clientAccount.handleFailedLogin();
-      
       return res.status(401).json({
         success: false,
         error: {
@@ -334,16 +260,15 @@ exports.loginClient = async (req, res) => {
 
     console.log('✅ Password is correct');
 
-    // Update login info
-    console.log('📊 Updating login information...');
-    const ip_address = req.ip || req.connection.remoteAddress;
-    const user_agent = req.get('User-Agent');
-    await clientAccount.updateLoginInfo(ip_address, user_agent);
-    console.log('✅ Login info updated');
+    // Update last login
+    console.log('📊 Updating last login...');
+    user.last_login = new Date();
+    await user.save();
+    console.log('✅ Last login updated');
 
     // Send token response
     console.log('🎫 Generating JWT token and sending response...');
-    sendTokenResponse(clientAccount, 200, res);
+    sendTokenResponse(user, 200, res);
     console.log('✅ Login completed successfully');
 
   } catch (error) {
@@ -366,29 +291,94 @@ exports.loginClient = async (req, res) => {
 // @route   GET /api/client-accounts/profile
 // @access  Private (Client)
 exports.getClientProfile = async (req, res) => {
+  console.log('\n👤 === GET CLIENT PROFILE ===');
+  console.log('👤 User ID from auth middleware:', req.user?.id || req.client?.id);
+  
   try {
-    // Client ID should be available from auth middleware
-    const clientAccount = await ClientAccount.findById(req.client.id);
+    // Get user ID from auth middleware (could be req.user or req.client depending on middleware)
+    const userId = req.user?.id || req.client?.id;
     
-    if (!clientAccount) {
-      return res.status(404).json({
+    if (!userId) {
+      console.log('❌ No user ID found in request');
+      return res.status(401).json({
         success: false,
         error: {
-          code: 'CLIENT_NOT_FOUND',
-          message: 'Client account not found'
+          code: 'UNAUTHORIZED',
+          message: 'Authentication required'
         }
       });
     }
 
-    res.status(200).json({
-      success: true,
-      data: {
-        client: clientAccount
-      }
+    // Find user account
+    console.log('🔍 Finding user account...');
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      console.log('❌ User not found');
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: 'User account not found'
+        }
+      });
+    }
+
+    console.log('✅ User found:', {
+      id: user._id,
+      email: user.email,
+      role: user.role
     });
 
+    // Find corresponding client profile if user is a client
+    let clientProfile = null;
+    if (user.role === 'client') {
+      console.log('🔍 Finding client profile...');
+      clientProfile = await Client.findOne({ email: user.email }).populate('crm_manager', 'first_name last_name email');
+      console.log('👤 Client profile found:', clientProfile ? 'YES' : 'NO');
+    }
+
+    const responseData = {
+      user: {
+        _id: user._id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        full_name: user.full_name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        status: user.status,
+        last_login: user.last_login,
+        createdAt: user.createdAt
+      }
+    };
+
+    // Add client profile data if available
+    if (clientProfile) {
+      responseData.client_profile = {
+        _id: clientProfile._id,
+        name: clientProfile.name,
+        email: clientProfile.email,
+        phone: clientProfile.phone,
+        university: clientProfile.university,
+        status: clientProfile.status,
+        crm_manager: clientProfile.crm_manager,
+        satisfaction_rating: clientProfile.satisfaction_rating,
+        tags: clientProfile.tags,
+        notes: clientProfile.notes,
+        createdAt: clientProfile.createdAt
+      };
+    }
+
+    res.status(200).json({
+      success: true,
+      data: responseData
+    });
+
+    console.log('✅ Profile data sent successfully');
+
   } catch (error) {
-    console.error('Get profile error:', error);
+    console.error('💥 Get profile error:', error);
     res.status(500).json({
       success: false,
       error: {
@@ -397,16 +387,22 @@ exports.getClientProfile = async (req, res) => {
       }
     });
   }
+  console.log('👤 === GET CLIENT PROFILE COMPLETED ===\n');
 };
 
 // @desc    Update client profile
 // @route   PUT /api/client-accounts/profile
 // @access  Private (Client)
 exports.updateClientProfile = async (req, res) => {
+  console.log('\n✏️ === UPDATE CLIENT PROFILE ===');
+  console.log('✏️ User ID from auth middleware:', req.user?.id || req.client?.id);
+  console.log('✏️ Update data:', req.body);
+  
   try {
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation failed:', errors.array());
       return res.status(400).json({
         success: false,
         error: {
@@ -417,41 +413,102 @@ exports.updateClientProfile = async (req, res) => {
       });
     }
 
-    const allowedUpdates = ['full_name', 'phone', 'communication_preferences'];
+    // Get user ID from auth middleware
+    const userId = req.user?.id || req.client?.id;
+    
+    if (!userId) {
+      console.log('❌ No user ID found in request');
+      return res.status(401).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Authentication required'
+        }
+      });
+    }
+
+    const allowedUpdates = ['first_name', 'last_name', 'phone'];
     const updates = {};
     
-    // Filter allowed updates
+    // Filter allowed updates for User model
     Object.keys(req.body).forEach(key => {
       if (allowedUpdates.includes(key)) {
         updates[key] = req.body[key];
       }
     });
 
-    const clientAccount = await ClientAccount.findByIdAndUpdate(
-      req.client.id,
+    // Handle full_name update by splitting into first_name and last_name
+    if (req.body.full_name) {
+      const nameParts = req.body.full_name.trim().split(' ');
+      updates.first_name = nameParts[0];
+      updates.last_name = nameParts.slice(1).join(' ') || nameParts[0];
+    }
+
+    console.log('📝 Filtered updates for User:', updates);
+
+    // Update user account
+    const user = await User.findByIdAndUpdate(
+      userId,
       updates,
       { new: true, runValidators: true }
     );
 
-    if (!clientAccount) {
+    if (!user) {
+      console.log('❌ User not found');
       return res.status(404).json({
         success: false,
         error: {
-          code: 'CLIENT_NOT_FOUND',
-          message: 'Client account not found'
+          code: 'USER_NOT_FOUND',
+          message: 'User account not found'
         }
       });
+    }
+
+    console.log('✅ User updated successfully');
+
+    // If user is a client, also update the client profile
+    if (user.role === 'client') {
+      console.log('👤 Updating client profile...');
+      const clientUpdates = {};
+      
+      // Map user updates to client profile fields
+      if (updates.first_name || updates.last_name) {
+        clientUpdates.name = `${user.first_name} ${user.last_name}`;
+      }
+      if (updates.phone) {
+        clientUpdates.phone = updates.phone;
+      }
+
+      if (Object.keys(clientUpdates).length > 0) {
+        await Client.findOneAndUpdate(
+          { email: user.email },
+          clientUpdates,
+          { new: true, runValidators: true }
+        );
+        console.log('✅ Client profile updated successfully');
+      }
     }
 
     res.status(200).json({
       success: true,
       data: {
-        client: clientAccount
+        user: {
+          _id: user._id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          full_name: user.full_name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+          status: user.status
+        }
       }
     });
 
+    console.log('✅ Profile update completed successfully');
+
   } catch (error) {
-    console.error('Update profile error:', error);
+    console.error('💥 Update profile error:', error);
     res.status(500).json({
       success: false,
       error: {
@@ -460,16 +517,21 @@ exports.updateClientProfile = async (req, res) => {
       }
     });
   }
+  console.log('✏️ === UPDATE CLIENT PROFILE COMPLETED ===\n');
 };
 
 // @desc    Change client password
 // @route   PUT /api/client-accounts/change-password
 // @access  Private (Client)
 exports.changePassword = async (req, res) => {
+  console.log('\n🔐 === CHANGE PASSWORD ===');
+  console.log('🔐 User ID from auth middleware:', req.user?.id || req.client?.id);
+  
   try {
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation failed:', errors.array());
       return res.status(400).json({
         success: false,
         error: {
@@ -482,23 +544,41 @@ exports.changePassword = async (req, res) => {
 
     const { current_password, new_password } = req.body;
 
-    // Get client with password
-    const clientAccount = await ClientAccount.findById(req.client.id).select('+password_hash');
+    // Get user ID from auth middleware
+    const userId = req.user?.id || req.client?.id;
     
-    if (!clientAccount) {
+    if (!userId) {
+      console.log('❌ No user ID found in request');
+      return res.status(401).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Authentication required'
+        }
+      });
+    }
+
+    // Get user with password
+    console.log('🔍 Finding user with password...');
+    const user = await User.findById(userId).select('+password');
+    
+    if (!user) {
+      console.log('❌ User not found');
       return res.status(404).json({
         success: false,
         error: {
-          code: 'CLIENT_NOT_FOUND',
-          message: 'Client account not found'
+          code: 'USER_NOT_FOUND',
+          message: 'User account not found'
         }
       });
     }
 
     // Check current password
-    const isCurrentPasswordCorrect = await clientAccount.correctPassword(current_password);
+    console.log('🔐 Verifying current password...');
+    const isCurrentPasswordCorrect = await user.comparePassword(current_password);
     
     if (!isCurrentPasswordCorrect) {
+      console.log('❌ Current password is incorrect');
       return res.status(401).json({
         success: false,
         error: {
@@ -508,9 +588,14 @@ exports.changePassword = async (req, res) => {
       });
     }
 
+    console.log('✅ Current password verified');
+
     // Update password
-    clientAccount.password_hash = new_password; // Will be hashed by pre-save middleware
-    await clientAccount.save();
+    console.log('🔐 Updating password...');
+    user.password = new_password; // Will be hashed by pre-save middleware
+    await user.save();
+
+    console.log('✅ Password updated successfully');
 
     res.status(200).json({
       success: true,
@@ -518,7 +603,7 @@ exports.changePassword = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Change password error:', error);
+    console.error('💥 Change password error:', error);
     res.status(500).json({
       success: false,
       error: {
@@ -527,16 +612,21 @@ exports.changePassword = async (req, res) => {
       }
     });
   }
+  console.log('🔐 === CHANGE PASSWORD COMPLETED ===\n');
 };
 
 // @desc    Forgot password
 // @route   POST /api/client-accounts/forgot-password
 // @access  Public
 exports.forgotPassword = async (req, res) => {
+  console.log('\n🔐 === FORGOT PASSWORD ===');
+  console.log('📝 Request email:', req.body.email);
+  
   try {
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation failed:', errors.array());
       return res.status(400).json({
         success: false,
         error: {
@@ -549,9 +639,11 @@ exports.forgotPassword = async (req, res) => {
 
     const { email } = req.body;
 
-    const clientAccount = await ClientAccount.findOne({ email });
+    console.log('🔍 Finding user with email:', email);
+    const user = await User.findOne({ email });
     
-    if (!clientAccount) {
+    if (!user) {
+      console.log('❌ User not found, but returning success for security');
       // Don't reveal if email exists or not for security
       return res.status(200).json({
         success: true,
@@ -559,21 +651,31 @@ exports.forgotPassword = async (req, res) => {
       });
     }
 
+    console.log('✅ User found, generating reset token');
+
     // Generate reset token
-    const resetToken = clientAccount.createPasswordResetToken();
-    await clientAccount.save({ validateBeforeSave: false });
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    
+    user.password_reset_token = hashedToken;
+    user.password_reset_expires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    await user.save({ validateBeforeSave: false });
+
+    console.log('✅ Reset token generated and saved');
 
     // TODO: Send email with reset token
-    // For now, we'll just return success
-    console.log('Password reset token:', resetToken);
+    // For now, we'll just log it
+    console.log('🔑 Password reset token (for development):', resetToken);
 
     res.status(200).json({
       success: true,
       message: 'If an account with that email exists, a password reset link has been sent.'
     });
 
+    console.log('✅ Forgot password request processed');
+
   } catch (error) {
-    console.error('Forgot password error:', error);
+    console.error('💥 Forgot password error:', error);
     res.status(500).json({
       success: false,
       error: {
@@ -582,16 +684,21 @@ exports.forgotPassword = async (req, res) => {
       }
     });
   }
+  console.log('🔐 === FORGOT PASSWORD COMPLETED ===\n');
 };
 
 // @desc    Reset password
 // @route   POST /api/client-accounts/reset-password
 // @access  Public
 exports.resetPassword = async (req, res) => {
+  console.log('\n🔐 === RESET PASSWORD ===');
+  console.log('📝 Request token provided:', req.body.token ? 'YES' : 'NO');
+  
   try {
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation failed:', errors.array());
       return res.status(400).json({
         success: false,
         error: {
@@ -604,15 +711,17 @@ exports.resetPassword = async (req, res) => {
 
     const { token, password } = req.body;
 
-    // Hash token and find client
+    // Hash token and find user
+    console.log('🔍 Hashing token and finding user...');
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     
-    const clientAccount = await ClientAccount.findOne({
+    const user = await User.findOne({
       password_reset_token: hashedToken,
       password_reset_expires: { $gt: Date.now() }
     });
 
-    if (!clientAccount) {
+    if (!user) {
+      console.log('❌ Invalid or expired token');
       return res.status(400).json({
         success: false,
         error: {
@@ -622,20 +731,22 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    // Set new password
-    clientAccount.password_hash = password; // Will be hashed by pre-save middleware
-    clientAccount.password_reset_token = undefined;
-    clientAccount.password_reset_expires = undefined;
-    clientAccount.failed_login_attempts = 0;
-    clientAccount.account_locked_until = undefined;
-    
-    await clientAccount.save();
+    console.log('✅ Valid token found, resetting password');
 
-    // Send token response
-    sendTokenResponse(clientAccount, 200, res);
+    // Set new password
+    user.password = password; // Will be hashed by pre-save middleware
+    user.password_reset_token = undefined;
+    user.password_reset_expires = undefined;
+    
+    await user.save();
+
+    console.log('✅ Password reset successfully');
+
+    // Send token response to log user in
+    sendTokenResponse(user, 200, res);
 
   } catch (error) {
-    console.error('Reset password error:', error);
+    console.error('💥 Reset password error:', error);
     res.status(500).json({
       success: false,
       error: {
@@ -644,21 +755,26 @@ exports.resetPassword = async (req, res) => {
       }
     });
   }
+  console.log('🔐 === RESET PASSWORD COMPLETED ===\n');
 };
 
 // @desc    Verify email
 // @route   GET /api/client-accounts/verify-email/:token
 // @access  Public
 exports.verifyEmail = async (req, res) => {
+  console.log('\n📧 === VERIFY EMAIL ===');
+  console.log('📧 Token provided:', req.params.token ? 'YES' : 'NO');
+  
   try {
     const { token } = req.params;
 
-    const clientAccount = await ClientAccount.findOne({
-      email_verification_token: token,
-      email_verification_expires: { $gt: Date.now() }
+    console.log('🔍 Finding user with verification token...');
+    const user = await User.findOne({
+      email_verification_token: token
     });
 
-    if (!clientAccount) {
+    if (!user) {
+      console.log('❌ Invalid verification token');
       return res.status(400).json({
         success: false,
         error: {
@@ -668,12 +784,15 @@ exports.verifyEmail = async (req, res) => {
       });
     }
 
+    console.log('✅ Valid token found, verifying email');
+
     // Verify email
-    clientAccount.email_verified = true;
-    clientAccount.email_verification_token = undefined;
-    clientAccount.email_verification_expires = undefined;
+    user.email_verified = true;
+    user.email_verification_token = undefined;
     
-    await clientAccount.save();
+    await user.save();
+
+    console.log('✅ Email verified successfully');
 
     res.status(200).json({
       success: true,
@@ -681,7 +800,7 @@ exports.verifyEmail = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Verify email error:', error);
+    console.error('💥 Verify email error:', error);
     res.status(500).json({
       success: false,
       error: {
@@ -690,6 +809,7 @@ exports.verifyEmail = async (req, res) => {
       }
     });
   }
+  console.log('📧 === VERIFY EMAIL COMPLETED ===\n');
 };
 
 // @desc    Check if user exists by email
@@ -714,7 +834,7 @@ exports.checkUserExists = async (req, res) => {
     }
     
     console.log('🔍 Checking if user exists with email:', email);
-    const user = await ClientAccount.findOne({ email });
+    const user = await User.findOne({ email });
     
     const exists = !!user;
     console.log('🔍 User exists:', exists);
@@ -724,7 +844,8 @@ exports.checkUserExists = async (req, res) => {
         id: user._id,
         email: user.email,
         full_name: user.full_name,
-        account_status: user.account_status
+        role: user.role,
+        status: user.status
       });
     } else {
       console.log('❌ User not found');
@@ -740,7 +861,8 @@ exports.checkUserExists = async (req, res) => {
             id: user._id,
             email: user.email,
             full_name: user.full_name,
-            account_status: user.account_status
+            role: user.role,
+            status: user.status
           }
         })
       }
@@ -764,10 +886,14 @@ exports.checkUserExists = async (req, res) => {
 // @route   POST /api/client-accounts/resend-verification
 // @access  Public
 exports.resendVerification = async (req, res) => {
+  console.log('\n📧 === RESEND VERIFICATION ===');
+  console.log('📧 Request email:', req.body.email);
+  
   try {
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation failed:', errors.array());
       return res.status(400).json({
         success: false,
         error: {
@@ -780,32 +906,39 @@ exports.resendVerification = async (req, res) => {
 
     const { email } = req.body;
 
-    const clientAccount = await ClientAccount.findOne({ email });
+    console.log('🔍 Finding user with email:', email);
+    const user = await User.findOne({ email });
     
-    if (!clientAccount || clientAccount.email_verified) {
+    if (!user || user.email_verified) {
+      console.log('❌ User not found or already verified, but returning success for security');
       return res.status(200).json({
         success: true,
         message: 'If an unverified account with that email exists, a verification email has been sent.'
       });
     }
 
+    console.log('✅ User found, generating verification token');
+
     // Generate new verification token
     const verificationToken = crypto.randomBytes(32).toString('hex');
-    clientAccount.email_verification_token = verificationToken;
-    clientAccount.email_verification_expires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    user.email_verification_token = verificationToken;
     
-    await clientAccount.save();
+    await user.save();
+
+    console.log('✅ Verification token generated and saved');
 
     // TODO: Send verification email
-    console.log('Email verification token:', verificationToken);
+    console.log('📧 Email verification token (for development):', verificationToken);
 
     res.status(200).json({
       success: true,
       message: 'If an unverified account with that email exists, a verification email has been sent.'
     });
 
+    console.log('✅ Verification email resend processed');
+
   } catch (error) {
-    console.error('Resend verification error:', error);
+    console.error('💥 Resend verification error:', error);
     res.status(500).json({
       success: false,
       error: {
@@ -814,6 +947,7 @@ exports.resendVerification = async (req, res) => {
       }
     });
   }
+  console.log('📧 === RESEND VERIFICATION COMPLETED ===\n');
 };
 
 // @desc    Get All Client Accounts (for admin/manager dashboards)
@@ -824,13 +958,52 @@ exports.getAllClientAccounts = async (req, res) => {
     console.log('👥 === GET ALL CLIENT ACCOUNTS ===');
     console.log('👥 Request from admin/manager dashboard');
     
-    // Get all client accounts (excluding sensitive data)
-    const clients = await ClientAccount.find({})
+    // Get all users with role 'client' (excluding sensitive data)
+    const clientUsers = await User.find({ role: 'client' })
       .sort({ createdAt: -1 })
-      .select('-password -reset_password_token -reset_password_expires -email_verification_token -email_verification_expires')
+      .select('-password -password_reset_token -password_reset_expires -email_verification_token')
       .lean();
 
-    console.log('👥 Found client accounts:', clients.length);
+    console.log('👥 Found client users:', clientUsers.length);
+
+    // Get corresponding client profiles
+    const clientProfiles = await Client.find({})
+      .populate('crm_manager', 'first_name last_name email')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    console.log('👥 Found client profiles:', clientProfiles.length);
+
+    // Merge user data with client profile data
+    const mergedClients = clientUsers.map(user => {
+      const profile = clientProfiles.find(p => p.email === user.email);
+      return {
+        // User data
+        _id: user._id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        full_name: `${user.first_name} ${user.last_name}`,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        status: user.status,
+        last_login: user.last_login,
+        createdAt: user.createdAt,
+        // Client profile data (if available)
+        ...(profile && {
+          client_profile: {
+            _id: profile._id,
+            name: profile.name,
+            university: profile.university,
+            crm_manager: profile.crm_manager,
+            satisfaction_rating: profile.satisfaction_rating,
+            tags: profile.tags,
+            notes: profile.notes,
+            profile_created: profile.createdAt
+          }
+        })
+      };
+    });
 
     // Log access for audit (if ActivityLog is available)
     try {
@@ -841,7 +1014,7 @@ exports.getAllClientAccounts = async (req, res) => {
         resourceType: 'ClientAccount',
         description: `All client accounts viewed from admin dashboard`,
         metadata: { 
-          total_clients: clients.length,
+          total_clients: mergedClients.length,
           request_source: 'admin_dashboard'
         },
         ipAddress: req.ip,
@@ -853,8 +1026,8 @@ exports.getAllClientAccounts = async (req, res) => {
 
     res.json({
       success: true,
-      data: clients,
-      count: clients.length
+      data: mergedClients,
+      count: mergedClients.length
     });
 
     console.log('✅ Client accounts retrieved successfully for admin dashboard');

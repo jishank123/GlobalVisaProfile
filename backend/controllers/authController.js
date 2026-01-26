@@ -124,10 +124,32 @@ exports.login = async (req, res) => {
     // Generate token
     const token = generateToken(user._id, user.role);
 
+    // Determine redirect URL based on role
+    let redirectTo = '/client-profile'; // default
+    switch (user.role) {
+      case 'admin':
+        redirectTo = '/admin';
+        break;
+      case 'lead_manager':
+        redirectTo = '/lead-manager';
+        break;
+      case 'crm_manager':
+        redirectTo = '/crm-manager';
+        break;
+      case 'client':
+        redirectTo = '/client-profile';
+        break;
+      default:
+        redirectTo = '/client-profile';
+    }
+
     res.json({
       success: true,
       message: 'Login successful',
-      data: user.toAuthJSON(),
+      data: {
+        ...user.toAuthJSON(),
+        redirectTo: redirectTo
+      },
       token,
       expires_in: 86400
     });

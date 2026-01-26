@@ -83,7 +83,7 @@ const AuthManager = {
   logout() {
     this.removeToken();
     this.removeCurrentUser();
-    window.location.href = '../pages/index.html';
+    window.location.href = '/login';
   }
 };
 
@@ -840,15 +840,17 @@ const ClientAccountsAPI = {
    */
   logout() {
     AuthManager.removeToken();
+    localStorage.removeItem('client_token');
     localStorage.removeItem('clientId');
     localStorage.removeItem('clientEmail');
     localStorage.removeItem('clientName');
     localStorage.removeItem('clientPhone');
+    sessionStorage.removeItem('client_token');
     sessionStorage.removeItem('clientId');
     sessionStorage.removeItem('clientEmail');
     sessionStorage.removeItem('clientName');
     sessionStorage.removeItem('clientPhone');
-    window.location.href = '../pages/index.html';
+    window.location.href = '/login';
   }
 };
 

@@ -229,7 +229,10 @@
             <div class="max-w-4xl mx-auto">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-sm font-semibold text-gray-700">Assessment Progress</span>
-                    <span class="text-sm font-semibold text-primary" id="progress-percentage">0%</span>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm font-semibold text-primary" id="progress-percentage">0%</span>
+                        <span class="text-sm text-gray-500" id="criteria-progress">0/10 criteria completed</span>
+                    </div>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-3">
                     <div class="bg-primary h-3 rounded-full transition-all duration-500" id="progress-bar" style="width: 0%"></div>
@@ -321,6 +324,7 @@
 
                     <p class="text-gray-700 mb-8">
                         For each criterion below, honestly assess your current achievements. You need to meet at least 3 criteria to qualify for EB-1A.
+                        <strong class="text-primary">Please answer all 10 criteria to get your complete assessment.</strong>
                     </p>
 
                     <!-- Criterion 1: Awards -->
@@ -884,9 +888,9 @@
     </footer>
 
     <!-- JavaScript -->
-    <script src="../js/main.js"></script>
-    <script src="../js/api.js"></script>
-    <script src="../js/utils.js"></script>
+    <script src="../../public/js/main.js"></script>
+    <script src="../../public/js/api.js"></script>
+    <script src="../../public/js/utils.js"></script>
     <script>
         // Initialize authentication and pre-fill client data
         document.addEventListener('DOMContentLoaded', function() {
@@ -929,6 +933,74 @@
         };
 
         let criteriaChart = null;
+
+        function updateScore() {
+            console.log('📊 === UPDATE SCORE CALLED ===');
+            
+            // Collect all form data
+            assessmentData.clientName = document.getElementById('client-name').value;
+            assessmentData.clientEmail = document.getElementById('client-email').value;
+            assessmentData.clientPhone = document.getElementById('client-phone').value;
+            assessmentData.field = document.getElementById('field').value;
+            assessmentData.experience = parseInt(document.getElementById('experience').value) || 0;
+            assessmentData.location = document.getElementById('location').value;
+
+            // Collect criteria scores and reset visual indicators
+            for (let i = 1; i <= 10; i++) {
+                const selected = document.querySelector(`input[name="criterion${i}"]:checked`);
+                const criterionCard = document.querySelector(`input[name="criterion${i}"]`).closest('.criterion-card');
+                
+                if (selected) {
+                    assessmentData.criteria[i-1] = parseInt(selected.value);
+                    console.log(`📊 Criterion ${i}: ${selected.value}`);
+                    
+                    // Visual feedback for answered criteria
+                    if (criterionCard) {
+                        criterionCard.style.border = '2px solid #10b981';
+                        criterionCard.style.backgroundColor = '#f0fdf4';
+                    }
+                } else {
+                    // Reset visual state for unanswered criteria
+                    if (criterionCard) {
+                        criterionCard.style.border = '2px solid #e5e7eb';
+                        criterionCard.style.backgroundColor = 'white';
+                    }
+                }
+            }
+
+            // Count answered criteria
+            let answered = 0;
+            for (let i = 1; i <= 10; i++) {
+                const selected = document.querySelector(`input[name="criterion${i}"]:checked`);
+                if (selected) answered++;
+            }
+
+            // Update progress
+            const progressPercentage = Math.round((answered / 10) * 100);
+            updateProgress(progressPercentage);
+
+            console.log('📊 Progress updated:', progressPercentage + '%');
+            console.log('📊 Answered criteria:', answered + '/10');
+        }
+
+        function updateProgress(percentage) {
+            const progressBar = document.getElementById('progress-bar');
+            const progressPercentage = document.getElementById('progress-percentage');
+            const criteriaProgress = document.getElementById('criteria-progress');
+            
+            if (progressBar) {
+                progressBar.style.width = percentage + '%';
+            }
+            if (progressPercentage) {
+                progressPercentage.textContent = percentage + '%';
+            }
+            
+            // Update criteria progress
+            if (criteriaProgress) {
+                const answered = Math.round((percentage / 100) * 10);
+                criteriaProgress.textContent = `${answered}/10 criteria completed`;
+            }
+        }
 
         function goToSection(sectionNum) {
             // Validate basic info
@@ -1008,9 +1080,31 @@
             }
 
             if (unanswered.length > 0) {
-                alert('Please answer all 10 criteria before calculating results.');
+                console.log('❌ Validation failed - unanswered criteria:', unanswered);
+                
+                // Highlight unanswered criteria
+                unanswered.forEach(criterionNum => {
+                    const criterionCard = document.querySelector(`input[name="criterion${criterionNum}"]`).closest('.criterion-card');
+                    if (criterionCard) {
+                        criterionCard.style.border = '2px solid #ef4444';
+                        criterionCard.style.backgroundColor = '#fef2f2';
+                    }
+                });
+                
+                // Show detailed error message
+                const errorMessage = `Please answer all 10 criteria before calculating results.\n\nUnanswered criteria: ${unanswered.join(', ')}`;
+                alert(errorMessage);
+                
+                // Scroll to first unanswered criterion
+                const firstUnanswered = document.querySelector(`input[name="criterion${unanswered[0]}"]`);
+                if (firstUnanswered) {
+                    firstUnanswered.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                
                 return;
             }
+
+            console.log('✅ All criteria answered - proceeding with calculation');
 
             // Calculate score
             const totalPoints = assessmentData.criteria.reduce((a, b) => a + b, 0);
@@ -1082,35 +1176,18 @@
                 ]);
 
                 console.log('🌐 Making API call to save assessment...');
-                console.log('🌐 API Endpoint:', 'http://localhost:5000/api/profile-assessments');
-                console.log('🌐 Request Method: POST');
-                console.log('🌐 Request Headers: Content-Type: application/json');
+                console.log('🌐 Using ProfileAssessmentsAPI.submit()');
 
                 const startTime = Date.now();
-                const response = await fetch('http://localhost:5000/api/profile-assessments', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...(typeof ClientAuth !== 'undefined' && ClientAuth.isAuthenticated() ? {
-                            'Authorization': `Bearer ${AuthManager.getToken()}`
-                        } : {})
-                    },
-                    body: JSON.stringify(assessmentRecord)
-                });
-
+                const responseData = await ProfileAssessmentsAPI.submit(assessmentRecord);
                 const endTime = Date.now();
                 const responseTime = endTime - startTime;
 
                 console.log('📨 API Response received:');
                 console.log('  - Response Time:', responseTime + 'ms');
-                console.log('  - Status Code:', response.status);
-                console.log('  - Status Text:', response.statusText);
-                console.log('  - Response OK:', response.ok);
-
-                const responseData = await response.json();
                 console.log('📨 Response Data:', responseData);
 
-                if (response.ok && responseData.success) {
+                if (responseData.success) {
                     console.log('✅ === DATABASE SAVE SUCCESSFUL ===');
                     console.log('✅ Assessment ID:', responseData.data.assessment_id);
                     console.log('✅ Overall Score:', responseData.data.overall_score + '%');
@@ -1125,7 +1202,6 @@
                     
                 } else {
                     console.log('❌ === DATABASE SAVE FAILED ===');
-                    console.log('❌ Response Status:', response.status);
                     console.log('❌ Response Data:', responseData);
                     console.log('❌ Error Code:', responseData.error?.code);
                     console.log('❌ Error Message:', responseData.error?.message);
@@ -1224,7 +1300,7 @@
             if (resultsSection && assessmentData.savedAssessmentId) {
                 const dashboardLink = assessmentData.isAuthenticated ? 
                     '<a href="../all_static_pages/backend-mern/3-client-profile.html" class="text-primary underline font-semibold">View in your dashboard</a>' : 
-                    '<a href="client-login-clean.html" class="text-primary underline font-semibold">Login to view in dashboard</a>';
+                    '<a href="/login" class="text-primary underline font-semibold">Login to view in dashboard</a>';
                 
                 const successMessage = `
                     <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">

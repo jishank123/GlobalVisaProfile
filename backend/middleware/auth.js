@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken');
-const ClientAccount = require('../models/ClientAccount');
 const User = require('../models/User');
 
 /**
@@ -20,10 +19,12 @@ const authenticateClient = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
       console.log('🔐 Token found in Authorization header');
     }
-    // Check for token in cookies
-    else if (req.cookies && req.cookies.token) {
-      token = req.cookies.token;
-      console.log('🔐 Token found in cookies');
+    // Check for token in cookies (multiple possible cookie names)
+    else if (req.cookies) {
+      token = req.cookies.client_token || req.cookies.token;
+      if (token) {
+        console.log('🔐 Token found in cookies');
+      }
     }
 
     console.log('🔐 Token present:', token ? 'YES' : 'NO');
@@ -45,33 +46,58 @@ const authenticateClient = async (req, res, next) => {
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log('🔐 Token decoded successfully');
-    console.log('🔐 Client ID from token:', decoded.id);
+    console.log('🔐 User ID from token:', decoded.user_id || decoded.id);
+    console.log('🔐 Role from token:', decoded.role);
 
-    // Find client account
-    console.log('🔍 Looking up client account...');
-    const clientAccount = await ClientAccount.findById(decoded.id);
+    // Get user ID from token (handle both formats)
+    const userId = decoded.user_id || decoded.id;
+
+    // Find user account
+    console.log('🔍 Looking up user account...');
+    const user = await User.findById(userId);
     
-    if (!clientAccount) {
-      console.log('❌ Client account not found');
+    if (!user) {
+      console.log('❌ User account not found');
       return res.status(401).json({
         success: false,
         error: {
-          code: 'CLIENT_NOT_FOUND',
-          message: 'Client account not found. Please login again.'
+          code: 'USER_NOT_FOUND',
+          message: 'User account not found. Please login again.'
         }
       });
     }
 
-    console.log('✅ Client authenticated:', clientAccount.email);
-    console.log('✅ Client ID:', clientAccount._id);
+    // Check if user is a client
+    if (user.role !== 'client') {
+      console.log('❌ User is not a client. Role:', user.role);
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'INSUFFICIENT_PERMISSIONS',
+          message: 'Access denied. Client role required.'
+        }
+      });
+    }
 
-    // Add client to request object
+    console.log('✅ Client authenticated:', user.email);
+    console.log('✅ Client ID:', user._id);
+
+    // Add client to request object (maintaining compatibility with existing code)
     req.client = {
-      id: clientAccount._id,
-      email: clientAccount.email,
-      full_name: clientAccount.full_name,
-      phone: clientAccount.phone,
-      account: clientAccount
+      id: user._id,
+      email: user.email,
+      full_name: user.full_name,
+      phone: user.phone,
+      account: user
+    };
+
+    // Also add as user for consistency
+    req.user = {
+      id: user._id,
+      _id: user._id,
+      email: user.email,
+      role: user.role,
+      account: user
     };
 
     console.log('🔐 === AUTHENTICATION SUCCESSFUL ===\n');
@@ -232,21 +258,30 @@ const optionalAuth = async (req, res, next) => {
 
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
-    } else if (req.cookies && req.cookies.token) {
-      token = req.cookies.token;
+    } else if (req.cookies) {
+      token = req.cookies.client_token || req.cookies.token;
     }
 
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const clientAccount = await ClientAccount.findById(decoded.id);
+      const userId = decoded.user_id || decoded.id;
+      const user = await User.findById(userId);
       
-      if (clientAccount) {
+      if (user && user.role === 'client') {
         req.client = {
-          id: clientAccount._id,
-          email: clientAccount.email,
-          full_name: clientAccount.full_name,
-          phone: clientAccount.phone,
-          account: clientAccount
+          id: user._id,
+          email: user.email,
+          full_name: user.full_name,
+          phone: user.phone,
+          account: user
+        };
+        
+        req.user = {
+          id: user._id,
+          _id: user._id,
+          email: user.email,
+          role: user.role,
+          account: user
         };
       }
     }

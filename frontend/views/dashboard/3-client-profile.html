@@ -517,7 +517,7 @@
             <div class="d-flex justify-content-between align-items-start mb-3">
                 <div></div>
                 <div>
-                    <a href="/" class="btn btn-outline-primary btn-sm me-2">
+                    <a href="../pages/index.html" class="btn btn-outline-primary btn-sm me-2">
                         <i class="fas fa-home me-1"></i>Home
                     </a>
                     <button id="logout-btn" class="btn btn-outline-danger btn-sm">
@@ -1204,47 +1204,69 @@
             try {
                 console.log('👤 Loading client profile...');
                 
-                // Try multiple endpoints for client data
-                let response;
-                try {
-                    response = await apiCall('/client-accounts/profile');
-                } catch (error) {
-                    console.log('⚠️ Client accounts endpoint failed, trying clients endpoint...');
-                    try {
-                        response = await apiCall('/clients/me');
-                    } catch (error2) {
-                        console.log('⚠️ Clients endpoint failed, using fallback data...');
-                        // Use fallback data
-                        clientData = {
-                            name: 'Demo Client',
-                            full_name: 'Demo Client',
-                            email: 'demo@example.com',
-                            phone: 'Not provided',
-                            createdAt: new Date().toISOString(),
-                            status: 'active'
-                        };
-                        updateProfileDisplay();
-                        return;
-                    }
+                if (!authToken) {
+                    console.log('❌ No auth token available, redirecting to login...');
+                    alert('Please log in to access your profile.');
+                    window.location.href = '/login';
+                    return;
                 }
                 
-                if (response.success) {
-                    clientData = response.data.client || response.data;
+                // Call the client profile endpoint
+                const response = await apiCall('/client-accounts/profile');
+                
+                if (response.success && response.data) {
+                    // Handle new response format with user and client_profile data
+                    const userData = response.data.user;
+                    const clientProfile = response.data.client_profile;
+                    
+                    // Merge user data with client profile data for compatibility
+                    clientData = {
+                        // User account data
+                        _id: userData._id,
+                        full_name: userData.full_name,
+                        first_name: userData.first_name,
+                        last_name: userData.last_name,
+                        email: userData.email,
+                        phone: userData.phone,
+                        role: userData.role,
+                        status: userData.status,
+                        account_status: userData.status, // For compatibility
+                        last_login: userData.last_login,
+                        createdAt: userData.createdAt,
+                        email_verified: userData.email_verified,
+                        
+                        // Client profile data (if available)
+                        ...(clientProfile && {
+                            client_profile_id: clientProfile._id,
+                            name: clientProfile.name,
+                            university: clientProfile.university,
+                            crm_manager: clientProfile.crm_manager,
+                            satisfaction_rating: clientProfile.satisfaction_rating,
+                            tags: clientProfile.tags,
+                            notes: clientProfile.notes,
+                            profile_created: clientProfile.createdAt
+                        })
+                    };
+                    
                     updateProfileDisplay();
                     console.log('✅ Client profile loaded:', clientData);
+                } else {
+                    throw new Error('Invalid response format');
                 }
             } catch (error) {
                 console.error('❌ Profile load error:', error);
-                // Use fallback data
-                clientData = {
-                    name: 'Demo Client',
-                    full_name: 'Demo Client',
-                    email: 'demo@example.com',
-                    phone: 'Not provided',
-                    createdAt: new Date().toISOString(),
-                    status: 'active'
-                };
-                updateProfileDisplay();
+                
+                // Check if it's an authentication error
+                if (error.message.includes('401') || error.message.includes('token')) {
+                    alert('Your session has expired. Please log in again.');
+                    localStorage.removeItem('client_token');
+                    localStorage.removeItem('token');
+                    window.location.href = '/login';
+                    return;
+                }
+                
+                // Show error message to user
+                alert('Failed to load profile data. Please try refreshing the page.');
             }
         }
 
@@ -1255,45 +1277,56 @@
             console.log('🎨 Updating profile display with:', clientData);
             
             // Update header
-            const name = clientData.full_name || clientData.name || 'Demo Client';
+            const name = clientData.full_name || clientData.name || 'Client User';
             const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
             
             document.getElementById('profile-avatar').textContent = initials;
             document.getElementById('profile-name').textContent = name;
-            document.getElementById('profile-email').textContent = clientData.email || 'demo@example.com';
+            document.getElementById('profile-email').textContent = clientData.email || 'No email provided';
             document.getElementById('profile-phone').textContent = clientData.phone || 'Not provided';
             
             // Format creation date
             const createdDate = new Date(clientData.createdAt || clientData.created_at || Date.now()).toLocaleDateString();
             document.getElementById('profile-since').textContent = `Client Since: ${createdDate}`;
             
-            // Show assigned manager
-            const managerName = clientData.crm_manager?.first_name && clientData.crm_manager?.last_name 
-                ? `${clientData.crm_manager.first_name} ${clientData.crm_manager.last_name}`
-                : clientData.assignedManager?.name || 'Not assigned';
+            // Show assigned manager (if available)
+            let managerName = 'Not assigned';
+            if (clientData.crm_manager) {
+                if (typeof clientData.crm_manager === 'object') {
+                    managerName = `${clientData.crm_manager.first_name} ${clientData.crm_manager.last_name}`;
+                } else {
+                    managerName = 'Assigned';
+                }
+            }
             document.getElementById('profile-manager').textContent = `Manager: ${managerName}`;
             
             // Update badges
             const badgesContainer = document.getElementById('profile-badges');
             badgesContainer.innerHTML = '';
             
-            if (clientData.email_verified || clientData.status === 'active') {
+            if (clientData.email_verified) {
                 badgesContainer.innerHTML += '<span class="badge-custom badge-verified"><i class="fas fa-check-circle"></i> Verified</span>';
             }
             
-            if (clientData.status === 'active') {
+            const status = clientData.status || clientData.account_status;
+            if (status === 'active') {
                 badgesContainer.innerHTML += '<span class="badge-custom badge-active"><i class="fas fa-user-check"></i> Active</span>';
             }
             
-            if (clientData.status === 'vip') {
+            if (status === 'vip') {
                 badgesContainer.innerHTML += '<span class="badge-custom badge-vip"><i class="fas fa-crown"></i> VIP</span>';
             }
             
-            // Update settings form
-            document.getElementById('settings-name').value = name;
-            document.getElementById('settings-email').value = clientData.email || '';
-            document.getElementById('settings-phone').value = clientData.phone || '';
-            document.getElementById('settings-company').value = clientData.company || clientData.university || '';
+            // Update settings form if it exists
+            const settingsName = document.getElementById('settings-name');
+            const settingsEmail = document.getElementById('settings-email');
+            const settingsPhone = document.getElementById('settings-phone');
+            const settingsCompany = document.getElementById('settings-company');
+            
+            if (settingsName) settingsName.value = name;
+            if (settingsEmail) settingsEmail.value = clientData.email || '';
+            if (settingsPhone) settingsPhone.value = clientData.phone || '';
+            if (settingsCompany) settingsCompany.value = clientData.company || '';
         }
 
         // Load client projects
@@ -1312,7 +1345,11 @@
                     updateProjectStats();
                     console.log('✅ Projects loaded:', projectsData.length);
                 } else {
-                    throw new Error('No projects found');
+                    console.log('ℹ️ No projects found for this client');
+                    document.getElementById('projects-loading').classList.remove('show');
+                    document.getElementById('projects-empty').style.display = 'block';
+                    projectsData = [];
+                    updateProjectStats();
                 }
             } catch (error) {
                 console.error('❌ Projects load error:', error);
@@ -1384,7 +1421,11 @@
                     updatePaymentStats();
                     console.log('✅ Payments loaded:', paymentsData.length);
                 } else {
-                    throw new Error('No payments found');
+                    console.log('ℹ️ No payments found for this client');
+                    document.getElementById('payments-loading').classList.remove('show');
+                    document.getElementById('payments-empty').style.display = 'block';
+                    paymentsData = [];
+                    updatePaymentStats();
                 }
             } catch (error) {
                 console.error('❌ Payments load error:', error);
@@ -1544,7 +1585,10 @@
                     updateServicesDisplay();
                     console.log('✅ Services loaded:', servicesData.length);
                 } else {
-                    throw new Error('No services available');
+                    console.log('ℹ️ No services available');
+                    document.getElementById('services-loading').classList.remove('show');
+                    document.getElementById('services-empty').style.display = 'block';
+                    servicesData = [];
                 }
             } catch (error) {
                 console.error('❌ Services load error:', error);
@@ -1995,7 +2039,7 @@
             // Show logout message
             alert('You have been logged out successfully.');
             
-            // Redirect to login page
+            // Redirect to single login page
             window.location.href = '/login';
         }
 
