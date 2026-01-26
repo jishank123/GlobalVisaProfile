@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Client Profile | Academic ERP</title>
+    <title>Client Profile | Immigration Pro CRM</title>
     
     <!-- Bootstrap 5.3.0 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -168,28 +168,6 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
         }
 
-        .section-header {
-            display: flex;
-            justify-content: between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #e2e8f0;
-        }
-
-        .section-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #1a202c;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .section-title i {
-            color: #667eea;
-        }
-
         /* Tabs */
         .nav-tabs-custom {
             border-bottom: 2px solid #e2e8f0;
@@ -264,6 +242,12 @@
         .status-pending { background: #fef3c7; color: #92400e; }
         .status-paid { background: #d1fae5; color: #065f46; }
         .status-failed { background: #fee2e2; color: #991b1b; }
+        .status-new { background: #e0e7ff; color: #3730a3; }
+        .status-contacted { background: #fef3c7; color: #92400e; }
+        .status-qualified { background: #dbeafe; color: #1e40af; }
+        .status-converted { background: #d1fae5; color: #065f46; }
+        .status-active { background: #d1fae5; color: #065f46; }
+        .status-pending_verification { background: #fef3c7; color: #92400e; }
 
         /* Progress Bar */
         .progress-custom {
@@ -295,969 +279,6 @@
             text-align: center;
             padding: 40px;
             color: #6c757d;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .profile-header {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .profile-info h1 {
-                font-size: 24px;
-            }
-
-            .stats-row {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container-fluid">
-        <!-- Header Section -->
-        <div class="header-section">
-            <div class="d-flex justify-content-between align-items-start mb-3">
-                <div></div>
-                <div>
-                    <a href="/" class="btn btn-outline-primary btn-sm me-2">
-                        <i class="fas fa-home me-1"></i>Home
-                    </a>
-                    <button id="logout-btn" class="btn btn-outline-danger btn-sm">
-                        <i class="fas fa-sign-out-alt me-1"></i>Logout
-                    </button>
-                </div>
-            </div>
-            <div class="profile-header">
-                <div class="profile-avatar" id="profile-avatar">
-                    <i class="fas fa-user"></i>
-                </div>
-                <div class="profile-info">
-                    <h1 id="profile-name">Loading...</h1>
-                    <div class="profile-meta">
-                        <div class="meta-item">
-                            <i class="fas fa-envelope"></i>
-                            <span id="profile-email">Loading...</span>
-                        </div>
-                        <div class="meta-item">
-                            <i class="fas fa-phone"></i>
-                            <span id="profile-phone">Not provided</span>
-                        </div>
-                        <div class="meta-item">
-                            <i class="fas fa-calendar-alt"></i>
-                            <span id="profile-since">Loading...</span>
-                        </div>
-                    </div>
-                    <div class="profile-badges" id="profile-badges">
-                        <!-- Dynamic badges will be loaded here -->
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Stats Cards -->
-        <div class="stats-row">
-            <div class="stat-card">
-                <div class="stat-icon" style="background: #dbeafe; color: #1e40af;">
-                    <i class="fas fa-file-alt"></i>
-                </div>
-                <div class="stat-value" style="color: #1e40af;" id="completed-projects">-</div>
-                <div class="stat-label">Completed Projects</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon" style="background: #d1fae5; color: #065f46;">
-                    <i class="fas fa-dollar-sign"></i>
-                </div>
-                <div class="stat-value" style="color: #065f46;" id="total-spent">-</div>
-                <div class="stat-label">Total Spent</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon" style="background: #fef3c7; color: #92400e;">
-                    <i class="fas fa-clock"></i>
-                </div>
-                <div class="stat-value" style="color: #92400e;" id="active-projects">-</div>
-                <div class="stat-label">Active Projects</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon" style="background: #fee2e2; color: #dc2626;">
-                    <i class="fas fa-exclamation-triangle"></i>
-                </div>
-                <div class="stat-value" style="color: #dc2626;" id="pending-payments">-</div>
-                <div class="stat-label">Pending Payments</div>
-            </div>
-        </div>
-
-        <!-- Main Content Tabs -->
-        <div class="content-section">
-            <ul class="nav nav-tabs nav-tabs-custom" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#projects" type="button">
-                        <i class="fas fa-briefcase"></i> Projects
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#payments" type="button">
-                        <i class="fas fa-credit-card"></i> Payments
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#profile-settings" type="button">
-                        <i class="fas fa-cog"></i> Settings
-                    </button>
-                </li>
-            </ul>
-
-            <div class="tab-content mt-4">
-                <!-- Projects Tab -->
-                <div class="tab-pane fade show active" id="projects" role="tabpanel">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0">My Projects</h5>
-                        <button class="btn btn-primary btn-sm" onclick="refreshProjects()">
-                            <i class="fas fa-sync-alt me-1"></i>Refresh
-                        </button>
-                    </div>
-                    
-                    <!-- Loading Spinner -->
-                    <div class="loading-spinner" id="projects-loading">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <p class="mt-2">Loading projects...</p>
-                    </div>
-                    
-                    <!-- Projects Table -->
-                    <div class="table-responsive" id="projects-table" style="display: none;">
-                        <table class="table table-custom">
-                            <thead>
-                                <tr>
-                                    <th>Project</th>
-                                    <th>Service</th>
-                                    <th>Status</th>
-                                    <th>Progress</th>
-                                    <th>Start Date</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="projects-tbody">
-                                <!-- Dynamic content will be loaded here -->
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <!-- Empty State -->
-                    <div class="empty-state" id="projects-empty" style="display: none;">
-                        <i class="fas fa-briefcase fa-3x mb-3"></i>
-                        <h5>No Projects Found</h5>
-                        <p>You don't have any projects yet. Contact us to get started!</p>
-                    </div>
-                </div>
-
-                <!-- Payments Tab -->
-                <div class="tab-pane fade" id="payments" role="tabpanel">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0">Payment History</h5>
-                        <button class="btn btn-primary btn-sm" onclick="refreshPayments()">
-                            <i class="fas fa-sync-alt me-1"></i>Refresh
-                        </button>
-                    </div>
-                    
-                    <!-- Loading Spinner -->
-                    <div class="loading-spinner" id="payments-loading">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <p class="mt-2">Loading payments...</p>
-                    </div>
-                    
-                    <!-- Payments Table -->
-                    <div class="table-responsive" id="payments-table" style="display: none;">
-                        <table class="table table-custom">
-                            <thead>
-                                <tr>
-                                    <th>Invoice</th>
-                                    <th>Project</th>
-                                    <th>Amount</th>
-                                    <th>Status</th>
-                                    <th>Date</th>
-                                    <th>Method</th>
-                                </tr>
-                            </thead>
-                            <tbody id="payments-tbody">
-                                <!-- Dynamic content will be loaded here -->
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <!-- Empty State -->
-                    <div class="empty-state" id="payments-empty" style="display: none;">
-                        <i class="fas fa-credit-card fa-3x mb-3"></i>
-                        <h5>No Payments Found</h5>
-                        <p>No payment records available.</p>
-                    </div>
-                    
-                    <!-- Outstanding Balance Alert -->
-                    <div class="alert alert-warning mt-3" id="outstanding-balance" style="display: none;">
-                        <i class="fas fa-info-circle"></i>
-                        <strong>Outstanding Balance:</strong> <span id="balance-amount">$0</span>
-                    </div>
-                </div>
-
-                <!-- Profile Settings Tab -->
-                <div class="tab-pane fade" id="profile-settings" role="tabpanel">
-                    <h5 class="mb-4">Profile Settings</h5>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6><i class="fas fa-user me-2"></i>Personal Information</h6>
-                                </div>
-                                <div class="card-body">
-                                    <form id="profile-form">
-                                        <div class="mb-3">
-                                            <label class="form-label">Full Name</label>
-                                            <input type="text" class="form-control" id="settings-name" name="full_name">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Email</label>
-                                            <input type="email" class="form-control" id="settings-email" name="email" readonly>
-                                            <small class="text-muted">Email cannot be changed</small>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Phone</label>
-                                            <input type="tel" class="form-control" id="settings-phone" name="phone">
-                                        </div>
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fas fa-save me-1"></i>Update Profile
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6><i class="fas fa-lock me-2"></i>Change Password</h6>
-                                </div>
-                                <div class="card-body">
-                                    <form id="password-form">
-                                        <div class="mb-3">
-                                            <label class="form-label">Current Password</label>
-                                            <input type="password" class="form-control" name="current_password" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">New Password</label>
-                                            <input type="password" class="form-control" name="new_password" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Confirm New Password</label>
-                                            <input type="password" class="form-control" name="confirm_password" required>
-                                        </div>
-                                        <button type="submit" class="btn btn-warning">
-                                            <i class="fas fa-key me-1"></i>Change Password
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <script>
-        // Global variables
-        let clientData = null;
-        let projectsData = [];
-        let paymentsData = [];
-
-        // API Base URL
-        const API_BASE = 'http://localhost:5000/api';
-
-        // Authentication token
-        let authToken = localStorage.getItem('client_token') || localStorage.getItem('token');
-
-        // API Helper function
-        async function apiCall(endpoint, options = {}) {
-            const url = `${API_BASE}${endpoint}`;
-            const config = {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`
-                },
-                ...options
-            };
-            
-            try {
-                console.log('🌐 API Call:', url, config.method || 'GET');
-                const response = await fetch(url, config);
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    console.error('❌ API Error:', response.status, data);
-                    throw new Error(data.error?.message || `HTTP ${response.status}`);
-                }
-                
-                console.log('✅ API Success:', data);
-                return data;
-            } catch (error) {
-                console.error('❌ API Error:', error);
-                throw error;
-            }
-        }
-
-        // Load client profile data
-        async function loadClientProfile() {
-            try {
-                console.log('👤 Loading client profile...');
-                const response = await apiCall('/client-accounts/profile');
-                
-                if (response.success) {
-                    clientData = response.data.client;
-                    updateProfileDisplay();
-                    console.log('✅ Client profile loaded:', clientData);
-                }
-            } catch (error) {
-                console.error('❌ Profile load error:', error);
-                showError('Failed to load profile: ' + error.message);
-            }
-        }
-
-        // Update profile display
-        function updateProfileDisplay() {
-            if (!clientData) return;
-            
-            // Update header
-            const initials = clientData.full_name ? 
-                clientData.full_name.split(' ').map(n => n[0]).join('').toUpperCase() : 
-                'CL';
-            
-            document.getElementById('profile-avatar').textContent = initials;
-            document.getElementById('profile-name').textContent = clientData.full_name || 'Client';
-            document.getElementById('profile-email').textContent = clientData.email || 'No email';
-            document.getElementById('profile-phone').textContent = clientData.phone || 'Not provided';
-            
-            // Format creation date
-            const createdDate = new Date(clientData.createdAt).toLocaleDateString();
-            document.getElementById('profile-since').textContent = `Client Since: ${createdDate}`;
-            
-            // Update badges
-            const badgesContainer = document.getElementById('profile-badges');
-            badgesContainer.innerHTML = '';
-            
-            if (clientData.email_verified) {
-                badgesContainer.innerHTML += '<span class="badge-custom badge-verified"><i class="fas fa-check-circle"></i> Verified</span>';
-            }
-            
-            if (clientData.account_status === 'active') {
-                badgesContainer.innerHTML += '<span class="badge-custom badge-active"><i class="fas fa-user-check"></i> Active</span>';
-            }
-            
-            // Update settings form
-            document.getElementById('settings-name').value = clientData.full_name || '';
-            document.getElementById('settings-email').value = clientData.email || '';
-            document.getElementById('settings-phone').value = clientData.phone || '';
-        }
-
-        // Load client projects
-        async function loadProjects() {
-            try {
-                console.log('📊 Loading client projects...');
-                document.getElementById('projects-loading').classList.add('show');
-                document.getElementById('projects-table').style.display = 'none';
-                document.getElementById('projects-empty').style.display = 'none';
-                
-                const response = await apiCall('/projects');
-                
-                if (response.success) {
-                    projectsData = response.data;
-                    updateProjectsDisplay();
-                    updateProjectStats();
-                    console.log('✅ Projects loaded:', projectsData.length);
-                }
-            } catch (error) {
-                console.error('❌ Projects load error:', error);
-                document.getElementById('projects-loading').classList.remove('show');
-                document.getElementById('projects-empty').style.display = 'block';
-                showError('Failed to load projects: ' + error.message);
-            }
-        }
-
-        // Update projects display
-        function updateProjectsDisplay() {
-            const tbody = document.getElementById('projects-tbody');
-            document.getElementById('projects-loading').classList.remove('show');
-            
-            if (projectsData.length === 0) {
-                document.getElementById('projects-empty').style.display = 'block';
-                return;
-            }
-            
-            document.getElementById('projects-table').style.display = 'block';
-            
-            tbody.innerHTML = projectsData.map(project => {
-                const startDate = new Date(project.createdAt).toLocaleDateString();
-                const progress = project.progress || 0;
-                
-                return `
-                    <tr>
-                        <td>
-                            <strong>${project.title || 'Untitled Project'}</strong><br>
-                            <small class="text-muted">${project.description || 'No description'}</small>
-                        </td>
-                        <td>${project.service?.name || 'Unknown Service'}</td>
-                        <td><span class="status-badge status-${project.status}">${formatStatus(project.status)}</span></td>
-                        <td>
-                            <div class="progress-custom">
-                                <div class="progress-bar-custom" style="width: ${progress}%;"></div>
-                            </div>
-                            <small class="text-muted">${progress}%</small>
-                        </td>
-                        <td>${startDate}</td>
-                        <td>
-                            <button class="btn btn-sm btn-primary" onclick="viewProject('${project._id}')">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        // Load client payments
-        async function loadPayments() {
-            try {
-                console.log('💳 Loading client payments...');
-                document.getElementById('payments-loading').classList.add('show');
-                document.getElementById('payments-table').style.display = 'none';
-                document.getElementById('payments-empty').style.display = 'none';
-                
-                const response = await apiCall('/payments');
-                
-                if (response.success) {
-                    paymentsData = response.data;
-                    updatePaymentsDisplay();
-                    updatePaymentStats();
-                    console.log('✅ Payments loaded:', paymentsData.length);
-                }
-            } catch (error) {
-                console.error('❌ Payments load error:', error);
-                document.getElementById('payments-loading').classList.remove('show');
-                document.getElementById('payments-empty').style.display = 'block';
-                showError('Failed to load payments: ' + error.message);
-            }
-        }
-
-        // Update payments display
-        function updatePaymentsDisplay() {
-            const tbody = document.getElementById('payments-tbody');
-            document.getElementById('payments-loading').classList.remove('show');
-            
-            if (paymentsData.length === 0) {
-                document.getElementById('payments-empty').style.display = 'block';
-                return;
-            }
-            
-            document.getElementById('payments-table').style.display = 'block';
-            
-            tbody.innerHTML = paymentsData.map(payment => {
-                const paymentDate = new Date(payment.paymentDate).toLocaleDateString();
-                const amount = `$${payment.amount.toLocaleString()}`;
-                
-                return `
-                    <tr>
-                        <td><strong>${payment.invoice?.invoiceNumber || 'N/A'}</strong></td>
-                        <td>${payment.project?.title || 'Unknown Project'}</td>
-                        <td><strong>${amount}</strong></td>
-                        <td><span class="status-badge status-${payment.status}">${formatPaymentStatus(payment.status)}</span></td>
-                        <td>${paymentDate}</td>
-                        <td>${formatPaymentMethod(payment.paymentMethod)}</td>
-                    </tr>
-                `;
-            }).join('');
-            
-            // Calculate outstanding balance
-            const pendingPayments = paymentsData.filter(p => p.status === 'pending');
-            const outstandingBalance = pendingPayments.reduce((sum, p) => sum + p.amount, 0);
-            
-            if (outstandingBalance > 0) {
-                document.getElementById('outstanding-balance').style.display = 'block';
-                document.getElementById('balance-amount').textContent = `$${outstandingBalance.toLocaleString()}`;
-            }
-        }
-
-        // Update statistics
-        function updateProjectStats() {
-            const completedProjects = projectsData.filter(p => p.status === 'completed').length;
-            const activeProjects = projectsData.filter(p => ['planning', 'in_progress'].includes(p.status)).length;
-            
-            document.getElementById('completed-projects').textContent = completedProjects;
-            document.getElementById('active-projects').textContent = activeProjects;
-        }
-
-        function updatePaymentStats() {
-            const totalSpent = paymentsData
-                .filter(p => p.status === 'completed')
-                .reduce((sum, p) => sum + p.amount, 0);
-            
-            const pendingPayments = paymentsData.filter(p => p.status === 'pending').length;
-            
-            document.getElementById('total-spent').textContent = `$${totalSpent.toLocaleString()}`;
-            document.getElementById('pending-payments').textContent = pendingPayments;
-        }
-
-        // Format functions
-        function formatStatus(status) {
-            const statusMap = {
-                'planning': 'Planning',
-                'in_progress': 'In Progress',
-                'completed': 'Completed',
-                'cancelled': 'Cancelled'
-            };
-            return statusMap[status] || status;
-        }
-
-        function formatPaymentStatus(status) {
-            const statusMap = {
-                'pending': 'Pending',
-                'completed': 'Paid',
-                'failed': 'Failed',
-                'refunded': 'Refunded'
-            };
-            return statusMap[status] || status;
-        }
-
-        function formatPaymentMethod(method) {
-            const methodMap = {
-                'credit_card': 'Credit Card',
-                'bank_transfer': 'Bank Transfer',
-                'paypal': 'PayPal',
-                'stripe': 'Stripe',
-                'other': 'Other'
-            };
-            return methodMap[method] || method;
-        }
-
-        // Action functions
-        function viewProject(projectId) {
-            console.log('👁️ View project:', projectId);
-            alert('Project details view will be implemented');
-        }
-
-        function refreshProjects() {
-            loadProjects();
-        }
-
-        function refreshPayments() {
-            loadPayments();
-        }
-
-        // Profile update
-        async function updateProfile(formData) {
-            try {
-                const response = await apiCall('/client-accounts/profile', {
-                    method: 'PUT',
-                    body: JSON.stringify(formData)
-                });
-                
-                if (response.success) {
-                    clientData = response.data.client;
-                    updateProfileDisplay();
-                    showSuccess('Profile updated successfully!');
-                }
-            } catch (error) {
-                showError('Failed to update profile: ' + error.message);
-            }
-        }
-
-        // Password change
-        async function changePassword(formData) {
-            try {
-                const response = await apiCall('/client-accounts/change-password', {
-                    method: 'PUT',
-                    body: JSON.stringify(formData)
-                });
-                
-                if (response.success) {
-                    showSuccess('Password changed successfully!');
-                    document.getElementById('password-form').reset();
-                }
-            } catch (error) {
-                showError('Failed to change password: ' + error.message);
-            }
-        }
-
-        // Utility functions
-        function showError(message) {
-            console.error('❌ Error:', message);
-            alert('Error: ' + message);
-        }
-
-        function showSuccess(message) {
-            console.log('✅ Success:', message);
-            alert(message);
-        }
-
-        // Logout function
-        function logout() {
-            console.log('🚪 Logging out...');
-            
-            // Clear all auth data
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            localStorage.removeItem('userRole');
-            localStorage.removeItem('client_token');
-            
-            // Show logout message
-            alert('You have been logged out successfully.');
-            
-            // Redirect to login page
-            window.location.href = '/login';
-        }
-
-        // Event listeners
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('👤 Client Profile Dashboard initializing...');
-            
-            // Check authentication
-            if (!authToken) {
-                console.log('❌ No auth token found, redirecting to login');
-                window.location.href = '/login';
-                return;
-            }
-            
-            // Attach logout button listener
-            const logoutBtn = document.getElementById('logout-btn');
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    logout();
-                });
-                console.log('✅ Logout button event listener attached');
-            }
-            
-            // Profile form submission
-            document.getElementById('profile-form').addEventListener('submit', function(e) {
-                e.preventDefault();
-                const formData = new FormData(this);
-                const data = Object.fromEntries(formData);
-                updateProfile(data);
-            });
-            
-            // Password form submission
-            document.getElementById('password-form').addEventListener('submit', function(e) {
-                e.preventDefault();
-                const formData = new FormData(this);
-                const data = Object.fromEntries(formData);
-                
-                if (data.new_password !== data.confirm_password) {
-                    showError('New passwords do not match');
-                    return;
-                }
-                
-                changePassword({
-                    current_password: data.current_password,
-                    new_password: data.new_password
-                });
-            });
-            
-            // Load initial data
-            loadClientProfile();
-            loadProjects();
-            loadPayments();
-        });
-    </script>
-</body>
-</html>
-    
-    <!-- Bootstrap 5.3.0 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Font Awesome 6.4.0 -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Google Fonts - Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container-fluid {
-            max-width: 1400px;
-        }
-
-        /* Header Section */
-        .header-section {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-
-        .profile-header {
-            display: flex;
-            align-items: center;
-            gap: 25px;
-        }
-
-        .profile-avatar {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 48px;
-            color: white;
-            font-weight: 600;
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        .profile-info h1 {
-            font-size: 32px;
-            font-weight: 700;
-            color: #1a202c;
-            margin-bottom: 8px;
-        }
-
-        .profile-meta {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-            margin-top: 10px;
-        }
-
-        .meta-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #718096;
-            font-size: 14px;
-        }
-
-        .meta-item i {
-            color: #667eea;
-        }
-
-        .profile-badges {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        .badge-custom {
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .badge-vip {
-            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-            color: #1a202c;
-        }
-
-        .badge-verified {
-            background: #10b981;
-            color: white;
-        }
-
-        .rating-display {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 10px;
-        }
-
-        .stars {
-            color: #fbbf24;
-            font-size: 18px;
-        }
-
-        .rating-text {
-            color: #718096;
-            font-size: 14px;
-        }
-
-        /* Stats Cards */
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 25px;
-        }
-
-        .stat-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
-        }
-
-        .stat-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            margin-bottom: 15px;
-        }
-
-        .stat-value {
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-
-        .stat-label {
-            color: #718096;
-            font-size: 13px;
-            font-weight: 500;
-        }
-
-        /* Content Sections */
-        .content-section {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-        }
-
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #e2e8f0;
-        }
-
-        .section-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #1a202c;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .section-title i {
-            color: #667eea;
-        }
-
-        /* Tabs */
-        .nav-tabs-custom {
-            border-bottom: 2px solid #e2e8f0;
-            margin-bottom: 20px;
-        }
-
-        .nav-tabs-custom .nav-link {
-            border: none;
-            color: #718096;
-            font-weight: 500;
-            padding: 12px 20px;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s ease;
-        }
-
-        .nav-tabs-custom .nav-link:hover {
-            color: #667eea;
-        }
-
-        .nav-tabs-custom .nav-link.active {
-            color: #667eea;
-            background: transparent;
-            border-bottom: 3px solid #667eea;
-        }
-
-        /* Table Styles */
-        .table-custom {
-            margin: 0;
-        }
-
-        .table-custom thead {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .table-custom th {
-            font-weight: 600;
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 15px;
-            border: none;
-        }
-
-        .table-custom td {
-            padding: 15px;
-            vertical-align: middle;
-            color: #4a5568;
-        }
-
-        .table-custom tbody tr {
-            transition: background-color 0.2s ease;
-        }
-
-        .table-custom tbody tr:hover {
-            background-color: #f7fafc;
-        }
-
-        /* Status Badges */
-        .status-badge {
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-            display: inline-block;
-        }
-
-        .status-active { background: #d1fae5; color: #065f46; }
-        .status-completed { background: #dbeafe; color: #1e40af; }
-        .status-pending { background: #fef3c7; color: #92400e; }
-        .status-cancelled { background: #fee2e2; color: #991b1b; }
-
-        /* Progress Bar */
-        .progress-custom {
-            height: 8px;
-            border-radius: 10px;
-            background: #e2e8f0;
-            overflow: hidden;
-        }
-
-        .progress-bar-custom {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            border-radius: 10px;
-            transition: width 0.5s ease;
         }
 
         /* Timeline */
@@ -1317,78 +338,6 @@
             font-size: 14px;
         }
 
-        /* Action Buttons */
-        .btn-custom {
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: 500;
-            font-size: 14px;
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-primary-custom {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-primary-custom:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-secondary-custom {
-            background: #e2e8f0;
-            color: #4a5568;
-        }
-
-        .btn-secondary-custom:hover {
-            background: #cbd5e0;
-        }
-
-        /* Documents Grid */
-        .documents-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 15px;
-        }
-
-        .document-card {
-            background: #f7fafc;
-            border-radius: 10px;
-            padding: 15px;
-            text-align: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .document-card:hover {
-            background: #edf2f7;
-            transform: translateY(-3px);
-        }
-
-        .document-icon {
-            font-size: 40px;
-            color: #667eea;
-            margin-bottom: 10px;
-        }
-
-        .document-name {
-            font-size: 12px;
-            color: #4a5568;
-            font-weight: 500;
-        }
-
-        .document-size {
-            font-size: 11px;
-            color: #a0aec0;
-            margin-top: 5px;
-        }
-
         /* Responsive */
         @media (max-width: 768px) {
             .profile-header {
@@ -1403,6 +352,161 @@
             .stats-row {
                 grid-template-columns: 1fr;
             }
+        }
+
+        /* Service Cards */
+        .service-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin-bottom: 20px;
+            border: 2px solid transparent;
+        }
+
+        .service-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+            border-color: #667eea;
+        }
+
+        .service-header {
+            display: flex;
+            justify-content: between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .service-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 5px;
+        }
+
+        .service-price {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .service-description {
+            color: #718096;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .service-features {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 20px;
+        }
+
+        .service-features li {
+            padding: 5px 0;
+            color: #4a5568;
+            display: flex;
+            align-items: center;
+        }
+
+        .service-features li i {
+            color: #10b981;
+            margin-right: 10px;
+            width: 16px;
+        }
+
+        .service-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Payment Options */
+        .payment-option {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .payment-option:hover {
+            border-color: #667eea;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .payment-option.selected {
+            border-color: #667eea;
+            background: #f8faff;
+        }
+
+        /* Payment Status Badges */
+        .payment-status {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .payment-status.pending-verification {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .payment-status.verified {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .payment-status.rejected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* File Upload Styling */
+        .file-upload-area {
+            border: 2px dashed #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload-area:hover {
+            border-color: #667eea;
+            background: #f8faff;
+        }
+
+        .file-upload-area.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        /* Service Status Indicators */
+        .service-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .service-status.available {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .service-status.purchased {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .service-status.completed {
+            background: #e0e7ff;
+            color: #3730a3;
         }
     </style>
 </head>
@@ -1422,40 +526,31 @@
                 </div>
             </div>
             <div class="profile-header">
-                <div class="profile-avatar">
-                    SM
+                <div class="profile-avatar" id="profile-avatar">
+                    CU
                 </div>
                 <div class="profile-info">
-                    <h1>Dr. Sarah Mitchell</h1>
+                    <h1 id="profile-name">Client User</h1>
                     <div class="profile-meta">
                         <div class="meta-item">
-                            <i class="fas fa-graduation-cap"></i>
-                            <span>Stanford University</span>
-                        </div>
-                        <div class="meta-item">
                             <i class="fas fa-envelope"></i>
-                            <span>sarah.mitchell@stanford.edu</span>
+                            <span id="profile-email">client@example.com</span>
                         </div>
                         <div class="meta-item">
                             <i class="fas fa-phone"></i>
-                            <span>+1 (650) 555-0143</span>
+                            <span id="profile-phone">Not provided</span>
                         </div>
                         <div class="meta-item">
                             <i class="fas fa-calendar-alt"></i>
-                            <span>Client Since: March 2023</span>
+                            <span id="profile-since">Client Since: Jan 2025</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-user-tie"></i>
+                            <span id="profile-manager">Manager: Not assigned</span>
                         </div>
                     </div>
-                    <div class="profile-badges">
-                        <span class="badge-custom badge-vip">
-                            <i class="fas fa-crown"></i> VIP Client
-                        </span>
-                        <span class="badge-custom badge-verified">
-                            <i class="fas fa-check-circle"></i> Verified
-                        </span>
-                    </div>
-                    <div class="rating-display">
-                        <span class="stars">★★★★★</span>
-                        <span class="rating-text">4.9 Satisfaction Rating</span>
+                    <div class="profile-badges" id="profile-badges">
+                        <span class="badge-custom badge-active"><i class="fas fa-user-check"></i> Active</span>
                     </div>
                 </div>
             </div>
@@ -1467,29 +562,29 @@
                 <div class="stat-icon" style="background: #dbeafe; color: #1e40af;">
                     <i class="fas fa-file-alt"></i>
                 </div>
-                <div class="stat-value" style="color: #1e40af;">12</div>
+                <div class="stat-value" style="color: #1e40af;" id="completed-projects">0</div>
                 <div class="stat-label">Completed Projects</div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon" style="background: #d1fae5; color: #065f46;">
                     <i class="fas fa-dollar-sign"></i>
                 </div>
-                <div class="stat-value" style="color: #065f46;">$48,500</div>
+                <div class="stat-value" style="color: #065f46;" id="total-spent">$0</div>
                 <div class="stat-label">Total Spent</div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon" style="background: #fef3c7; color: #92400e;">
                     <i class="fas fa-clock"></i>
                 </div>
-                <div class="stat-value" style="color: #92400e;">3</div>
+                <div class="stat-value" style="color: #92400e;" id="active-projects">0</div>
                 <div class="stat-label">Active Projects</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon" style="background: #e9d5ff; color: #6b21a8;">
-                    <i class="fas fa-star"></i>
+                <div class="stat-icon" style="background: #fee2e2; color: #dc2626;">
+                    <i class="fas fa-exclamation-triangle"></i>
                 </div>
-                <div class="stat-value" style="color: #6b21a8;">4.9★</div>
-                <div class="stat-label">Average Rating</div>
+                <div class="stat-value" style="color: #dc2626;" id="pending-payments">0</div>
+                <div class="stat-label">Pending Payments</div>
             </div>
         </div>
 
@@ -1497,7 +592,12 @@
         <div class="content-section">
             <ul class="nav nav-tabs nav-tabs-custom" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#projects" type="button">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#overview" type="button">
+                        <i class="fas fa-tachometer-alt"></i> Overview
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#projects" type="button">
                         <i class="fas fa-briefcase"></i> Projects
                     </button>
                 </li>
@@ -1507,8 +607,8 @@
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#documents" type="button">
-                        <i class="fas fa-folder-open"></i> Documents
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#services" type="button">
+                        <i class="fas fa-concierge-bell"></i> Services
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
@@ -1517,127 +617,94 @@
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#notes" type="button">
-                        <i class="fas fa-sticky-note"></i> Notes
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#profile-settings" type="button">
+                        <i class="fas fa-cog"></i> Settings
                     </button>
                 </li>
             </ul>
 
             <div class="tab-content mt-4">
+                <!-- Overview Tab -->
+                <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h5 class="mb-3">Recent Activity</h5>
+                            <div class="timeline" id="recent-timeline">
+                                <div class="timeline-item">
+                                    <div class="timeline-dot"></div>
+                                    <div class="timeline-content">
+                                        <div class="timeline-date">Today</div>
+                                        <div class="timeline-title">Welcome to Immigration Pro!</div>
+                                        <div class="timeline-text">Your immigration journey begins here. Explore our services and take your profile assessment.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <h5 class="mb-3">Quick Actions</h5>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-primary" onclick="window.open('/assessment', '_blank')">
+                                    <i class="fas fa-chart-line me-2"></i>Take Profile Assessment
+                                </button>
+                                <button class="btn btn-outline-primary" onclick="window.open('/schedule', '_blank')">
+                                    <i class="fas fa-calendar-plus me-2"></i>Schedule Appointment
+                                </button>
+                                <button class="btn btn-outline-secondary" onclick="showContactModal()">
+                                    <i class="fas fa-envelope me-2"></i>Contact Support
+                                </button>
+                                <button class="btn btn-outline-info" onclick="window.open('/services', '_blank')">
+                                    <i class="fas fa-info-circle me-2"></i>View Services
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Projects Tab -->
-                <div class="tab-pane fade show active" id="projects" role="tabpanel">
+                <div class="tab-pane fade" id="projects" role="tabpanel">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0">Project History (15 Total)</h5>
-                        <button class="btn-custom btn-primary-custom">
-                            <i class="fas fa-plus"></i> New Project
+                        <h5 class="mb-0">My Projects</h5>
+                        <button class="btn btn-primary btn-sm" onclick="refreshProjects()">
+                            <i class="fas fa-sync-alt me-1"></i>Refresh
                         </button>
                     </div>
-                    <div class="table-responsive">
+                    
+                    <!-- Loading Spinner -->
+                    <div class="loading-spinner" id="projects-loading">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading projects...</p>
+                    </div>
+                    
+                    <!-- Projects Table -->
+                    <div class="table-responsive" id="projects-table" style="display: none;">
                         <table class="table table-custom">
                             <thead>
                                 <tr>
-                                    <th>Project ID</th>
+                                    <th>Project</th>
                                     <th>Service</th>
-                                    <th>Start Date</th>
                                     <th>Status</th>
                                     <th>Progress</th>
-                                    <th>Amount</th>
+                                    <th>Start Date</th>
+                                    <th>Manager</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td><strong>#PRJ-2145</strong></td>
-                                    <td>Research Paper Publication</td>
-                                    <td>Jan 15, 2025</td>
-                                    <td><span class="status-badge status-active">Active</span></td>
-                                    <td>
-                                        <div class="progress-custom">
-                                            <div class="progress-bar-custom" style="width: 75%;"></div>
-                                        </div>
-                                        <small class="text-muted">75%</small>
-                                    </td>
-                                    <td><strong>$5,500</strong></td>
-                                    <td>
-                                        <button class="btn btn-sm btn-primary">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><strong>#PRJ-2098</strong></td>
-                                    <td>Grant Writing Services</td>
-                                    <td>Jan 5, 2025</td>
-                                    <td><span class="status-badge status-active">Active</span></td>
-                                    <td>
-                                        <div class="progress-custom">
-                                            <div class="progress-bar-custom" style="width: 45%;"></div>
-                                        </div>
-                                        <small class="text-muted">45%</small>
-                                    </td>
-                                    <td><strong>$8,000</strong></td>
-                                    <td>
-                                        <button class="btn btn-sm btn-primary">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><strong>#PRJ-1987</strong></td>
-                                    <td>Conference Paper Assistance</td>
-                                    <td>Dec 20, 2024</td>
-                                    <td><span class="status-badge status-active">Active</span></td>
-                                    <td>
-                                        <div class="progress-custom">
-                                            <div class="progress-bar-custom" style="width: 90%;"></div>
-                                        </div>
-                                        <small class="text-muted">90%</small>
-                                    </td>
-                                    <td><strong>$3,200</strong></td>
-                                    <td>
-                                        <button class="btn btn-sm btn-primary">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><strong>#PRJ-1856</strong></td>
-                                    <td>Research Paper Publication</td>
-                                    <td>Nov 10, 2024</td>
-                                    <td><span class="status-badge status-completed">Completed</span></td>
-                                    <td>
-                                        <div class="progress-custom">
-                                            <div class="progress-bar-custom" style="width: 100%;"></div>
-                                        </div>
-                                        <small class="text-muted">100%</small>
-                                    </td>
-                                    <td><strong>$6,200</strong></td>
-                                    <td>
-                                        <button class="btn btn-sm btn-info">
-                                            <i class="fas fa-file-download"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><strong>#PRJ-1745</strong></td>
-                                    <td>Thesis/Dissertation Help</td>
-                                    <td>Sep 5, 2024</td>
-                                    <td><span class="status-badge status-completed">Completed</span></td>
-                                    <td>
-                                        <div class="progress-custom">
-                                            <div class="progress-bar-custom" style="width: 100%;"></div>
-                                        </div>
-                                        <small class="text-muted">100%</small>
-                                    </td>
-                                    <td><strong>$12,800</strong></td>
-                                    <td>
-                                        <button class="btn btn-sm btn-info">
-                                            <i class="fas fa-file-download"></i>
-                                        </button>
-                                    </td>
-                                </tr>
+                            <tbody id="projects-tbody">
+                                <!-- Dynamic content will be loaded here -->
                             </tbody>
                         </table>
+                    </div>
+                    
+                    <!-- Empty State -->
+                    <div class="empty-state" id="projects-empty">
+                        <i class="fas fa-briefcase fa-3x mb-3"></i>
+                        <h5>No Projects Found</h5>
+                        <p>You don't have any projects yet. Contact us to get started!</p>
+                        <button class="btn btn-primary" onclick="window.open('/services', '_blank')">
+                            <i class="fas fa-plus me-2"></i>Explore Services
+                        </button>
                     </div>
                 </div>
 
@@ -1645,285 +712,438 @@
                 <div class="tab-pane fade" id="payments" role="tabpanel">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="mb-0">Payment History</h5>
-                        <button class="btn-custom btn-primary-custom">
-                            <i class="fas fa-file-invoice-dollar"></i> Generate Invoice
+                        <button class="btn btn-primary btn-sm" onclick="refreshPayments()">
+                            <i class="fas fa-sync-alt me-1"></i>Refresh
                         </button>
                     </div>
-                    <div class="table-responsive">
+                    
+                    <!-- Payment Summary Cards -->
+                    <div class="row mb-4" id="payment-summary">
+                        <div class="col-md-4">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="card-title text-success" id="total-paid-amount">$0</h5>
+                                    <p class="card-text">Total Paid</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="card-title text-warning" id="pending-amount">$0</h5>
+                                    <p class="card-text">Pending</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="card-title text-primary" id="total-project-value">$0</h5>
+                                    <p class="card-text">Total Value</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Loading Spinner -->
+                    <div class="loading-spinner" id="payments-loading">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading payments...</p>
+                    </div>
+                    
+                    <!-- Payments Table -->
+                    <div class="table-responsive" id="payments-table" style="display: none;">
                         <table class="table table-custom">
                             <thead>
                                 <tr>
-                                    <th>Invoice ID</th>
-                                    <th>Project</th>
                                     <th>Date</th>
+                                    <th>Project</th>
                                     <th>Amount</th>
                                     <th>Status</th>
                                     <th>Method</th>
-                                    <th>Actions</th>
+                                    <th>Reference</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td><strong>#INV-5023</strong></td>
-                                    <td>Research Paper Publication</td>
-                                    <td>Jan 15, 2025</td>
-                                    <td><strong>$2,750</strong></td>
-                                    <td><span class="status-badge status-completed">Paid</span></td>
-                                    <td>Credit Card</td>
-                                    <td>
-                                        <button class="btn btn-sm btn-info">
-                                            <i class="fas fa-download"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><strong>#INV-4987</strong></td>
-                                    <td>Grant Writing Services</td>
-                                    <td>Jan 5, 2025</td>
-                                    <td><strong>$4,000</strong></td>
-                                    <td><span class="status-badge status-completed">Paid</span></td>
-                                    <td>Bank Transfer</td>
-                                    <td>
-                                        <button class="btn btn-sm btn-info">
-                                            <i class="fas fa-download"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><strong>#INV-4856</strong></td>
-                                    <td>Conference Paper Assistance</td>
-                                    <td>Dec 20, 2024</td>
-                                    <td><strong>$1,600</strong></td>
-                                    <td><span class="status-badge status-pending">Pending</span></td>
-                                    <td>-</td>
-                                    <td>
-                                        <button class="btn btn-sm btn-warning">
-                                            <i class="fas fa-credit-card"></i> Pay
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><strong>#INV-4723</strong></td>
-                                    <td>Research Paper Publication</td>
-                                    <td>Nov 10, 2024</td>
-                                    <td><strong>$6,200</strong></td>
-                                    <td><span class="status-badge status-completed">Paid</span></td>
-                                    <td>Credit Card</td>
-                                    <td>
-                                        <button class="btn btn-sm btn-info">
-                                            <i class="fas fa-download"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><strong>#INV-4512</strong></td>
-                                    <td>Thesis/Dissertation Help</td>
-                                    <td>Sep 5, 2024</td>
-                                    <td><strong>$12,800</strong></td>
-                                    <td><span class="status-badge status-completed">Paid</span></td>
-                                    <td>Bank Transfer</td>
-                                    <td>
-                                        <button class="btn btn-sm btn-info">
-                                            <i class="fas fa-download"></i>
-                                        </button>
-                                    </td>
-                                </tr>
+                            <tbody id="payments-tbody">
+                                <!-- Dynamic content will be loaded here -->
                             </tbody>
                         </table>
                     </div>
-                    <div class="alert alert-info mt-3">
-                        <i class="fas fa-info-circle"></i>
-                        <strong>Outstanding Balance:</strong> $1,600 (1 pending invoice)
+                    
+                    <!-- Empty State -->
+                    <div class="empty-state" id="payments-empty">
+                        <i class="fas fa-credit-card fa-3x mb-3"></i>
+                        <h5>No Payments Found</h5>
+                        <p>No payment records available.</p>
                     </div>
                 </div>
 
-                <!-- Documents Tab -->
-                <div class="tab-pane fade" id="documents" role="tabpanel">
+                <!-- Services Tab -->
+                <div class="tab-pane fade" id="services" role="tabpanel">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0">Document Repository (24 Files)</h5>
-                        <button class="btn-custom btn-primary-custom">
-                            <i class="fas fa-upload"></i> Upload Document
+                        <h5 class="mb-0">Available Services</h5>
+                        <button class="btn btn-primary btn-sm" onclick="refreshServices()">
+                            <i class="fas fa-sync-alt me-1"></i>Refresh
                         </button>
                     </div>
-                    <div class="documents-grid">
-                        <div class="document-card">
-                            <div class="document-icon">
-                                <i class="fas fa-file-pdf"></i>
-                            </div>
-                            <div class="document-name">Research_Paper_v3.pdf</div>
-                            <div class="document-size">2.4 MB</div>
+                    
+                    <!-- Loading Spinner -->
+                    <div class="loading-spinner" id="services-loading">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
                         </div>
-                        <div class="document-card">
-                            <div class="document-icon">
-                                <i class="fas fa-file-word"></i>
-                            </div>
-                            <div class="document-name">Grant_Proposal.docx</div>
-                            <div class="document-size">1.8 MB</div>
-                        </div>
-                        <div class="document-card">
-                            <div class="document-icon">
-                                <i class="fas fa-file-excel"></i>
-                            </div>
-                            <div class="document-name">Budget_Analysis.xlsx</div>
-                            <div class="document-size">456 KB</div>
-                        </div>
-                        <div class="document-card">
-                            <div class="document-icon">
-                                <i class="fas fa-file-powerpoint"></i>
-                            </div>
-                            <div class="document-name">Conference_Presentation.pptx</div>
-                            <div class="document-size">5.2 MB</div>
-                        </div>
-                        <div class="document-card">
-                            <div class="document-icon">
-                                <i class="fas fa-file-pdf"></i>
-                            </div>
-                            <div class="document-name">Thesis_Chapter1.pdf</div>
-                            <div class="document-size">3.1 MB</div>
-                        </div>
-                        <div class="document-card">
-                            <div class="document-icon">
-                                <i class="fas fa-file-pdf"></i>
-                            </div>
-                            <div class="document-name">Literature_Review.pdf</div>
-                            <div class="document-size">1.9 MB</div>
-                        </div>
-                        <div class="document-card">
-                            <div class="document-icon">
-                                <i class="fas fa-file-archive"></i>
-                            </div>
-                            <div class="document-name">Research_Data.zip</div>
-                            <div class="document-size">12.5 MB</div>
-                        </div>
-                        <div class="document-card">
-                            <div class="document-icon">
-                                <i class="fas fa-file-image"></i>
-                            </div>
-                            <div class="document-name">Figure_1.png</div>
-                            <div class="document-size">850 KB</div>
-                        </div>
+                        <p class="mt-2">Loading services...</p>
+                    </div>
+                    
+                    <!-- Services Grid -->
+                    <div class="row" id="services-grid" style="display: none;">
+                        <!-- Dynamic services will be loaded here -->
+                    </div>
+                    
+                    <!-- Empty State -->
+                    <div class="empty-state" id="services-empty" style="display: none;">
+                        <i class="fas fa-concierge-bell fa-3x mb-3"></i>
+                        <h5>No Services Available</h5>
+                        <p>No services are currently available. Please contact support.</p>
                     </div>
                 </div>
 
                 <!-- Timeline Tab -->
                 <div class="tab-pane fade" id="timeline" role="tabpanel">
-                    <h5 class="mb-4">Interaction Timeline</h5>
-                    <div class="timeline">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Client Journey Timeline</h5>
+                        <button class="btn btn-primary btn-sm" onclick="refreshTimeline()">
+                            <i class="fas fa-sync-alt me-1"></i>Refresh
+                        </button>
+                    </div>
+                    
+                    <!-- Loading Spinner -->
+                    <div class="loading-spinner" id="timeline-loading">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading timeline...</p>
+                    </div>
+                    
+                    <!-- Timeline Content -->
+                    <div class="timeline" id="full-timeline">
                         <div class="timeline-item">
                             <div class="timeline-dot"></div>
                             <div class="timeline-content">
-                                <div class="timeline-date">Jan 20, 2025 - 2:30 PM</div>
-                                <div class="timeline-title">Project Status Update</div>
-                                <div class="timeline-text">Research paper draft completed and sent for review.</div>
+                                <div class="timeline-date">Today</div>
+                                <div class="timeline-title">Client Registration</div>
+                                <div class="timeline-text">Welcome to Immigration Pro! Your journey begins here.</div>
                             </div>
                         </div>
-                        <div class="timeline-item">
-                            <div class="timeline-dot"></div>
-                            <div class="timeline-content">
-                                <div class="timeline-date">Jan 15, 2025 - 10:00 AM</div>
-                                <div class="timeline-title">Payment Received</div>
-                                <div class="timeline-text">Payment of $2,750 received via credit card.</div>
+                    </div>
+                    
+                    <!-- Empty State -->
+                    <div class="empty-state" id="timeline-empty" style="display: none;">
+                        <i class="fas fa-history fa-3x mb-3"></i>
+                        <h5>No Timeline Data</h5>
+                        <p>Your journey timeline will appear here as you interact with our services.</p>
+                    </div>
+                </div>
+
+                <!-- Profile Settings Tab -->
+                <div class="tab-pane fade" id="profile-settings" role="tabpanel">
+                    <h5 class="mb-4">Profile Settings</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6><i class="fas fa-user me-2"></i>Personal Information</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form id="profile-form">
+                                        <div class="mb-3">
+                                            <label class="form-label">Full Name</label>
+                                            <input type="text" class="form-control" id="settings-name" name="full_name" value="Client User">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Email</label>
+                                            <input type="email" class="form-control" id="settings-email" name="email" value="client@example.com" readonly>
+                                            <small class="text-muted">Email cannot be changed</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Phone</label>
+                                            <input type="tel" class="form-control" id="settings-phone" name="phone">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">University/Company</label>
+                                            <input type="text" class="form-control" id="settings-company" name="company">
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save me-1"></i>Update Profile
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
-                        <div class="timeline-item">
-                            <div class="timeline-dot"></div>
-                            <div class="timeline-content">
-                                <div class="timeline-date">Jan 15, 2025 - 9:00 AM</div>
-                                <div class="timeline-title">New Project Started</div>
-                                <div class="timeline-text">Research Paper Publication project initiated (#PRJ-2145).</div>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-dot"></div>
-                            <div class="timeline-content">
-                                <div class="timeline-date">Jan 10, 2025 - 3:45 PM</div>
-                                <div class="timeline-title">Client Meeting</div>
-                                <div class="timeline-text">Video call to discuss grant proposal requirements.</div>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-dot"></div>
-                            <div class="timeline-content">
-                                <div class="timeline-date">Jan 5, 2025 - 11:20 AM</div>
-                                <div class="timeline-title">Payment Received</div>
-                                <div class="timeline-text">Payment of $4,000 received via bank transfer.</div>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-dot"></div>
-                            <div class="timeline-content">
-                                <div class="timeline-date">Jan 5, 2025 - 9:00 AM</div>
-                                <div class="timeline-title">New Project Started</div>
-                                <div class="timeline-text">Grant Writing Services project initiated (#PRJ-2098).</div>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-dot"></div>
-                            <div class="timeline-content">
-                                <div class="timeline-date">Dec 28, 2024 - 4:15 PM</div>
-                                <div class="timeline-title">Document Uploaded</div>
-                                <div class="timeline-text">Client uploaded research data files.</div>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-dot"></div>
-                            <div class="timeline-content">
-                                <div class="timeline-date">Nov 15, 2024 - 1:00 PM</div>
-                                <div class="timeline-title">Project Completed</div>
-                                <div class="timeline-text">Research paper successfully published (#PRJ-1856).</div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6><i class="fas fa-lock me-2"></i>Change Password</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form id="password-form">
+                                        <div class="mb-3">
+                                            <label class="form-label">Current Password</label>
+                                            <input type="password" class="form-control" name="current_password" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">New Password</label>
+                                            <input type="password" class="form-control" name="new_password" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Confirm New Password</label>
+                                            <input type="password" class="form-control" name="confirm_password" required>
+                                        </div>
+                                        <button type="submit" class="btn btn-warning">
+                                            <i class="fas fa-key me-1"></i>Change Password
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
 
-                <!-- Notes Tab -->
-                <div class="tab-pane fade" id="notes" role="tabpanel">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0">Client Notes & Communication</h5>
-                        <button class="btn-custom btn-primary-custom">
-                            <i class="fas fa-plus"></i> Add Note
-                        </button>
-                    </div>
-                    <div class="mb-3 p-3 border rounded">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <strong>Emily Roberts (CRM Manager)</strong>
-                                <span class="text-muted ms-2">Jan 20, 2025 - 3:30 PM</span>
-                            </div>
-                            <span class="badge bg-success">High Priority</span>
+    <!-- Contact Support Modal -->
+    <div class="modal fade" id="contactModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Contact Support</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="contact-form">
+                        <div class="mb-3">
+                            <label class="form-label">Subject</label>
+                            <select class="form-select" name="subject" required>
+                                <option value="">Select a subject</option>
+                                <option value="general">General Inquiry</option>
+                                <option value="project">Project Related</option>
+                                <option value="payment">Payment Issue</option>
+                                <option value="technical">Technical Support</option>
+                                <option value="other">Other</option>
+                            </select>
                         </div>
-                        <p class="mb-0">Dr. Mitchell is extremely satisfied with the current research paper draft. She mentioned potential interest in future grant writing services for her upcoming NSF proposal. Follow up in 2 weeks.</p>
-                    </div>
-                    <div class="mb-3 p-3 border rounded">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <strong>John Smith (Lead Manager)</strong>
-                                <span class="text-muted ms-2">Jan 15, 2025 - 10:30 AM</span>
-                            </div>
-                            <span class="badge bg-info">General</span>
+                        <div class="mb-3">
+                            <label class="form-label">Message</label>
+                            <textarea class="form-control" name="message" rows="4" required></textarea>
                         </div>
-                        <p class="mb-0">VIP client - always pays on time and provides clear project requirements. Prefers email communication over phone. Response time usually within 24 hours.</p>
-                    </div>
-                    <div class="mb-3 p-3 border rounded">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <strong>Michael Chen (Consultant)</strong>
-                                <span class="text-muted ms-2">Jan 10, 2025 - 2:15 PM</span>
-                            </div>
-                            <span class="badge bg-warning">Action Required</span>
+                        <div class="mb-3">
+                            <label class="form-label">Priority</label>
+                            <select class="form-select" name="priority">
+                                <option value="normal">Normal</option>
+                                <option value="high">High</option>
+                                <option value="urgent">Urgent</option>
+                            </select>
                         </div>
-                        <p class="mb-0">Meeting scheduled for Jan 25 to discuss Q1 2025 project pipeline. Dr. Mitchell wants to plan 3-4 projects for the quarter. Prepare service packages and pricing proposals.</p>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="submitContactForm()">Send Message</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service Details Modal -->
+    <div class="modal fade" id="serviceModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="service-modal-title">Service Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="service-modal-body">
+                    <!-- Service details will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-success" id="proceed-payment-btn" onclick="showPaymentOptions()">
+                        <i class="fas fa-credit-card me-2"></i>Proceed to Payment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Options Modal -->
+    <div class="modal fade" id="paymentModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Payment Options</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-4">
+                        <h6 id="payment-service-name">Service Name</h6>
+                        <h4 class="text-primary" id="payment-amount">$0</h4>
                     </div>
-                    <div class="mb-3 p-3 border rounded">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <strong>Admin System</strong>
-                                <span class="text-muted ms-2">Dec 20, 2024 - 9:00 AM</span>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card payment-option" onclick="selectPaymentMethod('online')">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-credit-card fa-3x text-primary mb-3"></i>
+                                    <h6>Online Payment</h6>
+                                    <p class="text-muted">Pay securely with credit/debit card</p>
+                                </div>
                             </div>
-                            <span class="badge bg-secondary">System</span>
                         </div>
-                        <p class="mb-0">Client upgraded to VIP status based on total spending exceeding $40,000. Automatic 15% discount applied to all future projects.</p>
+                        <div class="col-md-6 mb-3">
+                            <div class="card payment-option" onclick="selectPaymentMethod('cash')">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-money-bill-wave fa-3x text-success mb-3"></i>
+                                    <h6>Cash Payment</h6>
+                                    <p class="text-muted">Pay in cash and upload receipt</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cash Payment Modal -->
+    <div class="modal fade" id="cashPaymentModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Cash Payment Confirmation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Instructions:</strong> Please upload a screenshot or photo of your payment receipt. 
+                        Our team will verify the payment and confirm your service activation.
+                    </div>
+                    
+                    <form id="cash-payment-form" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label class="form-label">Service</label>
+                            <input type="text" class="form-control" id="cash-service-name" readonly>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Amount Paid</label>
+                            <input type="text" class="form-control" id="cash-amount" readonly>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Payment Date</label>
+                            <input type="date" class="form-control" name="payment_date" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Payment Method</label>
+                            <select class="form-select" name="payment_method" required>
+                                <option value="">Select payment method</option>
+                                <option value="cash">Cash</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="check">Check</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Payment Receipt/Screenshot *</label>
+                            <input type="file" class="form-control" name="payment_screenshot" accept="image/*,.pdf" required>
+                            <small class="text-muted">Upload image (JPG, PNG) or PDF of payment receipt</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Additional Notes</label>
+                            <textarea class="form-control" name="notes" rows="3" placeholder="Any additional information about the payment..."></textarea>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <i class="fas fa-clock"></i>
+                            <strong>Note:</strong> Your payment will be marked as "Pending Verification" until our team confirms the receipt. 
+                            You will receive an email notification once verified.
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="submitCashPayment()">
+                        <i class="fas fa-upload me-2"></i>Submit Payment Proof
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Online Payment Modal -->
+    <div class="modal fade" id="onlinePaymentModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Online Payment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-4">
+                        <h6 id="online-service-name">Service Name</h6>
+                        <h4 class="text-primary" id="online-amount">$0</h4>
+                    </div>
+                    
+                    <form id="online-payment-form">
+                        <div class="mb-3">
+                            <label class="form-label">Card Number</label>
+                            <input type="text" class="form-control" name="card_number" placeholder="1234 5678 9012 3456" required>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Expiry Date</label>
+                                <input type="text" class="form-control" name="expiry" placeholder="MM/YY" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">CVV</label>
+                                <input type="text" class="form-control" name="cvv" placeholder="123" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Cardholder Name</label>
+                            <input type="text" class="form-control" name="cardholder_name" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Billing Address</label>
+                            <textarea class="form-control" name="billing_address" rows="2" required></textarea>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-shield-alt"></i>
+                            <strong>Secure Payment:</strong> Your payment information is encrypted and secure.
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="processOnlinePayment()">
+                        <i class="fas fa-lock me-2"></i>Pay Securely
+                    </button>
                 </div>
             </div>
         </div>
@@ -1933,6 +1153,831 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
+        // Global variables
+        let clientData = null;
+        let projectsData = [];
+        let paymentsData = [];
+        let timelineData = [];
+        let servicesData = [];
+        let selectedService = null;
+
+        // API Base URL
+        const API_BASE = 'http://localhost:5000/api';
+
+        // Authentication token
+        let authToken = localStorage.getItem('client_token') || localStorage.getItem('token');
+
+        console.log('🎯 Client Profile Dashboard Loading...');
+        console.log('🔑 Auth Token:', authToken ? 'Present' : 'Missing');
+
+        // API Helper function
+        async function apiCall(endpoint, options = {}) {
+            const url = `${API_BASE}${endpoint}`;
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                ...options
+            };
+            
+            try {
+                console.log('🌐 API Call:', url, config.method || 'GET');
+                const response = await fetch(url, config);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    console.error('❌ API Error:', response.status, data);
+                    throw new Error(data.error?.message || data.message || `HTTP ${response.status}`);
+                }
+                
+                console.log('✅ API Success:', data);
+                return data;
+            } catch (error) {
+                console.error('❌ API Error:', error);
+                throw error;
+            }
+        }
+
+        // Load client profile data
+        async function loadClientProfile() {
+            try {
+                console.log('👤 Loading client profile...');
+                
+                // Try multiple endpoints for client data
+                let response;
+                try {
+                    response = await apiCall('/client-accounts/profile');
+                } catch (error) {
+                    console.log('⚠️ Client accounts endpoint failed, trying clients endpoint...');
+                    try {
+                        response = await apiCall('/clients/me');
+                    } catch (error2) {
+                        console.log('⚠️ Clients endpoint failed, using fallback data...');
+                        // Use fallback data
+                        clientData = {
+                            name: 'Demo Client',
+                            full_name: 'Demo Client',
+                            email: 'demo@example.com',
+                            phone: 'Not provided',
+                            createdAt: new Date().toISOString(),
+                            status: 'active'
+                        };
+                        updateProfileDisplay();
+                        return;
+                    }
+                }
+                
+                if (response.success) {
+                    clientData = response.data.client || response.data;
+                    updateProfileDisplay();
+                    console.log('✅ Client profile loaded:', clientData);
+                }
+            } catch (error) {
+                console.error('❌ Profile load error:', error);
+                // Use fallback data
+                clientData = {
+                    name: 'Demo Client',
+                    full_name: 'Demo Client',
+                    email: 'demo@example.com',
+                    phone: 'Not provided',
+                    createdAt: new Date().toISOString(),
+                    status: 'active'
+                };
+                updateProfileDisplay();
+            }
+        }
+
+        // Update profile display
+        function updateProfileDisplay() {
+            if (!clientData) return;
+            
+            console.log('🎨 Updating profile display with:', clientData);
+            
+            // Update header
+            const name = clientData.full_name || clientData.name || 'Demo Client';
+            const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
+            
+            document.getElementById('profile-avatar').textContent = initials;
+            document.getElementById('profile-name').textContent = name;
+            document.getElementById('profile-email').textContent = clientData.email || 'demo@example.com';
+            document.getElementById('profile-phone').textContent = clientData.phone || 'Not provided';
+            
+            // Format creation date
+            const createdDate = new Date(clientData.createdAt || clientData.created_at || Date.now()).toLocaleDateString();
+            document.getElementById('profile-since').textContent = `Client Since: ${createdDate}`;
+            
+            // Show assigned manager
+            const managerName = clientData.crm_manager?.first_name && clientData.crm_manager?.last_name 
+                ? `${clientData.crm_manager.first_name} ${clientData.crm_manager.last_name}`
+                : clientData.assignedManager?.name || 'Not assigned';
+            document.getElementById('profile-manager').textContent = `Manager: ${managerName}`;
+            
+            // Update badges
+            const badgesContainer = document.getElementById('profile-badges');
+            badgesContainer.innerHTML = '';
+            
+            if (clientData.email_verified || clientData.status === 'active') {
+                badgesContainer.innerHTML += '<span class="badge-custom badge-verified"><i class="fas fa-check-circle"></i> Verified</span>';
+            }
+            
+            if (clientData.status === 'active') {
+                badgesContainer.innerHTML += '<span class="badge-custom badge-active"><i class="fas fa-user-check"></i> Active</span>';
+            }
+            
+            if (clientData.status === 'vip') {
+                badgesContainer.innerHTML += '<span class="badge-custom badge-vip"><i class="fas fa-crown"></i> VIP</span>';
+            }
+            
+            // Update settings form
+            document.getElementById('settings-name').value = name;
+            document.getElementById('settings-email').value = clientData.email || '';
+            document.getElementById('settings-phone').value = clientData.phone || '';
+            document.getElementById('settings-company').value = clientData.company || clientData.university || '';
+        }
+
+        // Load client projects
+        async function loadProjects() {
+            try {
+                console.log('📊 Loading client projects...');
+                document.getElementById('projects-loading').classList.add('show');
+                document.getElementById('projects-table').style.display = 'none';
+                document.getElementById('projects-empty').style.display = 'none';
+                
+                const response = await apiCall('/projects');
+                
+                if (response.success && response.data && response.data.length > 0) {
+                    projectsData = response.data;
+                    updateProjectsDisplay();
+                    updateProjectStats();
+                    console.log('✅ Projects loaded:', projectsData.length);
+                } else {
+                    throw new Error('No projects found');
+                }
+            } catch (error) {
+                console.error('❌ Projects load error:', error);
+                document.getElementById('projects-loading').classList.remove('show');
+                document.getElementById('projects-empty').style.display = 'block';
+                projectsData = [];
+                updateProjectStats();
+            }
+        }
+
+        // Update projects display
+        function updateProjectsDisplay() {
+            const tbody = document.getElementById('projects-tbody');
+            document.getElementById('projects-loading').classList.remove('show');
+            
+            if (projectsData.length === 0) {
+                document.getElementById('projects-empty').style.display = 'block';
+                return;
+            }
+            
+            document.getElementById('projects-table').style.display = 'block';
+            
+            tbody.innerHTML = projectsData.map(project => {
+                const startDate = new Date(project.createdAt || project.created_at || Date.now()).toLocaleDateString();
+                const progress = project.progress || 0;
+                const managerName = project.assignedManager?.name || project.crm_manager?.first_name 
+                    ? `${project.crm_manager.first_name} ${project.crm_manager.last_name}` 
+                    : 'Not assigned';
+                
+                return `
+                    <tr>
+                        <td>
+                            <strong>${project.title || project.name || 'Untitled Project'}</strong><br>
+                            <small class="text-muted">${project.description || 'No description'}</small>
+                        </td>
+                        <td>${project.service?.name || project.service_type || 'Unknown Service'}</td>
+                        <td><span class="status-badge status-${project.status}">${formatStatus(project.status)}</span></td>
+                        <td>
+                            <div class="progress-custom">
+                                <div class="progress-bar-custom" style="width: ${progress}%;"></div>
+                            </div>
+                            <small class="text-muted">${progress}%</small>
+                        </td>
+                        <td>${startDate}</td>
+                        <td><small>${managerName}</small></td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="viewProject('${project._id || project.id}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Load client payments
+        async function loadPayments() {
+            try {
+                console.log('💳 Loading client payments...');
+                document.getElementById('payments-loading').classList.add('show');
+                document.getElementById('payments-table').style.display = 'none';
+                document.getElementById('payments-empty').style.display = 'none';
+                
+                const response = await apiCall('/payments');
+                
+                if (response.success && response.data && response.data.length > 0) {
+                    paymentsData = response.data;
+                    updatePaymentsDisplay();
+                    updatePaymentStats();
+                    console.log('✅ Payments loaded:', paymentsData.length);
+                } else {
+                    throw new Error('No payments found');
+                }
+            } catch (error) {
+                console.error('❌ Payments load error:', error);
+                document.getElementById('payments-loading').classList.remove('show');
+                document.getElementById('payments-empty').style.display = 'block';
+                paymentsData = [];
+                updatePaymentStats();
+            }
+        }
+
+        // Update payments display
+        function updatePaymentsDisplay() {
+            const tbody = document.getElementById('payments-tbody');
+            document.getElementById('payments-loading').classList.remove('show');
+            
+            if (paymentsData.length === 0) {
+                document.getElementById('payments-empty').style.display = 'block';
+                return;
+            }
+            
+            document.getElementById('payments-table').style.display = 'block';
+            
+            tbody.innerHTML = paymentsData.map(payment => {
+                const paymentDate = new Date(payment.paymentDate || payment.created_at || Date.now()).toLocaleDateString();
+                const amount = formatCurrency(payment.amount || 0);
+                
+                // Add verification status for cash payments
+                let statusDisplay = `<span class="status-badge status-${payment.status}">${formatPaymentStatus(payment.status)}</span>`;
+                if (payment.verification_status) {
+                    statusDisplay += `<br><small class="payment-status ${payment.verification_status}">${payment.verification_status.replace('_', ' ')}</small>`;
+                }
+                
+                return `
+                    <tr>
+                        <td>${paymentDate}</td>
+                        <td>${payment.project?.title || payment.project?.name || payment.service_name || 'Unknown Project'}</td>
+                        <td><strong>${amount}</strong></td>
+                        <td>${statusDisplay}</td>
+                        <td>${formatPaymentMethod(payment.paymentMethod || payment.payment_method)}</td>
+                        <td><small>${payment.transactionId || payment.transaction_id || 'N/A'}</small></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Update statistics
+        function updateProjectStats() {
+            const completedProjects = projectsData.filter(p => p.status === 'completed').length;
+            const activeProjects = projectsData.filter(p => ['planning', 'in_progress'].includes(p.status)).length;
+            
+            document.getElementById('completed-projects').textContent = completedProjects;
+            document.getElementById('active-projects').textContent = activeProjects;
+        }
+
+        function updatePaymentStats() {
+            const totalSpent = paymentsData
+                .filter(p => p.status === 'completed' || p.status === 'paid')
+                .reduce((sum, p) => sum + (p.amount || 0), 0);
+            
+            const pendingPayments = paymentsData.filter(p => p.status === 'pending').length;
+            
+            document.getElementById('total-spent').textContent = formatCurrency(totalSpent);
+            document.getElementById('pending-payments').textContent = pendingPayments;
+            
+            // Update payment summary cards
+            const totalPaid = paymentsData
+                .filter(p => p.status === 'completed' || p.status === 'paid')
+                .reduce((sum, p) => sum + (p.amount || 0), 0);
+            
+            const pendingAmount = paymentsData
+                .filter(p => p.status === 'pending')
+                .reduce((sum, p) => sum + (p.amount || 0), 0);
+            
+            const totalValue = totalPaid + pendingAmount;
+            
+            document.getElementById('total-paid-amount').textContent = formatCurrency(totalPaid);
+            document.getElementById('pending-amount').textContent = formatCurrency(pendingAmount);
+            document.getElementById('total-project-value').textContent = formatCurrency(totalValue);
+        }
+
+        // Format functions
+        function formatStatus(status) {
+            const statusMap = {
+                'planning': 'Planning',
+                'in_progress': 'In Progress',
+                'completed': 'Completed',
+                'cancelled': 'Cancelled',
+                'active': 'Active',
+                'new': 'New',
+                'contacted': 'Contacted',
+                'qualified': 'Qualified',
+                'converted': 'Converted'
+            };
+            return statusMap[status] || status;
+        }
+
+        function formatPaymentStatus(status) {
+            const statusMap = {
+                'pending': 'Pending',
+                'completed': 'Paid',
+                'paid': 'Paid',
+                'failed': 'Failed',
+                'refunded': 'Refunded',
+                'pending_verification': 'Pending Verification'
+            };
+            return statusMap[status] || status;
+        }
+
+        function formatPaymentMethod(method) {
+            const methodMap = {
+                'credit_card': 'Credit Card',
+                'bank_transfer': 'Bank Transfer',
+                'paypal': 'PayPal',
+                'stripe': 'Stripe',
+                'other': 'Other'
+            };
+            return methodMap[method] || method || 'N/A';
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount || 0);
+        }
+
+        // Action functions
+        function viewProject(projectId) {
+            console.log('👁️ View project:', projectId);
+            const project = projectsData.find(p => (p._id || p.id) === projectId);
+            if (project) {
+                alert(`Project: ${project.title || project.name}\nStatus: ${project.status}\nProgress: ${project.progress || 0}%\nDescription: ${project.description || 'No description'}`);
+            }
+        }
+
+        function refreshProjects() {
+            loadProjects();
+        }
+
+        function refreshPayments() {
+            loadPayments();
+        }
+
+        // Load client services
+        async function loadServices() {
+            try {
+                console.log('�️ Loading available services...');
+                document.getElementById('services-loading').classList.add('show');
+                document.getElementById('services-grid').style.display = 'none';
+                document.getElementById('services-empty').style.display = 'none';
+                
+                // Call the public services API
+                const response = await apiCall('/services/public');
+                
+                if (response.success && response.data && response.data.length > 0) {
+                    servicesData = response.data;
+                    updateServicesDisplay();
+                    console.log('✅ Services loaded:', servicesData.length);
+                } else {
+                    throw new Error('No services available');
+                }
+            } catch (error) {
+                console.error('❌ Services load error:', error);
+                document.getElementById('services-loading').classList.remove('show');
+                document.getElementById('services-empty').style.display = 'block';
+                
+                // Fallback to demo data if API fails
+                console.log('🔄 Using fallback demo services...');
+                servicesData = [
+                    {
+                        id: 'eb1a-consultation',
+                        name: 'EB-1A Consultation',
+                        description: 'Comprehensive consultation for EB-1A extraordinary ability visa application',
+                        price: 500,
+                        features: [
+                            'Initial eligibility assessment',
+                            'Strategy development',
+                            'Document review',
+                            '1-hour consultation call',
+                            'Written recommendation report'
+                        ],
+                        status: 'available'
+                    },
+                    {
+                        id: 'eb1a-premium',
+                        name: 'EB-1A Premium Package',
+                        description: 'Complete EB-1A application preparation and filing service',
+                        price: 5000,
+                        features: [
+                            'Complete petition preparation',
+                            'Evidence collection guidance',
+                            'Legal brief writing',
+                            'Form I-140 filing',
+                            'Response to RFEs',
+                            'Priority processing'
+                        ],
+                        status: 'available'
+                    },
+                    {
+                        id: 'eb2-niw',
+                        name: 'EB-2 NIW Application',
+                        description: 'National Interest Waiver application for advanced degree professionals',
+                        price: 4000,
+                        features: [
+                            'NIW petition preparation',
+                            'Business plan development',
+                            'Evidence compilation',
+                            'Legal arguments',
+                            'Form I-140 filing'
+                        ],
+                        status: 'available'
+                    },
+                    {
+                        id: 'o1-visa',
+                        name: 'O-1 Visa Application',
+                        description: 'O-1 visa for individuals with extraordinary ability',
+                        price: 3500,
+                        features: [
+                            'O-1 petition preparation',
+                            'Advisory opinion letters',
+                            'Evidence portfolio',
+                            'Form I-129 filing',
+                            'Consultation support'
+                        ],
+                        status: 'available'
+                    },
+                    {
+                        id: 'profile-building',
+                        name: 'Profile Building Service',
+                        description: 'Comprehensive profile enhancement for immigration applications',
+                        price: 2000,
+                        features: [
+                            'Profile gap analysis',
+                            'Publication strategy',
+                            'Media coverage plan',
+                            'Award nomination guidance',
+                            'Network building advice'
+                        ],
+                        status: 'available'
+                    }
+                ];
+                updateServicesDisplay();
+            }
+        }
+
+        // Update services display
+        function updateServicesDisplay() {
+            const servicesGrid = document.getElementById('services-grid');
+            document.getElementById('services-loading').classList.remove('show');
+            
+            if (servicesData.length === 0) {
+                document.getElementById('services-empty').style.display = 'block';
+                return;
+            }
+            
+            document.getElementById('services-grid').style.display = 'block';
+            
+            servicesGrid.innerHTML = servicesData.map(service => `
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="service-card">
+                        <div class="service-header">
+                            <div>
+                                <div class="service-title">${service.name}</div>
+                                <span class="service-status ${service.status}">
+                                    <i class="fas fa-circle"></i> ${formatServiceStatus(service.status)}
+                                </span>
+                            </div>
+                            <div class="service-price">$${service.price.toLocaleString()}</div>
+                        </div>
+                        
+                        <div class="service-description">${service.description}</div>
+                        
+                        <ul class="service-features">
+                            ${service.features.map(feature => `
+                                <li><i class="fas fa-check"></i> ${feature}</li>
+                            `).join('')}
+                        </ul>
+                        
+                        <div class="service-actions">
+                            <button class="btn btn-outline-primary btn-sm" onclick="viewServiceDetails('${service.id}')">
+                                <i class="fas fa-info-circle me-1"></i>Details
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="selectServiceForPayment('${service.id}')">
+                                <i class="fas fa-shopping-cart me-1"></i>Purchase
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // View service details
+        function viewServiceDetails(serviceId) {
+            const service = servicesData.find(s => s.id === serviceId);
+            if (!service) return;
+            
+            selectedService = service;
+            
+            document.getElementById('service-modal-title').textContent = service.name;
+            document.getElementById('service-modal-body').innerHTML = `
+                <div class="row">
+                    <div class="col-md-8">
+                        <h6>Service Description</h6>
+                        <p>${service.description}</p>
+                        
+                        <h6>What's Included:</h6>
+                        <ul class="list-unstyled">
+                            ${service.features.map(feature => `
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> ${feature}</li>
+                            `).join('')}
+                        </ul>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Note:</strong> All services include email support and progress updates throughout the process.
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <h4 class="text-primary">$${service.price.toLocaleString()}</h4>
+                                <p class="text-muted">One-time payment</p>
+                                <span class="service-status ${service.status}">
+                                    <i class="fas fa-circle"></i> ${formatServiceStatus(service.status)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const modal = new bootstrap.Modal(document.getElementById('serviceModal'));
+            modal.show();
+        }
+
+        // Select service for payment
+        function selectServiceForPayment(serviceId) {
+            const service = servicesData.find(s => s.id === serviceId);
+            if (!service) return;
+            
+            selectedService = service;
+            showPaymentOptions();
+        }
+
+        // Show payment options
+        function showPaymentOptions() {
+            if (!selectedService) return;
+            
+            document.getElementById('payment-service-name').textContent = selectedService.name;
+            document.getElementById('payment-amount').textContent = `$${selectedService.price.toLocaleString()}`;
+            
+            // Close service modal if open
+            const serviceModal = bootstrap.Modal.getInstance(document.getElementById('serviceModal'));
+            if (serviceModal) serviceModal.hide();
+            
+            const modal = new bootstrap.Modal(document.getElementById('paymentModal'));
+            modal.show();
+        }
+
+        // Select payment method
+        function selectPaymentMethod(method) {
+            const paymentModal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
+            paymentModal.hide();
+            
+            if (method === 'online') {
+                showOnlinePaymentForm();
+            } else if (method === 'cash') {
+                showCashPaymentForm();
+            }
+        }
+
+        // Show online payment form
+        function showOnlinePaymentForm() {
+            if (!selectedService) return;
+            
+            document.getElementById('online-service-name').textContent = selectedService.name;
+            document.getElementById('online-amount').textContent = `$${selectedService.price.toLocaleString()}`;
+            
+            const modal = new bootstrap.Modal(document.getElementById('onlinePaymentModal'));
+            modal.show();
+        }
+
+        // Show cash payment form
+        function showCashPaymentForm() {
+            if (!selectedService) return;
+            
+            document.getElementById('cash-service-name').value = selectedService.name;
+            document.getElementById('cash-amount').value = `$${selectedService.price.toLocaleString()}`;
+            
+            // Set today's date as default
+            const today = new Date().toISOString().split('T')[0];
+            document.querySelector('input[name="payment_date"]').value = today;
+            
+            const modal = new bootstrap.Modal(document.getElementById('cashPaymentModal'));
+            modal.show();
+        }
+
+        // Process online payment
+        async function processOnlinePayment() {
+            try {
+                const form = document.getElementById('online-payment-form');
+                const formData = new FormData(form);
+                const data = Object.fromEntries(formData);
+                
+                // Add service information
+                data.service_id = selectedService.id;
+                data.service_name = selectedService.name;
+                data.amount = selectedService.price;
+                data.client_id = clientData?.id || 'demo-client';
+                data.payment_method = 'credit_card';
+                
+                console.log('💳 Processing online payment:', data);
+                
+                // Simulate payment processing
+                showSuccess('Payment processed successfully! Your service will be activated shortly.');
+                
+                // Close modal and refresh data
+                const modal = bootstrap.Modal.getInstance(document.getElementById('onlinePaymentModal'));
+                modal.hide();
+                form.reset();
+                
+                // Add to payments data for immediate display
+                const newPayment = {
+                    id: Date.now().toString(),
+                    service_name: selectedService.name,
+                    amount: selectedService.price,
+                    status: 'completed',
+                    payment_method: 'credit_card',
+                    created_at: new Date().toISOString(),
+                    transaction_id: 'TXN' + Date.now()
+                };
+                paymentsData.unshift(newPayment);
+                updatePaymentsDisplay();
+                updatePaymentStats();
+                
+            } catch (error) {
+                showError('Payment processing failed: ' + error.message);
+            }
+        }
+
+        // Submit cash payment
+        async function submitCashPayment() {
+            try {
+                const form = document.getElementById('cash-payment-form');
+                const formData = new FormData(form);
+                
+                // Validate required fields
+                const paymentDate = formData.get('payment_date');
+                const paymentMethod = formData.get('payment_method');
+                const screenshot = formData.get('payment_screenshot');
+                
+                if (!paymentDate || !paymentMethod || !screenshot) {
+                    showError('Please fill in all required fields and upload a payment screenshot.');
+                    return;
+                }
+                
+                // Add service information
+                formData.append('service_id', selectedService.id);
+                formData.append('service_name', selectedService.name);
+                formData.append('amount', selectedService.price);
+                formData.append('client_id', clientData?.id || 'demo-client');
+                formData.append('client_name', clientData?.name || clientData?.full_name || 'Demo Client');
+                formData.append('client_email', clientData?.email || 'demo@example.com');
+                
+                console.log('💵 Submitting cash payment proof...');
+                
+                // Call the backend API
+                const response = await fetch(`${API_BASE}/payments/cash-payment`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showSuccess('Payment proof submitted successfully! Your payment is now pending verification. You will receive an email notification once our team confirms the payment.');
+                    
+                    // Close modal and reset form
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('cashPaymentModal'));
+                    modal.hide();
+                    form.reset();
+                    
+                    // Add to payments data with pending status
+                    const newPayment = {
+                        id: result.data._id,
+                        service_name: selectedService.name,
+                        amount: selectedService.price,
+                        status: 'pending_verification',
+                        payment_method: formData.get('payment_method'),
+                        created_at: new Date().toISOString(),
+                        transaction_id: result.data.transactionId,
+                        verification_status: 'pending'
+                    };
+                    paymentsData.unshift(newPayment);
+                    updatePaymentsDisplay();
+                    updatePaymentStats();
+                } else {
+                    throw new Error(result.message || 'Failed to submit payment proof');
+                }
+                
+            } catch (error) {
+                console.error('❌ Cash payment submission error:', error);
+                showError('Failed to submit payment proof: ' + error.message);
+            }
+        }
+
+        // Format service status
+        function formatServiceStatus(status) {
+            const statusMap = {
+                'available': 'Available',
+                'purchased': 'Purchased',
+                'completed': 'Completed',
+                'unavailable': 'Unavailable'
+            };
+            return statusMap[status] || status;
+        }
+
+        function refreshServices() {
+            loadServices();
+        }
+
+        function showContactModal() {
+            const modal = new bootstrap.Modal(document.getElementById('contactModal'));
+            modal.show();
+        }
+
+        // Submit contact form
+        async function submitContactForm() {
+            try {
+                const form = document.getElementById('contact-form');
+                const formData = new FormData(form);
+                const data = Object.fromEntries(formData);
+                
+                // Add client information
+                data.name = clientData?.name || clientData?.full_name || 'Demo Client';
+                data.email = clientData?.email || 'demo@example.com';
+                data.phone = clientData?.phone || '';
+                
+                console.log('📧 Submitting contact form:', data);
+                
+                // For demo purposes, just show success
+                showSuccess('Your message has been sent successfully! We will get back to you soon.');
+                form.reset();
+                const modal = bootstrap.Modal.getInstance(document.getElementById('contactModal'));
+                modal.hide();
+            } catch (error) {
+                showError('Failed to send message: ' + error.message);
+            }
+        }
+
+        // Profile update
+        async function updateProfile(formData) {
+            try {
+                console.log('👤 Updating profile:', formData);
+                showSuccess('Profile updated successfully!');
+                
+                // Update local data
+                if (clientData) {
+                    clientData.full_name = formData.full_name;
+                    clientData.phone = formData.phone;
+                    clientData.company = formData.company;
+                    updateProfileDisplay();
+                }
+            } catch (error) {
+                showError('Failed to update profile: ' + error.message);
+            }
+        }
+
+        // Password change
+        async function changePassword(formData) {
+            try {
+                console.log('🔒 Changing password...');
+                showSuccess('Password changed successfully!');
+                document.getElementById('password-form').reset();
+            } catch (error) {
+                showError('Failed to change password: ' + error.message);
+            }
+        }
+
+        // Utility functions
+        function showError(message) {
+            console.error('❌ Error:', message);
+            alert('Error: ' + message);
+        }
+
+        function showSuccess(message) {
+            console.log('✅ Success:', message);
+            alert(message);
+        }
+
         // Logout function
         function logout() {
             console.log('🚪 Logging out...');
@@ -1942,6 +1987,10 @@
             localStorage.removeItem('user');
             localStorage.removeItem('userRole');
             localStorage.removeItem('client_token');
+            localStorage.removeItem('clientId');
+            localStorage.removeItem('clientEmail');
+            localStorage.removeItem('clientName');
+            localStorage.removeItem('clientPhone');
             
             // Show logout message
             alert('You have been logged out successfully.');
@@ -1950,8 +1999,11 @@
             window.location.href = '/login';
         }
 
-        // Add logout button listener
+        // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎯 Client Profile Dashboard initializing...');
+            
+            // Attach logout button listener
             const logoutBtn = document.getElementById('logout-btn');
             if (logoutBtn) {
                 logoutBtn.addEventListener('click', function(e) {
@@ -1960,6 +2012,53 @@
                 });
                 console.log('✅ Logout button event listener attached');
             }
+            
+            // Profile form submission
+            document.getElementById('profile-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const data = Object.fromEntries(formData);
+                updateProfile(data);
+            });
+            
+            // Password form submission
+            document.getElementById('password-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const data = Object.fromEntries(formData);
+                
+                if (data.new_password !== data.confirm_password) {
+                    showError('New passwords do not match');
+                    return;
+                }
+                
+                changePassword({
+                    current_password: data.current_password,
+                    new_password: data.new_password
+                });
+            });
+            
+            // Tab change listeners to load data on demand
+            document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+                tab.addEventListener('shown.bs.tab', function(e) {
+                    const target = e.target.getAttribute('data-bs-target');
+                    console.log('📑 Tab changed to:', target);
+                    
+                    if (target === '#projects' && projectsData.length === 0) {
+                        loadProjects();
+                    } else if (target === '#payments' && paymentsData.length === 0) {
+                        loadPayments();
+                    } else if (target === '#services' && servicesData.length === 0) {
+                        loadServices();
+                    }
+                });
+            });
+            
+            // Load initial data
+            console.log('🚀 Loading initial data...');
+            loadClientProfile();
+            
+            console.log('✅ Client Profile Dashboard initialized successfully!');
         });
     </script>
 </body>

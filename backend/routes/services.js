@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const serviceController = require('../controllers/serviceController');
 const { body } = require('express-validator');
+const { authenticateClient } = require('../middleware/auth');
 
 // Admin authentication middleware (same as other admin routes)
 const adminAuth = async (req, res, next) => {
@@ -81,6 +82,122 @@ const validateServiceUpdate = [
 // @desc    Get all services with filters
 // @access  Private (Admin only)
 router.get('/', adminAuth, serviceController.getServices);
+
+// @route   GET /api/services/public
+// @desc    Get all active services for clients
+// @access  Private (Client)
+router.get('/public', authenticateClient, async (req, res) => {
+  try {
+    console.log('🔍 Client requesting public services...');
+    
+    // For demo purposes, return hardcoded services
+    // In production, this would query the Service model for active services
+    const services = [
+      {
+        id: 'eb1a-consultation',
+        name: 'EB-1A Consultation',
+        description: 'Comprehensive consultation for EB-1A extraordinary ability visa application',
+        price: 500,
+        category: 'Consulting',
+        features: [
+          'Initial eligibility assessment',
+          'Strategy development',
+          'Document review',
+          '1-hour consultation call',
+          'Written recommendation report'
+        ],
+        status: 'active',
+        duration: '1-2 weeks',
+        deliverables: ['Consultation Report', 'Strategy Document']
+      },
+      {
+        id: 'eb1a-premium',
+        name: 'EB-1A Premium Package',
+        description: 'Complete EB-1A application preparation and filing service',
+        price: 5000,
+        category: 'Research',
+        features: [
+          'Complete petition preparation',
+          'Evidence collection guidance',
+          'Legal brief writing',
+          'Form I-140 filing',
+          'Response to RFEs',
+          'Priority processing'
+        ],
+        status: 'active',
+        duration: '3-6 months',
+        deliverables: ['Complete I-140 Petition', 'Evidence Portfolio', 'Legal Brief']
+      },
+      {
+        id: 'eb2-niw',
+        name: 'EB-2 NIW Application',
+        description: 'National Interest Waiver application for advanced degree professionals',
+        price: 4000,
+        category: 'Research',
+        features: [
+          'NIW petition preparation',
+          'Business plan development',
+          'Evidence compilation',
+          'Legal arguments',
+          'Form I-140 filing'
+        ],
+        status: 'active',
+        duration: '2-4 months',
+        deliverables: ['I-140 Petition', 'Business Plan', 'Evidence Package']
+      },
+      {
+        id: 'o1-visa',
+        name: 'O-1 Visa Application',
+        description: 'O-1 visa for individuals with extraordinary ability',
+        price: 3500,
+        category: 'Research',
+        features: [
+          'O-1 petition preparation',
+          'Advisory opinion letters',
+          'Evidence portfolio',
+          'Form I-129 filing',
+          'Consultation support'
+        ],
+        status: 'active',
+        duration: '2-3 months',
+        deliverables: ['I-129 Petition', 'Advisory Letters', 'Evidence Portfolio']
+      },
+      {
+        id: 'profile-building',
+        name: 'Profile Building Service',
+        description: 'Comprehensive profile enhancement for immigration applications',
+        price: 2000,
+        category: 'Consulting',
+        features: [
+          'Profile gap analysis',
+          'Publication strategy',
+          'Media coverage plan',
+          'Award nomination guidance',
+          'Network building advice'
+        ],
+        status: 'active',
+        duration: '1-3 months',
+        deliverables: ['Profile Analysis Report', 'Enhancement Strategy', 'Action Plan']
+      }
+    ];
+    
+    console.log('✅ Returning public services:', services.length);
+    
+    res.json({
+      success: true,
+      count: services.length,
+      data: services
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching public services:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch services',
+      error: error.message
+    });
+  }
+});
 
 // @route   GET /api/services/stats
 // @desc    Get service statistics

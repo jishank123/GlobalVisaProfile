@@ -8,8 +8,14 @@ const paymentSchema = new mongoose.Schema({
   },
   project: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Project',
-    required: [true, 'Project reference is required']
+    ref: 'Project'
+  },
+  // Service information for direct service purchases
+  service_id: {
+    type: String
+  },
+  service_name: {
+    type: String
   },
   amount: {
     type: Number,
@@ -22,12 +28,12 @@ const paymentSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'completed', 'failed', 'refunded'],
+    enum: ['pending', 'completed', 'failed', 'refunded', 'pending_verification'],
     default: 'pending'
   },
   paymentMethod: {
     type: String,
-    enum: ['credit_card', 'bank_transfer', 'paypal', 'stripe', 'other'],
+    enum: ['credit_card', 'bank_transfer', 'paypal', 'stripe', 'cash', 'check', 'other'],
     default: 'credit_card'
   },
   transactionId: {
@@ -48,6 +54,33 @@ const paymentSchema = new mongoose.Schema({
   invoice: {
     invoiceNumber: String,
     invoiceUrl: String
+  },
+  // Cash payment verification fields
+  verification_status: {
+    type: String,
+    enum: ['pending', 'verified', 'rejected'],
+    default: null
+  },
+  receipt_screenshot: {
+    type: String // filename of uploaded receipt
+  },
+  receipt_path: {
+    type: String // full path to uploaded file
+  },
+  submitted_by: {
+    type: String // email of client who submitted
+  },
+  submitted_at: {
+    type: Date
+  },
+  verified_by: {
+    type: String // email of admin/manager who verified
+  },
+  verified_at: {
+    type: Date
+  },
+  admin_notes: {
+    type: String // notes from admin during verification
   }
 }, {
   timestamps: true
@@ -57,5 +90,6 @@ const paymentSchema = new mongoose.Schema({
 paymentSchema.index({ client: 1, status: 1 });
 paymentSchema.index({ project: 1 });
 paymentSchema.index({ paymentDate: -1 });
+paymentSchema.index({ verification_status: 1 });
 
 module.exports = mongoose.model('Payment', paymentSchema);

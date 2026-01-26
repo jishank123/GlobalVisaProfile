@@ -1,8 +1,36 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
 const Payment = require('../models/Payment');
 const Client = require('../models/Client');
 const { auth, authenticateClient } = require('../middleware/auth');
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/payment-receipts/');
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'payment-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    // Accept images and PDFs
+    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files and PDFs are allowed!'), false);
+    }
+  }
+});
 
 // Fixed auth middleware usage
 
@@ -193,6 +221,174 @@ router.delete('/:id', auth(['admin']), async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// @route   POST /api/payments/cash-payment
+// @desc    Submit cash payment with receipt screenshot
+// @access  Private (Client)
+router.post('/cash-payment', authenticateClient, upload.single('payment_screenshot'), async (req, res) => {
+  try {
+    const {
+      service_id,
+      service_name,
+      amount,
+      payment_date,
+      payment_method,
+      notes
+    } = req.body;
+
+    // Validate required fields
+    if (!service_id || !service_name || !amount || !payment_date || !payment_method) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields'
+      });
+    }
+
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment receipt screenshot is required'
+      });
+    }
+
+    // Find client record
+    const clientRecord = await Client.findOne({ email: req.client.email });
+    if (!clientRecord) {
+      return res.status(404).json({
+        success: false,
+        message: 'Client record not found'
+      });
+    }
+
+    // Generate transaction ID
+    const transactionId = `CASH-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+    // Create payment record with pending verification status
+    const paymentData = {
+      client: clientRecord._id,
+      service_id,
+      service_name,
+      amount: parseFloat(amount),
+      paymentMethod: payment_method,
+      paymentDate: new Date(payment_date),
+      transactionId,
+      status: 'pending_verification',
+      verification_status: 'pending',
+      receipt_screenshot: req.file.filename,
+      receipt_path: req.file.path,
+      notes: notes || '',
+      submitted_by: req.client.email,
+      submitted_at: new Date()
+    };
+
+    const payment = await Payment.create(paymentData);
+
+    // Populate client data for response
+    await payment.populate('client', 'name email phone');
+
+    console.log('💵 Cash payment submitted:', {
+      client: req.client.email,
+      service: service_name,
+      amount: amount,
+      transactionId
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Cash payment proof submitted successfully. Your payment is now pending verification.',
+      data: payment
+    });
+
+  } catch (error) {
+    console.error('❌ Cash payment submission error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to submit cash payment proof',
+      error: error.message
+    });
+  }
+});
+
+// @route   PATCH /api/payments/:id/verify
+// @desc    Verify cash payment (Admin/Manager only)
+// @access  Private (Admin, CRM Manager, Lead Manager)
+router.patch('/:id/verify', auth(['admin', 'crm_manager', 'lead_manager']), async (req, res) => {
+  try {
+    const { verification_status, admin_notes } = req.body;
+
+    if (!['verified', 'rejected'].includes(verification_status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid verification status. Must be "verified" or "rejected"'
+      });
+    }
+
+    const payment = await Payment.findById(req.params.id);
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payment not found'
+      });
+    }
+
+    // Update payment verification
+    payment.verification_status = verification_status;
+    payment.status = verification_status === 'verified' ? 'completed' : 'failed';
+    payment.verified_by = req.user.email;
+    payment.verified_at = new Date();
+    if (admin_notes) payment.admin_notes = admin_notes;
+
+    await payment.save();
+
+    console.log('✅ Payment verification updated:', {
+      paymentId: payment._id,
+      status: verification_status,
+      verifiedBy: req.user.email
+    });
+
+    res.json({
+      success: true,
+      message: `Payment ${verification_status} successfully`,
+      data: payment
+    });
+
+  } catch (error) {
+    console.error('❌ Payment verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to verify payment',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/payments/pending-verification
+// @desc    Get all payments pending verification (Admin/Manager only)
+// @access  Private (Admin, CRM Manager, Lead Manager)
+router.get('/pending-verification', auth(['admin', 'crm_manager', 'lead_manager']), async (req, res) => {
+  try {
+    const pendingPayments = await Payment.find({
+      verification_status: 'pending'
+    })
+      .populate('client', 'name email phone')
+      .sort({ submitted_at: -1 });
+
+    res.json({
+      success: true,
+      count: pendingPayments.length,
+      data: pendingPayments
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching pending payments:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch pending payments',
       error: error.message
     });
   }
