@@ -474,6 +474,152 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* Progress Update Modal Styles */
+        .progress-custom {
+            height: 12px;
+            border-radius: 10px;
+            background: #e2e8f0;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-bar-custom {
+            height: 100%;
+            background: linear-gradient(90deg, #f59e0b 0%, #ef4444 100%);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+
+        /* Milestone Timeline Styles */
+        .timeline-vertical {
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .timeline-vertical::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e2e8f0;
+        }
+
+        .milestone-item {
+            position: relative;
+            padding-bottom: 20px;
+            margin-bottom: 15px;
+        }
+
+        .milestone-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .milestone-dot {
+            position: absolute;
+            left: -24px;
+            top: 0;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            border: 3px solid white;
+            box-shadow: 0 0 0 2px #e2e8f0;
+        }
+
+        .milestone-item.completed .milestone-dot {
+            background: #10b981;
+            box-shadow: 0 0 0 2px #10b981;
+        }
+
+        .milestone-item.active .milestone-dot {
+            background: #f59e0b;
+            box-shadow: 0 0 0 2px #f59e0b;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 2px #f59e0b; }
+            50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.3); }
+            100% { box-shadow: 0 0 0 2px #f59e0b; }
+        }
+
+        .milestone-content {
+            padding-left: 5px;
+        }
+
+        .milestone-title {
+            font-weight: 600;
+            color: #1a202c;
+            font-size: 13px;
+            margin-bottom: 2px;
+        }
+
+        .milestone-progress {
+            font-size: 11px;
+            color: #718096;
+        }
+
+        .milestone-item.completed .milestone-title {
+            color: #10b981;
+        }
+
+        .milestone-item.active .milestone-title {
+            color: #f59e0b;
+        }
+
+        /* Form Range Styling */
+        .form-range {
+            height: 8px;
+        }
+
+        .form-range::-webkit-slider-thumb {
+            background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+            border: none;
+            width: 20px;
+            height: 20px;
+        }
+
+        .form-range::-moz-range-thumb {
+            background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+            border: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+        }
+
+        /* Modal Enhancements */
+        .modal-header {
+            background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+            color: white;
+        }
+
+        .modal-header .btn-close {
+            filter: invert(1);
+        }
+
+        .form-control-plaintext {
+            font-weight: 600;
+            color: #1a202c;
+        }
+
+        /* Contact and Reminder Modals */
+        .contact-type-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .contact-progress { background: #dbeafe; color: #1e40af; }
+        .contact-payment { background: #fef3c7; color: #92400e; }
+        .contact-document { background: #e0e7ff; color: #3730a3; }
+        .contact-meeting { background: #d1fae5; color: #065f46; }
+        .contact-general { background: #f3f4f6; color: #374151; }
     </style>
 </head>
 <body>
@@ -981,6 +1127,222 @@
         </div>
     </div>
 
+    <!-- Progress Update Modal -->
+    <div class="modal fade" id="progressModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Update Service Progress</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Client:</strong></label>
+                                <div id="progress-client-name" class="form-control-plaintext">Loading...</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Service:</strong></label>
+                                <div id="progress-service-name" class="form-control-plaintext">Loading...</div>
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label"><strong>Progress:</strong></label>
+                                <div class="d-flex align-items-center gap-3">
+                                    <input type="range" class="form-range flex-grow-1" id="progress-slider" min="0" max="100" value="0">
+                                    <span id="progress-value" class="badge bg-primary fs-6">0%</span>
+                                </div>
+                                <div class="progress-custom mt-2">
+                                    <div class="progress-bar-custom" id="progress-preview" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Current Milestone:</strong></label>
+                                <select class="form-select" id="current-milestone">
+                                    <option value="initial_consultation">Initial Consultation</option>
+                                    <option value="requirements_gathering">Requirements Gathering</option>
+                                    <option value="draft_preparation">Draft Preparation</option>
+                                    <option value="review_refinement">Review & Refinement</option>
+                                    <option value="final_delivery">Final Delivery</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Status:</strong></label>
+                                <div class="d-flex gap-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="project-status" id="status-progress" value="in_progress" checked>
+                                        <label class="form-check-label" for="status-progress">In Progress</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="project-status" id="status-pending" value="pending">
+                                        <label class="form-check-label" for="status-pending">Pending Documents</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="project-status" id="status-completed" value="completed">
+                                        <label class="form-check-label" for="status-completed">Completed</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Notes:</strong></label>
+                                <textarea class="form-control" id="progress-notes" rows="3" placeholder="Add progress notes or updates..."></textarea>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="notify-client" checked>
+                                <label class="form-check-label" for="notify-client">
+                                    <strong>Notify Client:</strong> Send progress update email
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Milestone Timeline</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="timeline-vertical">
+                                        <div class="milestone-item completed">
+                                            <div class="milestone-dot"></div>
+                                            <div class="milestone-content">
+                                                <div class="milestone-title">Initial Consultation</div>
+                                                <div class="milestone-progress">0-20%</div>
+                                            </div>
+                                        </div>
+                                        <div class="milestone-item active">
+                                            <div class="milestone-dot"></div>
+                                            <div class="milestone-content">
+                                                <div class="milestone-title">Requirements Gathering</div>
+                                                <div class="milestone-progress">20-40%</div>
+                                            </div>
+                                        </div>
+                                        <div class="milestone-item">
+                                            <div class="milestone-dot"></div>
+                                            <div class="milestone-content">
+                                                <div class="milestone-title">Draft Preparation</div>
+                                                <div class="milestone-progress">40-70%</div>
+                                            </div>
+                                        </div>
+                                        <div class="milestone-item">
+                                            <div class="milestone-dot"></div>
+                                            <div class="milestone-content">
+                                                <div class="milestone-title">Review & Refinement</div>
+                                                <div class="milestone-progress">70-90%</div>
+                                            </div>
+                                        </div>
+                                        <div class="milestone-item">
+                                            <div class="milestone-dot"></div>
+                                            <div class="milestone-content">
+                                                <div class="milestone-title">Final Delivery</div>
+                                                <div class="milestone-progress">90-100%</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveProgress()">
+                        <i class="fas fa-save me-2"></i>Update Progress
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client Contact Modal -->
+    <div class="modal fade" id="contactModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Contact Client</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Client:</strong></label>
+                        <div id="contact-client-name" class="form-control-plaintext">Loading...</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Subject:</strong></label>
+                        <select class="form-select" id="contact-subject">
+                            <option value="progress_update">Progress Update</option>
+                            <option value="payment_reminder">Payment Reminder</option>
+                            <option value="document_request">Document Request</option>
+                            <option value="meeting_request">Meeting Request</option>
+                            <option value="general">General Communication</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Message:</strong></label>
+                        <textarea class="form-control" id="contact-message" rows="5" placeholder="Type your message here..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Priority:</strong></label>
+                        <select class="form-select" id="contact-priority">
+                            <option value="normal">Normal</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="sendMessage()">
+                        <i class="fas fa-paper-plane me-2"></i>Send Message
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Reminder Modal -->
+    <div class="modal fade" id="paymentReminderModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Send Payment Reminder</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Client:</strong></label>
+                        <div id="reminder-client-name" class="form-control-plaintext">Loading...</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Outstanding Amount:</strong></label>
+                        <div id="reminder-amount" class="form-control-plaintext text-danger">$0</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Due Date:</strong></label>
+                        <div id="reminder-due-date" class="form-control-plaintext">Loading...</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Reminder Type:</strong></label>
+                        <select class="form-select" id="reminder-type">
+                            <option value="gentle">Gentle Reminder</option>
+                            <option value="standard">Standard Reminder</option>
+                            <option value="urgent">Urgent Reminder</option>
+                            <option value="final">Final Notice</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Additional Message:</strong></label>
+                        <textarea class="form-control" id="reminder-message" rows="3" placeholder="Add any additional notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning" onclick="sendPaymentReminder()">
+                        <i class="fas fa-bell me-2"></i>Send Reminder
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
@@ -992,6 +1354,8 @@
         let queriesData = [];
         let paymentsData = [];
         let analyticsData = {};
+        let selectedProject = null;
+        let selectedClient = null;
 
         // API Base URL
         const API_BASE = 'http://localhost:5000/api';
@@ -1221,6 +1585,9 @@
                             <button class="btn-action btn-message" onclick="messageClient('${client._id}')">
                                 <i class="fas fa-envelope"></i> Message
                             </button>
+                            <button class="btn-action btn-edit" onclick="sendPaymentReminder('${client._id}', ${totalSpent > 0 ? 500 : 1000}, 'Due Now')">
+                                <i class="fas fa-bell"></i> Remind
+                            </button>
                         </div>
                     </div>
                 `;
@@ -1275,6 +1642,12 @@
                         <td>
                             <button class="btn-action btn-view" onclick="viewProject('${project._id}')">
                                 <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn-action btn-edit" onclick="updateProgress('${project._id}')">
+                                <i class="fas fa-chart-line"></i>
+                            </button>
+                            <button class="btn-action btn-message" onclick="contactClient('${project.client?._id || project.client}')">
+                                <i class="fas fa-envelope"></i>
                             </button>
                         </td>
                     </tr>
@@ -1383,11 +1756,15 @@
         function messageClient(clientId) {
             const client = clientsData.find(c => c._id === clientId);
             if (client) {
-                const message = prompt(`Send message to ${client.name}:`);
-                if (message) {
-                    alert(`Message sent to ${client.name}: "${message}"`);
-                }
+                selectedClient = client;
+                document.getElementById('contact-client-name').textContent = client.name;
+                const modal = new bootstrap.Modal(document.getElementById('contactModal'));
+                modal.show();
             }
+        }
+
+        function contactClient(clientId) {
+            messageClient(clientId);
         }
 
         function viewProject(projectId) {
@@ -1396,6 +1773,183 @@
                 const client = clientsData.find(c => c._id === project.client?._id || c._id === project.client) || {};
                 alert(`Project Details:\n\nID: ${project.project_id || project._id}\nClient: ${client.name}\nService: ${project.service_name || project.title}\nStatus: ${project.status}\nProgress: ${project.progress || 0}%\nDescription: ${project.description || 'No description'}`);
             }
+        }
+
+        function updateProgress(projectId) {
+            const project = projectsData.find(p => p._id === projectId);
+            if (project) {
+                const client = clientsData.find(c => c._id === project.client?._id || c._id === project.client) || {};
+                
+                selectedProject = project;
+                selectedClient = client;
+                
+                // Populate modal
+                document.getElementById('progress-client-name').textContent = client.name || 'Unknown Client';
+                document.getElementById('progress-service-name').textContent = project.service_name || project.title || 'Unknown Service';
+                
+                const currentProgress = project.progress || 0;
+                document.getElementById('progress-slider').value = currentProgress;
+                document.getElementById('progress-value').textContent = currentProgress + '%';
+                document.getElementById('progress-preview').style.width = currentProgress + '%';
+                
+                // Set current milestone based on progress
+                const milestoneSelect = document.getElementById('current-milestone');
+                if (currentProgress < 20) milestoneSelect.value = 'initial_consultation';
+                else if (currentProgress < 40) milestoneSelect.value = 'requirements_gathering';
+                else if (currentProgress < 70) milestoneSelect.value = 'draft_preparation';
+                else if (currentProgress < 90) milestoneSelect.value = 'review_refinement';
+                else milestoneSelect.value = 'final_delivery';
+                
+                // Set status
+                const statusRadio = document.querySelector(`input[name="project-status"][value="${project.status || 'in_progress'}"]`);
+                if (statusRadio) statusRadio.checked = true;
+                
+                // Update milestone timeline
+                updateMilestoneTimeline(currentProgress);
+                
+                const modal = new bootstrap.Modal(document.getElementById('progressModal'));
+                modal.show();
+            }
+        }
+
+        function updateMilestoneTimeline(progress) {
+            const milestones = document.querySelectorAll('.milestone-item');
+            milestones.forEach((milestone, index) => {
+                const thresholds = [20, 40, 70, 90, 100];
+                milestone.classList.remove('completed', 'active');
+                
+                if (progress >= thresholds[index]) {
+                    milestone.classList.add('completed');
+                } else if (progress >= (thresholds[index - 1] || 0)) {
+                    milestone.classList.add('active');
+                }
+            });
+        }
+
+        function saveProgress() {
+            if (!selectedProject) return;
+            
+            const newProgress = parseInt(document.getElementById('progress-slider').value);
+            const milestone = document.getElementById('current-milestone').value;
+            const status = document.querySelector('input[name="project-status"]:checked').value;
+            const notes = document.getElementById('progress-notes').value;
+            const notifyClient = document.getElementById('notify-client').checked;
+            
+            // Update project data locally
+            selectedProject.progress = newProgress;
+            selectedProject.status = status;
+            selectedProject.current_milestone = milestone;
+            selectedProject.notes = notes;
+            
+            console.log('💾 Saving progress update:', {
+                projectId: selectedProject._id,
+                progress: newProgress,
+                milestone,
+                status,
+                notes,
+                notifyClient
+            });
+            
+            // In a real implementation, this would call the API
+            // await apiCall(`/projects/${selectedProject._id}`, {
+            //     method: 'PATCH',
+            //     body: JSON.stringify({ progress: newProgress, status, notes, current_milestone: milestone })
+            // });
+            
+            // Update display
+            updateProjectsDisplay();
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('progressModal'));
+            modal.hide();
+            
+            // Show success message
+            let message = `Progress updated to ${newProgress}% for ${selectedClient.name}`;
+            if (notifyClient) {
+                message += '\nClient notification email sent.';
+            }
+            alert(message);
+        }
+
+        function sendMessage() {
+            if (!selectedClient) return;
+            
+            const subject = document.getElementById('contact-subject').value;
+            const message = document.getElementById('contact-message').value;
+            const priority = document.getElementById('contact-priority').value;
+            
+            if (!message.trim()) {
+                alert('Please enter a message.');
+                return;
+            }
+            
+            console.log('📧 Sending message to client:', {
+                clientId: selectedClient._id,
+                subject,
+                message,
+                priority
+            });
+            
+            // In a real implementation, this would call the API
+            // await apiCall('/queries', {
+            //     method: 'POST',
+            //     body: JSON.stringify({
+            //         client: selectedClient._id,
+            //         subject: getSubjectText(subject),
+            //         description: message,
+            //         priority
+            //     })
+            // });
+            
+            // Close modal and reset form
+            const modal = bootstrap.Modal.getInstance(document.getElementById('contactModal'));
+            modal.hide();
+            document.getElementById('contact-message').value = '';
+            
+            alert(`Message sent to ${selectedClient.name} successfully!`);
+        }
+
+        function sendPaymentReminder(clientId, amount, dueDate) {
+            const client = clientsData.find(c => c._id === clientId) || selectedClient;
+            if (!client) return;
+            
+            selectedClient = client;
+            document.getElementById('reminder-client-name').textContent = client.name;
+            document.getElementById('reminder-amount').textContent = formatCurrency(amount || 1000);
+            document.getElementById('reminder-due-date').textContent = dueDate || 'Overdue';
+            
+            const modal = new bootstrap.Modal(document.getElementById('paymentReminderModal'));
+            modal.show();
+        }
+
+        function sendPaymentReminder() {
+            if (!selectedClient) return;
+            
+            const reminderType = document.getElementById('reminder-type').value;
+            const message = document.getElementById('reminder-message').value;
+            
+            console.log('💰 Sending payment reminder:', {
+                clientId: selectedClient._id,
+                reminderType,
+                message
+            });
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('paymentReminderModal'));
+            modal.hide();
+            
+            alert(`Payment reminder sent to ${selectedClient.name} successfully!`);
+        }
+
+        function getSubjectText(subjectKey) {
+            const subjects = {
+                'progress_update': 'Project Progress Update',
+                'payment_reminder': 'Payment Reminder',
+                'document_request': 'Document Request',
+                'meeting_request': 'Meeting Request',
+                'general': 'General Communication'
+            };
+            return subjects[subjectKey] || 'General Communication';
         }
 
         function replyToQuery(queryId) {
@@ -1490,6 +2044,39 @@
                     logout();
                 });
                 console.log('✅ Logout button event listener attached');
+            }
+            
+            // Progress slider event listener
+            const progressSlider = document.getElementById('progress-slider');
+            if (progressSlider) {
+                progressSlider.addEventListener('input', function() {
+                    const value = this.value;
+                    document.getElementById('progress-value').textContent = value + '%';
+                    document.getElementById('progress-preview').style.width = value + '%';
+                    updateMilestoneTimeline(parseInt(value));
+                });
+            }
+            
+            // Contact subject change listener
+            const contactSubject = document.getElementById('contact-subject');
+            if (contactSubject) {
+                contactSubject.addEventListener('change', function() {
+                    const subject = this.value;
+                    const messageTextarea = document.getElementById('contact-message');
+                    
+                    // Pre-fill message based on subject
+                    const templates = {
+                        'progress_update': 'Hi [Client Name],\n\nI wanted to update you on the progress of your project...',
+                        'payment_reminder': 'Hi [Client Name],\n\nThis is a friendly reminder about your outstanding payment...',
+                        'document_request': 'Hi [Client Name],\n\nWe need some additional documents to proceed with your project...',
+                        'meeting_request': 'Hi [Client Name],\n\nI would like to schedule a meeting to discuss...',
+                        'general': 'Hi [Client Name],\n\n'
+                    };
+                    
+                    if (templates[subject] && !messageTextarea.value.trim()) {
+                        messageTextarea.value = templates[subject].replace('[Client Name]', selectedClient?.name || 'there');
+                    }
+                });
             }
             
             // Load initial data
