@@ -152,46 +152,6 @@
             z-index: 1;
         }
 
-        .demo-accounts {
-            background: #f7fafc;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 25px;
-        }
-
-        .demo-title {
-            font-weight: 600;
-            color: #1a202c;
-            margin-bottom: 15px;
-            font-size: 14px;
-        }
-
-        .demo-account {
-            background: white;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
-        }
-
-        .demo-account:hover {
-            border-color: #667eea;
-            transform: translateX(5px);
-        }
-
-        .demo-account strong {
-            color: #1a202c;
-            display: block;
-            font-size: 14px;
-        }
-
-        .demo-account small {
-            color: #718096;
-            font-size: 12px;
-        }
-
         .footer-links {
             text-align: center;
             margin-top: 25px;
@@ -266,32 +226,6 @@
                 </button>
             </form>
 
-            <div class="divider">
-                <span>OR USE DEMO ACCOUNTS</span>
-            </div>
-
-            <div class="demo-accounts">
-                <div class="demo-title">
-                    <i class="fas fa-info-circle"></i> Demo Accounts (Click to Use)
-                </div>
-                <div class="demo-account" onclick="fillLogin('admin@academic-erp.com', 'admin123')">
-                    <strong><i class="fas fa-user-shield"></i> Admin</strong>
-                    <small>admin@academic-erp.com / admin123</small>
-                </div>
-                <div class="demo-account" onclick="fillLogin('john.smith@academic-erp.com', 'lead123')">
-                    <strong><i class="fas fa-user-tie"></i> Lead Manager</strong>
-                    <small>john.smith@academic-erp.com / lead123</small>
-                </div>
-                <div class="demo-account" onclick="fillLogin('emily.roberts@academic-erp.com', 'crm123')">
-                    <strong><i class="fas fa-users-cog"></i> CRM Manager</strong>
-                    <small>emily.roberts@academic-erp.com / crm123</small>
-                </div>
-                <div class="demo-account" onclick="fillLogin('sarah.mitchell@stanford.edu', 'client123')">
-                    <strong><i class="fas fa-user-graduate"></i> Client</strong>
-                    <small>sarah.mitchell@stanford.edu / client123</small>
-                </div>
-            </div>
-
             <div class="footer-links">
                 Don't have an account? <a href="register.html">Sign Up</a> | 
                 <a href="index.html">Back to Home</a>
@@ -300,28 +234,180 @@
     </div>
 
     <script>
-        function fillLogin(email, password) {
-            document.getElementById('email').value = email;
-            document.getElementById('password').value = password;
+        const API_BASE_URL = 'http://localhost:5000/api';
+
+        function showError(message) {
+            // Remove existing error messages
+            const existingError = document.querySelector('.error-message');
+            if (existingError) {
+                existingError.remove();
+            }
+            
+            // Create error message
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.style.cssText = `
+                background: #fee2e2;
+                color: #dc2626;
+                padding: 12px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+                border: 1px solid #fecaca;
+                font-size: 14px;
+            `;
+            errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
+            
+            // Insert before the form
+            const form = document.getElementById('loginForm');
+            form.parentNode.insertBefore(errorDiv, form);
         }
 
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
+        function showSuccess(message) {
+            // Remove existing messages
+            const existingMessage = document.querySelector('.success-message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+            
+            // Create success message
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-message';
+            successDiv.style.cssText = `
+                background: #dcfce7;
+                color: #16a34a;
+                padding: 12px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+                border: 1px solid #bbf7d0;
+                font-size: 14px;
+            `;
+            successDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
+            
+            // Insert before the form
+            const form = document.getElementById('loginForm');
+            form.parentNode.insertBefore(successDiv, form);
+        }
+
+        function setLoading(isLoading) {
+            const submitBtn = document.querySelector('.btn-login');
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            
+            if (isLoading) {
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing In...';
+                submitBtn.disabled = true;
+                emailInput.disabled = true;
+                passwordInput.disabled = true;
+            } else {
+                submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+                submitBtn.disabled = false;
+                emailInput.disabled = false;
+                passwordInput.disabled = false;
+            }
+        }
+
+        function redirectToDashboard(role) {
+            console.log('Redirecting user with role:', role);
+            
+            switch (role) {
+                case 'admin':
+                    window.location.href = '/admin';
+                    break;
+                case 'lead_manager':
+                    window.location.href = '/lead-manager';
+                    break;
+                case 'crm_manager':
+                    window.location.href = '/crm-manager';
+                    break;
+                case 'client':
+                    window.location.href = '/client-profile';
+                    break;
+                default:
+                    console.error('Unknown role:', role);
+                    showError('Unknown user role. Please contact support.');
+            }
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const email = document.getElementById('email').value;
+            const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
 
-            // Demo routing logic
-            if (email === 'admin@academic-erp.com') {
-                window.location.href = '2-admin-dashboard.html';
-            } else if (email === 'john.smith@academic-erp.com') {
-                window.location.href = '1-lead-manager.html';
-            } else if (email === 'emily.roberts@academic-erp.com') {
-                window.location.href = '4-crm-manager.html';
-            } else if (email === 'sarah.mitchell@stanford.edu') {
-                window.location.href = '3-client-profile.html';
-            } else {
-                alert('Demo Mode: Please use one of the demo accounts or implement backend authentication.');
+            // Basic validation
+            if (!email || !password) {
+                showError('Please enter both email and password.');
+                return;
+            }
+
+            if (!email.includes('@')) {
+                showError('Please enter a valid email address.');
+                return;
+            }
+
+            if (password.length < 6) {
+                showError('Password must be at least 6 characters long.');
+                return;
+            }
+
+            setLoading(true);
+
+            try {
+                console.log('Attempting login for:', email);
+                
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+                console.log('Login response:', data);
+
+                if (data.success) {
+                    // Store authentication data
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.data));
+                    localStorage.setItem('userRole', data.data.role);
+                    
+                    console.log('Login successful. User data:', data.data);
+                    
+                    showSuccess(`Welcome back, ${data.data.first_name}!`);
+                    
+                    // Redirect after a short delay
+                    setTimeout(() => {
+                        redirectToDashboard(data.data.role);
+                    }, 1000);
+                    
+                } else {
+                    console.error('Login failed:', data.error);
+                    showError(data.error.message || 'Login failed. Please try again.');
+                }
+
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('Connection error. Please check your internet connection and try again.');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // Check if user is already logged in
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('token');
+            const userRole = localStorage.getItem('userRole');
+            
+            if (token && userRole) {
+                console.log('User already logged in with role:', userRole);
+                showSuccess('You are already logged in. Redirecting...');
+                setTimeout(() => {
+                    redirectToDashboard(userRole);
+                }, 1000);
             }
         });
     </script>

@@ -42,8 +42,13 @@ app.get('/index', (req, res) => {
 
 // ===== AUTHENTICATION ROUTES =====
 
-// Client Login
+// Admin/Manager Login - Main login page for all roles
 app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'dashboard', 'login.html'));
+});
+
+// Client Login (alternative route)
+app.get('/client-login', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'auth', 'client-login-clean.html'));
 });
 

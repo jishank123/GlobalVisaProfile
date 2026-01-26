@@ -121,7 +121,7 @@
         <i class="fas fa-tachometer-alt me-2"></i>Dashboard Overview
     </a>
     <a href="#forms" class="sidebar-item">
-        <i class="fas fa-clipboard-list me-2"></i>Forms Management
+        <i class="fas fa-clipboard-list me-2"></i>Contacts Management
     </a>
     <a href="#leads" class="sidebar-item">
         <i class="fas fa-user-plus me-2"></i>Lead Management
@@ -197,10 +197,10 @@
         </div>
     </div>
     
-    <!-- Forms Management Section -->
+    <!-- Contacts Management Section -->
     <div id="forms" class="management-card">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5><i class="fas fa-clipboard-list me-2"></i>Forms Management</h5>
+            <h5><i class="fas fa-clipboard-list me-2"></i>Contacts Management</h5>
             <div class="btn-group" role="group">
                 <button class="btn btn-outline-primary btn-sm" onclick="refreshFormsData()">
                     <i class="fas fa-sync-alt me-1"></i>Refresh
@@ -211,14 +211,14 @@
             </div>
         </div>
         
-        <!-- Forms Statistics -->
+        <!-- Contacts Statistics -->
         <div class="row mb-4">
             <div class="col-md-4">
                 <div class="card border-primary">
                     <div class="card-body text-center">
                         <i class="fas fa-user-check fa-2x text-primary mb-2"></i>
                         <h4 id="contact-forms-count" class="text-primary">-</h4>
-                        <small class="text-muted">Contact Forms</small>
+                        <small class="text-muted">Contact Us</small>
                     </div>
                 </div>
             </div>
@@ -242,11 +242,11 @@
             </div>
         </div>
         
-        <!-- Forms Tabs -->
+        <!-- Contacts Tabs -->
         <ul class="nav nav-tabs" id="formsTab" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="contact-tab" data-bs-toggle="tab" data-bs-target="#contact-forms" type="button" role="tab">
-                    <i class="fas fa-envelope me-1"></i>Contact Forms
+                    <i class="fas fa-envelope me-1"></i>Contact Us
                 </button>
             </li>
             <li class="nav-item" role="presentation">
@@ -262,7 +262,7 @@
         </ul>
         
         <div class="tab-content mt-3" id="formsTabContent">
-            <!-- Contact Forms Tab -->
+            <!-- Contact Us Tab -->
             <div class="tab-pane fade show active" id="contact-forms" role="tabpanel">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="d-flex gap-2">
@@ -302,7 +302,7 @@
                             <tr>
                                 <td colspan="8" class="text-center">
                                     <div class="spinner-border spinner-border-sm me-2"></div>
-                                    Loading contact forms...
+                                    Loading contact us submissions...
                                 </td>
                             </tr>
                         </tbody>
@@ -1115,11 +1115,21 @@ function showStatisticsError() {
     console.log('⚠️ Showing statistics error state...');
     
     document.querySelectorAll('.stat-number').forEach(card => {
-        card.textContent = '--';
+        card.textContent = 'No Data';
         card.style.color = '#ef4444';
+        card.style.fontSize = '18px';
     });
     
-    // You could also show a toast notification here
+    // Show error message
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'alert alert-warning mt-3';
+    errorDiv.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Unable to load dashboard statistics. Please check your connection and try refreshing the page.';
+    
+    const statsContainer = document.querySelector('.row.mb-4');
+    if (statsContainer && !statsContainer.querySelector('.alert')) {
+        statsContainer.appendChild(errorDiv);
+    }
+    
     console.log('❌ Statistics cards set to error state');
 }
 
@@ -1193,6 +1203,13 @@ function displayUsers(users) {
     if (!users || users.length === 0) {
         tableContainer.style.display = 'none';
         noUsersMessage.style.display = 'block';
+        noUsersMessage.innerHTML = `
+            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No users found in the system</p>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                <i class="fas fa-plus me-1"></i>Add First User
+            </button>
+        `;
         return;
     }
     
@@ -1498,8 +1515,11 @@ function showUsersError() {
     document.getElementById('users-table-container').style.display = 'none';
     document.getElementById('no-users-message').style.display = 'block';
     document.getElementById('no-users-message').innerHTML = `
-        <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
-        <p class="text-danger">Error loading users. Please refresh the page.</p>
+        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+        <p class="text-warning">Unable to load user data. Please check your connection and try again.</p>
+        <button class="btn btn-outline-primary btn-sm" onclick="loadUserManagement()">
+            <i class="fas fa-sync-alt me-1"></i>Retry
+        </button>
     `;
 }
 
@@ -1565,6 +1585,13 @@ function displayServices(services) {
     if (!services || services.length === 0) {
         tableContainer.style.display = 'none';
         noServicesMessage.style.display = 'block';
+        noServicesMessage.innerHTML = `
+            <i class="fas fa-briefcase fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No services found in the system</p>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addServiceModal">
+                <i class="fas fa-plus me-1"></i>Add First Service
+            </button>
+        `;
         return;
     }
     
@@ -2002,8 +2029,11 @@ function showServicesError() {
     document.getElementById('services-table-container').style.display = 'none';
     document.getElementById('no-services-message').style.display = 'block';
     document.getElementById('no-services-message').innerHTML = `
-        <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
-        <p class="text-danger">Error loading services. Please refresh the page.</p>
+        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+        <p class="text-warning">Unable to load services data. Please check your connection and try again.</p>
+        <button class="btn btn-outline-primary btn-sm" onclick="loadServicesManagement()">
+            <i class="fas fa-sync-alt me-1"></i>Retry
+        </button>
     `;
 }
 
@@ -2214,6 +2244,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load financial overview data
     loadFinancialOverview();
     
+    // Load forms management data
+    loadFormsData();
+    
+    // Load leads data
+    loadLeadsData();
+    
     // Set up modal event listeners
     const saveUserBtn = document.getElementById('saveUserBtn');
     if (saveUserBtn) {
@@ -2261,54 +2297,77 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(loadDashboardStats, 5 * 60 * 1000);
 });
 
-// Forms Management Functions
+// Contacts Management Functions
 async function loadFormsData() {
     try {
-        console.log('📋 Loading forms data...');
+        console.log('📋 Loading contacts data...');
+        const token = getAuthToken();
+        if (!token) {
+            console.error('❌ No auth token found');
+            return;
+        }
         
-        // Load contact forms
-        const contactResponse = await fetch('/api/contact', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        // Load contact us submissions
+        const contactResponse = await fetch(`${API_BASE_URL}/contact`, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         const contactData = await contactResponse.json();
         
         if (contactData.success) {
             document.getElementById('contact-forms-count').textContent = contactData.data.contact_forms.length;
             displayContactForms(contactData.data.contact_forms);
+        } else {
+            document.getElementById('contact-forms-count').textContent = '0';
+            displayContactForms([]);
         }
         
         // Load profile assessments
-        const assessmentResponse = await fetch('/api/profile-assessments', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        const assessmentResponse = await fetch(`${API_BASE_URL}/profile-assessments`, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         const assessmentData = await assessmentResponse.json();
         
         if (assessmentData.success) {
             document.getElementById('assessments-count').textContent = assessmentData.data.assessments.length;
             displayAssessments(assessmentData.data.assessments);
+        } else {
+            document.getElementById('assessments-count').textContent = '0';
+            displayAssessments([]);
         }
         
         // Load appointments
-        const appointmentResponse = await fetch('/api/appointments', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        const appointmentResponse = await fetch(`${API_BASE_URL}/appointments`, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         const appointmentData = await appointmentResponse.json();
         
         if (appointmentData.success) {
             document.getElementById('appointments-count').textContent = appointmentData.data.appointments.length;
             displayAppointments(appointmentData.data.appointments);
+        } else {
+            document.getElementById('appointments-count').textContent = '0';
+            displayAppointments([]);
         }
         
-        console.log('✅ Forms data loaded successfully');
+        console.log('✅ Contacts data loaded successfully');
     } catch (error) {
-        console.error('❌ Error loading forms data:', error);
+        console.error('❌ Error loading contacts data:', error);
+        // Set counts to 0 on error
+        document.getElementById('contact-forms-count').textContent = '0';
+        document.getElementById('assessments-count').textContent = '0';
+        document.getElementById('appointments-count').textContent = '0';
+        
+        // Display empty states
+        displayContactForms([]);
+        displayAssessments([]);
+        displayAppointments([]);
     }
 }
 
 function displayContactForms(forms) {
     const tbody = document.getElementById('contact-forms-tbody');
-    if (forms.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No contact forms found</td></tr>';
+    if (!forms || forms.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-inbox fa-2x mb-2"></i><br>No contact us submissions found</td></tr>';
         return;
     }
     
@@ -2319,13 +2378,13 @@ function displayContactForms(forms) {
             <td>${form.email}</td>
             <td><span class="badge bg-info">${form.visa_type_display || form.visa_type}</span></td>
             <td><span class="badge bg-${getStatusColor(form.status)}">${form.status}</span></td>
-            <td><span class="badge bg-${getPriorityColor(form.priority)}">${form.priority}</span></td>
+            <td><span class="badge bg-${getPriorityColor(form.priority || 'medium')}">${form.priority || 'medium'}</span></td>
             <td>${new Date(form.createdAt).toLocaleDateString()}</td>
             <td>
-                <button class="action-btn btn-edit" onclick="viewContactForm('${form._id}')">
+                <button class="action-btn btn-edit" onclick="viewContactForm('${form._id}')" title="View Details">
                     <i class="fas fa-eye"></i>
                 </button>
-                <button class="action-btn btn-activate" onclick="convertContactToLead('${form._id}')">
+                <button class="action-btn btn-activate" onclick="convertContactToLead('${form._id}')" title="Convert to Lead">
                     <i class="fas fa-user-plus"></i>
                 </button>
             </td>
@@ -2335,8 +2394,8 @@ function displayContactForms(forms) {
 
 function displayAssessments(assessments) {
     const tbody = document.getElementById('assessments-tbody');
-    if (assessments.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No assessments found</td></tr>';
+    if (!assessments || assessments.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4"><i class="fas fa-chart-line fa-2x mb-2"></i><br>No profile assessments found</td></tr>';
         return;
     }
     
@@ -2351,10 +2410,10 @@ function displayAssessments(assessments) {
             <td>${assessment.years_of_experience} years</td>
             <td>${new Date(assessment.createdAt).toLocaleDateString()}</td>
             <td>
-                <button class="action-btn btn-edit" onclick="viewAssessment('${assessment._id}')">
+                <button class="action-btn btn-edit" onclick="viewAssessment('${assessment._id}')" title="View Details">
                     <i class="fas fa-eye"></i>
                 </button>
-                <button class="action-btn btn-activate" onclick="convertAssessmentToLead('${assessment._id}')">
+                <button class="action-btn btn-activate" onclick="convertAssessmentToLead('${assessment._id}')" title="Convert to Lead">
                     <i class="fas fa-user-plus"></i>
                 </button>
             </td>
@@ -2364,8 +2423,8 @@ function displayAssessments(assessments) {
 
 function displayAppointments(appointments) {
     const tbody = document.getElementById('appointments-tbody');
-    if (appointments.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No appointments found</td></tr>';
+    if (!appointments || appointments.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4"><i class="fas fa-calendar-check fa-2x mb-2"></i><br>No appointment requests found</td></tr>';
         return;
     }
     
@@ -2380,10 +2439,10 @@ function displayAppointments(appointments) {
             <td>${appointment.preferred_date || 'Not specified'}</td>
             <td>${new Date(appointment.createdAt).toLocaleDateString()}</td>
             <td>
-                <button class="action-btn btn-edit" onclick="viewAppointment('${appointment._id}')">
+                <button class="action-btn btn-edit" onclick="viewAppointment('${appointment._id}')" title="View Details">
                     <i class="fas fa-eye"></i>
                 </button>
-                <button class="action-btn btn-activate" onclick="scheduleAppointment('${appointment._id}')">
+                <button class="action-btn btn-activate" onclick="scheduleAppointment('${appointment._id}')" title="Schedule">
                     <i class="fas fa-calendar-plus"></i>
                 </button>
             </td>
@@ -2395,30 +2454,52 @@ function displayAppointments(appointments) {
 async function loadLeadsData() {
     try {
         console.log('👥 Loading leads data...');
+        const token = getAuthToken();
+        if (!token) {
+            console.error('❌ No auth token found');
+            return;
+        }
         
-        const response = await fetch('/api/leads', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        const response = await fetch(`${API_BASE_URL}/leads`, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await response.json();
         
         if (data.success) {
-            document.getElementById('total-leads-count').textContent = data.total;
+            document.getElementById('total-leads-count').textContent = data.total || data.data.length;
             displayLeads(data.data);
             
             // Load lead statistics
-            const statsResponse = await fetch('/api/leads/stats/summary', {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-            });
-            const statsData = await statsResponse.json();
-            
-            if (statsData.success) {
-                document.getElementById('qualified-leads-count').textContent = statsData.data.qualifiedCount;
-                document.getElementById('conversion-rate').textContent = statsData.data.conversionRate + '%';
+            try {
+                const statsResponse = await fetch(`${API_BASE_URL}/leads/stats/summary`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const statsData = await statsResponse.json();
                 
-                // Count unassigned leads
-                const unassignedCount = data.data.filter(lead => !lead.assignedTo).length;
-                document.getElementById('unassigned-leads-count').textContent = unassignedCount;
+                if (statsData.success) {
+                    document.getElementById('qualified-leads-count').textContent = statsData.data.qualifiedCount || 0;
+                    document.getElementById('conversion-rate').textContent = (statsData.data.conversionRate || 0) + '%';
+                } else {
+                    // Set default values if stats API fails
+                    document.getElementById('qualified-leads-count').textContent = '0';
+                    document.getElementById('conversion-rate').textContent = '0%';
+                }
+            } catch (statsError) {
+                console.error('❌ Error loading lead stats:', statsError);
+                document.getElementById('qualified-leads-count').textContent = '0';
+                document.getElementById('conversion-rate').textContent = '0%';
             }
+            
+            // Count unassigned leads
+            const unassignedCount = data.data.filter(lead => !lead.assignedTo).length;
+            document.getElementById('unassigned-leads-count').textContent = unassignedCount;
+        } else {
+            // Handle API error
+            document.getElementById('total-leads-count').textContent = '0';
+            document.getElementById('qualified-leads-count').textContent = '0';
+            document.getElementById('conversion-rate').textContent = '0%';
+            document.getElementById('unassigned-leads-count').textContent = '0';
+            displayLeads([]);
         }
         
         // Load lead managers for assignment dropdown
@@ -2427,35 +2508,41 @@ async function loadLeadsData() {
         console.log('✅ Leads data loaded successfully');
     } catch (error) {
         console.error('❌ Error loading leads data:', error);
+        // Set default values on error
+        document.getElementById('total-leads-count').textContent = '0';
+        document.getElementById('qualified-leads-count').textContent = '0';
+        document.getElementById('conversion-rate').textContent = '0%';
+        document.getElementById('unassigned-leads-count').textContent = '0';
+        displayLeads([]);
     }
 }
 
 function displayLeads(leads) {
     const tbody = document.getElementById('leads-tbody');
-    if (leads.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">No leads found</td></tr>';
+    if (!leads || leads.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4"><i class="fas fa-users fa-2x mb-2"></i><br>No leads found</td></tr>';
         return;
     }
     
     tbody.innerHTML = leads.map(lead => `
         <tr>
             <td><input type="checkbox" class="lead-checkbox" value="${lead._id}"></td>
-            <td>${lead.firstName} ${lead.lastName}</td>
+            <td>${lead.firstName || lead.name} ${lead.lastName || ''}</td>
             <td>${lead.email}</td>
             <td>${lead.phone || 'N/A'}</td>
             <td><span class="badge bg-${getStatusColor(lead.status)}">${lead.status}</span></td>
-            <td><span class="badge bg-${getPriorityColor(lead.priority)}">${lead.priority}</span></td>
-            <td>${lead.assignedTo ? lead.assignedTo.name || lead.assignedTo.email : '<span class="text-warning">Unassigned</span>'}</td>
-            <td>${lead.source}</td>
+            <td><span class="badge bg-${getPriorityColor(lead.priority || 'medium')}">${lead.priority || 'medium'}</span></td>
+            <td>${lead.assignedTo ? (lead.assignedTo.name || lead.assignedTo.email) : '<span class="text-warning">Unassigned</span>'}</td>
+            <td>${lead.source || 'Direct'}</td>
             <td>${new Date(lead.createdAt).toLocaleDateString()}</td>
             <td>
-                <button class="action-btn btn-edit" onclick="viewLead('${lead._id}')">
+                <button class="action-btn btn-edit" onclick="viewLead('${lead._id}')" title="View Details">
                     <i class="fas fa-eye"></i>
                 </button>
-                <button class="action-btn btn-activate" onclick="assignLead('${lead._id}')">
+                <button class="action-btn btn-activate" onclick="assignLead('${lead._id}')" title="Assign Lead">
                     <i class="fas fa-user-cog"></i>
                 </button>
-                <button class="action-btn btn-delete" onclick="convertLead('${lead._id}')">
+                <button class="action-btn btn-delete" onclick="convertLead('${lead._id}')" title="Convert to Client">
                     <i class="fas fa-user-tie"></i>
                 </button>
             </td>
@@ -2465,19 +2552,29 @@ function displayLeads(leads) {
 
 async function loadLeadManagers() {
     try {
-        const response = await fetch('/api/users?role=lead_manager', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        const token = getAuthToken();
+        if (!token) return;
+        
+        const response = await fetch(`${API_BASE_URL}/users?role=lead_manager`, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await response.json();
         
         if (data.success) {
             const select = document.getElementById('lead-manager-filter');
-            data.data.forEach(manager => {
-                const option = document.createElement('option');
-                option.value = manager._id;
-                option.textContent = `${manager.first_name} ${manager.last_name}`;
-                select.appendChild(option);
-            });
+            if (select) {
+                // Clear existing options except the first two
+                while (select.children.length > 2) {
+                    select.removeChild(select.lastChild);
+                }
+                
+                data.data.forEach(manager => {
+                    const option = document.createElement('option');
+                    option.value = manager._id;
+                    option.textContent = `${manager.first_name} ${manager.last_name}`;
+                    select.appendChild(option);
+                });
+            }
         }
     } catch (error) {
         console.error('❌ Error loading lead managers:', error);
@@ -2523,10 +2620,16 @@ async function convertContactToLead(contactId) {
     if (!confirm('Convert this contact form to a lead?')) return;
     
     try {
-        const response = await fetch(`/api/contact/${contactId}/convert-to-lead`, {
+        const token = getAuthToken();
+        if (!token) {
+            alert('Authentication token not found. Please login again.');
+            return;
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/contact/${contactId}/convert-to-lead`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -2537,7 +2640,7 @@ async function convertContactToLead(contactId) {
             loadFormsData();
             loadLeadsData();
         } else {
-            alert('Error: ' + data.error.message);
+            alert('Error: ' + (data.error?.message || 'Unknown error'));
         }
     } catch (error) {
         console.error('❌ Error converting contact to lead:', error);
@@ -2545,30 +2648,67 @@ async function convertContactToLead(contactId) {
     }
 }
 
-async function assignLead(leadId) {
-    const managerId = prompt('Enter Lead Manager ID to assign this lead:');
-    if (!managerId) return;
+async function convertAssessmentToLead(assessmentId) {
+    if (!confirm('Convert this profile assessment to a lead?')) return;
     
     try {
-        const response = await fetch(`/api/leads/${leadId}/assign`, {
-            method: 'PATCH',
+        const token = getAuthToken();
+        if (!token) {
+            alert('Authentication token not found. Please login again.');
+            return;
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/profile-assessments/${assessmentId}/convert-to-lead`, {
+            method: 'POST',
             headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ managerId })
+            }
         });
         
         const data = await response.json();
         if (data.success) {
-            alert('Lead assigned successfully!');
+            alert('Profile assessment converted to lead successfully!');
+            loadFormsData();
             loadLeadsData();
         } else {
-            alert('Error: ' + data.error.message);
+            alert('Error: ' + (data.error?.message || 'Unknown error'));
         }
     } catch (error) {
-        console.error('❌ Error assigning lead:', error);
-        alert('Error assigning lead');
+        console.error('❌ Error converting assessment to lead:', error);
+        alert('Error converting assessment to lead');
+    }
+}
+
+async function convertLead(leadId) {
+    if (!confirm('Convert this lead to a client?')) return;
+    
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            alert('Authentication token not found. Please login again.');
+            return;
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/leads/${leadId}/convert-to-client`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            alert('Lead converted to client successfully!');
+            loadLeadsData();
+            loadDashboardStats(); // Refresh stats
+        } else {
+            alert('Error: ' + (data.error?.message || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('❌ Error converting lead to client:', error);
+        alert('Error converting lead to client');
     }
 }
 
@@ -2623,10 +2763,21 @@ document.querySelectorAll('.sidebar-item').forEach(item => {
         this.classList.add('active');
         
         const target = this.getAttribute('href').substring(1);
+        
+        // Hide all sections first
         document.querySelectorAll('.management-card').forEach(card => {
             card.style.display = 'none';
         });
         
+        // Hide overview stats if not overview
+        const overviewStats = document.querySelector('.row.mb-4');
+        if (target === 'overview') {
+            overviewStats.style.display = 'flex';
+        } else {
+            overviewStats.style.display = 'none';
+        }
+        
+        // Show target section
         const targetCard = document.getElementById(target);
         if (targetCard) {
             targetCard.style.display = 'block';
@@ -2636,8 +2787,33 @@ document.querySelectorAll('.sidebar-item').forEach(item => {
                 loadFormsData();
             } else if (target === 'leads') {
                 loadLeadsData();
+            } else if (target === 'users') {
+                loadUserManagement();
+            } else if (target === 'services') {
+                loadServicesManagement();
+            } else if (target === 'financial') {
+                loadFinancialOverview();
             }
+        } else if (target === 'overview') {
+            // Show all sections for overview
+            document.querySelectorAll('.management-card').forEach(card => {
+                card.style.display = 'block';
+            });
         }
+    });
+});
+
+// Initialize with overview section active
+document.addEventListener('DOMContentLoaded', function() {
+    // Set overview as default active section
+    const overviewLink = document.querySelector('a[href="#overview"]');
+    if (overviewLink) {
+        overviewLink.classList.add('active');
+    }
+    
+    // Show all sections by default (overview mode)
+    document.querySelectorAll('.management-card').forEach(card => {
+        card.style.display = 'block';
     });
 });
 </script>

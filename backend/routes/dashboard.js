@@ -32,11 +32,11 @@ const adminAuth = async (req, res, next) => {
     // Verify token
     console.log('🔐 Verifying JWT token...');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('🔐 Token decoded successfully, user ID:', decoded.id);
+    console.log('🔐 Token decoded successfully, user ID:', decoded.user_id);
 
     // Find admin user in Users collection
     console.log('🔍 Looking up admin user...');
-    const adminUser = await User.findById(decoded.id);
+    const adminUser = await User.findById(decoded.user_id);
     
     if (!adminUser) {
       console.log('❌ Admin user not found');
