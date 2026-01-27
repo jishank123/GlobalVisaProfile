@@ -598,7 +598,7 @@
                     // Redirect to login after 2 seconds
                     setTimeout(() => {
                         console.log('🔄 Redirecting to login...');
-                        window.location.href = '/CRM/login';
+                        window.location.href = '/login';
                     }, 2000);
                 } else {
                     console.log('❌ Registration failed');
@@ -632,19 +632,19 @@
                     // Redirect based on role
                     switch (userRole) {
                         case 'admin':
-                            window.location.href = '/CRM/admin';
+                            window.location.href = '/admin';
                             break;
                         case 'lead_manager':
-                            window.location.href = '/CRM/lead-manager';
+                            window.location.href = '/lead-manager';
                             break;
                         case 'crm_manager':
-                            window.location.href = '/CRM/crm-manager';
+                            window.location.href = '/crm-manager';
                             break;
                         case 'client':
-                            window.location.href = '/CRM/client-profile';
+                            window.location.href = '/client-profile';
                             break;
                         default:
-                            window.location.href = '/CRM/client-profile';
+                            window.location.href = '/client-profile';
                     }
                 }, 1000);
             }

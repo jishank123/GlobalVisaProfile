@@ -601,7 +601,7 @@
                     if (response.status === 401) {
                         console.log('🚪 Unauthorized - redirecting to login');
                         localStorage.clear();
-                        window.location.href = '/CRM/login';
+                        window.location.href = '/login';
                         return;
                     }
                     throw new Error(data.error?.message || data.message || `HTTP ${response.status}`);
@@ -1212,7 +1212,7 @@
             localStorage.removeItem('userRole');
             
             alert('You have been logged out successfully.');
-            window.location.href = '/CRM/login';
+            window.location.href = '/login';
         }
 
         // Event listeners

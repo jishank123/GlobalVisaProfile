@@ -1,0 +1,51 @@
+/* Dropdown Menu Fix - Eliminates gap between trigger and dropdown */
+
+/* Add padding-top to dropdown to create hover bridge */
+.group:hover .group-hover\:block {
+    display: block !important;
+}
+
+/* Ensure dropdown menu has seamless hover connection */
+nav .group {
+    position: relative;
+}
+
+nav .group > div {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 0;
+    padding-top: 8px; /* Creates invisible bridge for hover */
+}
+
+/* Adjust inner content to maintain visual spacing */
+nav .group > div > a:first-child {
+    margin-top: 0;
+}
+
+/* Ensure dropdown stays visible during hover */
+nav .group:hover > div,
+nav .group > div:hover {
+    display: block;
+}
+
+/* Smooth transition for dropdown appearance */
+nav .group > div {
+    transition: opacity 0.2s ease-in-out;
+}
+
+/* Add slight delay before hiding to prevent flickering */
+nav .group:hover > div {
+    animation: fadeInDropdown 0.2s ease-in-out;
+}
+
+@keyframes fadeInDropdown {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Expert visa and immigration services specializing in EB-1, EB-2 NIW, O-1 applications and profile building for professionals seeking U.S. green cards.">
+    <title>ImmigrationPro - Expert Visa & Green Card Solutions | EB-1, EB-2 NIW, O-1</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/CRM/css/style.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary': '#2563eb',
+                        'secondary': '#1e40af',
+                        'accent': '#3b82f6',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="font-sans antialiased">
+    
+    <!-- Navigation -->
+    <nav class="fixed w-full bg-white/95 backdrop-blur-sm shadow-sm z-50">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-globe-americas text-3xl text-primary"></i>
+                    <span class="text-2xl font-bold text-gray-800">ImmigrationPro</span>
+                </div>
+                
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex space-x-8 items-center">
+                    <a href="#home" class="nav-link text-gray-700 hover:text-primary transition-colors inline-block py-2">Home</a>
+                    <div class="relative group">
+                        <a href="#services" class="nav-link text-gray-700 hover:text-primary transition-colors cursor-pointer inline-block py-2">
+                            Services <i class="fas fa-chevron-down text-xs ml-1"></i>
+                        </a>
+                        <div class="absolute left-0 top-full hidden group-hover:block bg-white shadow-lg rounded-lg w-56 z-50 -mt-1">
+                            <div class="py-2">
+                    <a href="/eb1a" class="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-primary transition-colors">EB-1A Eligibility</a>
+                                <a href="/profile-building" class="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-primary transition-colors">Profile Building</a>
+                                <a href="/eb2-niw" class="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-primary transition-colors">EB-2 NIW</a>
+                                <a href="/o1-visa" class="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-primary transition-colors">O-1 Visa</a>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="/assessment" class="nav-link text-gray-700 hover:text-primary transition-colors inline-block py-2">Profile Assessment</a>
+                    <a href="/pricing" class="nav-link text-gray-700 hover:text-primary transition-colors inline-block py-2">Pricing</a>
+                    <a href="/schedule" class="nav-link text-gray-700 hover:text-primary transition-colors inline-block py-2">Schedule</a>
+                    <a href="/faq" class="nav-link text-gray-700 hover:text-primary transition-colors inline-block py-2">FAQ</a>
+                    <a href="/attorneys" class="nav-link text-gray-700 hover:text-primary transition-colors inline-block py-2">Attorneys</a>
+                    <a href="#contact" class="nav-link text-gray-700 hover:text-primary transition-colors inline-block py-2">Contact</a>
+                </div>
+                
+                <div class="hidden md:flex items-center space-x-3">
+                    <a href="/login" class="border-2 border-primary text-primary px-6 py-2 rounded-lg hover:bg-blue-50 transition-colors font-semibold">
+                        <i class="fas fa-sign-in-alt mr-2"></i>LOGIN
+                    </a>
+                    <a href="/signup" class="bg-primary text-white px-6 py-2 rounded-lg hover:bg-secondary transition-colors font-semibold">
+                        <i class="fas fa-user-plus mr-2"></i>SIGN UP
+                    </a>
+                </div>
+                        Get Started
+                    </a>
+                </div>
+                
+                <!-- Mobile Menu Button -->
+                <button id="mobile-menu-btn" class="md:hidden text-gray-700 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary rounded-lg p-2 transition-colors" aria-label="Toggle mobile menu" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars text-2xl"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Mobile Menu (Outside flex container) -->
+        <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-gray-200 shadow-lg">
+            <div class="container mx-auto px-4 py-3">
+                <div class="space-y-1 max-h-[70vh] overflow-y-auto">
+                    <a href="#home" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-primary rounded-lg transition-colors text-base font-medium">
+                        <i class="fas fa-home w-5 inline-block mr-2"></i>Home
+                    </a>
+                    <div class="border-b border-gray-200 my-2"></div>
+                    <div class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Services</div>
+                    <a href="/eb1a" class="block px-4 py-3 pl-8 text-gray-700 hover:bg-blue-50 hover:text-primary rounded-lg transition-colors text-base">EB-1A Eligibility</a>
+                    <a href="/profile-building" class="block px-4 py-3 pl-8 text-gray-700 hover:bg-blue-50 hover:text-primary rounded-lg transition-colors text-base">Profile Building</a>
+                    <a href="/eb2-niw" class="block px-4 py-3 pl-8 text-gray-700 hover:bg-blue-50 hover:text-primary rounded-lg transition-colors text-base">EB-2 NIW</a>
+                    <a href="/o1-visa" class="block px-4 py-3 pl-8 text-gray-700 hover:bg-blue-50 hover:text-primary rounded-lg transition-colors text-base">O-1 Visa</a>
+                    <div class="border-b border-gray-200 my-2"></div>
+                    <a href="/assessment" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-primary rounded-lg transition-colors text-base font-medium">
+                        <i class="fas fa-chart-line w-5 inline-block mr-2"></i>Profile Assessment
+                    </a>
+                    <a href="/pricing" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-primary rounded-lg transition-colors text-base font-medium">
+                        <i class="fas fa-dollar-sign w-5 inline-block mr-2"></i>Pricing
+                    </a>
+                    <a href="/schedule" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-primary rounded-lg transition-colors text-base font-medium">
+                        <i class="fas fa-calendar w-5 inline-block mr-2"></i>Schedule
+                    </a>
+                    <a href="/faq" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-primary rounded-lg transition-colors text-base font-medium">
+                        <i class="fas fa-question-circle w-5 inline-block mr-2"></i>FAQ
+                    </a>
+                    <a href="/attorneys" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-primary rounded-lg transition-colors text-base font-medium">
+                        <i class="fas fa-balance-scale w-5 inline-block mr-2"></i>Attorneys
+                    </a>
+                    <a href="#contact" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-primary rounded-lg transition-colors text-base font-medium">
+                        <i class="fas fa-envelope w-5 inline-block mr-2"></i>Contact
+                    </a>
+                    <div class="border-b border-gray-200 my-2"></div>
+                    <div class="pt-1 pb-2 space-y-2">
+                        <a href="/login" class="block border-2 border-primary text-primary px-6 py-3 rounded-lg text-center hover:bg-blue-50 transition-colors font-semibold shadow-md">
+                            <i class="fas fa-sign-in-alt mr-2"></i>LOGIN
+                        </a>
+                        <a href="/signup" class="block bg-primary text-white px-6 py-3 rounded-lg text-center hover:bg-secondary transition-colors font-semibold shadow-md">
+                            <i class="fas fa-user-plus mr-2"></i>SIGN UP
+                        </a>
+                    </div>
+                            <i class="fas fa-rocket mr-2"></i>Get Started
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <script>
+        // Mobile Menu Toggle Function
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            const btn = document.getElementById('mobile-menu-btn');
+            const icon = btn.querySelector('i');
+            
+            if (menu.classList.contains('hidden')) {
+                menu.classList.remove('hidden');
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-times');
+            } else {
+                menu.classList.add('hidden');
+                icon.classList.remove('fa-times');
+                icon.classList.add('fa-bars');
+            }
+        }
+        
+        // Close menu when clicking on a link
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenu = document.getElementById('mobile-menu');
+            if (mobileMenu) {
+                const links = mobileMenu.querySelectorAll('a');
+                links.forEach(link => {
+                    link.addEventListener('click', function() {
+                        toggleMobileMenu();
+                    });
+                });
+            }
+        });
+    </script>
+
+    <!-- Disclaimer Popup Modal -->
+    <div id="disclaimer-popup" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-fade-in">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-red-600 to-red-700 text-white p-6 rounded-t-2xl">
+                <div class="flex items-center justify-center mb-2">
+                    <i class="fas fa-exclamation-triangle text-4xl mr-3"></i>
+                    <h2 class="text-2xl md:text-3xl font-bold">Important Legal Disclaimer</h2>
+                </div>
+                <p class="text-center text-red-100 text-sm">Please read carefully before proceeding</p>
+            </div>
+            
+            <!-- Content -->
+            <div class="p-6 md:p-8">
+                <div class="space-y-4 text-gray-700">
+                    <p class="text-lg leading-relaxed">
+                        <strong class="text-gray-900">ImmigrationPro's mentorship and guidance are solely intended for educational and informational purposes.</strong> We do not represent clients before any agency, including U.S. immigration officials, and <strong class="text-red-600">we are not lawyers</strong>.
+                    </p>
+                    
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                        <p class="font-semibold text-gray-900 mb-2">
+                            <i class="fas fa-info-circle text-yellow-600 mr-2"></i>Not Legal Advice
+                        </p>
+                        <p class="text-sm">
+                            The information provided is not meant to be legal advice and should not be interpreted as such. We specifically disclaim any liability for reliance on such content and offer no promises regarding the accuracy, completeness, or reliability of the information given.
+                        </p>
+                    </div>
+                    
+                    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                        <p class="font-semibold text-gray-900 mb-2">
+                            <i class="fas fa-balance-scale text-blue-600 mr-2"></i>Seek Legal Counsel
+                        </p>
+                        <p class="text-sm">
+                            We strongly advise speaking with a qualified U.S. immigration attorney for tailored guidance on your particular legal issues. <a href="attorney-referrals.html" class="text-primary underline font-semibold">Find an attorney here</a>.
+                        </p>
+                    </div>
+                    
+                    <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded">
+                        <p class="font-semibold text-gray-900 mb-2">
+                            <i class="fas fa-hand-paper text-red-600 mr-2"></i>USCIS Has Final Authority
+                        </p>
+                        <p class="text-sm">
+                            USCIS has complete authority over all immigration decisions. While we provide comprehensive profile building and application preparation support, <strong>USCIS can still deny applications for reasons beyond our control or prediction</strong>. We provide no guarantees of approval.
+                        </p>
+                    </div>
+                    
+                    <p class="text-sm text-gray-600 italic bg-gray-50 p-4 rounded">
+                        By selecting "I Agree," you acknowledge and accept this disclaimer. You understand that our services are limited to profile building, documentation assistance, and application preparation guidance—not legal representation or advice.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Footer Buttons -->
+            <div class="bg-gray-50 p-6 rounded-b-2xl flex flex-col sm:flex-row gap-4">
+                <button id="disclaimer-decline" class="flex-1 bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-400 transition-all">
+                    <i class="fas fa-times mr-2"></i>Decline
+                </button>
+                <button id="disclaimer-agree" class="flex-1 bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-secondary transition-all transform hover:scale-105">
+                    <i class="fas fa-check mr-2"></i>I Agree & Understand
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <section id="home" class="relative pt-24 pb-20 md:pt-32 md:pb-32 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 overflow-hidden">
+        <!-- Animated Background Elements -->
+        <div class="absolute inset-0 overflow-hidden">
+            <div class="absolute -top-40 -right-40 w-80 h-80 bg-white opacity-10 rounded-full blur-3xl"></div>
+            <div class="absolute top-60 -left-20 w-60 h-60 bg-blue-300 opacity-10 rounded-full blur-3xl"></div>
+            <div class="absolute bottom-20 right-1/3 w-40 h-40 bg-purple-300 opacity-10 rounded-full blur-2xl"></div>
+        </div>
+        
+        <div class="container mx-auto px-4 relative z-10">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div class="fade-in text-white">
+                    <!-- Badge -->
+                    <div class="inline-flex items-center bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
+                        <span class="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
+                        <span class="text-sm font-semibold">Trusted by 500+ Professionals</span>
+                    </div>
+                    
+                    <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
+                        Build Your <span class="text-yellow-300">Winning Profile</span> for U.S. Immigration
+                    </h1>
+                    <p class="text-lg md:text-xl text-blue-100 mb-6 leading-relaxed">
+                        Expert profile building and application assistance for <strong class="text-white">EB-1A, EB-2 NIW, and O-1</strong> visa petitions. We help you strengthen your credentials and prepare compelling applications.
+                    </p>
+                    
+                    <!-- Disclaimer Badge -->
+                    <div class="bg-yellow-400/20 border-l-4 border-yellow-300 p-4 mb-8 rounded-r-lg backdrop-blur-sm">
+                        <p class="text-sm text-yellow-100">
+                            <i class="fas fa-info-circle text-yellow-300 mr-2"></i>
+                            <strong>Note:</strong> We provide profile building & application prep services. Not attorneys. 
+                            <a href="/attorneys" class="underline hover:text-yellow-300">Find legal counsel →</a>
+                        </p>
+                    </div>
+                    
+                    <!-- CTA Buttons -->
+                    <div class="flex flex-col sm:flex-row gap-4 mb-12">
+                        <a href="/assessment" class="group bg-yellow-400 text-gray-900 px-8 py-4 rounded-xl text-lg font-bold hover:bg-yellow-300 transition-all transform hover:scale-105 hover:shadow-2xl text-center flex items-center justify-center">
+                            <i class="fas fa-chart-line mr-2 group-hover:animate-bounce"></i>
+                            Free Profile Assessment
+                        </a>
+                        <a href="/schedule" class="bg-white/10 backdrop-blur-sm text-white border-2 border-white/30 px-8 py-4 rounded-xl text-lg font-bold hover:bg-white/20 transition-all text-center flex items-center justify-center">
+                            <i class="fas fa-calendar-alt mr-2"></i>
+                            Schedule Consultation
+                        </a>
+                    </div>
+                    
+                    <!-- Stats with Icons -->
+                    <div class="grid grid-cols-3 gap-6">
+                        <div class="text-center p-4 bg-white/10 backdrop-blur-sm rounded-xl">
+                            <div class="text-4xl font-bold text-yellow-300 mb-1">500+</div>
+                            <div class="text-sm text-blue-200">Clients Assisted</div>
+                        </div>
+                        <div class="text-center p-4 bg-white/10 backdrop-blur-sm rounded-xl">
+                            <div class="text-4xl font-bold text-yellow-300 mb-1">95%</div>
+                            <div class="text-sm text-blue-200">Satisfaction Rate</div>
+                        </div>
+                        <div class="text-center p-4 bg-white/10 backdrop-blur-sm rounded-xl">
+                            <div class="text-4xl font-bold text-yellow-300 mb-1">15+</div>
+                            <div class="text-sm text-blue-200">Years Experience</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Hero Image with Floating Cards -->
+                <div class="hidden md:block fade-in-delay relative">
+                    <!-- Main Image Container -->
+                    <div class="relative">
+                        <div class="absolute inset-0 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-3xl transform rotate-6 opacity-20"></div>
+                        <div class="relative bg-white rounded-3xl shadow-2xl p-8">
+                            <!-- Success Illustration -->
+                            <div class="text-center mb-6">
+                                <div class="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full mb-4">
+                                    <i class="fas fa-passport text-4xl text-white"></i>
+                                </div>
+                                <h3 class="text-2xl font-bold text-gray-900 mb-2">Your Success Journey</h3>
+                                <p class="text-gray-600">From Profile Building to Approval</p>
+                            </div>
+                            
+                            <!-- Progress Steps -->
+                            <div class="space-y-4">
+                                <div class="flex items-center bg-green-50 p-4 rounded-xl">
+                                    <div class="flex-shrink-0 w-10 h-10 bg-green-500 rounded-full flex items-center justify-center mr-4">
+                                        <i class="fas fa-check text-white"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-gray-900">Profile Assessment</div>
+                                        <div class="text-sm text-gray-600">Evaluate your credentials</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center bg-blue-50 p-4 rounded-xl">
+                                    <div class="flex-shrink-0 w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center mr-4">
+                                        <i class="fas fa-tasks text-white"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-gray-900">Evidence Building</div>
+                                        <div class="text-sm text-gray-600">Strengthen your profile</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center bg-purple-50 p-4 rounded-xl">
+                                    <div class="flex-shrink-0 w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center mr-4">
+                                        <i class="fas fa-file-alt text-white"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-gray-900">Application Prep</div>
+                                        <div class="text-sm text-gray-600">Complete documentation</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Floating Elements -->
+                    <div class="absolute -top-6 -right-6 bg-yellow-400 text-gray-900 p-4 rounded-2xl shadow-lg transform rotate-12 animate-bounce">
+                        <div class="text-2xl font-bold">EB-1A</div>
+                        <div class="text-xs">Extraordinary</div>
+                    </div>
+                    <div class="absolute -bottom-6 -left-6 bg-indigo-500 text-white p-4 rounded-2xl shadow-lg transform -rotate-6 animate-pulse">
+                        <div class="text-2xl font-bold">NIW</div>
+                        <div class="text-xs">No Job Offer</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Wave Divider -->
+        <div class="absolute bottom-0 left-0 right-0">
+            <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 120L60 110C120 100 240 80 360 70C480 60 600 60 720 65C840 70 960 80 1080 85C1200 90 1320 90 1380 90L1440 90V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0V120Z" fill="white"/>
+            </svg>
+        </div>
+    </section>
+
+    <!-- Services Section -->
+    <section id="services" class="py-20 bg-white">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Our Profile Building Services</h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                    Comprehensive profile development and application preparation services tailored to your unique credentials and career goals
+                </p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- EB-1A -->
+                <div class="service-card bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all transform hover:-translate-y-2">
+                    <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mb-6">
+                        <i class="fas fa-trophy text-3xl text-primary"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">EB-1A</h3>
+                    <h4 class="text-lg font-semibold text-primary mb-3">Extraordinary Ability</h4>
+                    <p class="text-gray-600 mb-4">
+                        For individuals with extraordinary ability in sciences, arts, education, business, or athletics. No job offer required.
+                    </p>
+                    <ul class="space-y-2 mb-6">
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-green-500 mt-1 mr-2"></i>
+                            <span class="text-gray-700">Profile assessment & gap analysis</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-green-500 mt-1 mr-2"></i>
+                            <span class="text-gray-700">Evidence documentation & portfolio</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-green-500 mt-1 mr-2"></i>
+                            <span class="text-gray-700">Application preparation assistance</span>
+                        </li>
+                    </ul>
+                    <a href="/eb1a" class="text-primary font-semibold hover:text-secondary transition-colors">
+                        Learn More <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                </div>
+                
+                <!-- EB-2 NIW -->
+                <div class="service-card bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all transform hover:-translate-y-2">
+                    <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mb-6">
+                        <i class="fas fa-star text-3xl text-indigo-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">EB-2 NIW</h3>
+                    <h4 class="text-lg font-semibold text-indigo-600 mb-3">National Interest Waiver</h4>
+                    <p class="text-gray-600 mb-4">
+                        For professionals whose work benefits the United States. No labor certification or job offer required.
+                    </p>
+                    <ul class="space-y-2 mb-6">
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-green-500 mt-1 mr-2"></i>
+                            <span class="text-gray-700">National interest argument</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-green-500 mt-1 mr-2"></i>
+                            <span class="text-gray-700">Proposed endeavor strategy</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-green-500 mt-1 mr-2"></i>
+                            <span class="text-gray-700">Impact documentation</span>
+                        </li>
+                    </ul>
+                    <a href="/eb2-niw" class="text-indigo-600 font-semibold hover:text-indigo-800 transition-colors">
+                        Learn More <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                </div>
+                
+                <!-- O-1 -->
+                <div class="service-card bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all transform hover:-translate-y-2">
+                    <div class="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mb-6">
+                        <i class="fas fa-medal text-3xl text-red-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">O-1 Visa</h3>
+                    <h4 class="text-lg font-semibold text-red-600 mb-3">Extraordinary Ability</h4>
+                    <p class="text-gray-600 mb-4">
+                        Non-immigrant visa for individuals with extraordinary ability or achievement. Faster processing than green card.
+                    </p>
+                    <ul class="space-y-2 mb-6">
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-green-500 mt-1 mr-2"></i>
+                            <span class="text-gray-700">Fast-track processing option</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-green-500 mt-1 mr-2"></i>
+                            <span class="text-gray-700">Achievement documentation</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-green-500 mt-1 mr-2"></i>
+                            <span class="text-gray-700">Sponsor relationship setup</span>
+                        </li>
+                    </ul>
+                    <a href="/o1-visa" class="text-red-600 font-semibold hover:text-red-800 transition-colors">
+                        Learn More <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                </div>
+                
+                <!-- Profile Building -->
+                <div class="service-card bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all transform hover:-translate-y-2">
+                    <div class="bg-yellow-100 w-16 h-16 rounded-full flex items-center justify-center mb-6">
+                        <i class="fas fa-user-plus text-3xl text-yellow-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">Profile Building</h3>
+                    <h4 class="text-lg font-semibold text-yellow-600 mb-3">Strategic Enhancement</h4>
+                    <p class="text-gray-600 mb-4">
+                        Comprehensive profile development to strengthen your immigration case and qualify for premium categories.
+                    </p>
+                    <ul class="space-y-2 mb-6">
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-green-500 mt-1 mr-2"></i>
+                            <span class="text-gray-700">Publication strategy</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-green-500 mt-1 mr-2"></i>
+                            <span class="text-gray-700">Awards & recognition guidance</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-green-500 mt-1 mr-2"></i>
+                            <span class="text-gray-700">Media coverage assistance</span>
+                        </li>
+                    </ul>
+                    <a href="/profile-building" class="text-yellow-600 font-semibold hover:text-yellow-800 transition-colors">
+                        Learn More <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Process Section -->
+    <section id="process" class="py-20 bg-gray-50">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Our Process</h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                    A proven step-by-step approach to navigate your immigration journey successfully
+                </p>
+            </div>
+            
+            <div class="max-w-4xl mx-auto">
+                <!-- Step 1 -->
+                <div class="process-step flex flex-col md:flex-row items-start mb-12">
+                    <div class="flex-shrink-0 mb-4 md:mb-0">
+                        <div class="bg-primary text-white w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold shadow-lg">
+                            1
+                        </div>
+                    </div>
+                    <div class="md:ml-8 flex-grow">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-3">Initial Consultation</h3>
+                        <p class="text-gray-600 mb-4">
+                            We evaluate your background, achievements, and career goals to determine the best immigration pathway. Our experts assess your eligibility for various visa categories.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="bg-blue-100 text-primary px-3 py-1 rounded-full text-sm">Eligibility Assessment</span>
+                            <span class="bg-blue-100 text-primary px-3 py-1 rounded-full text-sm">Strategy Discussion</span>
+                            <span class="bg-blue-100 text-primary px-3 py-1 rounded-full text-sm">Timeline Planning</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 2 -->
+                <div class="process-step flex flex-col md:flex-row items-start mb-12">
+                    <div class="flex-shrink-0 mb-4 md:mb-0">
+                        <div class="bg-primary text-white w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold shadow-lg">
+                            2
+                        </div>
+                    </div>
+                    <div class="md:ml-8 flex-grow">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-3">Profile Development</h3>
+                        <p class="text-gray-600 mb-4">
+                            We work with you to strengthen your profile through strategic planning. This includes identifying gaps, building evidence, and developing compelling narratives.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="bg-purple-100 text-purple-600 px-3 py-1 rounded-full text-sm">Evidence Collection</span>
+                            <span class="bg-purple-100 text-purple-600 px-3 py-1 rounded-full text-sm">Achievement Documentation</span>
+                            <span class="bg-purple-100 text-purple-600 px-3 py-1 rounded-full text-sm">Gap Analysis</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 3 -->
+                <div class="process-step flex flex-col md:flex-row items-start mb-12">
+                    <div class="flex-shrink-0 mb-4 md:mb-0">
+                        <div class="bg-primary text-white w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold shadow-lg">
+                            3
+                        </div>
+                    </div>
+                    <div class="md:ml-8 flex-grow">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-3">Petition Preparation</h3>
+                        <p class="text-gray-600 mb-4">
+                            Our team drafts comprehensive petitions with compelling arguments, supporting evidence, and persuasive recommendation letters tailored to immigration requirements.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="bg-green-100 text-green-600 px-3 py-1 rounded-full text-sm">Legal Drafting</span>
+                            <span class="bg-green-100 text-green-600 px-3 py-1 rounded-full text-sm">Evidence Organization</span>
+                            <span class="bg-green-100 text-green-600 px-3 py-1 rounded-full text-sm">Letter Coordination</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 4 -->
+                <div class="process-step flex flex-col md:flex-row items-start mb-12">
+                    <div class="flex-shrink-0 mb-4 md:mb-0">
+                        <div class="bg-primary text-white w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold shadow-lg">
+                            4
+                        </div>
+                    </div>
+                    <div class="md:ml-8 flex-grow">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-3">Filing & Follow-up</h3>
+                        <p class="text-gray-600 mb-4">
+                            We file your application with USCIS and actively monitor its progress. We respond to any Requests for Evidence (RFE) and keep you informed throughout the process.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded-full text-sm">USCIS Filing</span>
+                            <span class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded-full text-sm">Case Tracking</span>
+                            <span class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded-full text-sm">RFE Response</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 5 -->
+                <div class="process-step flex flex-col md:flex-row items-start">
+                    <div class="flex-shrink-0 mb-4 md:mb-0">
+                        <div class="bg-primary text-white w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold shadow-lg">
+                            5
+                        </div>
+                    </div>
+                    <div class="md:ml-8 flex-grow">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-3">Approval & Next Steps</h3>
+                        <p class="text-gray-600 mb-4">
+                            Upon approval, we guide you through the remaining steps including adjustment of status or consular processing, ensuring a smooth transition to permanent residency.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="bg-yellow-100 text-yellow-600 px-3 py-1 rounded-full text-sm">Approval Notification</span>
+                            <span class="bg-yellow-100 text-yellow-600 px-3 py-1 rounded-full text-sm">Status Adjustment</span>
+                            <span class="bg-yellow-100 text-yellow-600 px-3 py-1 rounded-full text-sm">Green Card Receipt</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About/Why Choose Us Section -->
+    <section id="about" class="py-20 bg-white">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Why Choose Us</h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                    Your success is our mission. We combine expertise, experience, and dedication to deliver results.
+                </p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+                <div class="text-center p-6">
+                    <div class="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-certificate text-4xl text-primary"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Expert Team</h3>
+                    <p class="text-gray-600">
+                        Immigration attorneys and specialists with decades of combined experience in employment-based visas.
+                    </p>
+                </div>
+                
+                <div class="text-center p-6">
+                    <div class="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-chart-line text-4xl text-green-600"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Proven Results</h3>
+                    <p class="text-gray-600">
+                        95% success rate with over 500 approved EB-1, EB-2 NIW, and O-1 cases across diverse industries.
+                    </p>
+                </div>
+                
+                <div class="text-center p-6">
+                    <div class="bg-purple-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-handshake text-4xl text-purple-600"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Personalized Service</h3>
+                    <p class="text-gray-600">
+                        Every case is unique. We provide tailored strategies and one-on-one attention throughout your journey.
+                    </p>
+                </div>
+                
+                <div class="text-center p-6">
+                    <div class="bg-red-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-clock text-4xl text-red-600"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Efficient Process</h3>
+                    <p class="text-gray-600">
+                        Streamlined workflows and proactive communication ensure timely case preparation and filing.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Testimonials -->
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-12">
+                <h3 class="text-3xl font-bold text-gray-900 text-center mb-12">What Our Clients Say</h3>
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div class="bg-white rounded-xl p-6 shadow-lg">
+                        <div class="flex items-center mb-4">
+                            <div class="flex text-yellow-400">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                        <p class="text-gray-600 mb-4">
+                            "ImmigrationPro helped me secure my EB-1A approval in just 4 months! Their expertise in building my profile and crafting a compelling petition was exceptional."
+                        </p>
+                        <div class="flex items-center">
+                            <div class="bg-primary text-white w-12 h-12 rounded-full flex items-center justify-center font-bold mr-3">
+                                DR
+                            </div>
+                            <div>
+                                <div class="font-semibold text-gray-900">Dr. Rajesh K.</div>
+                                <div class="text-sm text-gray-600">AI Researcher, EB-1A</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl p-6 shadow-lg">
+                        <div class="flex items-center mb-4">
+                            <div class="flex text-yellow-400">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                        <p class="text-gray-600 mb-4">
+                            "The team's knowledge of EB-2 NIW requirements was impressive. They guided me through every step and my petition was approved without RFE!"
+                        </p>
+                        <div class="flex items-center">
+                            <div class="bg-purple-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold mr-3">
+                                MC
+                            </div>
+                            <div>
+                                <div class="font-semibold text-gray-900">Maria C.</div>
+                                <div class="text-sm text-gray-600">Engineer, EB-2 NIW</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl p-6 shadow-lg">
+                        <div class="flex items-center mb-4">
+                            <div class="flex text-yellow-400">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                        <p class="text-gray-600 mb-4">
+                            "Professional, responsive, and results-oriented. They made the complex O-1 visa process straightforward and stress-free. Highly recommend!"
+                        </p>
+                        <div class="flex items-center">
+                            <div class="bg-green-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold mr-3">
+                                JL
+                            </div>
+                            <div>
+                                <div class="font-semibold text-gray-900">James L.</div>
+                                <div class="text-sm text-gray-600">Entrepreneur, O-1</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="py-20 bg-gradient-to-br from-primary to-secondary text-white">
+        <div class="container mx-auto px-4">
+            <div class="max-w-4xl mx-auto">
+                <div class="text-center mb-12">
+                    <h2 class="text-4xl md:text-5xl font-bold mb-4">Start Your Journey Today</h2>
+                    <p class="text-xl opacity-90">
+                        Schedule a consultation to discuss your immigration goals and explore your options
+                    </p>
+                </div>
+                
+                <div class="grid md:grid-cols-2 gap-12">
+                    <!-- Contact Form -->
+                    <div class="bg-white rounded-xl p-8 shadow-2xl">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-6">Get in Touch</h3>
+                        <form id="contact-form">
+                            <!-- CSRF Protection -->
+                            <input type="hidden" name="_csrf" id="csrf-token" value="">
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-semibold mb-2" for="name">Full Name *</label>
+                                <input type="text" id="name" name="name" required maxlength="100"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900">
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-semibold mb-2" for="email">Email Address *</label>
+                                <input type="email" id="email" name="email" required
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900">
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-semibold mb-2" for="phone">Phone Number</label>
+                                <input type="tel" id="phone" name="phone" maxlength="20"
+                                       pattern="[\+]?[\(\d][\d\s\-\(\)\.]{5,18}"
+                                       title="Please enter a valid phone number"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900">
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-semibold mb-2" for="visa-type">Visa Category of Interest *</label>
+                                <select id="visa-type" name="visa-type" required
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900">
+                                    <option value="">Select a category</option>
+                                    <option value="eb1a">EB-1A (Extraordinary Ability)</option>
+                                    <option value="eb2-niw">EB-2 NIW (National Interest Waiver)</option>
+                                    <option value="o1">O-1 Visa</option>
+                                    <option value="profile">Profile Building</option>
+                                    <option value="other">Other / Not Sure</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <label class="block text-gray-700 font-semibold mb-2" for="message">Tell Us About Your Background *</label>
+                                <textarea id="message" name="message" rows="4" required maxlength="2000"
+                                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900"></textarea>
+                                <p class="text-xs text-gray-500 mt-1">Maximum 2000 characters</p>
+                            </div>
+                            
+                            <button type="submit" 
+                                    class="w-full bg-primary text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-secondary transition-all transform hover:scale-105">
+                                Schedule Consultation
+                            </button>
+                            
+                            <div id="form-message" class="mt-4 text-center hidden"></div>
+                        </form>
+                    </div>
+                    
+                    <!-- Contact Info -->
+                    <div>
+                        <div class="mb-8">
+                            <h3 class="text-2xl font-bold mb-6">Contact Information</h3>
+                            
+                            <div class="flex items-start mb-6">
+                                <div class="bg-white/20 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                                    <i class="fas fa-map-marker-alt text-xl"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-lg mb-1">Office Address</h4>
+                                    <p class="opacity-90">123 Immigration Plaza, Suite 500<br>New York, NY 10001</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start mb-6">
+                                <div class="bg-white/20 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                                    <i class="fas fa-phone text-xl"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-lg mb-1">Phone</h4>
+                                    <p class="opacity-90">(555) 123-4567</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start mb-6">
+                                <div class="bg-white/20 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                                    <i class="fas fa-envelope text-xl"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-lg mb-1">Email</h4>
+                                    <p class="opacity-90">info@immigrationpro.com</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-white/20 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                                    <i class="fas fa-clock text-xl"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-lg mb-1">Business Hours</h4>
+                                    <p class="opacity-90">Monday - Friday: 9:00 AM - 6:00 PM<br>Saturday: 10:00 AM - 2:00 PM</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white/10 rounded-xl p-6 backdrop-blur-sm">
+                            <h3 class="text-xl font-bold mb-4">Follow Us</h3>
+                            <div class="flex space-x-4">
+                                <a href="#" class="bg-white/20 w-12 h-12 rounded-full flex items-center justify-center hover:bg-white/30 transition-all">
+                                    <i class="fab fa-linkedin text-xl"></i>
+                                </a>
+                                <a href="#" class="bg-white/20 w-12 h-12 rounded-full flex items-center justify-center hover:bg-white/30 transition-all">
+                                    <i class="fab fa-twitter text-xl"></i>
+                                </a>
+                                <a href="#" class="bg-white/20 w-12 h-12 rounded-full flex items-center justify-center hover:bg-white/30 transition-all">
+                                    <i class="fab fa-facebook text-xl"></i>
+                                </a>
+                                <a href="#" class="bg-white/20 w-12 h-12 rounded-full flex items-center justify-center hover:bg-white/30 transition-all">
+                                    <i class="fab fa-instagram text-xl"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Legal Disclaimer Section -->
+    <section class="py-12 bg-gray-100">
+        <div class="container mx-auto px-4">
+            <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg p-8">
+                <div class="flex items-start mb-4">
+                    <i class="fas fa-exclamation-triangle text-yellow-500 text-3xl mr-4 mt-1"></i>
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900 mb-4">Important Legal Disclaimer</h2>
+                        <div class="space-y-3 text-gray-700">
+                            <p>
+                                <strong>We are NOT attorneys, lawyers, or legal representatives.</strong> We do not provide legal advice or legal representation in immigration matters.
+                            </p>
+                            <p>
+                                <strong>Our Services Include:</strong>
+                            </p>
+                            <ul class="list-disc list-inside space-y-2 ml-4">
+                                <li>Profile building and credential development consultation</li>
+                                <li>Documentation organization and preparation assistance</li>
+                                <li>Application form completion guidance and support</li>
+                                <li>Evidence gathering and portfolio compilation help</li>
+                                <li>Strategy consultation for strengthening your profile</li>
+                                <li>Review and feedback on application materials</li>
+                            </ul>
+                            <p>
+                                <strong>What We Do NOT Provide:</strong>
+                            </p>
+                            <ul class="list-disc list-inside space-y-2 ml-4">
+                                <li>Legal advice or legal opinions on immigration matters</li>
+                                <li>Legal representation before USCIS or immigration courts</li>
+                                <li>Attorney-client privileged communications</li>
+                                <li>Guarantees of petition approval or visa issuance</li>
+                            </ul>
+                            <p class="font-semibold text-red-600">
+                                We strongly recommend consulting with a licensed immigration attorney for legal advice specific to your case. Our services are designed to complement, not replace, legal representation.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-gray-300 py-12">
+        <div class="container mx-auto px-4">
+            <div class="grid md:grid-cols-4 gap-8 mb-8">
+                <div>
+                    <div class="flex items-center space-x-2 mb-4">
+                        <i class="fas fa-globe-americas text-2xl text-primary"></i>
+                        <span class="text-xl font-bold text-white">ImmigrationPro</span>
+                    </div>
+                    <p class="text-gray-400">
+                        Your trusted partner for employment-based immigration solutions.
+                    </p>
+                </div>
+                
+                <div>
+                    <h4 class="text-white font-bold mb-4">Services</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#services" class="hover:text-white transition-colors">EB-1A Visa</a></li>
+                        <li><a href="#services" class="hover:text-white transition-colors">EB-2 NIW</a></li>
+                        <li><a href="#services" class="hover:text-white transition-colors">O-1 Visa</a></li>
+                        <li><a href="/profile-building" class="hover:text-white transition-colors">Profile Building</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-white font-bold mb-4">Company</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#about" class="hover:text-white transition-colors">About Us</a></li>
+                        <li><a href="#process" class="hover:text-white transition-colors">Our Process</a></li>
+                        <li><a href="#contact" class="hover:text-white transition-colors">Contact</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Blog</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Resources</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-white font-bold mb-4">Legal</h4>
+                    <ul class="space-y-2">
+                        <li><a href="/attorneys" class="hover:text-white transition-colors">Attorney Referrals</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Privacy Policy</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Terms of Service</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Disclaimer</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Footer Disclaimer -->
+            <div class="border-t border-gray-700 pt-6 mb-6">
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-sm text-gray-400 text-center">
+                        <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>
+                        <strong class="text-white">Legal Disclaimer:</strong> We are not attorneys or legal representatives. We provide profile building and application preparation services only. This website does not provide legal advice. For legal representation and advice, please consult a licensed immigration attorney. <a href="attorney-referrals.html" class="text-primary hover:text-blue-400 underline">Find an attorney</a>
+                    </p>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-800 pt-8 text-center text-gray-400">
+                <p>&copy; 2024 ImmigrationPro. All rights reserved. | Attorney Advertising</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="/CRM/js/main.js"></script>
+</body>
+</html>
+            <div class="text-center pt-6">
+                <p class="text-gray-400">&copy; 2024 ImmigrationPro. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="/CRM/js/api.js"></script>
+    <script src="/CRM/js/utils.js"></script>
+    <script src="/CRM/js/navigation.js"></script>
+    <script src="/CRM/js/footer.js"></script>
+    
+    <script>
+        // Contact form validation rules
+        const contactValidationRules = {
+            name: {
+                required: true,
+                minLength: 2,
+                maxLength: 100,
+                label: 'Full Name'
+            },
+            email: {
+                required: true,
+                pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                patternMessage: 'Please enter a valid email address',
+                label: 'Email'
+            },
+            'visa-type': {
+                required: true,
+                label: 'Visa Category'
+            },
+            message: {
+                required: true,
+                minLength: 10,
+                maxLength: 2000,
+                label: 'Message'
+            }
+        };
+
+        // Input sanitization function
+        function sanitizeInput(input) {
+            if (typeof input !== 'string') return input;
+            
+            // Remove potentially dangerous HTML/JavaScript
+            return input
+                .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+                .replace(/javascript:/gi, '')
+                .replace(/on\w+\s*=/gi, '')
+                .trim();
+        }
+
+        // Enhanced form data extraction with sanitization
+        function extractAndSanitizeFormData(formId) {
+            const formData = formHandler.extractFormData(formId);
+            const sanitizedData = {};
+            
+            for (const [key, value] of Object.entries(formData)) {
+                sanitizedData[key] = sanitizeInput(value);
+            }
+            
+            return sanitizedData;
+        }
+
+        // Contact form submission handler
+        document.addEventListener('DOMContentLoaded', function() {
+            const contactForm = document.getElementById('contact-form');
+            if (contactForm) {
+                contactForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    console.log('\n📧 === CONTACT FORM SUBMISSION STARTED ===');
+                    console.log('📅 Frontend Timestamp:', new Date().toISOString());
+                    console.log('🌐 Page URL:', window.location.href);
+                    console.log('📧 Form ID:', contactForm.id);
+                    
+                    // Extract form data
+                    console.log('📊 Step 1: Extracting form data...');
+                    const formData = extractAndSanitizeFormData('contact-form');
+                    
+                    console.log('📊 Extracted form data (before transformation):', {
+                        name: formData.name,
+                        email: formData.email,
+                        phone: formData.phone || 'Not provided',
+                        'visa-type': formData['visa-type'],
+                        message_length: formData.message ? formData.message.length : 0
+                    });
+                    
+                    // Validate form BEFORE transforming field names
+                    console.log('✅ Step 2: Validating form data...');
+                    const errors = formHandler.validateForm(formData, contactValidationRules);
+                    
+                    if (errors.length > 0) {
+                        console.log('❌ VALIDATION FAILED:');
+                        console.log('❌ Validation errors:', errors);
+                        formHandler.showError('form-message', errors.join('<br>'), true);
+                        return;
+                    }
+                    console.log('✅ Frontend validation passed successfully');
+                    
+                    // Transform field names for API AFTER validation
+                    console.log('🔄 Step 3: Transforming field names for API...');
+                    formData.visa_type = formData['visa-type'];
+                    delete formData['visa-type'];
+                    
+                    console.log('📊 Transformed form data for API:', {
+                        name: formData.name,
+                        email: formData.email,
+                        phone: formData.phone || 'Not provided',
+                        visa_type: formData.visa_type,
+                        message_length: formData.message ? formData.message.length : 0
+                    });
+                    
+                    // Show loading
+                    console.log('⏳ Step 4: Showing loading state...');
+                    formHandler.showLoading('contact-form', 'form-message', 'Sending your message...');
+                    
+                    // Submit to API
+                    console.log('🌐 Step 5: Submitting to API...');
+                    console.log('🌐 API Endpoint: /api/contact');
+                    console.log('🌐 Request payload:', formData);
+                    
+                    try {
+                        const response = await ContactAPI.submit(formData);
+                        console.log('🌐 === API RESPONSE RECEIVED ===');
+                        console.log('🌐 Response status:', response.success ? 'SUCCESS' : 'FAILED');
+                        console.log('🌐 Full response:', response);
+                        
+                        if (response.success) {
+                            console.log('✅ === CONTACT FORM SUBMISSION SUCCESSFUL ===');
+                            console.log('✅ Submission Details:');
+                            console.log('  - Submission ID:', response.data?.submission_id);
+                            console.log('  - Reference Number:', response.data?.reference_number);
+                            console.log('  - Status:', response.data?.status);
+                            console.log('  - Priority:', response.data?.priority);
+                            console.log('  - Inquiry Type:', response.data?.inquiry_type);
+                            console.log('  - Response Deadline:', response.data?.response_deadline);
+                            
+                            formHandler.showSuccess('form-message', 'Thank you for contacting us! We will respond to your inquiry within 24-48 hours.');
+                            contactForm.reset();
+                            
+                            console.log('🎉 Form reset completed');
+                            console.log('🎉 === CONTACT FORM PROCESS COMPLETED SUCCESSFULLY ===\n');
+                        } else {
+                            console.log('❌ === CONTACT FORM SUBMISSION FAILED ===');
+                            console.log('❌ Error details:', response.error);
+                            
+                            let errorMessage = response.error?.message || 'Failed to send message. Please try again.';
+                            
+                            // Handle specific error types with better user messages
+                            if (response.error?.code === 'DUPLICATE_SUBMISSION') {
+                                errorMessage = 'You have already submitted a contact form recently. We will respond to your inquiry soon.';
+                                formHandler.showError('form-message', errorMessage);
+                            } else if (response.error?.code === 'RATE_LIMIT_EXCEEDED') {
+                                errorMessage = 'Too many requests. Please wait a moment before trying again.';
+                                formHandler.showError('form-message', errorMessage);
+                            } else if (response.error?.code === 'VALIDATION_ERROR') {
+                                errorMessage = 'Please check your form data and try again.';
+                                formHandler.showError('form-message', errorMessage);
+                            } else {
+                                formHandler.showError('form-message', errorMessage);
+                            }
+                            
+                            console.log('❌ Error message displayed to user:', errorMessage);
+                        }
+                    } catch (error) {
+                        console.error('💥 === CONTACT FORM API ERROR ===');
+                        console.error('💥 Error Type:', error.name);
+                        console.error('💥 Error Message:', error.message);
+                        console.error('💥 Full Error Object:', error);
+                        console.error('💥 Stack Trace:', error.stack);
+                        
+                        // Check for specific error types and messages
+                        let errorMessage = 'An error occurred while sending your message. Please try again or contact us directly.';
+                        
+                        if (error.message.includes('fetch')) {
+                            console.error('💥 NETWORK ERROR: Check internet connection and server status');
+                            errorMessage = 'Network error. Please check your internet connection and try again.';
+                        } else if (error.message.includes('timeout')) {
+                            console.error('💥 TIMEOUT ERROR: Request took too long');
+                            errorMessage = 'Request timeout. Please try again.';
+                        } else if (error.message.includes('429')) {
+                            console.error('💥 RATE LIMIT ERROR: Too many requests');
+                            errorMessage = 'Too many requests. Please wait a moment before trying again.';
+                        } else if (error.message.includes('already submitted')) {
+                            console.error('💥 DUPLICATE SUBMISSION: Form already submitted recently');
+                            errorMessage = 'You have already submitted a contact form recently. We will respond to your inquiry soon.';
+                        } else if (error.message && error.message !== 'An error occurred while sending your message. Please try again or contact us directly.') {
+                            // Use the specific error message from the API if available
+                            errorMessage = error.message;
+                        }
+                        
+                        formHandler.showError('form-message', errorMessage);
+                        
+                        console.error('💥 Error message displayed to user:', errorMessage);
+                        console.error('💥 === ERROR HANDLING COMPLETED ===\n');
+                    }
+                    
+                    console.log('🔄 Step 6: Resetting loading state...');
+                    formHandler.resetLoading('contact-form');
+                    console.log('🔄 Loading state reset completed');
+                });
+            } else {
+                console.warn('⚠️ Contact form element not found on page');
+            }
+        });
+    </script>
+</body>
+</html>

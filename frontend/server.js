@@ -4,18 +4,21 @@ const fs = require('fs');
 const app = express();
 const PORT = 3000;
 
-// Serve static files from public directory
-app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
-app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
-app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
+// Base path for hosting under /CRM
+const BASE_PATH = '/CRM';
+
+// Serve static files from public directory with base path
+app.use(`${BASE_PATH}/css`, express.static(path.join(__dirname, 'public', 'css')));
+app.use(`${BASE_PATH}/js`, express.static(path.join(__dirname, 'public', 'js')));
+app.use(`${BASE_PATH}/images`, express.static(path.join(__dirname, 'public', 'images')));
 
 // Serve static files from views directory (for backward compatibility)
-app.use('/views', express.static(path.join(__dirname, 'views')));
+app.use(`${BASE_PATH}/views`, express.static(path.join(__dirname, 'views')));
 
 // ===== MAIN ROUTES =====
 
 // Homepage - Main entry point (MUST BE FIRST)
-app.get('/', (req, res) => {
+app.get(`${BASE_PATH}/`, (req, res) => {
     console.log('📍 Homepage route accessed - serving index.html');
     const filePath = path.join(__dirname, 'views', 'pages', 'index.html');
     console.log('📁 File path:', filePath);
@@ -30,156 +33,161 @@ app.get('/', (req, res) => {
     });
 });
 
+// Root redirect to CRM base path
+app.get('/', (req, res) => {
+    res.redirect(`${BASE_PATH}/`);
+});
+
 // Root index.html redirect to main homepage
-app.get('/index.html', (req, res) => {
-    res.redirect('/');
+app.get(`${BASE_PATH}/index.html`, (req, res) => {
+    res.redirect(`${BASE_PATH}/`);
 });
 
 // Explicit index route
-app.get('/index', (req, res) => {
-    res.redirect('/');
+app.get(`${BASE_PATH}/index`, (req, res) => {
+    res.redirect(`${BASE_PATH}/`);
 });
 
 // ===== AUTHENTICATION ROUTES =====
 
 // Single Login page for ALL users (admin, manager, client)
-app.get('/login', (req, res) => {
+app.get(`${BASE_PATH}/login`, (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'dashboard', 'login.html'));
 });
 
 // Single Signup page for CLIENT registration only
-app.get('/signup', (req, res) => {
+app.get(`${BASE_PATH}/signup`, (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'dashboard', 'register.html'));
 });
 
 // Register page (alternative route)
-app.get('/register', (req, res) => {
-    res.redirect('/signup');
+app.get(`${BASE_PATH}/register`, (req, res) => {
+    res.redirect(`${BASE_PATH}/signup`);
 });
 
 // ===== DASHBOARD ROUTES =====
 
 // Client Profile Dashboard
-app.get('/client-profile', (req, res) => {
+app.get(`${BASE_PATH}/client-profile`, (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'dashboard', '3-client-profile.html'));
 });
 
 // Lead Manager Dashboard
-app.get('/lead-manager', (req, res) => {
+app.get(`${BASE_PATH}/lead-manager`, (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'dashboard', '1-lead-manager.html'));
 });
 
 // CRM Manager Dashboard
-app.get('/crm-manager', (req, res) => {
+app.get(`${BASE_PATH}/crm-manager`, (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'dashboard', '4-crm-manager.html'));
 });
 
 // Admin Dashboard - Admin control panel (after admin login)
-app.get('/admin', (req, res) => {
+app.get(`${BASE_PATH}/admin`, (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'dashboard', '2-admin-dashboard.html'));
 });
 
 // Legacy dashboard redirects
-app.get('/dashboard', (req, res) => {
-    res.redirect('/client-profile');
+app.get(`${BASE_PATH}/dashboard`, (req, res) => {
+    res.redirect(`${BASE_PATH}/client-profile`);
 });
 
-app.get('/client-dashboard', (req, res) => {
-    res.redirect('/client-profile');
+app.get(`${BASE_PATH}/client-dashboard`, (req, res) => {
+    res.redirect(`${BASE_PATH}/client-profile`);
 });
 
-app.get('/admin-dashboard', (req, res) => {
-    res.redirect('/admin');
+app.get(`${BASE_PATH}/admin-dashboard`, (req, res) => {
+    res.redirect(`${BASE_PATH}/admin`);
 });
 
-app.get('/manager', (req, res) => {
-    res.redirect('/lead-manager');
+app.get(`${BASE_PATH}/manager`, (req, res) => {
+    res.redirect(`${BASE_PATH}/lead-manager`);
 });
 
-app.get('/crm', (req, res) => {
-    res.redirect('/crm-manager');
+app.get(`${BASE_PATH}/crm`, (req, res) => {
+    res.redirect(`${BASE_PATH}/crm-manager`);
 });
 
 // ===== SERVICE PAGES =====
 
 // Profile Assessment - Main service
-app.get('/assessment', (req, res) => {
+app.get(`${BASE_PATH}/assessment`, (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'pages', 'profile-assessment.html'));
 });
 
 // Schedule Appointment
-app.get('/schedule', (req, res) => {
+app.get(`${BASE_PATH}/schedule`, (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'pages', 'schedule-appointment-clean.html'));
 });
 
 // ===== INFORMATION PAGES =====
 
 // Services
-app.get('/services', (req, res) => {
+app.get(`${BASE_PATH}/services`, (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'pages', 'services-detailed.html'));
 });
 
 // EB-1A Information
-app.get('/eb1a', (req, res) => {
+app.get(`${BASE_PATH}/eb1a`, (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'pages', 'eb1a-eligibility.html'));
 });
 
 // EB-2 NIW Information
-app.get('/eb2-niw', (req, res) => {
+app.get(`${BASE_PATH}/eb2-niw`, (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'pages', 'eb2-niw.html'));
 });
 
 // O-1 Visa Information
-app.get('/o1-visa', (req, res) => {
+app.get(`${BASE_PATH}/o1-visa`, (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'pages', 'o1-visa.html'));
 });
 
 // Profile Building
-app.get('/profile-building', (req, res) => {
+app.get(`${BASE_PATH}/profile-building`, (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'pages', 'profile-building.html'));
 });
 
 // Attorney Referrals
-app.get('/attorneys', (req, res) => {
+app.get(`${BASE_PATH}/attorneys`, (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'pages', 'attorney-referrals.html'));
 });
 
 // FAQ
-app.get('/faq', (req, res) => {
+app.get(`${BASE_PATH}/faq`, (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'pages', 'faq.html'));
 });
 
 // Pricing
-app.get('/pricing', (req, res) => {
+app.get(`${BASE_PATH}/pricing`, (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'pages', 'pricing.html'));
 });
 
 // ===== LEGACY REDIRECTS =====
 
 // Old client dashboard redirect
-app.get('/pages/client-dashboard.html', (req, res) => {
-    res.redirect('/dashboard');
+app.get(`${BASE_PATH}/pages/client-dashboard.html`, (req, res) => {
+    res.redirect(`${BASE_PATH}/dashboard`);
 });
 
 // Old admin dashboard redirects
-app.get('/pages/adminDashboard.html', (req, res) => {
-    res.redirect('/admin');
+app.get(`${BASE_PATH}/pages/adminDashboard.html`, (req, res) => {
+    res.redirect(`${BASE_PATH}/admin`);
 });
 
-app.get('/pages/admin-dashboard-original.html', (req, res) => {
-    res.redirect('/admin');
+app.get(`${BASE_PATH}/pages/admin-dashboard-original.html`, (req, res) => {
+    res.redirect(`${BASE_PATH}/admin`);
 });
 
 // ===== DYNAMIC PAGE ROUTING =====
 
 // Serve any HTML page from views folder (with or without .html extension)
 // NOTE: This should come AFTER all specific routes to avoid conflicts
-app.get('/:page', (req, res) => {
+app.get(`${BASE_PATH}/:page`, (req, res) => {
     let pageName = req.params.page;
     
     // Skip if this is the root path (should be handled by '/' route above)
     if (pageName === '' || pageName === 'index') {
-        return res.redirect('/');
+        return res.redirect(`${BASE_PATH}/`);
     }
     
     // Remove .html extension if present
@@ -197,7 +205,7 @@ app.get('/:page', (req, res) => {
     
     if (knownRoutes.includes(pageName)) {
         // This should have been handled by specific routes above
-        return res.redirect(`/${pageName}`);
+        return res.redirect(`${BASE_PATH}/${pageName}`);
     }
     
     // Try to find the file in pages directory
@@ -242,30 +250,30 @@ function generate404Page(requestedPage) {
                                 <div>
                                     <h3 class="font-semibold text-gray-800 mb-2">Main Pages</h3>
                                     <ul class="space-y-1 text-sm">
-                                        <li><a href="/" class="text-blue-600 hover:underline"><i class="fas fa-home mr-2"></i>Homepage</a></li>
-                                        <li><a href="/login" class="text-blue-600 hover:underline"><i class="fas fa-sign-in-alt mr-2"></i>Login</a></li>
-                                        <li><a href="/signup" class="text-blue-600 hover:underline"><i class="fas fa-user-plus mr-2"></i>Client Signup</a></li>
-                                        <li><a href="/dashboard" class="text-blue-600 hover:underline"><i class="fas fa-tachometer-alt mr-2"></i>Client Dashboard</a></li>
+                                        <li><a href="${BASE_PATH}/" class="text-blue-600 hover:underline"><i class="fas fa-home mr-2"></i>Homepage</a></li>
+                                        <li><a href="${BASE_PATH}/login" class="text-blue-600 hover:underline"><i class="fas fa-sign-in-alt mr-2"></i>Login</a></li>
+                                        <li><a href="${BASE_PATH}/signup" class="text-blue-600 hover:underline"><i class="fas fa-user-plus mr-2"></i>Client Signup</a></li>
+                                        <li><a href="${BASE_PATH}/dashboard" class="text-blue-600 hover:underline"><i class="fas fa-tachometer-alt mr-2"></i>Client Dashboard</a></li>
                                     </ul>
                                 </div>
                                 <div>
                                     <h3 class="font-semibold text-gray-800 mb-2">Services</h3>
                                     <ul class="space-y-1 text-sm">
-                                        <li><a href="/assessment" class="text-blue-600 hover:underline"><i class="fas fa-chart-line mr-2"></i>Profile Assessment</a></li>
-                                        <li><a href="/schedule" class="text-blue-600 hover:underline"><i class="fas fa-calendar mr-2"></i>Schedule Appointment</a></li>
-                                        <li><a href="/eb1a" class="text-blue-600 hover:underline"><i class="fas fa-trophy mr-2"></i>EB-1A Information</a></li>
-                                        <li><a href="/eb2-niw" class="text-blue-600 hover:underline"><i class="fas fa-star mr-2"></i>EB-2 NIW Information</a></li>
-                                        <li><a href="/o1-visa" class="text-blue-600 hover:underline"><i class="fas fa-medal mr-2"></i>O-1 Visa Information</a></li>
+                                        <li><a href="${BASE_PATH}/assessment" class="text-blue-600 hover:underline"><i class="fas fa-chart-line mr-2"></i>Profile Assessment</a></li>
+                                        <li><a href="${BASE_PATH}/schedule" class="text-blue-600 hover:underline"><i class="fas fa-calendar mr-2"></i>Schedule Appointment</a></li>
+                                        <li><a href="${BASE_PATH}/eb1a" class="text-blue-600 hover:underline"><i class="fas fa-trophy mr-2"></i>EB-1A Information</a></li>
+                                        <li><a href="${BASE_PATH}/eb2-niw" class="text-blue-600 hover:underline"><i class="fas fa-star mr-2"></i>EB-2 NIW Information</a></li>
+                                        <li><a href="${BASE_PATH}/o1-visa" class="text-blue-600 hover:underline"><i class="fas fa-medal mr-2"></i>O-1 Visa Information</a></li>
                                     </ul>
                                 </div>
                             </div>
                         </div>
                         
                         <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                            <a href="/" class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+                            <a href="${BASE_PATH}/" class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors">
                                 <i class="fas fa-home mr-2"></i>Go to Homepage
                             </a>
-                            <a href="/login" class="bg-gray-600 text-white px-8 py-3 rounded-lg hover:bg-gray-700 transition-colors">
+                            <a href="${BASE_PATH}/login" class="bg-gray-600 text-white px-8 py-3 rounded-lg hover:bg-gray-700 transition-colors">
                                 <i class="fas fa-sign-in-alt mr-2"></i>Login Portal
                             </a>
                         </div>
@@ -280,8 +288,9 @@ function generate404Page(requestedPage) {
 app.listen(PORT, () => {
     console.log(`🌐 Frontend server running on http://localhost:${PORT}`);
     console.log(`📁 Serving files from: ${__dirname}`);
-    console.log(`🔗 Backend API: http://localhost:5000`);
-    console.log(`🏠 Homepage: http://localhost:${PORT} (loads automatically)`);
-    console.log(`📄 Other pages: /login, /signup, /assessment, /services, etc.`);
-    console.log(`📂 New folder structure implemented!`);
+    console.log(`🔗 Backend API: https://backend.immigrationprofile.com/api`);
+    console.log(`🏠 Homepage: http://localhost:${PORT}${BASE_PATH}/ (loads automatically)`);
+    console.log(`📄 Other pages: ${BASE_PATH}/login, ${BASE_PATH}/signup, ${BASE_PATH}/assessment, ${BASE_PATH}/services, etc.`);
+    console.log(`📂 Base path configured for: ${BASE_PATH}`);
+    console.log(`🌍 Production URL: https://immigrationprofile.com${BASE_PATH}/`);
 });

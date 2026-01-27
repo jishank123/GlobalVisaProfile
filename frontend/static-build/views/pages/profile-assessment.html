@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Assess your EB-1A profile strength. Free interactive tool to evaluate your eligibility across all 10 criteria and get personalized recommendations.">
+    <title>EB-1A Profile Assessment Tool - Check Your Eligibility | ImmigrationPro</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/CRM/css/style.css">
+    
+    <!-- Chart.js for visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- API and Dashboard Data -->
+    <script src="/CRM/js/api.js"></script>
+    <script src="/CRM/js/dashboard-data.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary': '#2563eb',
+                        'secondary': '#1e40af',
+                        'accent': '#3b82f6',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        .progress-step {
+            transition: all 0.3s ease;
+        }
+        .progress-step.active {
+            background-color: #2563eb;
+            color: white;
+        }
+        .progress-step.completed {
+            background-color: #10b981;
+            color: white;
+        }
+        .criterion-card {
+            transition: all 0.3s ease;
+        }
+        .criterion-card.selected {
+            border-color: #2563eb;
+            background-color: #eff6ff;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased bg-gray-50">
+    
+    <!-- Navigation -->
+    <nav class="fixed w-full bg-white/95 backdrop-blur-sm shadow-sm z-50">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <a href="index.html" class="flex items-center space-x-2">
+                    <i class="fas fa-globe-americas text-3xl text-primary"></i>
+                    <span class="text-2xl font-bold text-gray-800">ImmigrationPro</span>
+                </a>
+                
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex space-x-8 items-center">
+                    <a href="index.html" class="nav-link text-gray-700 hover:text-primary transition-colors inline-block py-2">Home</a>
+                    <div class="relative group">
+                        <a href="index.html#services" class="nav-link text-gray-700 hover:text-primary transition-colors cursor-pointer inline-block py-2">
+                            Services <i class="fas fa-chevron-down text-xs ml-1"></i>
+                        </a>
+                        <div class="absolute left-0 top-full hidden group-hover:block bg-white shadow-lg rounded-lg w-56 z-50 -mt-1">
+                            <div class="py-2">
+                                <a href="eb1a-eligibility.html" class="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-primary transition-colors">EB-1A Eligibility</a>
+                                <a href="profile-building.html" class="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-primary transition-colors">Profile Building</a>
+                                <a href="eb2-niw.html" class="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-primary transition-colors">EB-2 NIW</a>
+                                <a href="o1-visa.html" class="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-primary transition-colors">O-1 Visa</a>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="profile-assessment.html" class="nav-link text-gray-700 hover:text-primary transition-colors inline-block py-2">Profile Assessment</a>
+                    <a href="pricing.html" class="nav-link text-gray-700 hover:text-primary transition-colors inline-block py-2">Pricing</a>
+                    <a href="/schedule" class="nav-link text-gray-700 hover:text-primary transition-colors inline-block py-2">Schedule</a>
+                    <a href="faq.html" class="nav-link text-gray-700 hover:text-primary transition-colors inline-block py-2">FAQ</a>
+                    <a href="attorney-referrals.html" class="nav-link text-gray-700 hover:text-primary transition-colors inline-block py-2">Attorneys</a>
+                    <a href="index.html#contact" class="nav-link text-gray-700 hover:text-primary transition-colors inline-block py-2">Contact</a>
+                </div>
+                
+                <div class="hidden md:block">
+                    <a href="index.html#contact" class="bg-primary text-white px-6 py-2 rounded-lg hover:bg-secondary transition-colors">
+                        Get Started
+                    </a>
+                </div>
+                
+                <!-- Mobile Menu Button -->
+                <button id="mobile-menu-btn" class="md:hidden text-gray-700">
+                    <i class="fas fa-bars text-2xl"></i>
+                </button>
+            </div>
+            
+            <!-- Mobile Menu -->
+            <div id="mobile-menu" class="hidden md:hidden mt-4 pb-4">
+                <a href="index.html" class="block py-2 text-gray-700 hover:text-primary transition-colors">Home</a>
+                <a href="eb1a-eligibility.html" class="block py-2 text-gray-700 hover:text-primary transition-colors">EB-1A Eligibility</a>
+                <a href="profile-building.html" class="block py-2 text-gray-700 hover:text-primary transition-colors">Profile Building</a>
+                <a href="eb2-niw.html" class="block py-2 text-gray-700 hover:text-primary transition-colors">EB-2 NIW</a>
+                <a href="o1-visa.html" class="block py-2 text-gray-700 hover:text-primary transition-colors">O-1 Visa</a>
+                <a href="profile-assessment.html" class="block py-2 text-gray-700 hover:text-primary transition-colors">Profile Assessment</a>
+                <a href="pricing.html" class="block py-2 text-gray-700 hover:text-primary transition-colors">Pricing</a>
+                <a href="/schedule" class="block py-2 text-gray-700 hover:text-primary transition-colors">Schedule Appointment</a>
+                <a href="faq.html" class="block py-2 text-gray-700 hover:text-primary transition-colors">FAQ</a>
+                <a href="attorney-referrals.html" class="block py-2 text-gray-700 hover:text-primary transition-colors">Attorney Referrals</a>
+                <a href="index.html#contact" class="block py-2 text-gray-700 hover:text-primary transition-colors">Contact</a>
+                <a href="index.html#contact" class="block mt-4 bg-primary text-white px-6 py-2 rounded-lg text-center hover:bg-secondary transition-colors">
+                    Get Started
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Disclaimer Popup Modal -->
+    <div id="disclaimer-popup" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-fade-in">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-red-600 to-red-700 text-white p-6 rounded-t-2xl">
+                <div class="flex items-center justify-center mb-2">
+                    <i class="fas fa-exclamation-triangle text-4xl mr-3"></i>
+                    <h2 class="text-2xl md:text-3xl font-bold">Important Legal Disclaimer</h2>
+                </div>
+                <p class="text-center text-red-100 text-sm">Please read carefully before proceeding</p>
+            </div>
+            
+            <!-- Content -->
+            <div class="p-6 md:p-8">
+                <div class="space-y-4 text-gray-700">
+                    <p class="text-lg leading-relaxed">
+                        <strong class="text-gray-900">ImmigrationPro's mentorship and guidance are solely intended for educational and informational purposes.</strong> We do not represent clients before any agency, including U.S. immigration officials, and <strong class="text-red-600">we are not lawyers</strong>.
+                    </p>
+                    
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                        <p class="font-semibold text-gray-900 mb-2">
+                            <i class="fas fa-info-circle text-yellow-600 mr-2"></i>Not Legal Advice
+                        </p>
+                        <p class="text-sm">
+                            The information provided is not meant to be legal advice and should not be interpreted as such. We specifically disclaim any liability for reliance on such content and offer no promises regarding the accuracy, completeness, or reliability of the information given.
+                        </p>
+                    </div>
+                    
+                    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                        <p class="font-semibold text-gray-900 mb-2">
+                            <i class="fas fa-balance-scale text-blue-600 mr-2"></i>Seek Legal Counsel
+                        </p>
+                        <p class="text-sm">
+                            We strongly advise speaking with a qualified U.S. immigration attorney for tailored guidance on your particular legal issues. <a href="attorney-referrals.html" class="text-primary underline font-semibold">Find an attorney here</a>.
+                        </p>
+                    </div>
+                    
+                    <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded">
+                        <p class="font-semibold text-gray-900 mb-2">
+                            <i class="fas fa-hand-paper text-red-600 mr-2"></i>USCIS Has Final Authority
+                        </p>
+                        <p class="text-sm">
+                            USCIS has complete authority over all immigration decisions. While we provide comprehensive profile building and application preparation support, <strong>USCIS can still deny applications for reasons beyond our control or prediction</strong>. We provide no guarantees of approval.
+                        </p>
+                    </div>
+                    
+                    <p class="text-sm text-gray-600 italic bg-gray-50 p-4 rounded">
+                        By selecting "I Agree," you acknowledge and accept this disclaimer. You understand that our services are limited to profile building, documentation assistance, and application preparation guidance—not legal representation or advice.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Footer Buttons -->
+            <div class="bg-gray-50 p-6 rounded-b-2xl flex flex-col sm:flex-row gap-4">
+                <button id="disclaimer-decline" class="flex-1 bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-400 transition-all">
+                    <i class="fas fa-times mr-2"></i>Decline
+                </button>
+                <button id="disclaimer-agree" class="flex-1 bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-secondary transition-all transform hover:scale-105">
+                    <i class="fas fa-check mr-2"></i>I Agree & Understand
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="pt-24 pb-12 md:pt-32 md:pb-16 bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div class="container mx-auto px-4">
+            <div class="max-w-4xl mx-auto text-center">
+                <div class="inline-block bg-blue-100 text-primary px-4 py-2 rounded-full text-sm font-semibold mb-4">
+                    FREE ASSESSMENT TOOL
+                </div>
+                <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+                    EB-1A Profile Strength Assessment
+                </h1>
+                <p class="text-xl text-gray-700 mb-4">
+                    Evaluate your profile across all 10 EB-1A criteria and receive instant feedback on your profile strength with personalized recommendations
+                </p>
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 max-w-3xl mx-auto">
+                    <p class="text-sm text-gray-700 text-left">
+                        <i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>
+                        <strong>Important Disclaimer:</strong> This is a general assessment tool for educational purposes only. Results do not constitute legal advice or guarantee petition approval. We are not attorneys or legal representatives. For legal advice specific to your case, please consult a licensed immigration attorney.
+                    </p>
+                </div>
+                <div class="flex items-center justify-center space-x-2 text-gray-700">
+                    <i class="fas fa-clock text-primary"></i>
+                    <span>Takes 5-10 minutes</span>
+                    <span class="mx-2">•</span>
+                    <i class="fas fa-shield-alt text-primary"></i>
+                    <span>100% Confidential</span>
+                    <span class="mx-2">•</span>
+                    <i class="fas fa-chart-line text-primary"></i>
+                    <span>Instant Results</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Progress Bar -->
+    <section class="bg-white border-b sticky top-16 z-40" id="progress-section">
+        <div class="container mx-auto px-4 py-4">
+            <div class="max-w-4xl mx-auto">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-semibold text-gray-700">Assessment Progress</span>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm font-semibold text-primary" id="progress-percentage">0%</span>
+                        <span class="text-sm text-gray-500" id="criteria-progress">0/10 criteria completed</span>
+                    </div>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div class="bg-primary h-3 rounded-full transition-all duration-500" id="progress-bar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Assessment Form -->
+    <section class="py-16">
+        <div class="container mx-auto px-4">
+            <div class="max-w-4xl mx-auto">
+                
+                <!-- Basic Information -->
+                <div class="bg-white rounded-xl shadow-lg p-8 mb-8" id="section-basic">
+                    <h2 class="text-3xl font-bold text-gray-900 mb-6 flex items-center">
+                        <span class="bg-primary text-white w-10 h-10 rounded-full flex items-center justify-center mr-3">1</span>
+                        Basic Information
+                    </h2>
+                    
+                    <div class="space-y-6">
+                        <!-- Contact Information -->
+                        <div class="bg-blue-50 border-l-4 border-primary p-4 rounded mb-4">
+                            <p class="text-sm text-gray-700">
+                                <i class="fas fa-info-circle text-primary mr-2"></i>
+                                <strong>Why we need this:</strong> Your contact information allows us to send your detailed assessment results and follow up with personalized recommendations.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">Full Name <span class="text-red-500">*</span></label>
+                            <input type="text" id="client-name" placeholder="Enter your full name" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required>
+                        </div>
+
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">Email Address <span class="text-red-500">*</span></label>
+                            <input type="email" id="client-email" placeholder="your.email@example.com" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required>
+                        </div>
+
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">Phone Number</label>
+                            <input type="tel" id="client-phone" placeholder="+1 (555) 123-4567" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                        </div>
+
+                        <div class="border-t border-gray-200 pt-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Professional Background</h3>
+                        </div>
+
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">Your Field of Expertise <span class="text-red-500">*</span></label>
+                            <select id="field" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required>
+                                <option value="">Select your field</option>
+                                <option value="science">Science & Research</option>
+                                <option value="technology">Technology & Engineering</option>
+                                <option value="business">Business & Entrepreneurship</option>
+                                <option value="arts">Arts & Design</option>
+                                <option value="education">Education</option>
+                                <option value="athletics">Athletics & Sports</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">Years of Professional Experience <span class="text-red-500">*</span></label>
+                            <input type="number" id="experience" min="0" max="50" placeholder="Enter years" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required>
+                        </div>
+
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">Current Location <span class="text-red-500">*</span></label>
+                            <select id="location" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required>
+                                <option value="">Select location</option>
+                                <option value="us">In the United States</option>
+                                <option value="outside">Outside the United States</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button onclick="goToSection(2)" class="mt-6 bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-secondary transition-all">
+                        Continue to Assessment <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+
+                <!-- 10 Criteria Assessment -->
+                <div class="bg-white rounded-xl shadow-lg p-8 mb-8 hidden" id="section-criteria">
+                    <h2 class="text-3xl font-bold text-gray-900 mb-6 flex items-center">
+                        <span class="bg-primary text-white w-10 h-10 rounded-full flex items-center justify-center mr-3">2</span>
+                        Evaluate Your Profile Against 10 Criteria
+                    </h2>
+
+                    <p class="text-gray-700 mb-8">
+                        For each criterion below, honestly assess your current achievements. You need to meet at least 3 criteria to qualify for EB-1A.
+                        <strong class="text-primary">Please answer all 10 criteria to get your complete assessment.</strong>
+                    </p>
+
+                    <!-- Criterion 1: Awards -->
+                    <div class="criterion-card border-2 border-gray-200 rounded-lg p-6 mb-6">
+                        <div class="flex items-start mb-4">
+                            <div class="bg-yellow-100 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                                <i class="fas fa-award text-2xl text-yellow-600"></i>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-bold text-gray-900 mb-2">Criterion 1: Awards & Prizes</h3>
+                                <p class="text-gray-600 text-sm mb-4">
+                                    Receipt of nationally or internationally recognized prizes or awards for excellence
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion1" value="3" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Strong:</strong> Multiple national/international awards (3+) from recognized organizations
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion1" value="2" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Moderate:</strong> 1-2 national or regional awards
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion1" value="1" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Weak:</strong> Only local or organizational awards
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion1" value="0" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>None:</strong> No relevant awards
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Criterion 2: Memberships -->
+                    <div class="criterion-card border-2 border-gray-200 rounded-lg p-6 mb-6">
+                        <div class="flex items-start mb-4">
+                            <div class="bg-purple-100 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                                <i class="fas fa-users text-2xl text-purple-600"></i>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-bold text-gray-900 mb-2">Criterion 2: Membership in Associations</h3>
+                                <p class="text-gray-600 text-sm mb-4">
+                                    Membership in associations requiring outstanding achievements judged by experts
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion2" value="3" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Strong:</strong> Fellow or senior member in prestigious organizations (IEEE Fellow, etc.)
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion2" value="2" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Moderate:</strong> Member of selective professional organizations requiring achievements
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion2" value="1" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Weak:</strong> General membership in professional organizations
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion2" value="0" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>None:</strong> No relevant memberships
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Criterion 3: Published Material -->
+                    <div class="criterion-card border-2 border-gray-200 rounded-lg p-6 mb-6">
+                        <div class="flex items-start mb-4">
+                            <div class="bg-red-100 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                                <i class="fas fa-newspaper text-2xl text-red-600"></i>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-bold text-gray-900 mb-2">Criterion 3: Published Material About You</h3>
+                                <p class="text-gray-600 text-sm mb-4">
+                                    Published material about you in professional or major media
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion3" value="3" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Strong:</strong> Featured in major national/international media or highly cited (100+ citations)
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion3" value="2" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Moderate:</strong> Articles in professional publications or regional media (20-100 citations)
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion3" value="1" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Weak:</strong> Limited media mentions or citations (<20)
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion3" value="0" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>None:</strong> No media coverage or citations
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Criterion 4: Judging -->
+                    <div class="criterion-card border-2 border-gray-200 rounded-lg p-6 mb-6">
+                        <div class="flex items-start mb-4">
+                            <div class="bg-indigo-100 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                                <i class="fas fa-gavel text-2xl text-indigo-600"></i>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-bold text-gray-900 mb-2">Criterion 4: Judging the Work of Others</h3>
+                                <p class="text-gray-600 text-sm mb-4">
+                                    Participation as a judge of others' work in your field
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion4" value="3" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Strong:</strong> Regular reviewer for top journals/conferences or grant panels (20+ reviews)
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion4" value="2" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Moderate:</strong> Reviewer for journals or program committees (5-20 reviews)
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion4" value="1" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Weak:</strong> Limited judging experience (<5 reviews)
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion4" value="0" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>None:</strong> No judging experience
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Criterion 5: Original Contributions -->
+                    <div class="criterion-card border-2 border-gray-200 rounded-lg p-6 mb-6">
+                        <div class="flex items-start mb-4">
+                            <div class="bg-green-100 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                                <i class="fas fa-lightbulb text-2xl text-green-600"></i>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-bold text-gray-900 mb-2">Criterion 5: Original Contributions of Major Significance</h3>
+                                <p class="text-gray-600 text-sm mb-4">
+                                    Original contributions that significantly advanced your field
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion5" value="3" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Strong:</strong> Groundbreaking work widely adopted/cited, patents with commercial use
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion5" value="2" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Moderate:</strong> Notable contributions recognized by peers, some patents/innovations
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion5" value="1" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Weak:</strong> Limited documented impact
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion5" value="0" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>None:</strong> No documented major contributions
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Criterion 6: Scholarly Articles -->
+                    <div class="criterion-card border-2 border-gray-200 rounded-lg p-6 mb-6">
+                        <div class="flex items-start mb-4">
+                            <div class="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                                <i class="fas fa-file-alt text-2xl text-blue-600"></i>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-bold text-gray-900 mb-2">Criterion 6: Authorship of Scholarly Articles</h3>
+                                <p class="text-gray-600 text-sm mb-4">
+                                    Scholarly articles in professional or major publications
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion6" value="3" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Strong:</strong> 15+ publications in top-tier journals/conferences
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion6" value="2" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Moderate:</strong> 5-15 publications in recognized venues
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion6" value="1" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Weak:</strong> Less than 5 publications
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion6" value="0" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>None:</strong> No scholarly publications
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Criterion 7: Display of Work -->
+                    <div class="criterion-card border-2 border-gray-200 rounded-lg p-6 mb-6">
+                        <div class="flex items-start mb-4">
+                            <div class="bg-pink-100 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                                <i class="fas fa-palette text-2xl text-pink-600"></i>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-bold text-gray-900 mb-2">Criterion 7: Display of Work at Exhibitions</h3>
+                                <p class="text-gray-600 text-sm mb-4">
+                                    Display of work at artistic exhibitions or showcases (mainly for artists)
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion7" value="3" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Strong:</strong> Major exhibitions at renowned venues internationally
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion7" value="2" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Moderate:</strong> Several exhibitions at recognized galleries/museums
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion7" value="1" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Weak:</strong> Limited or local exhibitions
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion7" value="0" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>N/A or None:</strong> Not applicable to my field or no exhibitions
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Criterion 8: Leading Role -->
+                    <div class="criterion-card border-2 border-gray-200 rounded-lg p-6 mb-6">
+                        <div class="flex items-start mb-4">
+                            <div class="bg-teal-100 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                                <i class="fas fa-user-tie text-2xl text-teal-600"></i>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-bold text-gray-900 mb-2">Criterion 8: Leading or Critical Role</h3>
+                                <p class="text-gray-600 text-sm mb-4">
+                                    Leading/critical role for distinguished organizations
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion8" value="3" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Strong:</strong> C-level, VP, or equivalent at well-known organizations
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion8" value="2" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Moderate:</strong> Senior/lead positions with documented impact
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion8" value="1" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Weak:</strong> Mid-level positions
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion8" value="0" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>None:</strong> No leadership roles
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Criterion 9: High Salary -->
+                    <div class="criterion-card border-2 border-gray-200 rounded-lg p-6 mb-6">
+                        <div class="flex items-start mb-4">
+                            <div class="bg-emerald-100 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                                <i class="fas fa-dollar-sign text-2xl text-emerald-600"></i>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-bold text-gray-900 mb-2">Criterion 9: High Salary or Remuneration</h3>
+                                <p class="text-gray-600 text-sm mb-4">
+                                    Compensation significantly higher than others in your field
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion9" value="3" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Strong:</strong> Top 5% of field (with statistical proof)
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion9" value="2" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Moderate:</strong> Top 10-20% of field
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion9" value="1" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Weak:</strong> Above average but not significantly high
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion9" value="0" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>None:</strong> Average or below average compensation
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Criterion 10: Commercial Success -->
+                    <div class="criterion-card border-2 border-gray-200 rounded-lg p-6 mb-6">
+                        <div class="flex items-start mb-4">
+                            <div class="bg-orange-100 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                                <i class="fas fa-chart-line text-2xl text-orange-600"></i>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-bold text-gray-900 mb-2">Criterion 10: Commercial Success</h3>
+                                <p class="text-gray-600 text-sm mb-4">
+                                    Commercial success in performing arts or measurable business impact
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion10" value="3" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Strong:</strong> Major commercial success (millions in revenue/sales)
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion10" value="2" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Moderate:</strong> Documented commercial success with measurable impact
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion10" value="1" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>Weak:</strong> Limited commercial success
+                                </span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="criterion10" value="0" class="w-5 h-5 text-primary" onchange="updateScore()">
+                                <span class="text-gray-700">
+                                    <strong>N/A or None:</strong> Not applicable to my field or no commercial success
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button onclick="calculateResults()" class="w-full bg-primary text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-secondary transition-all">
+                        Calculate My Profile Strength <i class="fas fa-calculator ml-2"></i>
+                    </button>
+                </div>
+
+                <!-- Results Section -->
+                <div class="bg-white rounded-xl shadow-lg p-8 mb-8 hidden" id="section-results">
+                    <h2 class="text-3xl font-bold text-gray-900 mb-6 flex items-center">
+                        <span class="bg-primary text-white w-10 h-10 rounded-full flex items-center justify-center mr-3">3</span>
+                        Your EB-1A Profile Assessment Results
+                    </h2>
+
+                    <!-- Score Display -->
+                    <div class="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-8 mb-8 text-center">
+                        <div class="text-6xl font-bold mb-4" id="score-display">0%</div>
+                        <div class="text-2xl font-semibold mb-2" id="score-label">Profile Strength</div>
+                        <div class="text-gray-700" id="score-description"></div>
+                    </div>
+
+                    <!-- Visual Chart -->
+                    <div class="mb-8">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">Criteria Breakdown</h3>
+                        <div style="height: 400px;">
+                            <canvas id="criteriaChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Criteria Met -->
+                    <div class="mb-8">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">Criteria Analysis</h3>
+                        <div class="grid md:grid-cols-3 gap-4 mb-4">
+                            <div class="bg-green-50 border-2 border-green-500 rounded-lg p-4 text-center">
+                                <div class="text-3xl font-bold text-green-600" id="strong-criteria">0</div>
+                                <div class="text-gray-700">Strong Criteria</div>
+                            </div>
+                            <div class="bg-yellow-50 border-2 border-yellow-500 rounded-lg p-4 text-center">
+                                <div class="text-3xl font-bold text-yellow-600" id="moderate-criteria">0</div>
+                                <div class="text-gray-700">Moderate Criteria</div>
+                            </div>
+                            <div class="bg-red-50 border-2 border-red-500 rounded-lg p-4 text-center">
+                                <div class="text-3xl font-bold text-red-600" id="weak-criteria">0</div>
+                                <div class="text-gray-700">Need Improvement</div>
+                            </div>
+                        </div>
+                        <div class="bg-blue-50 border-l-4 border-primary p-4 rounded">
+                            <p class="font-semibold text-gray-900 mb-2">USCIS Requirement: Meet at least 3 out of 10 criteria</p>
+                            <p class="text-gray-700" id="criteria-status"></p>
+                        </div>
+                    </div>
+
+                    <!-- Recommendations -->
+                    <div class="mb-8">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">Personalized Recommendations</h3>
+                        <div id="recommendations" class="space-y-4">
+                            <!-- Recommendations will be inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- Next Steps -->
+                    <div class="mb-8">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">Recommended Next Steps</h3>
+                        <div id="next-steps" class="space-y-3">
+                            <!-- Next steps will be inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- CTA Buttons -->
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <a href="/schedule" class="flex-1 bg-primary text-white px-8 py-4 rounded-lg font-semibold text-center hover:bg-secondary transition-all">
+                            Schedule Expert Consultation
+                        </a>
+                        <a href="profile-building.html" class="flex-1 bg-white text-primary border-2 border-primary px-8 py-4 rounded-lg font-semibold text-center hover:bg-blue-50 transition-all">
+                            View Profile Building Services
+                        </a>
+                    </div>
+
+                    <!-- Dashboard Link for Authenticated Users -->
+                    <div class="mt-4 text-center" id="dashboard-link-container">
+                        <!-- Will be populated by JavaScript if user is authenticated -->
+                    </div>
+
+                    <!-- Save Results -->
+                    <div class="mt-6 text-center">
+                        <button onclick="saveResults()" class="text-primary hover:text-secondary font-semibold">
+                            <i class="fas fa-download mr-2"></i>Download Your Assessment Report
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-gray-300 py-12">
+        <div class="container mx-auto px-4">
+            <div class="grid md:grid-cols-4 gap-8 mb-8">
+                <div>
+                    <div class="flex items-center space-x-2 mb-4">
+                        <i class="fas fa-globe-americas text-2xl text-primary"></i>
+                        <span class="text-xl font-bold text-white">ImmigrationPro</span>
+                    </div>
+                    <p class="text-gray-400">
+                        Your trusted partner for employment-based immigration solutions.
+                    </p>
+                </div>
+                
+                <div>
+                    <h4 class="text-white font-bold mb-4">Services</h4>
+                    <ul class="space-y-2">
+                        <li><a href="eb1a-eligibility.html" class="hover:text-white transition-colors">EB-1A Eligibility</a></li>
+                        <li><a href="profile-building.html" class="hover:text-white transition-colors">Profile Building</a></li>
+                        <li><a href="pricing.html" class="hover:text-white transition-colors">Pricing</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-white font-bold mb-4">Resources</h4>
+                    <ul class="space-y-2">
+                        <li><a href="faq.html" class="hover:text-white transition-colors">FAQ</a></li>
+                        <li><a href="profile-assessment.html" class="hover:text-white transition-colors">Profile Assessment</a></li>
+                        <li><a href="index.html#contact" class="hover:text-white transition-colors">Contact</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-white font-bold mb-4">Legal</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="hover:text-white transition-colors">Privacy Policy</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Terms of Service</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-800 pt-8 text-center text-gray-400">
+                <p>&copy; 2024 ImmigrationPro. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="../../public/js/main.js"></script>
+    <script src="../../public/js/api.js"></script>
+    <script src="../../public/js/utils.js"></script>
+    <script>
+        // Initialize authentication and pre-fill client data
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔐 Checking authentication status...');
+            
+            // Check if user is authenticated
+            if (typeof ClientAuth !== 'undefined' && ClientAuth.isAuthenticated()) {
+                console.log('✅ User is authenticated, pre-filling client data...');
+                
+                const clientData = ClientAuth.getClientData();
+                
+                // Pre-fill client information
+                if (clientData.name) {
+                    document.getElementById('client-name').value = clientData.name;
+                    assessmentData.clientName = clientData.name;
+                }
+                if (clientData.email) {
+                    document.getElementById('client-email').value = clientData.email;
+                    assessmentData.clientEmail = clientData.email;
+                }
+                if (clientData.phone) {
+                    document.getElementById('client-phone').value = clientData.phone;
+                    assessmentData.clientPhone = clientData.phone;
+                }
+                
+                console.log('✅ Client data pre-filled from authentication');
+            } else {
+                console.log('ℹ️ User not authenticated - form will work as standalone assessment');
+            }
+        });
+
+        let assessmentData = {
+            criteria: Array(10).fill(0),
+            clientName: '',
+            clientEmail: '',
+            clientPhone: '',
+            field: '',
+            experience: 0,
+            location: ''
+        };
+
+        let criteriaChart = null;
+
+        function updateScore() {
+            console.log('📊 === UPDATE SCORE CALLED ===');
+            
+            // Collect all form data
+            assessmentData.clientName = document.getElementById('client-name').value;
+            assessmentData.clientEmail = document.getElementById('client-email').value;
+            assessmentData.clientPhone = document.getElementById('client-phone').value;
+            assessmentData.field = document.getElementById('field').value;
+            assessmentData.experience = parseInt(document.getElementById('experience').value) || 0;
+            assessmentData.location = document.getElementById('location').value;
+
+            // Collect criteria scores and reset visual indicators
+            for (let i = 1; i <= 10; i++) {
+                const selected = document.querySelector(`input[name="criterion${i}"]:checked`);
+                const criterionCard = document.querySelector(`input[name="criterion${i}"]`).closest('.criterion-card');
+                
+                if (selected) {
+                    assessmentData.criteria[i-1] = parseInt(selected.value);
+                    console.log(`📊 Criterion ${i}: ${selected.value}`);
+                    
+                    // Visual feedback for answered criteria
+                    if (criterionCard) {
+                        criterionCard.style.border = '2px solid #10b981';
+                        criterionCard.style.backgroundColor = '#f0fdf4';
+                    }
+                } else {
+                    // Reset visual state for unanswered criteria
+                    if (criterionCard) {
+                        criterionCard.style.border = '2px solid #e5e7eb';
+                        criterionCard.style.backgroundColor = 'white';
+                    }
+                }
+            }
+
+            // Count answered criteria
+            let answered = 0;
+            for (let i = 1; i <= 10; i++) {
+                const selected = document.querySelector(`input[name="criterion${i}"]:checked`);
+                if (selected) answered++;
+            }
+
+            // Update progress
+            const progressPercentage = Math.round((answered / 10) * 100);
+            updateProgress(progressPercentage);
+
+            console.log('📊 Progress updated:', progressPercentage + '%');
+            console.log('📊 Answered criteria:', answered + '/10');
+        }
+
+        function updateProgress(percentage) {
+            const progressBar = document.getElementById('progress-bar');
+            const progressPercentage = document.getElementById('progress-percentage');
+            const criteriaProgress = document.getElementById('criteria-progress');
+            
+            if (progressBar) {
+                progressBar.style.width = percentage + '%';
+            }
+            if (progressPercentage) {
+                progressPercentage.textContent = percentage + '%';
+            }
+            
+            // Update criteria progress
+            if (criteriaProgress) {
+                const answered = Math.round((percentage / 100) * 10);
+                criteriaProgress.textContent = `${answered}/10 criteria completed`;
+            }
+        }
+
+        function goToSection(sectionNum) {
+            // Validate basic info
+            if (sectionNum === 2) {
+                const clientName = document.getElementById('client-name').value.trim();
+                const clientEmail = document.getElementById('client-email').value.trim();
+                const clientPhone = document.getElementById('client-phone').value.trim();
+                const field = document.getElementById('field').value;
+                const experience = document.getElementById('experience').value;
+                const location = document.getElementById('location').value;
+
+                if (!clientName || !clientEmail || !field || !experience || !location) {
+                    alert('Please fill in all required fields (marked with *)');
+                    return;
+                }
+
+                // Basic email validation
+                const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailPattern.test(clientEmail)) {
+                    alert('Please enter a valid email address');
+                    return;
+                }
+
+                assessmentData.clientName = clientName;
+                assessmentData.clientEmail = clientEmail;
+                assessmentData.clientPhone = clientPhone;
+                assessmentData.field = field;
+                assessmentData.experience = parseInt(experience);
+                assessmentData.location = location;
+            }
+
+            // Hide all sections
+            document.getElementById('section-basic').classList.add('hidden');
+            document.getElementById('section-criteria').classList.add('hidden');
+            document.getElementById('section-results').classList.add('hidden');
+
+            // Show target section
+            if (sectionNum === 2) {
+                document.getElementById('section-criteria').classList.remove('hidden');
+                updateProgress(10);
+            }
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function updateScore() {
+            // Count answered criteria
+            let answered = 0;
+            for (let i = 1; i <= 10; i++) {
+                const selected = document.querySelector(`input[name="criterion${i}"]:checked`);
+                if (selected) {
+                    answered++;
+                    assessmentData.criteria[i-1] = parseInt(selected.value);
+                }
+            }
+
+            const progress = 10 + (answered / 10 * 80);
+            updateProgress(progress);
+        }
+
+        function updateProgress(percentage) {
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-percentage');
+            progressBar.style.width = percentage + '%';
+            progressText.textContent = Math.round(percentage) + '%';
+        }
+
+        async function calculateResults() {
+            // Check if all criteria are answered
+            let unanswered = [];
+            for (let i = 1; i <= 10; i++) {
+                const selected = document.querySelector(`input[name="criterion${i}"]:checked`);
+                if (!selected) {
+                    unanswered.push(i);
+                }
+            }
+
+            if (unanswered.length > 0) {
+                console.log('❌ Validation failed - unanswered criteria:', unanswered);
+                
+                // Highlight unanswered criteria
+                unanswered.forEach(criterionNum => {
+                    const criterionCard = document.querySelector(`input[name="criterion${criterionNum}"]`).closest('.criterion-card');
+                    if (criterionCard) {
+                        criterionCard.style.border = '2px solid #ef4444';
+                        criterionCard.style.backgroundColor = '#fef2f2';
+                    }
+                });
+                
+                // Show detailed error message
+                const errorMessage = `Please answer all 10 criteria before calculating results.\n\nUnanswered criteria: ${unanswered.join(', ')}`;
+                alert(errorMessage);
+                
+                // Scroll to first unanswered criterion
+                const firstUnanswered = document.querySelector(`input[name="criterion${unanswered[0]}"]`);
+                if (firstUnanswered) {
+                    firstUnanswered.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                
+                return;
+            }
+
+            console.log('✅ All criteria answered - proceeding with calculation');
+
+            // Calculate score
+            const totalPoints = assessmentData.criteria.reduce((a, b) => a + b, 0);
+            const maxPoints = 30; // 10 criteria × 3 points max
+            const percentage = Math.round((totalPoints / maxPoints) * 100);
+
+            // Count strong, moderate, weak criteria
+            const strong = assessmentData.criteria.filter(score => score === 3).length;
+            const moderate = assessmentData.criteria.filter(score => score === 2).length;
+            const weak = assessmentData.criteria.filter(score => score === 1).length;
+            const none = assessmentData.criteria.filter(score => score === 0).length;
+
+            // Criteria that potentially meet USCIS standard (score 2-3)
+            const metCriteria = strong + moderate;
+
+            // Determine profile strength category
+            let profileStrength = '';
+            if (percentage >= 80) {
+                profileStrength = 'Excellent';
+            } else if (percentage >= 60) {
+                profileStrength = 'Good';
+            } else if (percentage >= 40) {
+                profileStrength = 'Moderate';
+            } else {
+                profileStrength = 'Needs Development';
+            }
+
+            // Save assessment to database
+            try {
+                console.log('💾 === SAVING ASSESSMENT TO DATABASE ===');
+                console.log('📊 Preparing assessment data for submission...');
+                
+                const assessmentRecord = {
+                    client_name: assessmentData.clientName,
+                    client_email: assessmentData.clientEmail,
+                    client_phone: assessmentData.clientPhone || '',
+                    field_of_expertise: assessmentData.field,
+                    years_of_experience: assessmentData.experience,
+                    current_location: assessmentData.location,
+                    criterion_1_awards: assessmentData.criteria[0],
+                    criterion_2_memberships: assessmentData.criteria[1],
+                    criterion_3_media: assessmentData.criteria[2],
+                    criterion_4_judging: assessmentData.criteria[3],
+                    criterion_5_contributions: assessmentData.criteria[4],
+                    criterion_6_publications: assessmentData.criteria[5],
+                    criterion_7_exhibitions: assessmentData.criteria[6],
+                    criterion_8_leadership: assessmentData.criteria[7],
+                    criterion_9_salary: assessmentData.criteria[8],
+                    criterion_10_commercial: assessmentData.criteria[9]
+                };
+
+                console.log('📊 Assessment record prepared:');
+                console.log('  - Client Name:', assessmentRecord.client_name);
+                console.log('  - Client Email:', assessmentRecord.client_email);
+                console.log('  - Field:', assessmentRecord.field_of_expertise);
+                console.log('  - Experience:', assessmentRecord.years_of_experience, 'years');
+                console.log('  - Location:', assessmentRecord.current_location);
+                console.log('  - Criteria Scores:', [
+                    assessmentRecord.criterion_1_awards,
+                    assessmentRecord.criterion_2_memberships,
+                    assessmentRecord.criterion_3_media,
+                    assessmentRecord.criterion_4_judging,
+                    assessmentRecord.criterion_5_contributions,
+                    assessmentRecord.criterion_6_publications,
+                    assessmentRecord.criterion_7_exhibitions,
+                    assessmentRecord.criterion_8_leadership,
+                    assessmentRecord.criterion_9_salary,
+                    assessmentRecord.criterion_10_commercial
+                ]);
+
+                console.log('🌐 Making API call to save assessment...');
+                console.log('🌐 Using ProfileAssessmentsAPI.submit()');
+
+                const startTime = Date.now();
+                const responseData = await ProfileAssessmentsAPI.submit(assessmentRecord);
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+
+                console.log('📨 API Response received:');
+                console.log('  - Response Time:', responseTime + 'ms');
+                console.log('📨 Response Data:', responseData);
+
+                if (responseData.success) {
+                    console.log('✅ === DATABASE SAVE SUCCESSFUL ===');
+                    console.log('✅ Assessment ID:', responseData.data.assessment_id);
+                    console.log('✅ Overall Score:', responseData.data.overall_score + '%');
+                    console.log('✅ Profile Strength:', responseData.data.profile_strength);
+                    console.log('✅ Criteria Met:', responseData.data.criteria_met);
+                    console.log('✅ Submission Date:', responseData.data.submission_date);
+                    console.log('✅ Database storage confirmed!');
+                    
+                    // Store the assessment ID for later use
+                    assessmentData.savedAssessmentId = responseData.data.assessment_id;
+                    assessmentData.isAuthenticated = typeof ClientAuth !== 'undefined' && ClientAuth.isAuthenticated();
+                    
+                } else {
+                    console.log('❌ === DATABASE SAVE FAILED ===');
+                    console.log('❌ Response Data:', responseData);
+                    console.log('❌ Error Code:', responseData.error?.code);
+                    console.log('❌ Error Message:', responseData.error?.message);
+                    
+                    // Show error to user
+                    alert('⚠️ ERROR: Your assessment could not be saved to our database. Please try again or contact support if the problem persists.');
+                    
+                    if (responseData.error?.details) {
+                        console.log('❌ Validation Errors:');
+                        responseData.error.details.forEach((error, index) => {
+                            console.log(`  ${index + 1}. ${error.msg} (Field: ${error.param})`);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('💥 === DATABASE SAVE EXCEPTION ===');
+                console.error('💥 Exception Type:', error.name);
+                console.error('💥 Exception Message:', error.message);
+                console.error('💥 Exception Stack:', error.stack);
+                console.error('💥 Full Exception:', error);
+                
+                // Show error to user
+                if (error.name === 'ReferenceError' && error.message.includes('ProfileAssessmentsAPI')) {
+                    alert('⚠️ ERROR: Assessment system not properly loaded. Please refresh the page and try again.');
+                } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    alert('⚠️ ERROR: Cannot connect to server. Please check your internet connection and try again.');
+                } else {
+                    alert('⚠️ ERROR: Your assessment could not be saved. Please try again or contact support.');
+                }
+                
+                // Check for specific error types
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    console.error('💥 NETWORK ERROR: Unable to connect to backend server');
+                    console.error('💥 - Check if backend server is running on port 5000');
+                    console.error('💥 - Verify API endpoint URL is correct');
+                } else if (error.name === 'SyntaxError' && error.message.includes('JSON')) {
+                    console.error('💥 JSON PARSE ERROR: Invalid response from server');
+                    console.error('💥 - Server may have returned HTML instead of JSON');
+                    console.error('💥 - Check server logs for errors');
+                }
+                
+                console.error('💥 === DATABASE SAVE EXCEPTION HANDLING COMPLETED ===');
+            }
+
+            // Display results
+            displayResults(percentage, strong, moderate, weak, none, metCriteria);
+
+            // Show results section
+            document.getElementById('section-criteria').classList.add('hidden');
+            document.getElementById('section-results').classList.remove('hidden');
+            updateProgress(100);
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function displayResults(percentage, strong, moderate, weak, none, metCriteria) {
+            console.log('🎨 === DISPLAYING RESULTS ===');
+            console.log('📊 Results Summary:');
+            console.log('  - Overall Score:', percentage + '%');
+            console.log('  - Strong Criteria:', strong);
+            console.log('  - Moderate Criteria:', moderate);
+            console.log('  - Weak Criteria:', weak);
+            console.log('  - None Criteria:', none);
+            console.log('  - Criteria Met:', metCriteria);
+            
+            // Score display
+            const scoreDisplay = document.getElementById('score-display');
+            const scoreLabel = document.getElementById('score-label');
+            const scoreDescription = document.getElementById('score-description');
+
+            scoreDisplay.textContent = percentage + '%';
+
+            // Color coding
+            if (percentage >= 80) {
+                scoreDisplay.className = 'text-6xl font-bold mb-4 text-green-600';
+                scoreLabel.textContent = 'Excellent Profile Strength';
+                scoreDescription.textContent = 'Your profile is very strong for EB-1A application!';
+            } else if (percentage >= 60) {
+                scoreDisplay.className = 'text-6xl font-bold mb-4 text-blue-600';
+                scoreLabel.textContent = 'Good Profile Strength';
+                scoreDescription.textContent = 'Your profile shows promise with some areas for improvement.';
+            } else if (percentage >= 40) {
+                scoreDisplay.className = 'text-6xl font-bold mb-4 text-yellow-600';
+                scoreLabel.textContent = 'Moderate Profile Strength';
+                scoreDescription.textContent = 'Significant profile building recommended before applying.';
+            } else {
+                scoreDisplay.className = 'text-6xl font-bold mb-4 text-red-600';
+                scoreLabel.textContent = 'Needs Development';
+                scoreDescription.textContent = 'Substantial profile building required. Consider our comprehensive profile building program.';
+            }
+
+            // Criteria counts
+            document.getElementById('strong-criteria').textContent = strong;
+            document.getElementById('moderate-criteria').textContent = moderate;
+            document.getElementById('weak-criteria').textContent = weak + none;
+
+            // Criteria status
+            const criteriaStatus = document.getElementById('criteria-status');
+            if (metCriteria >= 3) {
+                criteriaStatus.innerHTML = `<span class="text-green-600 font-bold">✓ You potentially meet ${metCriteria} criteria!</span> You may be ready to apply with proper documentation.`;
+            } else {
+                criteriaStatus.innerHTML = `<span class="text-red-600 font-bold">✗ You currently meet ${metCriteria} criteria.</span> You need to strengthen ${3 - metCriteria} more criteria to qualify.`;
+            }
+
+            // Add database save status message
+            const resultsSection = document.getElementById('section-results');
+            if (resultsSection && assessmentData.savedAssessmentId) {
+                const dashboardLink = assessmentData.isAuthenticated ? 
+                    '<a href="../all_static_pages/backend-mern/3-client-profile.html" class="text-primary underline font-semibold">View in your dashboard</a>' : 
+                    '<a href="/login" class="text-primary underline font-semibold">Login to view in dashboard</a>';
+                
+                const successMessage = `
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                        <div class="flex items-center">
+                            <i class="fas fa-database text-green-600 text-xl mr-3"></i>
+                            <div>
+                                <h4 class="text-green-800 font-semibold">Assessment Saved Successfully!</h4>
+                                <p class="text-green-700 text-sm mt-1">
+                                    Your assessment has been securely stored and ${assessmentData.isAuthenticated ? 'linked to your account' : 'is ready to be linked to your account'}.
+                                </p>
+                                <p class="text-green-600 text-xs mt-1">
+                                    Assessment ID: ${assessmentData.savedAssessmentId} • ${dashboardLink}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Insert after the header
+                const header = resultsSection.querySelector('h2');
+                if (header) {
+                    header.insertAdjacentHTML('afterend', successMessage);
+                }
+            }
+
+            // Create radar chart
+            createCriteriaChart();
+
+            // Generate recommendations
+            generateRecommendations(strong, moderate, weak, none, metCriteria, percentage);
+
+            // Generate next steps
+            generateNextSteps(metCriteria, percentage);
+            
+            // Add dashboard link for authenticated users
+            if (assessmentData.isAuthenticated) {
+                const dashboardLinkContainer = document.getElementById('dashboard-link-container');
+                if (dashboardLinkContainer) {
+                    dashboardLinkContainer.innerHTML = `
+                        <a href="../all_static_pages/backend-mern/3-client-profile.html" class="inline-flex items-center text-primary hover:text-secondary font-semibold">
+                            <i class="fas fa-tachometer-alt mr-2"></i>Return to Your Dashboard
+                        </a>
+                    `;
+                }
+            }
+            
+            console.log('✅ Results display completed');
+        }
+
+        function createCriteriaChart() {
+            const ctx = document.getElementById('criteriaChart').getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (criteriaChart) {
+                criteriaChart.destroy();
+            }
+
+            const labels = [
+                'Awards',
+                'Memberships',
+                'Media Coverage',
+                'Judging',
+                'Original Contributions',
+                'Publications',
+                'Exhibitions',
+                'Leadership',
+                'High Salary',
+                'Commercial Success'
+            ];
+
+            criteriaChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Your Profile',
+                        data: assessmentData.criteria,
+                        fill: true,
+                        backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                        borderColor: 'rgb(37, 99, 235)',
+                        pointBackgroundColor: 'rgb(37, 99, 235)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(37, 99, 235)'
+                    }, {
+                        label: 'Required Strength',
+                        data: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+                        fill: true,
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderColor: 'rgb(16, 185, 129)',
+                        borderDash: [5, 5],
+                        pointBackgroundColor: 'rgb(16, 185, 129)',
+                        pointBorderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: {
+                                display: true
+                            },
+                            suggestedMin: 0,
+                            suggestedMax: 3,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    const value = context.parsed.r;
+                                    const levels = ['None', 'Weak', 'Moderate', 'Strong'];
+                                    label += levels[value] || value;
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateRecommendations(strong, moderate, weak, none, metCriteria, percentage) {
+            const recommendationsDiv = document.getElementById('recommendations');
+            const criteriaNames = [
+                'Awards & Prizes',
+                'Professional Memberships',
+                'Media Coverage',
+                'Judging Others\' Work',
+                'Original Contributions',
+                'Scholarly Publications',
+                'Exhibitions',
+                'Leadership Roles',
+                'High Compensation',
+                'Commercial Success'
+            ];
+
+            let recommendations = [];
+
+            // Find weak areas (score 0-1)
+            assessmentData.criteria.forEach((score, index) => {
+                if (score <= 1) {
+                    let rec = {
+                        criterion: criteriaNames[index],
+                        priority: score === 0 ? 'High' : 'Medium',
+                        color: score === 0 ? 'red' : 'yellow',
+                        suggestion: getImprovementSuggestion(index, score)
+                    };
+                    recommendations.push(rec);
+                }
+            });
+
+            // Sort by priority
+            recommendations.sort((a, b) => {
+                if (a.priority === 'High' && b.priority !== 'High') return -1;
+                if (a.priority !== 'High' && b.priority === 'High') return 1;
+                return 0;
+            });
+
+            // Display recommendations
+            recommendationsDiv.innerHTML = '';
+            if (recommendations.length === 0) {
+                recommendationsDiv.innerHTML = '<div class="bg-green-50 border-l-4 border-green-500 p-4 rounded"><p class="text-green-700">Excellent! All your criteria are at least moderate strength. Focus on strengthening your strongest areas for the best application.</p></div>';
+            } else {
+                recommendations.slice(0, 5).forEach(rec => {
+                    const borderColor = rec.color === 'red' ? 'border-red-500' : 'border-yellow-500';
+                    const bgColor = rec.color === 'red' ? 'bg-red-50' : 'bg-yellow-50';
+                    const textColor = rec.color === 'red' ? 'text-red-700' : 'text-yellow-700';
+                    const badgeColor = rec.color === 'red' ? 'bg-red-600' : 'bg-yellow-600';
+                    
+                    recommendationsDiv.innerHTML += `
+                        <div class="${bgColor} border-l-4 ${borderColor} p-4 rounded">
+                            <div class="flex items-start">
+                                <span class="${badgeColor} text-white text-xs font-bold px-2 py-1 rounded mr-3">${rec.priority} Priority</span>
+                                <div>
+                                    <p class="${textColor} font-bold mb-1">${rec.criterion}</p>
+                                    <p class="text-gray-700">${rec.suggestion}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        function getImprovementSuggestion(criterionIndex, score) {
+            const suggestions = [
+                'Apply for industry awards, competitions, and recognition programs in your field. Document all awards received with proper evidence of their significance.',
+                'Join prestigious professional organizations that require peer nomination or demonstrated achievements. Target Fellow-level memberships.',
+                'Develop a media outreach strategy. Pitch your work to journalists, seek interview opportunities, and document your research impact.',
+                'Sign up as a peer reviewer for academic journals and conferences. Join grant review panels and editorial boards in your field.',
+                'Document how your work has been adopted by others. Obtain expert letters confirming the significance of your contributions. File patents if applicable.',
+                'Increase your publication output in high-impact journals. Focus on first-author papers and ensure your work is well-cited.',
+                'For artists: Seek exhibition opportunities at recognized galleries and venues. For others: Consider if this criterion applies to your field.',
+                'Take on leadership positions in distinguished organizations. Document the critical nature of your role and its impact.',
+                'Research salary statistics in your field to demonstrate you\'re in the top percentile. Include bonuses, stock options, and total compensation.',
+                'Document the commercial impact of your work through sales data, user metrics, or revenue generation. Obtain company verification.'
+            ];
+
+            return suggestions[criterionIndex];
+        }
+
+        function generateNextSteps(metCriteria, percentage) {
+            const nextStepsDiv = document.getElementById('next-steps');
+            let steps = [];
+
+            if (metCriteria >= 3 && percentage >= 60) {
+                steps = [
+                    '<i class="fas fa-check-circle text-green-500"></i> <strong>You may be ready to apply!</strong> Schedule a consultation to review your evidence.',
+                    '<i class="fas fa-file-alt text-blue-500"></i> Begin gathering and organizing all supporting documents for each criterion.',
+                    '<i class="fas fa-envelope text-blue-500"></i> Start reaching out to experts for recommendation letters.',
+                    '<i class="fas fa-calendar text-blue-500"></i> Plan your petition timeline (typically 2-3 months for preparation).',
+                    '<i class="fas fa-dollar-sign text-blue-500"></i> Review our <a href="pricing.html" class="text-primary underline">pricing options</a> for petition preparation services.'
+                ];
+            } else if (metCriteria >= 2) {
+                steps = [
+                    '<i class="fas fa-chart-line text-yellow-500"></i> <strong>You\'re close!</strong> Focus on strengthening 1-2 more criteria over the next 3-6 months.',
+                    '<i class="fas fa-tasks text-blue-500"></i> Review our <a href="profile-building.html" class="text-primary underline">profile building services</a> for targeted assistance.',
+                    '<i class="fas fa-users text-blue-500"></i> Schedule a consultation to develop a strategic roadmap.',
+                    '<i class="fas fa-star text-blue-500"></i> Prioritize quick wins like peer review opportunities and media coverage.',
+                    '<i class="fas fa-clock text-blue-500"></i> Consider O-1 visa as an interim option while building your EB-1A profile.'
+                ];
+            } else {
+                steps = [
+                    '<i class="fas fa-exclamation-triangle text-red-500"></i> <strong>Significant profile building needed.</strong> Estimated timeline: 6-12 months.',
+                    '<i class="fas fa-road text-blue-500"></i> Our comprehensive <a href="profile-building.html" class="text-primary underline">12-month profile building program</a> can help you qualify.',
+                    '<i class="fas fa-clipboard-check text-blue-500"></i> Schedule a consultation to create your personalized development plan.',
+                    '<i class="fas fa-graduation-cap text-blue-500"></i> Consider EB-2 NIW as an alternative category that may be more accessible.',
+                    '<i class="fas fa-rocket text-blue-500"></i> Focus on 3-4 criteria where you can make the quickest progress.'
+                ];
+            }
+
+            nextStepsDiv.innerHTML = steps.map(step => `
+                <div class="flex items-start space-x-3 text-gray-700">
+                    ${step}
+                </div>
+            `).join('');
+        }
+
+        function saveResults() {
+            // Create a simple text report
+            const criteriaNames = [
+                'Awards & Prizes',
+                'Professional Memberships',
+                'Media Coverage',
+                'Judging Others\' Work',
+                'Original Contributions',
+                'Scholarly Publications',
+                'Exhibitions',
+                'Leadership Roles',
+                'High Compensation',
+                'Commercial Success'
+            ];
+
+            const scoreLabels = ['None', 'Weak', 'Moderate', 'Strong'];
+
+            let report = 'EB-1A PROFILE ASSESSMENT RESULTS\n';
+            report += '=' .repeat(50) + '\n\n';
+            report += `Assessment Date: ${new Date().toLocaleDateString()}\n\n`;
+            report += `Field: ${assessmentData.field}\n`;
+            report += `Experience: ${assessmentData.experience} years\n`;
+            report += `Location: ${assessmentData.location}\n\n`;
+            report += 'CRITERIA EVALUATION:\n';
+            report += '-'.repeat(50) + '\n';
+
+            assessmentData.criteria.forEach((score, index) => {
+                report += `${index + 1}. ${criteriaNames[index]}: ${scoreLabels[score]}\n`;
+            });
+
+            report += '\n' + '-'.repeat(50) + '\n';
+            report += '\nThis assessment is for informational purposes only.\n';
+            report += 'For detailed evaluation, schedule a consultation at ImmigrationPro.\n';
+            report += '\nContact: info@immigrationpro.com\n';
+
+            // Create download
+            const blob = new Blob([report], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'EB1A-Profile-Assessment.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Update progress bar on scroll
+        window.addEventListener('scroll', () => {
+            const progressSection = document.getElementById('progress-section');
+            if (window.scrollY > 300) {
+                progressSection.classList.add('shadow-lg');
+            } else {
+                progressSection.classList.remove('shadow-lg');
+            }
+        });
+    </script>
+</body>
+</html>

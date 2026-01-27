@@ -1,0 +1,12 @@
+RewriteEngine On
+RewriteBase /CRM/
+
+# If the request is for index.html, do nothing (stop rewriting)
+RewriteRule ^index\.html$ - [L]
+
+# If the requested file or directory does not exist
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Rewrite all other requests to index.html
+RewriteRule ^.*$ index.html [L]

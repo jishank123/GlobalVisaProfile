@@ -1,0 +1,43 @@
+RewriteEngine On
+RewriteBase /CRM/
+
+# Handle static files first (CSS, JS, images)
+RewriteRule ^css/(.*)$ public/css/$1 [L]
+RewriteRule ^js/(.*)$ public/js/$1 [L]
+RewriteRule ^images/(.*)$ public/images/$1 [L]
+
+# Handle direct file access (fallback)
+RewriteRule ^views/(.*)$ views/$1 [L]
+
+# Main routes - serve actual HTML files
+RewriteRule ^$ views/pages/index.html [L]
+RewriteRule ^login/?$ views/dashboard/login.html [L]
+RewriteRule ^signup/?$ views/dashboard/register.html [L]
+RewriteRule ^client-profile/?$ views/dashboard/3-client-profile.html [L]
+RewriteRule ^lead-manager/?$ views/dashboard/1-lead-manager.html [L]
+RewriteRule ^crm-manager/?$ views/dashboard/4-crm-manager.html [L]
+RewriteRule ^admin/?$ views/dashboard/2-admin-dashboard.html [L]
+
+# Service pages
+RewriteRule ^assessment/?$ views/pages/profile-assessment.html [L]
+RewriteRule ^schedule/?$ views/pages/schedule-appointment-clean.html [L]
+RewriteRule ^services/?$ views/pages/services-detailed.html [L]
+RewriteRule ^eb1a/?$ views/pages/eb1a-eligibility.html [L]
+RewriteRule ^eb2-niw/?$ views/pages/eb2-niw.html [L]
+RewriteRule ^o1-visa/?$ views/pages/o1-visa.html [L]
+RewriteRule ^profile-building/?$ views/pages/profile-building.html [L]
+RewriteRule ^attorneys/?$ views/pages/attorney-referrals.html [L]
+RewriteRule ^faq/?$ views/pages/faq.html [L]
+RewriteRule ^pricing/?$ views/pages/pricing.html [L]
+
+# Legacy redirects
+RewriteRule ^dashboard/?$ client-profile [R=301,L]
+RewriteRule ^client-dashboard/?$ client-profile [R=301,L]
+RewriteRule ^admin-dashboard/?$ admin [R=301,L]
+RewriteRule ^manager/?$ lead-manager [R=301,L]
+RewriteRule ^crm/?$ crm-manager [R=301,L]
+
+# Default fallback
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^.*$ views/pages/index.html [L]
