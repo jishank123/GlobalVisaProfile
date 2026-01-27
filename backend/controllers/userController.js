@@ -32,8 +32,8 @@ exports.getUsers = async (req, res) => {
     
     // Role-based access control
     if (req.user.role === 'lead_manager') {
-      // Lead managers can only see clients and other lead managers
-      query.role = { $in: ['client', 'lead_manager'] };
+      // Lead managers can see clients, other lead managers, and CRM managers (for assignment)
+      query.role = { $in: ['client', 'lead_manager', 'crm_manager'] };
     } else if (req.user.role === 'crm_manager') {
       // CRM managers can only see their assigned clients
       return res.status(403).json({

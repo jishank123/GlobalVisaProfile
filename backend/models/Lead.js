@@ -45,7 +45,7 @@ const leadSchema = new mongoose.Schema({
   }],
   status: {
     type: String,
-    enum: ['new', 'contacted', 'qualified', 'negotiation', 'converted', 'lost'],
+    enum: ['new', 'contacted', 'qualified', 'negotiation', 'converted', 'assigned', 'assigned_to_crm', 'converted_to_project', 'lost'],
     default: 'new'
   },
   priority: {
@@ -59,6 +59,21 @@ const leadSchema = new mongoose.Schema({
     default: 'website'
   },
   assignedTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  assignedToCrm: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  assignmentNotes: {
+    type: String,
+    trim: true
+  },
+  assignedToCrmAt: {
+    type: Date
+  },
+  assignedToCrmBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
@@ -84,6 +99,17 @@ const leadSchema = new mongoose.Schema({
     type: Date
   },
   convertedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  convertedToProject: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project'
+  },
+  convertedToProjectAt: {
+    type: Date
+  },
+  convertedToProjectBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
@@ -115,6 +141,7 @@ leadSchema.virtual('fullName').get(function() {
 leadSchema.index({ email: 1 });
 leadSchema.index({ status: 1 });
 leadSchema.index({ assignedTo: 1 });
+leadSchema.index({ assignedToCrm: 1 });
 leadSchema.index({ createdAt: -1 });
 leadSchema.index({ nextFollowUp: 1 });
 

@@ -29,14 +29,16 @@ exports.getLeads = async (req, res) => {
     console.log('🎯 User:', req.user?.email, 'Role:', req.user?.role);
     console.log('🎯 Query params:', req.query);
     
-    const { search, status, source, priority, assignedTo, page = 1, limit = 20 } = req.query;
+    const { search, status, source, priority, assignedTo, crmAssignment, page = 1, limit = 20 } = req.query;
     
     // Build query with security filters
     let query = {};
     
     // Role-based access control
     if (req.user.role === 'lead_manager') {
-      // Lead managers can only see their assigned leads
+      // Lead managers can see:
+      // 1. Leads assigned to them (assignedTo = their ID)
+      // 2. Leads they assigned to CRM but still manage (assignedTo = their ID AND assignedToCrm exists)
       query.assignedTo = req.user._id;
       console.log('🎯 Lead manager filter applied:', req.user._id);
     } else if (req.user.role === 'crm_manager') {
@@ -66,10 +68,20 @@ exports.getLeads = async (req, res) => {
     if (priority) query.priority = priority;
     if (assignedTo && req.user.role === 'admin') query.assignedTo = assignedTo;
     
+    // Handle CRM assignment filter
+    if (crmAssignment) {
+      if (crmAssignment === 'assigned_to_crm') {
+        query.assignedToCrm = { $exists: true };
+      } else if (crmAssignment === 'not_assigned') {
+        query.assignedToCrm = { $exists: false };
+      }
+    }
+    
     console.log('🎯 Final query:', query);
     
     const leads = await Lead.find(query)
       .populate('assignedTo', 'name email')
+      .populate('assignedToCrm', 'first_name last_name email')
       .populate('interestedServices', 'name')
       .populate('convertedToClient', 'name email')
       .sort({ createdAt: -1 })
@@ -107,6 +119,7 @@ exports.getLead = async (req, res) => {
   try {
     const lead = await Lead.findById(req.params.id)
       .populate('assignedTo', 'first_name last_name email phone')
+      .populate('assignedToCrm', 'first_name last_name email phone')
       .populate('convertedToClient', 'name email company');
     
     if (!lead) {
@@ -382,6 +395,18 @@ exports.convertLead = async (req, res) => {
         error: {
           code: 'FORBIDDEN',
           message: 'You can only convert your assigned leads'
+        }
+      });
+    }
+    
+    // Security check for CRM managers
+    if (req.user.role === 'crm_manager' && 
+        (!lead.assignedToCrm || lead.assignedToCrm.toString() !== req.user._id.toString())) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You can only convert leads assigned to you'
         }
       });
     }
@@ -915,6 +940,450 @@ exports.bulkAssignLeads = async (req, res) => {
       success: false,
       error: {
         code: 'BULK_ASSIGN_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+// @desc    Bulk assign leads to CRM manager (Lead Manager only)
+// @route   POST /api/leads/bulk/assign-to-crm
+// @access  Private (Lead Manager only)
+exports.bulkAssignToCrm = async (req, res) => {
+  try {
+    console.log('🎯 === BULK ASSIGN LEADS TO CRM REQUEST ===');
+    console.log('🎯 User:', req.user?.email, 'Role:', req.user?.role);
+    console.log('🎯 Request body:', req.body);
+    
+    const { lead_ids, crm_manager_id, notes } = req.body;
+    
+    // Validation
+    if (!lead_ids || !Array.isArray(lead_ids) || lead_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_LEAD_IDS',
+          message: 'Lead IDs array is required and cannot be empty'
+        }
+      });
+    }
+    
+    if (!crm_manager_id) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_MANAGER_ID',
+          message: 'CRM Manager ID is required'
+        }
+      });
+    }
+    
+    // Verify manager exists and has correct role
+    const manager = await User.findById(crm_manager_id);
+    if (!manager || manager.role !== 'crm_manager') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_MANAGER',
+          message: 'Invalid manager ID or user is not a CRM manager'
+        }
+      });
+    }
+    
+    console.log('🎯 CRM Manager found:', manager.email, 'Role:', manager.role);
+    
+    // Process each lead assignment
+    const results = [];
+    const errors = [];
+    
+    for (const leadId of lead_ids) {
+      try {
+        // First check if lead exists and is qualified
+        const existingLead = await Lead.findById(leadId);
+        if (!existingLead) {
+          errors.push({
+            leadId: leadId,
+            error: 'Lead not found'
+          });
+          continue;
+        }
+        
+        // Check if lead is assigned to this lead manager or if user is admin
+        if (req.user.role === 'lead_manager' && 
+            (!existingLead.assignedTo || existingLead.assignedTo.toString() !== req.user._id.toString())) {
+          errors.push({
+            leadId: leadId,
+            error: 'You can only assign your own leads'
+          });
+          continue;
+        }
+        
+        // Check if lead is qualified
+        if (existingLead.status !== 'qualified') {
+          errors.push({
+            leadId: leadId,
+            error: 'Only qualified leads can be assigned to CRM managers'
+          });
+          continue;
+        }
+        
+        // Update lead with CRM manager assignment while preserving lead manager assignment
+        const lead = await Lead.findByIdAndUpdate(
+          leadId,
+          { 
+            assignedToCrm: crm_manager_id,  // New field to track CRM assignment
+            status: 'assigned_to_crm',      // More specific status
+            updated_at: new Date(),
+            assignmentNotes: notes || '',
+            assignedToCrmAt: new Date(),
+            assignedToCrmBy: req.user._id
+            // Keep original assignedTo (lead manager) intact
+          },
+          { new: true }
+        ).populate('assignedTo', 'first_name last_name email')
+        .populate('assignedToCrm', 'first_name last_name email');
+        
+        if (lead) {
+          results.push({
+            leadId: leadId,
+            success: true,
+            lead: lead
+          });
+          
+          // Log activity
+          await logActivity(
+            req.user._id,
+            'create',
+            `Assigned lead ${lead.firstName} ${lead.lastName} to CRM manager ${manager.email}`,
+            req.ip
+          );
+        } else {
+          errors.push({
+            leadId: leadId,
+            error: 'Failed to update lead'
+          });
+        }
+      } catch (error) {
+        console.error('🎯 Error assigning lead:', leadId, error);
+        errors.push({
+          leadId: leadId,
+          error: error.message
+        });
+      }
+    }
+    
+    console.log('🎯 Assignment results:', {
+      successful: results.length,
+      failed: errors.length,
+      total: lead_ids.length
+    });
+    
+    // Return results
+    const response = {
+      success: true,
+      message: `Successfully assigned ${results.length} of ${lead_ids.length} leads to CRM manager`,
+      data: {
+        successful: results,
+        failed: errors,
+        manager: {
+          id: manager._id,
+          name: `${manager.first_name} ${manager.last_name}`,
+          email: manager.email
+        },
+        notes: notes || ''
+      }
+    };
+    
+    // If some assignments failed, include warning
+    if (errors.length > 0) {
+      response.warning = `${errors.length} lead(s) could not be assigned`;
+    }
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error('🎯 Bulk CRM assignment error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'BULK_CRM_ASSIGN_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Bulk convert leads to projects (Lead Manager only)
+// @route   POST /api/leads/bulk/convert-to-project
+// @access  Private (Lead Manager only)
+exports.bulkConvertToProject = async (req, res) => {
+  try {
+    console.log('🎯 === BULK CONVERT LEADS TO PROJECT REQUEST ===');
+    console.log('🎯 User:', req.user?.email, 'Role:', req.user?.role);
+    console.log('🎯 Request body:', req.body);
+    
+    const { lead_ids, service_id, priority, due_date, notes } = req.body;
+    
+    // Validation
+    if (!lead_ids || !Array.isArray(lead_ids) || lead_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_LEAD_IDS',
+          message: 'Lead IDs array is required and cannot be empty'
+        }
+      });
+    }
+    
+    if (!service_id) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_SERVICE_ID',
+          message: 'Service ID is required'
+        }
+      });
+    }
+    
+    // Verify service exists
+    const Service = require('../models/Service');
+    const service = await Service.findById(service_id);
+    if (!service) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_SERVICE',
+          message: 'Invalid service ID or service not found'
+        }
+      });
+    }
+    
+    console.log('🎯 Service found:', service.name);
+    
+    // Process each lead conversion
+    const results = [];
+    const errors = [];
+    
+    for (const leadId of lead_ids) {
+      try {
+        // First check if lead exists and is qualified
+        const existingLead = await Lead.findById(leadId);
+        if (!existingLead) {
+          errors.push({
+            leadId: leadId,
+            error: 'Lead not found'
+          });
+          continue;
+        }
+        
+        // Check if lead is assigned to this lead manager or if user is admin
+        if (req.user.role === 'lead_manager' && 
+            (!existingLead.assignedTo || existingLead.assignedTo.toString() !== req.user._id.toString())) {
+          errors.push({
+            leadId: leadId,
+            error: 'You can only convert your own leads'
+          });
+          continue;
+        }
+        
+        // Check if lead is qualified
+        if (existingLead.status !== 'qualified') {
+          errors.push({
+            leadId: leadId,
+            error: 'Only qualified leads can be converted to projects'
+          });
+          continue;
+        }
+        
+        // Create or find client record
+        const Client = require('../models/Client');
+        let client;
+        
+        // Check if client already exists
+        const existingClient = await Client.findOne({ email: existingLead.email });
+        if (existingClient) {
+          console.log('🔍 Using existing client:', existingClient.name);
+          client = existingClient;
+        } else {
+          const clientData = {
+            name: `${existingLead.firstName} ${existingLead.lastName}`,
+            email: existingLead.email,
+            phone: existingLead.phone,
+            company: existingLead.university || 'Unknown',
+            country: existingLead.country || 'Unknown',
+            status: 'active',
+            created_by: req.user._id,
+            converted_from_lead: existingLead._id
+          };
+          
+          client = await Client.create(clientData);
+          console.log('✅ Created new client:', client.name);
+        }
+        
+        // Create project record
+        const Project = require('../models/Project');
+        const projectData = {
+          client: client._id,
+          service: service_id,
+          service_name: service.name,
+          status: 'pending', // Use valid enum value
+          priority: priority || 'medium',
+          amount: service.pricing?.minPrice || 1000, // Use service price or default
+          start_date: new Date(),
+          due_date: due_date ? new Date(due_date) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+          assigned_to: req.user._id, // Initially assigned to lead manager
+          description: notes || `Project created from lead: ${existingLead.firstName} ${existingLead.lastName}`,
+          created_from_lead: existingLead._id
+        };
+        
+        const project = await Project.create(projectData);
+        
+        // Update lead status and link to project
+        const lead = await Lead.findByIdAndUpdate(
+          leadId,
+          { 
+            status: 'converted_to_project',
+            convertedToProject: project._id,
+            convertedToProjectAt: new Date(),
+            convertedToProjectBy: req.user._id,
+            updated_at: new Date()
+          },
+          { new: true }
+        ).populate('assignedTo', 'first_name last_name email')
+        .populate('convertedToProject', 'project_id service_name status');
+        
+        if (lead) {
+          results.push({
+            leadId: leadId,
+            success: true,
+            lead: lead,
+            project: project,
+            client: client
+          });
+          
+          // Log activity
+          await logActivity(
+            req.user._id,
+            'CONVERT_LEAD_TO_PROJECT',
+            `Converted lead ${lead.firstName} ${lead.lastName} to project ${project.project_id}`,
+            req.ip
+          );
+        } else {
+          errors.push({
+            leadId: leadId,
+            error: 'Failed to update lead'
+          });
+        }
+      } catch (error) {
+        console.error('🎯 Error converting lead:', leadId, error);
+        errors.push({
+          leadId: leadId,
+          error: error.message
+        });
+      }
+    }
+    
+    console.log('🎯 Conversion results:', {
+      successful: results.length,
+      failed: errors.length,
+      total: lead_ids.length
+    });
+    
+    // Return results
+    const response = {
+      success: true,
+      message: `Successfully converted ${results.length} of ${lead_ids.length} leads to projects`,
+      data: {
+        successful: results,
+        failed: errors,
+        service: {
+          id: service._id,
+          name: service.name,
+          category: service.category
+        },
+        notes: notes || ''
+      }
+    };
+    
+    // If some conversions failed, include warning
+    if (errors.length > 0) {
+      response.warning = `${errors.length} lead(s) could not be converted`;
+    }
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error('🎯 Bulk conversion error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'BULK_CONVERT_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Get leads assigned to current CRM manager
+// @route   GET /api/leads/my-leads
+// @access  Private (CRM Manager only)
+exports.getMyLeads = async (req, res) => {
+  try {
+    console.log('🎯 === GET MY LEADS REQUEST ===');
+    console.log('🎯 User:', req.user?.email, 'Role:', req.user?.role);
+    
+    if (req.user.role !== 'crm_manager') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only CRM managers can access this endpoint'
+        }
+      });
+    }
+    
+    const { status, priority, page = 1, limit = 20 } = req.query;
+    
+    // Build query for leads assigned to this CRM manager
+    let query = {
+      assignedToCrm: req.user.user_id
+    };
+    
+    if (status) query.status = status;
+    if (priority) query.priority = priority;
+    
+    const leads = await Lead.find(query)
+      .populate('assignedTo', 'first_name last_name email')
+      .populate('assignedToCrm', 'first_name last_name email')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+    
+    const count = await Lead.countDocuments(query);
+    
+    console.log('🎯 Found CRM leads:', leads.length, 'Total:', count);
+    
+    // Log activity
+    await logActivity(
+      req.user.user_id,
+      'VIEW_MY_LEADS',
+      `Viewed assigned leads list`,
+      req.ip
+    );
+    
+    res.json({
+      success: true,
+      count: leads.length,
+      total: count,
+      page: parseInt(page),
+      totalPages: Math.ceil(count / limit),
+      data: leads
+    });
+  } catch (error) {
+    console.error('❌ Get CRM leads error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'FETCH_CRM_LEADS_FAILED',
         message: error.message
       }
     });

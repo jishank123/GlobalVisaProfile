@@ -351,4 +351,82 @@ exports.getQueryStats = async (req, res) => {
   }
 };
 
+// @desc    Get queries assigned to current CRM manager
+// @route   GET /api/queries/my-queries
+// @access  Private (CRM Manager only)
+exports.getMyQueries = async (req, res) => {
+  try {
+    console.log('❓ === GET MY QUERIES REQUEST ===');
+    console.log('❓ User:', req.user?.email, 'Role:', req.user?.role);
+    
+    if (req.user.role !== 'crm_manager') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only CRM managers can access this endpoint'
+        }
+      });
+    }
+    
+    const { status, priority, page = 1, limit = 20 } = req.query;
+    
+    // Get assigned clients
+    const assignedClients = await Client.find({ 
+      crm_manager: req.user.user_id 
+    }).select('_id');
+    
+    const clientIds = assignedClients.map(client => client._id);
+    
+    if (clientIds.length === 0) {
+      return res.json({
+        success: true,
+        count: 0,
+        total: 0,
+        page: parseInt(page),
+        totalPages: 0,
+        data: []
+      });
+    }
+    
+    // Build query for assigned clients' queries
+    let query = {
+      client: { $in: clientIds }
+    };
+    
+    if (status) query.status = status;
+    if (priority) query.priority = priority;
+    
+    const queries = await Query.find(query)
+      .populate('client', 'name email university')
+      .populate('assignedTo', 'first_name last_name email')
+      .populate('responses.user', 'first_name last_name email role')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+    
+    const count = await Query.countDocuments(query);
+    
+    console.log('❓ Found CRM queries:', queries.length, 'Total:', count);
+    
+    res.json({
+      success: true,
+      count: queries.length,
+      total: count,
+      page: parseInt(page),
+      totalPages: Math.ceil(count / limit),
+      data: queries
+    });
+  } catch (error) {
+    console.error('❌ Get CRM queries error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'FETCH_CRM_QUERIES_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
 module.exports = exports;

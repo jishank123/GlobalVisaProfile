@@ -9,7 +9,8 @@ const {
   updateAppointmentStatus,
   scheduleAppointment,
   addCommunication,
-  deleteAppointmentRequest
+  deleteAppointmentRequest,
+  getMyAppointments
 } = require('../controllers/appointmentController');
 
 const router = express.Router();
@@ -173,6 +174,14 @@ router.post('/',
 router.get('/', 
   auth(['admin', 'lead_manager', 'crm_manager']),
   getAllAppointmentRequests
+);
+
+// @route   GET /api/appointments/my-appointments
+// @desc    Get appointments assigned to current CRM manager
+// @access  Private (CRM Manager only)
+router.get('/my-appointments', 
+  auth(['crm_manager']),
+  getMyAppointments
 );
 
 // @route   GET /api/appointments/:id

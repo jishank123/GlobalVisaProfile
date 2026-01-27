@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const userController = require('../controllers/userController');
 const { body } = require('express-validator');
+const { auth } = require('../middleware/auth');
 
 // Admin authentication middleware (same as dashboard)
 const adminAuth = async (req, res, next) => {
@@ -79,8 +80,8 @@ const validateUserUpdate = [
 
 // @route   GET /api/users
 // @desc    Get all users with filters
-// @access  Private (Admin only)
-router.get('/', adminAuth, userController.getUsers);
+// @access  Private (Admin, Lead Manager)
+router.get('/', auth(['admin', 'lead_manager']), userController.getUsers);
 
 // @route   GET /api/users/stats
 // @desc    Get user statistics

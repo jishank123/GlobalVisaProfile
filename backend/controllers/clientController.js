@@ -496,22 +496,22 @@ exports.getMyClients = async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
     
     const clients = await Client.find({ 
-      assignedManager: req.user.user_id,
+      crm_manager: req.user._id,
       status: { $ne: 'deleted' }
     })
-      .populate('user', 'email last_login status')
+      .populate('crm_manager', 'first_name last_name email')
       .sort({ created_at: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
     
     const count = await Client.countDocuments({ 
-      assignedManager: req.user.user_id,
+      crm_manager: req.user._id,
       status: { $ne: 'deleted' }
     });
     
     // Log activity
     await logActivity(
-      req.user.user_id,
+      req.user._id,
       'VIEW_MY_CLIENTS',
       `Viewed assigned clients list`,
       req.ip

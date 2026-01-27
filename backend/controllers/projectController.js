@@ -1,6 +1,7 @@
 const Project = require('../models/Project');
 const Client = require('../models/Client');
 const Service = require('../models/Service');
+const User = require('../models/User');
 const ActivityLog = require('../models/ActivityLog');
 const { validationResult } = require('express-validator');
 
@@ -32,9 +33,12 @@ exports.getProjects = async (req, res) => {
     // Role-based access control
     if (req.user.role === 'crm_manager') {
       // CRM managers can only see projects for their assigned clients
-      const assignedClients = await Client.find({ crm_manager: req.user.user_id }).select('_id');
+      const assignedClients = await Client.find({ crm_manager: req.user._id }).select('_id');
       const clientIds = assignedClients.map(client => client._id);
       query.client = { $in: clientIds };
+    } else if (req.user.role === 'lead_manager') {
+      // Lead managers can see projects they created or are assigned to
+      query.assigned_to = req.user._id;
     } else if (req.user.role === 'client') {
       // Clients can only see their own projects
       // Find client record by email since there's no direct user link
@@ -145,8 +149,8 @@ exports.getProject = async (req, res) => {
       }
     } else if (req.user.role === 'crm_manager') {
       const clientRecord = await Client.findById(project.client._id);
-      if (!clientRecord || !clientRecord.assignedManager || 
-          clientRecord.assignedManager.toString() !== req.user.user_id) {
+      if (!clientRecord || !clientRecord.crm_manager || 
+          clientRecord.crm_manager.toString() !== req.user.user_id) {
         return res.status(403).json({
           success: false,
           error: {
@@ -226,8 +230,8 @@ exports.createProject = async (req, res) => {
     
     // Security check for CRM managers
     if (req.user.role === 'crm_manager') {
-      if (!clientRecord.assignedManager || 
-          clientRecord.assignedManager.toString() !== req.user.user_id) {
+      if (!clientRecord.crm_manager || 
+          clientRecord.crm_manager.toString() !== req.user.user_id) {
         return res.status(403).json({
           success: false,
           error: {
@@ -245,7 +249,7 @@ exports.createProject = async (req, res) => {
       description,
       priority: priority || 'medium',
       deadline,
-      assignedTo: clientRecord.assignedManager || req.user.user_id,
+      assignedTo: clientRecord.crm_manager || req.user.user_id,
       created_by: req.user.user_id,
       status: 'planning'
     };
@@ -316,8 +320,8 @@ exports.updateProject = async (req, res) => {
     // Security check - role-based access control
     if (req.user.role === 'crm_manager') {
       const clientRecord = await Client.findById(project.client._id);
-      if (!clientRecord || !clientRecord.assignedManager || 
-          clientRecord.assignedManager.toString() !== req.user.user_id) {
+      if (!clientRecord || !clientRecord.crm_manager || 
+          clientRecord.crm_manager.toString() !== req.user.user_id) {
         return res.status(403).json({
           success: false,
           error: {
@@ -459,7 +463,7 @@ exports.getProjectStats = async (req, res) => {
     
     // Filter by assigned clients for CRM managers
     if (req.user.role === 'crm_manager') {
-      const assignedClients = await Client.find({ assignedManager: req.user.user_id }).select('_id');
+      const assignedClients = await Client.find({ crm_manager: req.user.user_id }).select('_id');
       const clientIds = assignedClients.map(client => client._id);
       query.client = { $in: clientIds };
     }
@@ -531,63 +535,313 @@ exports.getProjectStats = async (req, res) => {
   }
 };
 
-// @desc    Get projects assigned to current manager
-// @route   GET /api/projects/my-projects
-// @access  Private (CRM Manager only)
-exports.getMyProjects = async (req, res) => {
+// @desc    Bulk assign projects to CRM manager (Lead Manager only)
+// @route   POST /api/projects/bulk/assign-to-crm
+// @access  Private (Lead Manager, Admin)
+exports.bulkAssignProjectsToCrm = async (req, res) => {
   try {
-    if (req.user.role !== 'crm_manager') {
-      return res.status(403).json({
+    console.log('🎯 === BULK ASSIGN PROJECTS TO CRM REQUEST ===');
+    console.log('🎯 User:', req.user?.email, 'Role:', req.user?.role);
+    console.log('🎯 Request body:', req.body);
+    
+    const { project_ids, crm_manager_id, notes } = req.body;
+    
+    // Validation
+    if (!project_ids || !Array.isArray(project_ids) || project_ids.length === 0) {
+      return res.status(400).json({
         success: false,
         error: {
-          code: 'FORBIDDEN',
-          message: 'Only CRM managers can access this endpoint'
+          code: 'MISSING_PROJECT_IDS',
+          message: 'Project IDs array is required and cannot be empty'
         }
       });
     }
     
-    const { page = 1, limit = 20 } = req.query;
+    if (!crm_manager_id) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_MANAGER_ID',
+          message: 'CRM Manager ID is required'
+        }
+      });
+    }
     
-    // Get assigned clients first
-    const assignedClients = await Client.find({ assignedManager: req.user.user_id }).select('_id');
-    const clientIds = assignedClients.map(client => client._id);
+    // Verify manager exists and has correct role
+    const manager = await User.findById(crm_manager_id);
+    if (!manager || manager.role !== 'crm_manager') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_MANAGER',
+          message: 'Invalid manager ID or user is not a CRM manager'
+        }
+      });
+    }
     
-    const projects = await Project.find({ 
-      client: { $in: clientIds },
-      status: { $ne: 'cancelled' }
-    })
-      .populate('client', 'name email company')
-      .populate('service', 'name category price')
-      .sort({ created_at: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+    console.log('🎯 CRM Manager found:', manager.email, 'Role:', manager.role);
     
-    const count = await Project.countDocuments({ 
-      client: { $in: clientIds },
-      status: { $ne: 'cancelled' }
+    // Process each project assignment
+    const results = [];
+    const errors = [];
+    
+    for (const projectId of project_ids) {
+      try {
+        // First check if project exists
+        const existingProject = await Project.findById(projectId).populate('client');
+        if (!existingProject) {
+          errors.push({
+            projectId: projectId,
+            error: 'Project not found'
+          });
+          continue;
+        }
+        
+        // Check if project is created from lead and in planning/pending status
+        if (!['planning', 'pending'].includes(existingProject.status)) {
+          errors.push({
+            projectId: projectId,
+            error: 'Only projects in planning or pending status can be assigned to CRM managers'
+          });
+          continue;
+        }
+        
+        // Update project with CRM manager assignment
+        const project = await Project.findByIdAndUpdate(
+          projectId,
+          { 
+            assigned_to: crm_manager_id,
+            status: 'active', // Change status to active when assigned to CRM
+            updated_at: new Date(),
+            assignment_notes: notes || '',
+            assigned_to_crm_at: new Date(),
+            assigned_to_crm_by: req.user.user_id
+          },
+          { new: true }
+        ).populate('client', 'name email')
+        .populate('service', 'name category')
+        .populate('assigned_to', 'first_name last_name email');
+        
+        // Also update the client to be assigned to this CRM manager
+        if (existingProject.client) {
+          await Client.findByIdAndUpdate(
+            existingProject.client._id,
+            { 
+              crm_manager: crm_manager_id,
+              updated_at: new Date()
+            }
+          );
+        }
+        
+        if (project) {
+          results.push({
+            projectId: projectId,
+            success: true,
+            project: project
+          });
+          
+          // Log activity
+          await logActivity(
+            req.user.user_id,
+            'ASSIGN_PROJECT_TO_CRM',
+            `Assigned project ${project.project_id} to CRM manager ${manager.email}`,
+            req.ip
+          );
+        } else {
+          errors.push({
+            projectId: projectId,
+            error: 'Failed to update project'
+          });
+        }
+      } catch (error) {
+        console.error('🎯 Error assigning project:', projectId, error);
+        errors.push({
+          projectId: projectId,
+          error: error.message
+        });
+      }
+    }
+    
+    console.log('🎯 Assignment results:', {
+      successful: results.length,
+      failed: errors.length,
+      total: project_ids.length
     });
+    
+    // Return results
+    const response = {
+      success: true,
+      message: `Successfully assigned ${results.length} of ${project_ids.length} projects to CRM manager`,
+      data: {
+        successful: results,
+        failed: errors,
+        manager: {
+          id: manager._id,
+          name: `${manager.first_name} ${manager.last_name}`,
+          email: manager.email
+        },
+        notes: notes || ''
+      }
+    };
+    
+    // If some assignments failed, include warning
+    if (errors.length > 0) {
+      response.warning = `${errors.length} project(s) could not be assigned`;
+    }
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error('🎯 Bulk project assignment error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'BULK_PROJECT_ASSIGN_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Handover project to another CRM manager
+// @route   PATCH /api/projects/:id/handover
+// @access  Private (CRM Manager, Admin)
+exports.handoverProject = async (req, res) => {
+  try {
+    console.log('🔄 === PROJECT HANDOVER REQUEST ===');
+    console.log('🔄 User:', req.user?.email, 'Role:', req.user?.role);
+    console.log('🔄 Request body:', req.body);
+    
+    const { new_crm_manager, handover_reason, handover_notes } = req.body;
+    
+    // Validation
+    if (!new_crm_manager) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_CRM_MANAGER',
+          message: 'New CRM manager ID is required'
+        }
+      });
+    }
+    
+    if (!handover_notes || handover_notes.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_HANDOVER_NOTES',
+          message: 'Handover notes are required'
+        }
+      });
+    }
+    
+    // Verify new CRM manager exists and has correct role
+    const newCrmManager = await User.findById(new_crm_manager);
+    if (!newCrmManager || newCrmManager.role !== 'crm_manager') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_CRM_MANAGER',
+          message: 'Invalid CRM manager ID or user is not a CRM manager'
+        }
+      });
+    }
+    
+    const project = await Project.findById(req.params.id).populate('client');
+    
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'PROJECT_NOT_FOUND',
+          message: 'Project not found'
+        }
+      });
+    }
+    
+    // Security check - only current assigned CRM or admin can handover
+    if (req.user.role === 'crm_manager') {
+      const clientRecord = await Client.findById(project.client._id);
+      if (!clientRecord || !clientRecord.crm_manager || 
+          clientRecord.crm_manager.toString() !== req.user.user_id) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You can only handover projects assigned to you'
+          }
+        });
+      }
+    }
+    
+    const oldCrmManager = project.assigned_to;
+    
+    // Update project assignment
+    project.assigned_to = new_crm_manager;
+    project.handover_history = project.handover_history || [];
+    project.handover_history.push({
+      from_crm: oldCrmManager,
+      to_crm: new_crm_manager,
+      reason: handover_reason || 'Not specified',
+      notes: handover_notes,
+      handover_date: new Date(),
+      handover_by: req.user.user_id
+    });
+    project.updated_at = new Date();
+    
+    await project.save();
+    
+    // Also update client assignment
+    await Client.findByIdAndUpdate(
+      project.client._id,
+      { 
+        crm_manager: new_crm_manager,
+        updated_at: new Date()
+      }
+    );
+    
+    // Populate the updated project
+    await project.populate([
+      { path: 'client', select: 'name email company' },
+      { path: 'service', select: 'name category price' },
+      { path: 'assigned_to', select: 'first_name last_name email' }
+    ]);
     
     // Log activity
     await logActivity(
       req.user.user_id,
-      'VIEW_MY_PROJECTS',
-      `Viewed assigned projects list`,
+      'HANDOVER_PROJECT',
+      `Handed over project ${project.project_id} from ${req.user.email} to ${newCrmManager.email}. Reason: ${handover_reason}`,
       req.ip
     );
     
+    console.log('🔄 Project handover successful:', {
+      projectId: project.project_id,
+      from: req.user.email,
+      to: newCrmManager.email,
+      reason: handover_reason
+    });
+    
     res.json({
       success: true,
-      count: projects.length,
-      total: count,
-      page: parseInt(page),
-      totalPages: Math.ceil(count / limit),
-      data: projects
+      message: 'Project handed over successfully',
+      data: {
+        project: project,
+        handover_details: {
+          from_crm: req.user.email,
+          to_crm: newCrmManager.email,
+          reason: handover_reason,
+          notes: handover_notes,
+          handover_date: new Date()
+        }
+      }
     });
   } catch (error) {
+    console.error('🔄 Project handover error:', error);
     res.status(500).json({
       success: false,
       error: {
-        code: 'FETCH_MY_PROJECTS_FAILED',
+        code: 'HANDOVER_PROJECT_FAILED',
         message: error.message
       }
     });

@@ -3,8 +3,7 @@ const mongoose = require('mongoose');
 const projectSchema = new mongoose.Schema({
   project_id: {
     type: String,
-    unique: true,
-    required: true
+    unique: true
   },
   client: {
     type: mongoose.Schema.Types.ObjectId,
@@ -66,6 +65,21 @@ const projectSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  created_from_lead: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Lead'
+  },
+  assignment_notes: {
+    type: String,
+    trim: true
+  },
+  assigned_to_crm_at: {
+    type: Date
+  },
+  assigned_to_crm_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   milestones: [{
     title: {
       type: String,
@@ -92,6 +106,33 @@ const projectSchema = new mongoose.Schema({
     created_at: {
       type: Date,
       default: Date.now
+    }
+  }],
+  handover_history: [{
+    from_crm: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    to_crm: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    reason: {
+      type: String,
+      enum: ['workload', 'expertise', 'availability', 'client_request', 'other'],
+      default: 'workload'
+    },
+    notes: {
+      type: String,
+      required: true
+    },
+    handover_date: {
+      type: Date,
+      default: Date.now
+    },
+    handover_by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
     }
   }]
 }, {

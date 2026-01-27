@@ -19,16 +19,27 @@ const logActivity = async (userId, action, details, ipAddress) => {
 
 // @desc    Get all services with filtering
 // @route   GET /api/services
-// @access  Private (Admin only)
+// @access  Private (Admin, Lead Manager, CRM Manager)
 exports.getServices = async (req, res) => {
   console.log('\n📋 === GET SERVICES REQUEST ===');
-  console.log('📋 Admin requesting services list');
+  console.log('📋 User role:', req.user?.role);
+  console.log('📋 User requesting services list');
   
   try {
     const { search, category, status, page = 1, limit = 20 } = req.query;
     
     // Build query - by default only show active services
     let query = { isActive: true };
+    
+    // For non-admin users, only show active services
+    if (req.user.role !== 'admin') {
+      query.isActive = true;
+    } else {
+      // Admin can see all services based on status filter
+      if (status === 'active') query.isActive = true;
+      if (status === 'inactive') query.isActive = false;
+      if (status === 'all') delete query.isActive; // Show all services
+    }
     
     // Apply filters
     if (search) {
@@ -39,11 +50,6 @@ exports.getServices = async (req, res) => {
     }
     
     if (category) query.category = category;
-    
-    // Override default active filter if status is explicitly specified
-    if (status === 'active') query.isActive = true;
-    if (status === 'inactive') query.isActive = false;
-    if (status === 'all') delete query.isActive; // Show all services
     
     console.log('📋 Query filters:', query);
     

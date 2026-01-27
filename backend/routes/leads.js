@@ -29,6 +29,11 @@ router.get('/', auth(['admin', 'lead_manager']), leadController.getLeads);
 // @access  Private (Admin, Lead Manager)
 router.get('/stats/summary', auth(['admin', 'lead_manager']), leadController.getLeadStats);
 
+// @route   GET /api/leads/my-leads
+// @desc    Get leads assigned to current CRM manager
+// @access  Private (CRM Manager only)
+router.get('/my-leads', auth(['crm_manager']), leadController.getMyLeads);
+
 // @route   GET /api/leads/:id
 // @desc    Get single lead
 // @access  Private (Admin, Assigned Lead Manager)
@@ -38,6 +43,16 @@ router.get('/:id', auth(['admin', 'lead_manager']), leadController.getLead);
 // @desc    Create new lead (Admin only)
 // @access  Private (Admin only)
 router.post('/', auth(['admin']), validateLeadCreation, leadController.createLead);
+
+// @route   POST /api/leads/bulk/convert-to-project
+// @desc    Bulk convert leads to projects (Lead Manager and Admin)
+// @access  Private (Lead Manager and Admin)
+router.post('/bulk/convert-to-project', auth(['lead_manager', 'admin']), leadController.bulkConvertToProject);
+
+// @route   POST /api/leads/bulk/assign-to-crm
+// @desc    Bulk assign leads to CRM manager (Lead Manager and Admin) - DEPRECATED
+// @access  Private (Lead Manager and Admin)
+router.post('/bulk/assign-to-crm', auth(['lead_manager', 'admin']), leadController.bulkAssignToCrm);
 
 // @route   POST /api/leads/bulk/assign
 // @desc    Bulk assign leads to manager
@@ -61,8 +76,8 @@ router.patch('/:id', auth(['admin', 'lead_manager']), validateLeadUpdate, leadCo
 
 // @route   POST /api/leads/:id/convert
 // @desc    Convert lead to client
-// @access  Private (Admin, Assigned Lead Manager)
-router.post('/:id/convert', auth(['admin', 'lead_manager']), leadController.convertLead);
+// @access  Private (Admin, Lead Manager, CRM Manager)
+router.post('/:id/convert', auth(['admin', 'lead_manager', 'crm_manager']), leadController.convertLead);
 
 // @route   DELETE /api/leads/:id
 // @desc    Delete lead (soft delete)

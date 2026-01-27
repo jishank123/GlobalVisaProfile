@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const serviceController = require('../controllers/serviceController');
 const { body } = require('express-validator');
-const { authenticateClient } = require('../middleware/auth');
+const { auth, authenticateClient } = require('../middleware/auth');
 
 // Admin authentication middleware (same as other admin routes)
 const adminAuth = async (req, res, next) => {
@@ -80,8 +80,8 @@ const validateServiceUpdate = [
 
 // @route   GET /api/services
 // @desc    Get all services with filters
-// @access  Private (Admin only)
-router.get('/', adminAuth, serviceController.getServices);
+// @access  Private (Admin, Lead Manager, CRM Manager)
+router.get('/', auth(['admin', 'lead_manager', 'crm_manager']), serviceController.getServices);
 
 // @route   GET /api/services/public
 // @desc    Get all active services for clients

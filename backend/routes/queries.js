@@ -13,6 +13,11 @@ router.get('/', auth(['admin', 'crm_manager']), queryController.getQueries);
 // @access  Private (Admin, CRM Manager)
 router.get('/stats/summary', auth(['admin', 'crm_manager']), queryController.getQueryStats);
 
+// @route   GET /api/queries/my-queries
+// @desc    Get queries assigned to current CRM manager
+// @access  Private (CRM Manager only)
+router.get('/my-queries', auth(['crm_manager']), queryController.getMyQueries);
+
 // @route   GET /api/queries/:id
 // @desc    Get single query
 // @access  Private (Admin, CRM Manager)

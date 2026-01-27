@@ -478,6 +478,62 @@ const deleteAppointmentRequest = async (req, res) => {
   }
 };
 
+// @desc    Get appointments assigned to current CRM manager
+// @route   GET /api/appointments/my-appointments
+// @access  Private (CRM Manager only)
+const getMyAppointments = async (req, res) => {
+  try {
+    console.log('📅 === GET MY APPOINTMENTS REQUEST ===');
+    console.log('📅 User:', req.user?.email, 'Role:', req.user?.role);
+    
+    if (req.user.role !== 'crm_manager') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only CRM managers can access this endpoint'
+        }
+      });
+    }
+    
+    const { status, page = 1, limit = 20 } = req.query;
+    
+    // Build query for appointments assigned to this CRM manager
+    let query = {
+      assigned_to: req.user.user_id
+    };
+    
+    if (status) query.status = status;
+    
+    const appointments = await AppointmentRequest.find(query)
+      .sort({ preferred_date: 1, createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+    
+    const count = await AppointmentRequest.countDocuments(query);
+    
+    console.log('📅 Found CRM appointments:', appointments.length, 'Total:', count);
+    
+    res.json({
+      success: true,
+      count: appointments.length,
+      total: count,
+      page: parseInt(page),
+      totalPages: Math.ceil(count / limit),
+      data: appointments
+    });
+  } catch (error) {
+    console.error('❌ Get CRM appointments error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'FETCH_CRM_APPOINTMENTS_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
 module.exports = {
   submitAppointmentRequest,
   getAppointmentRequest,
@@ -485,5 +541,6 @@ module.exports = {
   updateAppointmentStatus,
   scheduleAppointment,
   addCommunication,
-  deleteAppointmentRequest
+  deleteAppointmentRequest,
+  getMyAppointments
 };
