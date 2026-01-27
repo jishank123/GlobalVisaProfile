@@ -21,6 +21,10 @@
     <!-- Chart.js for visualizations -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <!-- API and Dashboard Data -->
+    <script src="/js/api.js"></script>
+    <script src="/js/dashboard-data.js"></script>
+    
     <script>
         tailwind.config = {
             theme: {
@@ -1206,6 +1210,9 @@
                     console.log('❌ Error Code:', responseData.error?.code);
                     console.log('❌ Error Message:', responseData.error?.message);
                     
+                    // Show error to user
+                    alert('⚠️ ERROR: Your assessment could not be saved to our database. Please try again or contact support if the problem persists.');
+                    
                     if (responseData.error?.details) {
                         console.log('❌ Validation Errors:');
                         responseData.error.details.forEach((error, index) => {
@@ -1219,6 +1226,15 @@
                 console.error('💥 Exception Message:', error.message);
                 console.error('💥 Exception Stack:', error.stack);
                 console.error('💥 Full Exception:', error);
+                
+                // Show error to user
+                if (error.name === 'ReferenceError' && error.message.includes('ProfileAssessmentsAPI')) {
+                    alert('⚠️ ERROR: Assessment system not properly loaded. Please refresh the page and try again.');
+                } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    alert('⚠️ ERROR: Cannot connect to server. Please check your internet connection and try again.');
+                } else {
+                    alert('⚠️ ERROR: Your assessment could not be saved. Please try again or contact support.');
+                }
                 
                 // Check for specific error types
                 if (error.name === 'TypeError' && error.message.includes('fetch')) {

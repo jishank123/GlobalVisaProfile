@@ -617,23 +617,22 @@ const convertToLead = async (req, res) => {
     const User = require('../models/User');
     
     // Prepare lead data
+    const nameParts = contactForm.name.trim().split(' ');
+    const firstName = nameParts[0] || contactForm.name;
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Unknown';
+    
     const leadData = {
-      firstName: contactForm.name.split(' ')[0],
-      lastName: contactForm.name.split(' ').slice(1).join(' ') || 'Unknown',
+      firstName: firstName,
+      lastName: lastName,
       email: contactForm.email,
       phone: contactForm.phone,
       university: 'Unknown',
       country: 'Unknown',
-      source: 'contact_form',
+      source: 'contact_form', // Now this is a valid enum value
       notes: notes || contactForm.message,
-      priority: priority || contactForm.priority,
+      priority: priority || contactForm.priority || 'medium',
       estimatedValue: 0,
-      status: 'new',
-      created_by: req.user._id,
-      form_source: {
-        type: 'contact_form',
-        id: contactForm._id
-      }
+      status: 'new'
     };
     
     // Auto-assign to available lead manager with least workload
@@ -672,7 +671,7 @@ const convertToLead = async (req, res) => {
       metadata: { 
         contact_form_id: contactForm._id,
         email: contactForm.email,
-        service_interest
+        service_interest: service_interest || 'Not specified'
       },
       ipAddress: req.ip,
       userAgent: req.get('User-Agent')
@@ -689,11 +688,17 @@ const convertToLead = async (req, res) => {
 
   } catch (error) {
     console.error('Convert to Lead Error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     res.status(500).json({
       success: false,
       error: {
         code: 'CONVERSION_ERROR',
-        message: 'Failed to convert contact form to lead'
+        message: 'Failed to convert contact form to lead',
+        details: error.message
       }
     });
   }

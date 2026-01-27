@@ -8,6 +8,7 @@ const {
   getAllProfileAssessments,
   getClientAssessments,
   updateAssessmentStatus,
+  convertAssessmentToLead,
   deleteProfileAssessment
 } = require('../controllers/profileAssessmentController');
 
@@ -15,8 +16,8 @@ const router = express.Router();
 
 // Rate limiting for public endpoints
 const publicRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 3, // Limit each IP to 3 requests per windowMs
+  windowMs: 60 * 60 * 1000, // 1 hour instead of 15 minutes
+  max: 10, // Limit each IP to 10 requests per hour instead of 3
   message: {
     success: false,
     error: {
@@ -166,6 +167,14 @@ router.put('/:id/status',
   auth(['admin', 'lead_manager', 'crm_manager']),
   validateStatusUpdate,
   updateAssessmentStatus
+);
+
+// @route   POST /api/profile-assessments/:id/convert-to-lead
+// @desc    Convert profile assessment to lead
+// @access  Private (Admin/Manager)
+router.post('/:id/convert-to-lead', 
+  auth(['admin', 'lead_manager']),
+  convertAssessmentToLead
 );
 
 // @route   DELETE /api/profile-assessments/:id

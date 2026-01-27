@@ -68,7 +68,7 @@ exports.getUsers = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'VIEW_USERS',
+      'view',
       `Viewed users list with filters: ${JSON.stringify(req.query)}`,
       req.ip
     );

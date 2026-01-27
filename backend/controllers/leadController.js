@@ -10,7 +10,8 @@ const logActivity = async (userId, action, details, ipAddress) => {
     await ActivityLog.create({
       user: userId,
       action,
-      details,
+      resourceType: 'Lead',
+      description: details,
       ipAddress,
       timestamp: new Date()
     });
@@ -106,8 +107,7 @@ exports.getLead = async (req, res) => {
   try {
     const lead = await Lead.findById(req.params.id)
       .populate('assignedTo', 'first_name last_name email phone')
-      .populate('convertedToClient', 'name email company')
-      .populate('created_by', 'first_name last_name email');
+      .populate('convertedToClient', 'name email company');
     
     if (!lead) {
       return res.status(404).json({
@@ -134,8 +134,8 @@ exports.getLead = async (req, res) => {
     // Log activity
     await logActivity(
       req.user._id,
-      'VIEW_LEAD',
-      `Viewed lead: ${lead.name} (${lead.email})`,
+      'view',
+      `Viewed lead: ${lead.firstName} ${lead.lastName} (${lead.email})`,
       req.ip
     );
     
@@ -782,6 +782,139 @@ exports.assignLead = async (req, res) => {
       success: false,
       error: {
         code: 'ASSIGN_LEAD_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Bulk assign leads to manager
+// @route   POST /api/leads/bulk/assign
+// @access  Private (Admin only)
+exports.bulkAssignLeads = async (req, res) => {
+  try {
+    console.log('🎯 === BULK ASSIGN LEADS REQUEST ===');
+    console.log('🎯 User:', req.user?.email, 'Role:', req.user?.role);
+    console.log('🎯 Request body:', req.body);
+    
+    const { lead_ids, lead_manager_id, notes } = req.body;
+    
+    // Validation
+    if (!lead_ids || !Array.isArray(lead_ids) || lead_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_LEAD_IDS',
+          message: 'Lead IDs array is required and cannot be empty'
+        }
+      });
+    }
+    
+    if (!lead_manager_id) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_MANAGER_ID',
+          message: 'Lead Manager ID is required'
+        }
+      });
+    }
+    
+    // Verify manager exists and has correct role
+    const manager = await User.findById(lead_manager_id);
+    if (!manager || manager.role !== 'lead_manager') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_MANAGER',
+          message: 'Invalid manager ID or user is not a lead manager'
+        }
+      });
+    }
+    
+    console.log('🎯 Manager found:', manager.email, 'Role:', manager.role);
+    
+    // Process each lead assignment
+    const results = [];
+    const errors = [];
+    
+    for (const leadId of lead_ids) {
+      try {
+        const lead = await Lead.findByIdAndUpdate(
+          leadId,
+          { 
+            assignedTo: lead_manager_id,
+            status: 'assigned',
+            updated_at: new Date(),
+            assignmentNotes: notes || ''
+          },
+          { new: true }
+        ).populate('assignedTo', 'first_name last_name email');
+        
+        if (lead) {
+          results.push({
+            leadId: leadId,
+            success: true,
+            lead: lead
+          });
+          
+          // Log activity
+          await logActivity(
+            req.user._id,
+            'BULK_ASSIGN_LEAD',
+            `Bulk assigned lead ${lead.firstName} ${lead.lastName} to lead manager ${manager.email}`,
+            req.ip
+          );
+        } else {
+          errors.push({
+            leadId: leadId,
+            error: 'Lead not found'
+          });
+        }
+      } catch (error) {
+        console.error('🎯 Error assigning lead:', leadId, error);
+        errors.push({
+          leadId: leadId,
+          error: error.message
+        });
+      }
+    }
+    
+    console.log('🎯 Assignment results:', {
+      successful: results.length,
+      failed: errors.length,
+      total: lead_ids.length
+    });
+    
+    // Return results
+    const response = {
+      success: true,
+      message: `Successfully assigned ${results.length} of ${lead_ids.length} leads`,
+      data: {
+        successful: results,
+        failed: errors,
+        manager: {
+          id: manager._id,
+          name: `${manager.first_name} ${manager.last_name}`,
+          email: manager.email
+        },
+        notes: notes || ''
+      }
+    };
+    
+    // If some assignments failed, include warning
+    if (errors.length > 0) {
+      response.warning = `${errors.length} lead(s) could not be assigned`;
+    }
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error('🎯 Bulk assignment error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'BULK_ASSIGN_FAILED',
         message: error.message
       }
     });

@@ -487,9 +487,6 @@
                 <button class="btn btn-warning btn-sm" onclick="assignSelectedLeads()">
                     <i class="fas fa-user-cog me-1"></i>Assign Selected
                 </button>
-                <button class="btn btn-success btn-sm" onclick="convertSelectedLeads()">
-                    <i class="fas fa-user-tie me-1"></i>Convert to Clients
-                </button>
             </div>
         </div>
         
@@ -1009,9 +1006,9 @@
             <div class="modal-body">
                 <form id="assignLeadsForm">
                     <div class="mb-3">
-                        <label for="assignToCrmManager" class="form-label">Select CRM Manager *</label>
-                        <select class="form-select" id="assignToCrmManager" name="crm_manager_id" required>
-                            <option value="">Select CRM Manager</option>
+                        <label for="assignToCrmManager" class="form-label">Select Lead Manager *</label>
+                        <select class="form-select" id="assignToCrmManager" name="lead_manager_id" required>
+                            <option value="">Select Lead Manager</option>
                         </select>
                     </div>
                     
@@ -2587,9 +2584,6 @@ function displayLeads(leads) {
                 <button class="action-btn btn-delete" onclick="deleteLead('${lead._id}')" title="Delete Lead">
                     <i class="fas fa-trash"></i>
                 </button>
-                <button class="action-btn btn-activate" onclick="convertLead('${lead._id}')" title="Convert to Client">
-                    <i class="fas fa-user-tie"></i>
-                </button>
             </td>
         </tr>
     `).join('');
@@ -2662,6 +2656,8 @@ function getStrengthColor(strength) {
 
 // Action Functions
 async function convertContactToLead(contactId) {
+    console.log('🔄 Converting contact to lead:', contactId);
+    
     if (!confirm('Convert this contact form to a lead?')) return;
     
     try {
@@ -2671,6 +2667,7 @@ async function convertContactToLead(contactId) {
             return;
         }
         
+        console.log('🔄 Making API call to convert contact...');
         const response = await fetch(`${API_BASE_URL}/contact/${contactId}/convert-to-lead`, {
             method: 'POST',
             headers: {
@@ -2679,17 +2676,22 @@ async function convertContactToLead(contactId) {
             }
         });
         
+        console.log('🔄 Response status:', response.status);
         const data = await response.json();
+        console.log('🔄 Response data:', data);
+        
         if (data.success) {
             alert('Contact form converted to lead successfully!');
             loadFormsData();
             loadLeadsData();
         } else {
-            alert('Error: ' + (data.error?.message || 'Unknown error'));
+            console.error('❌ Conversion failed:', data.error);
+            alert('Error: ' + (data.error?.message || 'Unknown error') + 
+                  (data.error?.details ? '\nDetails: ' + data.error.details : ''));
         }
     } catch (error) {
         console.error('❌ Error converting contact to lead:', error);
-        alert('Error converting contact to lead');
+        alert('Error converting contact to lead: ' + error.message);
     }
 }
 
@@ -2725,38 +2727,6 @@ async function convertAssessmentToLead(assessmentId) {
     }
 }
 
-async function convertLead(leadId) {
-    if (!confirm('Convert this lead to a client?')) return;
-    
-    try {
-        const token = getAuthToken();
-        if (!token) {
-            alert('Authentication token not found. Please login again.');
-            return;
-        }
-        
-        const response = await fetch(`${API_BASE_URL}/leads/${leadId}/convert-to-client`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-            alert('Lead converted to client successfully!');
-            loadLeadsData();
-            loadDashboardStats(); // Refresh stats
-        } else {
-            alert('Error: ' + (data.error?.message || 'Unknown error'));
-        }
-    } catch (error) {
-        console.error('❌ Error converting lead to client:', error);
-        alert('Error converting lead to client');
-    }
-}
-
 // Refresh Functions
 function refreshFormsData() {
     loadFormsData();
@@ -2786,18 +2756,628 @@ function filterLeads() {
 // View Functions
 function viewContactForm(id) {
     console.log('Viewing contact form:', id);
+    
+    // Show loading state
+    const loadingHtml = `
+        <div class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading contact form details...</p>
+        </div>
+    `;
+    
+    // Create and show modal
+    const modalHtml = `
+        <div class="modal fade" id="viewContactModal" tabindex="-1" aria-labelledby="viewContactModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="viewContactModalLabel">
+                            <i class="fas fa-envelope me-2"></i>Contact Form Details
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="contactModalBody">
+                        ${loadingHtml}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" onclick="convertContactToLead('${id}')">
+                            <i class="fas fa-user-plus me-1"></i>Convert to Lead
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('viewContactModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('viewContactModal'));
+    modal.show();
+    
+    // Load contact form data
+    loadContactFormDetails(id);
+}
+
+async function loadContactFormDetails(id) {
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            document.getElementById('contactModalBody').innerHTML = '<div class="alert alert-danger">Authentication required</div>';
+            return;
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/contact/${id}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const contact = data.data;
+            
+            const detailsHtml = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-user me-2"></i>Contact Information</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Name:</strong></td><td>${contact.name}</td></tr>
+                            <tr><td><strong>Email:</strong></td><td>${contact.email}</td></tr>
+                            <tr><td><strong>Phone:</strong></td><td>${contact.phone || 'Not provided'}</td></tr>
+                            <tr><td><strong>Visa Type:</strong></td><td><span class="badge bg-info">${contact.visa_type_display || contact.visa_type}</span></td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-info-circle me-2"></i>Form Details</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Status:</strong></td><td><span class="badge bg-${contact.status === 'resolved' ? 'success' : contact.status === 'responded' ? 'info' : 'warning'}">${contact.status}</span></td></tr>
+                            <tr><td><strong>Priority:</strong></td><td><span class="badge bg-${contact.priority === 'urgent' ? 'danger' : contact.priority === 'high' ? 'warning' : 'secondary'}">${contact.priority}</span></td></tr>
+                            <tr><td><strong>Source:</strong></td><td>${contact.source || 'website'}</td></tr>
+                            <tr><td><strong>Submitted:</strong></td><td>${new Date(contact.createdAt).toLocaleDateString()}</td></tr>
+                            <tr><td><strong>Response Status:</strong></td><td>${contact.response_status || 'Pending'}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <h6><i class="fas fa-comment me-2"></i>Message</h6>
+                <div class="bg-light p-3 rounded">
+                    <p class="mb-0">${contact.message}</p>
+                </div>
+                
+                ${contact.response_message ? `
+                    <hr>
+                    <h6><i class="fas fa-reply me-2"></i>Response</h6>
+                    <div class="bg-success bg-opacity-10 p-3 rounded">
+                        <p class="mb-0">${contact.response_message}</p>
+                        <small class="text-muted">Responded on: ${new Date(contact.responded_at).toLocaleDateString()}</small>
+                    </div>
+                ` : ''}
+                
+                ${contact.converted_to_lead ? `
+                    <hr>
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        This contact form has already been converted to a lead.
+                    </div>
+                ` : ''}
+                
+                ${contact.internal_notes ? `
+                    <hr>
+                    <h6><i class="fas fa-sticky-note me-2"></i>Internal Notes</h6>
+                    <div class="bg-warning bg-opacity-10 p-3 rounded">
+                        <p class="mb-0">${contact.internal_notes}</p>
+                    </div>
+                ` : ''}
+            `;
+            
+            document.getElementById('contactModalBody').innerHTML = detailsHtml;
+        } else {
+            document.getElementById('contactModalBody').innerHTML = `<div class="alert alert-danger">Error loading contact form: ${data.error?.message || 'Unknown error'}</div>`;
+        }
+    } catch (error) {
+        console.error('Error loading contact form:', error);
+        document.getElementById('contactModalBody').innerHTML = '<div class="alert alert-danger">Error loading contact form details</div>';
+    }
 }
 
 function viewAssessment(id) {
     console.log('Viewing assessment:', id);
+    
+    // Show loading state
+    const loadingHtml = `
+        <div class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading assessment details...</p>
+        </div>
+    `;
+    
+    // Create and show modal
+    const modalHtml = `
+        <div class="modal fade" id="viewAssessmentModal" tabindex="-1" aria-labelledby="viewAssessmentModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="viewAssessmentModalLabel">
+                            <i class="fas fa-clipboard-list me-2"></i>Profile Assessment Details
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="assessmentModalBody">
+                        ${loadingHtml}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" onclick="convertAssessmentToLead('${id}')">
+                            <i class="fas fa-user-plus me-1"></i>Convert to Lead
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('viewAssessmentModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('viewAssessmentModal'));
+    modal.show();
+    
+    // Load assessment data
+    loadAssessmentDetails(id);
+}
+
+async function loadAssessmentDetails(id) {
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            document.getElementById('assessmentModalBody').innerHTML = '<div class="alert alert-danger">Authentication required</div>';
+            return;
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/profile-assessments/${id}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const assessment = data.data;
+            const criteriaNames = [
+                'Awards & Recognition',
+                'Professional Memberships', 
+                'Media Coverage',
+                'Judging Others\' Work',
+                'Original Contributions',
+                'Publications',
+                'Exhibitions',
+                'Leadership Roles',
+                'High Salary',
+                'Commercial Success'
+            ];
+            
+            const criteriaScores = [
+                assessment.criterion_1_awards,
+                assessment.criterion_2_memberships,
+                assessment.criterion_3_media,
+                assessment.criterion_4_judging,
+                assessment.criterion_5_contributions,
+                assessment.criterion_6_publications,
+                assessment.criterion_7_exhibitions,
+                assessment.criterion_8_leadership,
+                assessment.criterion_9_salary,
+                assessment.criterion_10_commercial
+            ];
+            
+            const totalScore = criteriaScores.reduce((sum, score) => sum + score, 0);
+            const overallScore = Math.round((totalScore / 30) * 100);
+            
+            const detailsHtml = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-user me-2"></i>Personal Information</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Name:</strong></td><td>${assessment.client_name}</td></tr>
+                            <tr><td><strong>Email:</strong></td><td>${assessment.client_email}</td></tr>
+                            <tr><td><strong>Phone:</strong></td><td>${assessment.client_phone || 'Not provided'}</td></tr>
+                            <tr><td><strong>Field:</strong></td><td>${assessment.field_of_expertise}</td></tr>
+                            <tr><td><strong>Experience:</strong></td><td>${assessment.years_of_experience} years</td></tr>
+                            <tr><td><strong>Location:</strong></td><td>${assessment.current_location}</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-chart-bar me-2"></i>Assessment Results</h6>
+                        <div class="text-center mb-3">
+                            <div class="display-4 fw-bold ${overallScore >= 80 ? 'text-success' : overallScore >= 60 ? 'text-warning' : 'text-danger'}">${overallScore}%</div>
+                            <small class="text-muted">Overall Score</small>
+                        </div>
+                        <p><strong>Status:</strong> <span class="badge bg-${assessment.status === 'Converted' ? 'success' : 'primary'}">${assessment.status}</span></p>
+                        <p><strong>Submitted:</strong> ${new Date(assessment.submission_date).toLocaleDateString()}</p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <h6><i class="fas fa-list-check me-2"></i>EB-1A Criteria Breakdown</h6>
+                <div class="row">
+                    ${criteriaNames.map((name, index) => `
+                        <div class="col-md-6 mb-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="small">${name}</span>
+                                <span class="badge bg-${criteriaScores[index] >= 2 ? 'success' : criteriaScores[index] === 1 ? 'warning' : 'secondary'}">
+                                    ${criteriaScores[index]}/3
+                                </span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            document.getElementById('assessmentModalBody').innerHTML = detailsHtml;
+        } else {
+            document.getElementById('assessmentModalBody').innerHTML = `<div class="alert alert-danger">Error loading assessment: ${data.error?.message || 'Unknown error'}</div>`;
+        }
+    } catch (error) {
+        console.error('Error loading assessment:', error);
+        document.getElementById('assessmentModalBody').innerHTML = '<div class="alert alert-danger">Error loading assessment details</div>';
+    }
 }
 
 function viewAppointment(id) {
     console.log('Viewing appointment:', id);
+    
+    // Show loading state
+    const loadingHtml = `
+        <div class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading appointment details...</p>
+        </div>
+    `;
+    
+    // Create and show modal
+    const modalHtml = `
+        <div class="modal fade" id="viewAppointmentModal" tabindex="-1" aria-labelledby="viewAppointmentModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="viewAppointmentModalLabel">
+                            <i class="fas fa-calendar-alt me-2"></i>Appointment Details
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="appointmentModalBody">
+                        ${loadingHtml}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-success" onclick="scheduleAppointment('${id}')">
+                            <i class="fas fa-calendar-check me-1"></i>Schedule Appointment
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('viewAppointmentModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('viewAppointmentModal'));
+    modal.show();
+    
+    // Load appointment data
+    loadAppointmentDetails(id);
+}
+
+async function loadAppointmentDetails(id) {
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            document.getElementById('appointmentModalBody').innerHTML = '<div class="alert alert-danger">Authentication required</div>';
+            return;
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/appointments/${id}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const appointment = data.data;
+            
+            const detailsHtml = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-user me-2"></i>Client Information</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Name:</strong></td><td>${appointment.client_name}</td></tr>
+                            <tr><td><strong>Email:</strong></td><td>${appointment.client_email}</td></tr>
+                            <tr><td><strong>Phone:</strong></td><td>${appointment.client_phone || 'Not provided'}</td></tr>
+                            <tr><td><strong>Service:</strong></td><td><span class="badge bg-info">${appointment.service_type || 'General Consultation'}</span></td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-calendar me-2"></i>Appointment Details</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Status:</strong></td><td><span class="badge bg-${appointment.status === 'scheduled' ? 'success' : appointment.status === 'confirmed' ? 'info' : 'warning'}">${appointment.status}</span></td></tr>
+                            <tr><td><strong>Priority:</strong></td><td><span class="badge bg-${appointment.priority === 'urgent' ? 'danger' : appointment.priority === 'high' ? 'warning' : 'secondary'}">${appointment.priority || 'medium'}</span></td></tr>
+                            <tr><td><strong>Requested:</strong></td><td>${new Date(appointment.createdAt).toLocaleDateString()}</td></tr>
+                            ${appointment.scheduled_date ? `<tr><td><strong>Scheduled:</strong></td><td>${new Date(appointment.scheduled_date).toLocaleDateString()} at ${new Date(appointment.scheduled_date).toLocaleTimeString()}</td></tr>` : ''}
+                            ${appointment.duration ? `<tr><td><strong>Duration:</strong></td><td>${appointment.duration} minutes</td></tr>` : ''}
+                        </table>
+                    </div>
+                </div>
+                
+                ${appointment.preferred_dates && appointment.preferred_dates.length > 0 ? `
+                    <hr>
+                    <h6><i class="fas fa-clock me-2"></i>Preferred Dates</h6>
+                    <div class="row">
+                        ${appointment.preferred_dates.map((date, index) => `
+                            <div class="col-md-4 mb-2">
+                                <div class="card card-body py-2">
+                                    <small><strong>Option ${index + 1}:</strong></small>
+                                    <small>${new Date(date).toLocaleDateString()} at ${new Date(date).toLocaleTimeString()}</small>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                
+                ${appointment.message ? `
+                    <hr>
+                    <h6><i class="fas fa-comment me-2"></i>Message</h6>
+                    <div class="bg-light p-3 rounded">
+                        <p class="mb-0">${appointment.message}</p>
+                    </div>
+                ` : ''}
+                
+                ${appointment.assigned_to ? `
+                    <hr>
+                    <h6><i class="fas fa-user-cog me-2"></i>Assignment</h6>
+                    <p><strong>Assigned to:</strong> ${appointment.assigned_to.first_name} ${appointment.assigned_to.last_name} (${appointment.assigned_to.email})</p>
+                ` : ''}
+                
+                ${appointment.internal_notes ? `
+                    <hr>
+                    <h6><i class="fas fa-sticky-note me-2"></i>Internal Notes</h6>
+                    <div class="bg-warning bg-opacity-10 p-3 rounded">
+                        <p class="mb-0">${appointment.internal_notes}</p>
+                    </div>
+                ` : ''}
+            `;
+            
+            document.getElementById('appointmentModalBody').innerHTML = detailsHtml;
+        } else {
+            document.getElementById('appointmentModalBody').innerHTML = `<div class="alert alert-danger">Error loading appointment: ${data.error?.message || 'Unknown error'}</div>`;
+        }
+    } catch (error) {
+        console.error('Error loading appointment:', error);
+        document.getElementById('appointmentModalBody').innerHTML = '<div class="alert alert-danger">Error loading appointment details</div>';
+    }
+}
+
+async function scheduleAppointment(appointmentId) {
+    console.log('🗓️ Scheduling appointment:', appointmentId);
+    
+    const scheduledDate = prompt('Enter scheduled date and time (YYYY-MM-DD HH:MM):');
+    if (!scheduledDate) return;
+    
+    const duration = prompt('Enter duration in minutes (default: 60):', '60');
+    if (!duration) return;
+    
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            alert('Authentication token not found. Please login again.');
+            return;
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/appointments/${appointmentId}/schedule`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                scheduled_date: new Date(scheduledDate).toISOString(),
+                duration: parseInt(duration),
+                status: 'scheduled'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Appointment scheduled successfully!');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('viewAppointmentModal'));
+            if (modal) modal.hide();
+            
+            // Refresh appointments data
+            loadFormsData();
+        } else {
+            alert('Error scheduling appointment: ' + (data.error?.message || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('❌ Error scheduling appointment:', error);
+        alert('Error scheduling appointment: ' + error.message);
+    }
 }
 
 function viewLead(id) {
     console.log('Viewing lead:', id);
+    
+    // Show loading state
+    const loadingHtml = `
+        <div class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading lead details...</p>
+        </div>
+    `;
+    
+    // Create and show modal
+    const modalHtml = `
+        <div class="modal fade" id="viewLeadModal" tabindex="-1" aria-labelledby="viewLeadModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="viewLeadModalLabel">
+                            <i class="fas fa-user-tie me-2"></i>Lead Details
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="leadModalBody">
+                        ${loadingHtml}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-success" onclick="assignSingleLead('${id}')">
+                            <i class="fas fa-user-cog me-1"></i>Assign to Lead Manager
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('viewLeadModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('viewLeadModal'));
+    modal.show();
+    
+    // Load lead data
+    loadLeadDetails(id);
+}
+
+async function loadLeadDetails(id) {
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            document.getElementById('leadModalBody').innerHTML = '<div class="alert alert-danger">Authentication required</div>';
+            return;
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/leads/${id}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const lead = data.data;
+            
+            const detailsHtml = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-user me-2"></i>Contact Information</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Name:</strong></td><td>${lead.firstName} ${lead.lastName}</td></tr>
+                            <tr><td><strong>Email:</strong></td><td>${lead.email}</td></tr>
+                            <tr><td><strong>Phone:</strong></td><td>${lead.phone || 'Not provided'}</td></tr>
+                            <tr><td><strong>Location:</strong></td><td>${lead.country || 'Not provided'}</td></tr>
+                        </table>
+                        
+                        <h6><i class="fas fa-briefcase me-2"></i>Professional Details</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Field:</strong></td><td>${lead.fieldOfStudy || 'Not provided'}</td></tr>
+                            <tr><td><strong>University:</strong></td><td>${lead.university || 'Not provided'}</td></tr>
+                            <tr><td><strong>Degree:</strong></td><td>${lead.degree || 'Not provided'}</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-info-circle me-2"></i>Lead Information</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Status:</strong></td><td><span class="badge bg-${lead.status === 'converted' ? 'success' : lead.status === 'qualified' ? 'warning' : 'primary'}">${lead.status}</span></td></tr>
+                            <tr><td><strong>Priority:</strong></td><td><span class="badge bg-${lead.priority === 'high' ? 'danger' : lead.priority === 'medium' ? 'warning' : 'secondary'}">${lead.priority}</span></td></tr>
+                            <tr><td><strong>Source:</strong></td><td>${lead.source || 'Not specified'}</td></tr>
+                            <tr><td><strong>Created:</strong></td><td>${new Date(lead.createdAt).toLocaleDateString()}</td></tr>
+                            <tr><td><strong>Updated:</strong></td><td>${new Date(lead.updatedAt).toLocaleDateString()}</td></tr>
+                        </table>
+                        
+                        ${lead.assessmentScore ? `
+                            <h6><i class="fas fa-chart-bar me-2"></i>Assessment Score</h6>
+                            <div class="text-center">
+                                <div class="display-6 fw-bold ${lead.assessmentScore >= 80 ? 'text-success' : lead.assessmentScore >= 60 ? 'text-warning' : 'text-danger'}">${lead.assessmentScore}%</div>
+                                <small class="text-muted">Profile Strength</small>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                ${lead.assignedTo ? `
+                    <hr>
+                    <h6><i class="fas fa-user-cog me-2"></i>Assignment</h6>
+                    <p><strong>Assigned to:</strong> ${lead.assignedTo.first_name} ${lead.assignedTo.last_name} (${lead.assignedTo.email})</p>
+                ` : ''}
+                
+                ${lead.notes ? `
+                    <hr>
+                    <h6><i class="fas fa-sticky-note me-2"></i>Notes</h6>
+                    <p>${lead.notes}</p>
+                ` : ''}
+            `;
+            
+            document.getElementById('leadModalBody').innerHTML = detailsHtml;
+        } else {
+            document.getElementById('leadModalBody').innerHTML = `<div class="alert alert-danger">Error loading lead: ${data.error?.message || 'Unknown error'}</div>`;
+        }
+    } catch (error) {
+        console.error('Error loading lead:', error);
+        document.getElementById('leadModalBody').innerHTML = '<div class="alert alert-danger">Error loading lead details</div>';
+    }
 }
 
 // Lead Assignment Functions
@@ -2811,8 +3391,8 @@ async function showAssignLeadsModal() {
         return;
     }
     
-    // Load CRM managers
-    await loadCrmManagers();
+    // Load Lead managers
+    await loadLeadManagers();
     
     // Update selected leads display
     updateSelectedLeadsDisplay(selectedLeads);
@@ -2822,12 +3402,12 @@ async function showAssignLeadsModal() {
     modal.show();
 }
 
-async function loadCrmManagers() {
+async function loadLeadManagers() {
     try {
         const token = getAuthToken();
         if (!token) return;
         
-        const response = await fetch(`${API_BASE_URL}/users?role=crm_manager`, {
+        const response = await fetch(`${API_BASE_URL}/users?role=lead_manager`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await response.json();
@@ -2835,7 +3415,7 @@ async function loadCrmManagers() {
         if (data.success) {
             const select = document.getElementById('assignToCrmManager');
             // Clear existing options except the first one
-            select.innerHTML = '<option value="">Select CRM Manager</option>';
+            select.innerHTML = '<option value="">Select Lead Manager</option>';
             
             data.data.forEach(manager => {
                 const option = document.createElement('option');
@@ -2945,7 +3525,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const selectedLeads = getSelectedLeads();
             
             if (!crmManagerId) {
-                alert('Please select a CRM Manager.');
+                alert('Please select a Lead Manager.');
                 return;
             }
             
@@ -2965,7 +3545,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 assignLeadsBtn.disabled = true;
                 assignLeadsBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Assigning...';
                 
-                const response = await fetch(`${API_BASE_URL}/leads/assign`, {
+                const response = await fetch(`${API_BASE_URL}/leads/bulk/assign`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -2973,7 +3553,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     body: JSON.stringify({
                         lead_ids: selectedLeads,
-                        crm_manager_id: crmManagerId,
+                        lead_manager_id: crmManagerId,
                         notes: notes
                     })
                 });
@@ -2981,7 +3561,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert(`Successfully assigned ${selectedLeads.length} lead(s) to CRM Manager!`);
+                    alert(`Successfully assigned ${selectedLeads.length} lead(s) to Lead Manager!`);
                     
                     // Close modal
                     const modal = bootstrap.Modal.getInstance(document.getElementById('assignLeadsModal'));
@@ -3079,7 +3659,103 @@ document.addEventListener('DOMContentLoaded', function() {
         card.style.display = 'block';
     });
 });
+
+// Missing functions for lead management
+function getSelectedLeads() {
+    const checkboxes = document.querySelectorAll('.lead-checkbox:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+async function showAssignLeadsModal() {
+    console.log('🎯 Opening assign leads modal...');
+    
+    try {
+        // Load Lead managers
+        const token = getAuthToken();
+        if (!token) {
+            alert('Authentication token not found. Please login again.');
+            return;
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/users?role=lead_manager`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const select = document.getElementById('assignToCrmManager');
+            select.innerHTML = '<option value="">-- Select Lead Manager --</option>';
+            
+            data.data.forEach(manager => {
+                const fullName = `${manager.first_name} ${manager.last_name}`;
+                select.innerHTML += `<option value="${manager._id}">${fullName} (${manager.email})</option>`;
+            });
+        } else {
+            console.error('Failed to load Lead managers:', data.error);
+            alert('Failed to load Lead managers. Please try again.');
+            return;
+        }
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('assignLeadsModal'));
+        modal.show();
+        
+    } catch (error) {
+        console.error('Error loading Lead managers:', error);
+        alert('Error loading Lead managers. Please try again.');
+    }
+}
+
 </script>
+
+    <!-- Assign Leads Modal -->
+    <div class="modal fade" id="assignLeadsModal" tabindex="-1" aria-labelledby="assignLeadsModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="assignLeadsModalLabel">
+                        <i class="fas fa-user-cog me-2"></i>Assign Leads to Lead Manager
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="assignToCrmManager" class="form-label">
+                            <i class="fas fa-user me-1"></i>Select Lead Manager
+                        </label>
+                        <select id="assignToCrmManager" class="form-select" required>
+                            <option value="">-- Loading Lead Managers --</option>
+                        </select>
+                        <div class="form-text">Choose the lead manager who will handle these leads</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="assignmentNotes" class="form-label">
+                            <i class="fas fa-sticky-note me-1"></i>Assignment Notes (Optional)
+                        </label>
+                        <textarea id="assignmentNotes" class="form-control" rows="3" 
+                                  placeholder="Add any special instructions or notes for the lead manager..."></textarea>
+                        <div class="form-text">These notes will be visible to the assigned lead manager</div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Selected Leads:</strong> <span id="selectedLeadsCount">0</span> lead(s) will be assigned
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" id="assignLeadsBtn">
+                        <i class="fas fa-user-cog me-1"></i>Assign Leads
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 </body>
 </html>

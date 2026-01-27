@@ -542,11 +542,160 @@ const getClientAssessments = async (req, res) => {
   }
 };
 
+// @desc    Convert Profile Assessment to Lead
+// @route   POST /api/profile-assessments/:id/convert-to-lead
+// @access  Private (Admin/Manager only)
+const convertAssessmentToLead = async (req, res) => {
+  console.log('\n🔄 === CONVERT ASSESSMENT TO LEAD ===');
+  console.log('📅 Timestamp:', new Date().toISOString());
+  console.log('👤 User:', req.user?.email, 'Role:', req.user?.role);
+  console.log('🆔 Assessment ID:', req.params.id);
+  
+  try {
+    // Find the profile assessment
+    const assessment = await ProfileAssessment.findById(req.params.id);
+    
+    if (!assessment) {
+      console.log('❌ Assessment not found');
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'ASSESSMENT_NOT_FOUND',
+          message: 'Profile assessment not found'
+        }
+      });
+    }
+    
+    console.log('✅ Assessment found:', assessment.client_name, assessment.client_email);
+    
+    // Check if already converted
+    if (assessment.status === 'Converted') {
+      console.log('⚠️ Assessment already converted');
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'ALREADY_CONVERTED',
+          message: 'This assessment has already been converted to a lead'
+        }
+      });
+    }
+    
+    // Import Lead model
+    const Lead = require('../models/Lead');
+    
+    // Check if lead already exists with this email
+    const existingLead = await Lead.findOne({ email: assessment.client_email });
+    if (existingLead) {
+      console.log('⚠️ Lead already exists with this email');
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'LEAD_EXISTS',
+          message: 'A lead already exists with this email address'
+        }
+      });
+    }
+    
+    // Calculate lead priority based on assessment score
+    const totalScore = assessment.criterion_1_awards + assessment.criterion_2_memberships + 
+                      assessment.criterion_3_media + assessment.criterion_4_judging + 
+                      assessment.criterion_5_contributions + assessment.criterion_6_publications + 
+                      assessment.criterion_7_exhibitions + assessment.criterion_8_leadership + 
+                      assessment.criterion_9_salary + assessment.criterion_10_commercial;
+    
+    const overallScore = Math.round((totalScore / 30) * 100);
+    
+    let priority = 'low';
+    if (overallScore >= 80) {
+      priority = 'high';
+    } else if (overallScore >= 60) {
+      priority = 'medium';
+    }
+    
+    console.log('📊 Assessment Score:', overallScore + '%', 'Priority:', priority);
+    
+    // Create new lead from assessment data
+    const nameParts = assessment.client_name.trim().split(' ');
+    const firstName = nameParts[0] || assessment.client_name;
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Unknown';
+    
+    const leadData = {
+      firstName: firstName,
+      lastName: lastName,
+      email: assessment.client_email,
+      phone: assessment.client_phone || '',
+      source: 'profile_assessment',
+      priority: priority,
+      status: 'new',
+      fieldOfExpertise: assessment.field_of_expertise,
+      yearsOfExperience: assessment.years_of_experience,
+      currentLocation: assessment.current_location,
+      assessmentScore: overallScore,
+      assessmentId: assessment._id,
+      notes: `Converted from profile assessment. Score: ${overallScore}%. Strong criteria: ${assessment.strong_criteria_count || 0}`,
+      created_at: new Date(),
+      updated_at: new Date()
+    };
+    
+    // Create the lead
+    const newLead = await Lead.create(leadData);
+    console.log('✅ Lead created:', newLead._id);
+    
+    // Update assessment status
+    assessment.status = 'Converted';
+    assessment.converted_to_lead_id = newLead._id;
+    assessment.converted_at = new Date();
+    assessment.converted_by = req.user._id;
+    await assessment.save();
+    
+    console.log('✅ Assessment updated to Converted status');
+    
+    // Log activity
+    await ActivityLog.create({
+      user: req.user._id,
+      action: 'create',
+      resourceType: 'Lead',
+      resourceId: newLead._id,
+      description: `Converted assessment ${assessment._id} to lead ${newLead._id} for ${assessment.client_name}`,
+      ipAddress: req.ip,
+      timestamp: new Date()
+    });
+    
+    console.log('✅ Activity logged');
+    
+    res.json({
+      success: true,
+      message: 'Profile assessment successfully converted to lead',
+      data: {
+        lead: newLead,
+        assessment: assessment,
+        conversion_details: {
+          assessment_score: overallScore,
+          priority_assigned: priority,
+          converted_at: new Date(),
+          converted_by: req.user.email
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Convert assessment error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'CONVERSION_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
 module.exports = {
   submitProfileAssessment,
   getProfileAssessment,
   getAllProfileAssessments,
   getClientAssessments,
   updateAssessmentStatus,
+  convertAssessmentToLead,
   deleteProfileAssessment
 };

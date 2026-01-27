@@ -39,6 +39,11 @@ router.get('/:id', auth(['admin', 'lead_manager']), leadController.getLead);
 // @access  Private (Admin only)
 router.post('/', auth(['admin']), validateLeadCreation, leadController.createLead);
 
+// @route   POST /api/leads/bulk/assign
+// @desc    Bulk assign leads to manager
+// @access  Private (Admin only)
+router.post('/bulk/assign', auth(['admin']), leadController.bulkAssignLeads);
+
 // @route   POST /api/leads/from-form
 // @desc    Create lead from form submission
 // @access  Private (Admin only) or Internal system
@@ -46,8 +51,8 @@ router.post('/from-form', auth(['admin']), leadController.createLeadFromForm);
 
 // @route   PATCH /api/leads/:id/assign
 // @desc    Assign lead to manager
-// @access  Private (Admin only)
-router.patch('/:id/assign', auth(['admin']), leadController.assignLead);
+// @access  Private (Admin, Lead Manager)
+router.patch('/:id/assign', auth(['admin', 'lead_manager']), leadController.assignLead);
 
 // @route   PATCH /api/leads/:id
 // @desc    Update lead
@@ -58,11 +63,6 @@ router.patch('/:id', auth(['admin', 'lead_manager']), validateLeadUpdate, leadCo
 // @desc    Convert lead to client
 // @access  Private (Admin, Assigned Lead Manager)
 router.post('/:id/convert', auth(['admin', 'lead_manager']), leadController.convertLead);
-
-// @route   PATCH /api/leads/:id/assign
-// @desc    Assign lead to manager
-// @access  Private (Admin only)
-router.patch('/:id/assign', auth(['admin']), leadController.assignLead);
 
 // @route   DELETE /api/leads/:id
 // @desc    Delete lead (soft delete)
