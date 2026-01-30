@@ -14,12 +14,15 @@ const RegisterPage = () => {
     phone: '',
     phone_country_code: 'US',
     company: '',
-    country: ''
+    country: '',
+    acceptTerms: false
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [formValidation, setFormValidation] = useState({ isValid: false, errors: [], warnings: [] });
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   
   const { register, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
@@ -58,10 +61,10 @@ const RegisterPage = () => {
   }, [formData]);
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }));
     // Clear errors when user starts typing
     if (error) setError('');
@@ -81,6 +84,13 @@ const RegisterPage = () => {
     setError('');
     setSuccess('');
 
+    // Check terms acceptance first
+    if (!formData.acceptTerms) {
+      setError('You must accept the Terms & Conditions and Privacy Policy to create an account.');
+      setIsLoading(false);
+      return;
+    }
+
     // Comprehensive validation
     const validation = validateRegistrationForm(formData);
     
@@ -91,8 +101,8 @@ const RegisterPage = () => {
     }
 
     try {
-      // Remove confirmPassword from the data sent to API
-      const { confirmPassword, ...registrationData } = formData;
+      // Remove confirmPassword and acceptTerms from the data sent to API
+      const { confirmPassword, acceptTerms, ...registrationData } = formData;
       
       const response = await register(registrationData);
       
@@ -265,6 +275,46 @@ const RegisterPage = () => {
               </div>
             )}
 
+            {/* Terms and Conditions Acceptance */}
+            <div className="form-group">
+              <div className="flex items-start">
+                <input
+                  type="checkbox"
+                  id="acceptTerms"
+                  name="acceptTerms"
+                  checked={formData.acceptTerms}
+                  onChange={handleInputChange}
+                  disabled={isLoading}
+                  className="mt-1 mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="acceptTerms" className="text-sm text-gray-700">
+                  I agree to the{' '}
+                  <button
+                    type="button"
+                    onClick={() => setShowTermsModal(true)}
+                    className="text-blue-600 hover:text-blue-800 underline font-medium"
+                  >
+                    Terms & Conditions
+                  </button>
+                  {' '}and{' '}
+                  <button
+                    type="button"
+                    onClick={() => setShowPrivacyModal(true)}
+                    className="text-blue-600 hover:text-blue-800 underline font-medium"
+                  >
+                    Privacy Policy
+                  </button>
+                  <span className="text-red-500 ml-1">*</span>
+                </label>
+              </div>
+              {!formData.acceptTerms && error && error.includes('Terms') && (
+                <div className="mt-2 text-red-600 text-sm flex items-center">
+                  <i className="fas fa-exclamation-circle mr-2"></i>
+                  You must accept the Terms & Conditions and Privacy Policy
+                </div>
+              )}
+            </div>
+
             {error && (
               <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 rounded-r-lg">
                 <div className="flex items-start">
@@ -292,10 +342,10 @@ const RegisterPage = () => {
             <button 
               type="submit" 
               className="btn-login"
-              disabled={isLoading || !formValidation.isValid}
+              disabled={isLoading || !formValidation.isValid || !formData.acceptTerms}
               style={{
-                opacity: isLoading || !formValidation.isValid ? 0.6 : 1,
-                cursor: isLoading || !formValidation.isValid ? 'not-allowed' : 'pointer'
+                opacity: isLoading || !formValidation.isValid || !formData.acceptTerms ? 0.6 : 1,
+                cursor: isLoading || !formValidation.isValid || !formData.acceptTerms ? 'not-allowed' : 'pointer'
               }}
             >
               {isLoading ? (
@@ -316,6 +366,153 @@ const RegisterPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Terms & Conditions Modal */}
+      {showTermsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-2xl font-bold text-gray-900">Terms & Conditions</h2>
+              <button
+                onClick={() => setShowTermsModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[70vh]">
+              <div className="space-y-6 text-gray-700">
+                <section>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">1. Acceptance of Terms</h3>
+                  <p>By accessing and using ImmigrationPro's services, you accept and agree to be bound by the terms and provision of this agreement.</p>
+                </section>
+
+                <section>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">2. Service Description</h3>
+                  <p>ImmigrationPro provides profile building and application preparation services for employment-based immigration petitions. We are not attorneys and do not provide legal advice or representation.</p>
+                </section>
+
+                <section>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">3. User Responsibilities</h3>
+                  <ul className="list-disc list-inside space-y-1 ml-4">
+                    <li>Provide accurate and complete information</li>
+                    <li>Maintain confidentiality of account credentials</li>
+                    <li>Use services only for lawful purposes</li>
+                    <li>Comply with all applicable laws and regulations</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">4. Service Limitations</h3>
+                  <p className="mb-2">Our services are limited to profile building and application preparation. We do not:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-4">
+                    <li>Provide legal advice or representation</li>
+                    <li>Guarantee approval of any immigration petition</li>
+                    <li>Act as attorneys or legal representatives</li>
+                    <li>File applications directly with USCIS</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">5. Payment Terms</h3>
+                  <p>Payment is required before services are rendered. All fees are non-refundable unless otherwise specified in writing.</p>
+                </section>
+
+                <section>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">6. Limitation of Liability</h3>
+                  <p>ImmigrationPro shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of our services.</p>
+                </section>
+              </div>
+            </div>
+            <div className="flex justify-end p-6 border-t bg-gray-50">
+              <button
+                onClick={() => setShowTermsModal(false)}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Privacy Policy Modal */}
+      {showPrivacyModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-2xl font-bold text-gray-900">Privacy Policy</h2>
+              <button
+                onClick={() => setShowPrivacyModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[70vh]">
+              <div className="space-y-6 text-gray-700">
+                <section>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">1. Information We Collect</h3>
+                  <p className="mb-2">We collect information you provide directly to us, such as:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-4">
+                    <li>Personal identification information (name, email, phone number)</li>
+                    <li>Professional background and qualifications</li>
+                    <li>Immigration-related documentation and information</li>
+                    <li>Payment and billing information</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">2. How We Use Your Information</h3>
+                  <p className="mb-2">We use the information we collect to:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-4">
+                    <li>Provide and improve our services</li>
+                    <li>Communicate with you about your case</li>
+                    <li>Process payments and transactions</li>
+                    <li>Send you updates and marketing communications (with consent)</li>
+                    <li>Comply with legal obligations</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">3. Information Sharing</h3>
+                  <p className="mb-2">We do not sell, trade, or otherwise transfer your personal information to third parties except:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-4">
+                    <li>With your explicit consent</li>
+                    <li>To trusted service providers who assist in our operations</li>
+                    <li>When required by law or legal process</li>
+                    <li>To protect our rights, property, or safety</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">4. Data Security</h3>
+                  <p>We implement appropriate security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction.</p>
+                </section>
+
+                <section>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">5. Your Rights</h3>
+                  <p className="mb-2">You have the right to:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-4">
+                    <li>Access and update your personal information</li>
+                    <li>Request deletion of your data</li>
+                    <li>Opt-out of marketing communications</li>
+                    <li>Request data portability</li>
+                  </ul>
+                </section>
+              </div>
+            </div>
+            <div className="flex justify-end p-6 border-t bg-gray-50">
+              <button
+                onClick={() => setShowPrivacyModal(false)}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

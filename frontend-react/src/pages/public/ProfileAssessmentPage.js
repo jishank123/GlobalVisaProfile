@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { profileAssessmentsAPI, authAPI } from '../../services/api';
 import { validateEmailRealTime, validateNameRealTime, validatePhoneRealTime, validateLocation, validateFieldOfExpertise, getSupportedCountries, getPhoneMaxLength } from '../../utils/validation';
 
@@ -200,14 +200,6 @@ const ProfileAssessmentPage = () => {
     setCurrentStep(1);
   };
 
-  const handleCountryCodeChange = (countryCode) => {
-    setFormData(prev => ({
-      ...prev,
-      client_country_code: countryCode,
-      client_phone: '' // Clear phone when country changes
-    }));
-  };
-
   const handleCriteriaChange = (criteria, value) => {
     setFormData(prev => ({
       ...prev,
@@ -259,10 +251,25 @@ const ProfileAssessmentPage = () => {
     try {
       const result = calculateScore();
       
-      // Combine first_name and last_name into client_name for API compatibility
+      // Map frontend field names to backend expected field names
       const submissionData = {
-        ...formData,
         client_name: `${formData.first_name} ${formData.last_name}`.trim(),
+        client_email: formData.client_email,
+        client_phone: formData.client_phone,
+        field_of_expertise: formData.field_of_expertise,
+        years_of_experience: formData.years_of_experience,
+        current_location: formData.current_location,
+        // Map criteria fields to backend expected names
+        criterion_1_awards: formData.awards_recognition,
+        criterion_2_memberships: formData.membership_associations,
+        criterion_3_media: formData.published_material,
+        criterion_4_judging: formData.judging_others_work,
+        criterion_5_contributions: formData.original_contributions,
+        criterion_6_publications: formData.scholarly_articles,
+        criterion_7_exhibitions: formData.exhibitions_showcases,
+        criterion_8_leadership: formData.leading_role,
+        criterion_9_salary: formData.high_salary,
+        criterion_10_commercial: formData.commercial_success,
         overall_score: result.totalScore,
         profile_strength: result.strength.toLowerCase(),
         criteria_met: result.criteriaCount
@@ -279,10 +286,10 @@ const ProfileAssessmentPage = () => {
             {
               name: `${formData.first_name} ${formData.last_name}`.trim(),
               email: formData.client_email,
-              phone: formData.phone,
+              phone: formData.client_phone,
               field_of_expertise: formData.field_of_expertise,
               current_location: formData.current_location,
-              company: formData.company
+              company: ''
             }, 
             'profile_assessment'
           );

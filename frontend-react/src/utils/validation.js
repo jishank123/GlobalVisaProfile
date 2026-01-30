@@ -317,9 +317,9 @@ export const validateNameRealTime = (name, fieldName = 'Name') => {
 // Get list of supported countries for dropdown (limited to US, UK, IN as requested)
 export const getSupportedCountries = () => {
   return [
-    { code: 'US', name: 'United States', dialCode: '+1', flag: '🇺🇸', minDigits: 10, maxDigits: 10 },
-    { code: 'UK', name: 'United Kingdom', dialCode: '+44', flag: 'UK', minDigits: 10, maxDigits: 10 },
-    { code: 'IN', name: 'India', dialCode: '+91', flag: '🇮🇳', minDigits: 10, maxDigits: 10 }
+    { code: 'US', name: 'United States', dialCode: '+1', flag: '🇺🇸', minDigits: 10, maxDigits: 10, example: '(555) 123-4567' },
+    { code: 'UK', name: 'United Kingdom', dialCode: '+44', flag: '🇬🇧', minDigits: 10, maxDigits: 10, example: '20 7946 0958' },
+    { code: 'IN', name: 'India', dialCode: '+91', flag: '🇮🇳', minDigits: 10, maxDigits: 10, example: '98765 43210' }
   ];
 };
 
