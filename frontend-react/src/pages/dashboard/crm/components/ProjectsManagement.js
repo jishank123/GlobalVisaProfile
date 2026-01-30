@@ -249,7 +249,14 @@ const UpdateStatusModal = ({ project, onClose, onSubmit }) => {
         <div className="p-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Update Project Status</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <button 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }} 
+              className="text-gray-400 hover:text-gray-600"
+            >
               <i className="fas fa-times"></i>
             </button>
           </div>

@@ -47,7 +47,7 @@ const CRMManagerDashboard = () => {
   });
 
   // API configuration
-  const API_BASE = 'https://backend.immigrationprofile.com/api';
+  const API_BASE = 'http://localhost:5000/api';
   const authToken = localStorage.getItem('token') || localStorage.getItem('client_token');
 
   useEffect(() => {

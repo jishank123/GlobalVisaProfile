@@ -55,7 +55,7 @@ const FinancialOverview = () => {
             service: 'EB-1A Petition',
             amount: 12000,
             status: 'paid',
-            date: '2024-01-28T00:00:00Z',
+            date: '2026-01-28T00:00:00Z',
             method: 'Bank Transfer'
           },
           {
@@ -64,7 +64,7 @@ const FinancialOverview = () => {
             service: 'EB-2 NIW Application',
             amount: 9000,
             status: 'pending',
-            date: '2024-01-25T00:00:00Z',
+            date: '2026-01-25T00:00:00Z',
             method: 'Credit Card'
           },
           {
@@ -73,7 +73,7 @@ const FinancialOverview = () => {
             service: 'O-1 Visa Consultation',
             amount: 500,
             status: 'paid',
-            date: '2024-01-20T00:00:00Z',
+            date: '2026-01-20T00:00:00Z',
             method: 'PayPal'
           },
           {
@@ -82,7 +82,7 @@ const FinancialOverview = () => {
             service: 'EB-1A Documentation',
             amount: 14000,
             status: 'overdue',
-            date: '2024-01-15T00:00:00Z',
+            date: '2026-01-15T00:00:00Z',
             method: 'Bank Transfer'
           }
         ]

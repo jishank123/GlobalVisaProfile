@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { profileAssessmentsAPI } from '../../services/api';
+import { validateEmail, validateName, validatePhoneWithCountry, validateLocation, validateFieldOfExpertise, getSupportedCountries } from '../../utils/validation';
 
 const ProfileAssessmentPage = () => {
   const navigate = useNavigate();
+  const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     client_name: '',
     client_email: '',
     client_phone: '',
+    client_country_code: 'US',
     field_of_expertise: '',
     years_of_experience: '',
     current_location: '',
@@ -24,6 +27,7 @@ const ProfileAssessmentPage = () => {
     commercial_success: 0
   });
   
+  const [validationErrors, setValidationErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
@@ -60,6 +64,99 @@ const ProfileAssessmentPage = () => {
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+    
+    // Clear validation error when user starts typing
+    if (validationErrors[name]) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [name]: null
+      }));
+    }
+    
+    // Real-time validation for better UX (debounced)
+    if (value.trim()) {
+      setTimeout(() => {
+        const validation = validateField(name, value);
+        if (!validation.isValid && value === formData[name]) {
+          setValidationErrors(prev => ({
+            ...prev,
+            [name]: validation.errors[0]
+          }));
+        }
+      }, 1000); // 1 second delay for real-time validation
+    }
+  };
+
+  const validateField = (name, value) => {
+    let validation = { isValid: true, errors: [] };
+    
+    switch (name) {
+      case 'client_name':
+        validation = validateName(value, 'Full name');
+        break;
+      case 'client_email':
+        validation = validateEmail(value);
+        break;
+      case 'client_phone':
+        validation = validatePhoneWithCountry(value, formData.client_country_code);
+        break;
+      case 'field_of_expertise':
+        validation = validateFieldOfExpertise(value);
+        break;
+      case 'years_of_experience':
+        if (!value) {
+          validation = { isValid: false, errors: ['Years of experience is required'] };
+        }
+        break;
+      case 'current_location':
+        validation = validateLocation(value);
+        break;
+      default:
+        break;
+    }
+    
+    return validation;
+  };
+
+  const validateStep1 = () => {
+    const errors = {};
+    const requiredFields = ['client_name', 'client_email', 'field_of_expertise', 'years_of_experience', 'current_location'];
+    
+    requiredFields.forEach(field => {
+      const validation = validateField(field, formData[field]);
+      if (!validation.isValid) {
+        errors[field] = validation.errors[0];
+      }
+    });
+    
+    // Validate phone if provided
+    if (formData.client_phone) {
+      const phoneValidation = validateField('client_phone', formData.client_phone);
+      if (!phoneValidation.isValid) {
+        errors.client_phone = phoneValidation.errors[0];
+      }
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleNextStep = () => {
+    if (validateStep1()) {
+      setCurrentStep(2);
+    }
+  };
+
+  const handlePrevStep = () => {
+    setCurrentStep(1);
+  };
+
+  const handleCountryCodeChange = (countryCode) => {
+    setFormData(prev => ({
+      ...prev,
+      client_country_code: countryCode,
+      client_phone: '' // Clear phone when country changes
     }));
   };
 
@@ -140,34 +237,387 @@ const ProfileAssessmentPage = () => {
     }
   };
 
+  const renderStepIndicator = () => {
+    return (
+      <div className="step-indicator flex items-center justify-center mb-8">
+        <div className="flex items-center space-x-4">
+          {/* Step 1 */}
+          <div className="flex items-center">
+            <div className={`step-circle w-12 h-12 rounded-full flex items-center justify-center font-semibold text-lg ${
+              currentStep >= 1 ? 'bg-primary text-white active' : 'bg-gray-200 text-gray-600'
+            }`}>
+              {currentStep > 1 ? <i className="fas fa-check"></i> : '1'}
+            </div>
+            <span className={`ml-3 font-medium text-lg ${currentStep >= 1 ? 'text-primary' : 'text-gray-500'}`}>
+              Personal Information
+            </span>
+          </div>
+          
+          {/* Connector */}
+          <div className={`step-connector w-20 h-1 rounded ${currentStep > 1 ? 'bg-primary' : 'bg-gray-200'}`}></div>
+          
+          {/* Step 2 */}
+          <div className="flex items-center">
+            <div className={`step-circle w-12 h-12 rounded-full flex items-center justify-center font-semibold text-lg ${
+              currentStep >= 2 ? 'bg-primary text-white active' : 'bg-gray-200 text-gray-600'
+            }`}>
+              2
+            </div>
+            <span className={`ml-3 font-medium text-lg ${currentStep >= 2 ? 'text-primary' : 'text-gray-500'}`}>
+              Assessment
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPhoneInputField = () => {
+    const hasError = validationErrors.client_phone;
+    const hasValue = formData.client_phone && formData.client_phone.trim();
+    const countries = getSupportedCountries();
+    const currentCountry = countries.find(c => c.code === formData.client_country_code) || countries[0];
+    const digitsOnly = formData.client_phone.replace(/\D/g, '');
+    
+    return (
+      <div className="form-input-container">
+        <label className="block text-gray-700 font-semibold mb-2">
+          Phone Number <span className="text-gray-500 text-sm">(Optional)</span>
+        </label>
+        
+        <div className="flex gap-2">
+          {/* Country Code Selector */}
+          <select
+            value={formData.client_country_code}
+            onChange={(e) => handleCountryCodeChange(e.target.value)}
+            className={`px-3 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+              hasError ? 'border-red-500 bg-red-50' : 'border-gray-300'
+            }`}
+            style={{ minWidth: '140px' }}
+          >
+            {countries.map(country => (
+              <option key={country.code} value={country.code}>
+                {country.flag} {country.dialCode}
+              </option>
+            ))}
+          </select>
+          
+          {/* Phone Number Input */}
+          <input
+            type="tel"
+            name="client_phone"
+            value={formData.client_phone}
+            onChange={handleInputChange}
+            placeholder={`Enter phone number`}
+            minLength={currentCountry.minDigits}
+            maxLength={currentCountry.maxDigits}
+            className={`flex-1 px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 transition-all ${
+              hasError 
+                ? 'form-input-error border-red-500 bg-red-50' 
+                : hasValue 
+                  ? 'form-input-success'
+                  : 'border-gray-300 focus:ring-primary focus:border-primary'
+            }`}
+          />
+        </div>
+        
+        {/* Country Info and Digit Counter */}
+        <div className="mt-1 flex justify-between items-center text-xs">
+          <span className="text-gray-500">
+            Selected: {currentCountry.flag} {currentCountry.name} ({currentCountry.dialCode})
+          </span>
+          <span className={`${digitsOnly.length < currentCountry.minDigits || digitsOnly.length > currentCountry.maxDigits ? 'text-red-500 font-semibold' : 'text-gray-500'}`}>
+            {digitsOnly.length}/{currentCountry.maxDigits} digits
+          </span>
+        </div>
+        
+        {/* Format Example */}
+        {!formData.client_phone && !hasError && (
+          <div className="mt-1 text-xs text-gray-400">
+            Example: {currentCountry.example}
+          </div>
+        )}
+        
+        {hasError && (
+          <div className="validation-error mt-2 text-red-600 text-sm flex items-center">
+            <i className="fas fa-exclamation-circle mr-2"></i>
+            {hasError}
+          </div>
+        )}
+        {hasValue && !hasError && (
+          <div className="mt-2 text-green-600 text-sm flex items-center">
+            <i className="fas fa-check-circle mr-2"></i>
+            Valid {currentCountry.name} phone number
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderInputField = (name, label, type = 'text', required = false, placeholder = '', helpText = '') => {
+    const hasError = validationErrors[name];
+    const hasValue = formData[name] && formData[name].trim();
+    
+    return (
+      <div className="form-input-container">
+        <label className="block text-gray-700 font-semibold mb-2">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        <input
+          type={type}
+          name={name}
+          value={formData[name]}
+          onChange={handleInputChange}
+          placeholder={placeholder}
+          className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 transition-all ${
+            hasError 
+              ? 'form-input-error' 
+              : hasValue 
+                ? 'form-input-success'
+                : 'border-gray-300 focus:ring-primary focus:border-primary'
+          }`}
+        />
+        {helpText && !hasError && !hasValue && (
+          <div className="mt-1 text-gray-500 text-xs">
+            <i className="fas fa-info-circle mr-1"></i>
+            {helpText}
+          </div>
+        )}
+        {hasError && (
+          <div className="validation-error mt-2 text-red-600 text-sm flex items-center">
+            <i className="fas fa-exclamation-circle mr-2"></i>
+            {hasError}
+          </div>
+        )}
+        {hasValue && !hasError && (
+          <div className="mt-2 text-green-600 text-sm flex items-center">
+            <i className="fas fa-check-circle mr-2"></i>
+            Looks good!
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderSelectField = (name, label, options, required = false) => {
+    const hasError = validationErrors[name];
+    const hasValue = formData[name];
+    
+    return (
+      <div className="form-input-container">
+        <label className="block text-gray-700 font-semibold mb-2">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        <select
+          name={name}
+          value={formData[name]}
+          onChange={handleInputChange}
+          className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 transition-all ${
+            hasError 
+              ? 'form-input-error' 
+              : hasValue 
+                ? 'form-input-success'
+                : 'border-gray-300 focus:ring-primary focus:border-primary'
+          }`}
+        >
+          <option value="">Select {label.toLowerCase()}</option>
+          {options.map(option => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {hasError && (
+          <div className="validation-error mt-2 text-red-600 text-sm flex items-center">
+            <i className="fas fa-exclamation-circle mr-2"></i>
+            {hasError}
+          </div>
+        )}
+        {hasValue && !hasError && (
+          <div className="mt-2 text-green-600 text-sm flex items-center">
+            <i className="fas fa-check-circle mr-2"></i>
+            Looks good!
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderStep1 = () => {
+    const experienceOptions = [
+      { value: '0-2', label: '0-2 years' },
+      { value: '3-5', label: '3-5 years' },
+      { value: '6-10', label: '6-10 years' },
+      { value: '11-15', label: '11-15 years' },
+      { value: '16+', label: '16+ years' }
+    ];
+
+    return (
+      <div className="step-content bg-white rounded-xl shadow-lg p-8">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            <i className="fas fa-user text-primary mr-3"></i>
+            Personal Information
+          </h2>
+          <p className="text-gray-600 text-lg">
+            Please provide your basic information to get started with your EB-1A profile assessment.
+          </p>
+          
+          {/* Progress Bar */}
+          <div className="progress-bar-container w-full h-2 mt-6">
+            <div className="progress-bar-fill h-full" style={{ width: '50%' }}></div>
+          </div>
+          <p className="text-sm text-gray-500 mt-2">Step 1 of 2</p>
+        </div>
+        
+        <div className="grid md:grid-cols-2 gap-6">
+          {renderInputField('client_name', 'Full Name', 'text', true, 'Enter your full name', 'Please enter your first and last name')}
+          {renderInputField('client_email', 'Email Address', 'email', true, 'your.email@example.com', 'We\'ll use this to send your assessment results')}
+          {renderPhoneInputField()}
+          {renderInputField('current_location', 'Current Location', 'text', true, 'City, Country', 'e.g., New York, USA or London, UK')}
+          {renderInputField('field_of_expertise', 'Field of Expertise', 'text', true, 'e.g., Artificial Intelligence, Biotechnology', 'Your primary area of professional expertise')}
+          {renderSelectField('years_of_experience', 'Years of Experience', experienceOptions, true)}
+        </div>
+
+        <div className="mt-8 flex justify-end">
+          <button
+            type="button"
+            onClick={handleNextStep}
+            className="btn-step bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-secondary transition-all transform hover:scale-105 flex items-center"
+          >
+            Continue to Assessment
+            <i className="fas fa-arrow-right ml-2"></i>
+          </button>
+        </div>
+      </div>
+    );
+  };
   const renderCriteriaInput = (criteriaKey) => {
     return (
-      <div key={criteriaKey} className="bg-gray-50 rounded-lg p-4 mb-4">
-        <h4 className="font-semibold text-gray-900 mb-2">
+      <div key={criteriaKey} className="criteria-card bg-gray-50 rounded-lg p-6 mb-6 border-l-4 border-primary">
+        <h4 className="font-semibold text-gray-900 mb-3 text-lg">
           {criteriaLabels[criteriaKey]}
         </h4>
-        <p className="text-sm text-gray-600 mb-3">
+        <p className="text-sm text-gray-600 mb-4 leading-relaxed">
           {criteriaDescriptions[criteriaKey]}
         </p>
-        <div className="flex space-x-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[0, 1, 2, 3].map(value => (
-            <label key={value} className="flex items-center cursor-pointer">
+            <label key={value} className={`criteria-option flex items-center cursor-pointer p-3 rounded-lg border-2 transition-all ${
+              formData[criteriaKey] === value 
+                ? 'border-primary bg-primary text-white' 
+                : 'border-gray-200 hover:border-primary'
+            }`}>
               <input
                 type="radio"
                 name={criteriaKey}
                 value={value}
                 checked={formData[criteriaKey] === value}
                 onChange={(e) => handleCriteriaChange(criteriaKey, e.target.value)}
-                className="mr-2"
+                className="sr-only"
               />
-              <span className="text-sm">
-                {value === 0 && 'No (0)'}
-                {value === 1 && 'Weak (1)'}
-                {value === 2 && 'Good (2)'}
-                {value === 3 && 'Strong (3)'}
-              </span>
+              <div className="text-center w-full">
+                <div className="font-semibold">
+                  {value === 0 && 'No'}
+                  {value === 1 && 'Weak'}
+                  {value === 2 && 'Good'}
+                  {value === 3 && 'Strong'}
+                </div>
+                <div className="text-xs opacity-75">({value})</div>
+              </div>
             </label>
           ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderStep2 = () => {
+    const completedCriteria = Object.keys(criteriaLabels).filter(key => formData[key] > 0).length;
+    const totalCriteria = Object.keys(criteriaLabels).length;
+    
+    return (
+      <div className="step-content bg-white rounded-xl shadow-lg p-8">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            <i className="fas fa-trophy text-primary mr-3"></i>
+            EB-1A Criteria Assessment
+          </h2>
+          <p className="text-gray-600 mb-6 text-lg">
+            Rate each criterion based on your current achievements. You need to demonstrate excellence in at least 3 out of 10 criteria for EB-1A eligibility.
+          </p>
+          
+          {/* Progress Bar */}
+          <div className="progress-bar-container w-full h-2 mb-4">
+            <div className="progress-bar-fill h-full" style={{ width: '100%' }}></div>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">Step 2 of 2</p>
+          
+          {/* Criteria Progress */}
+          {completedCriteria > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-6">
+              <p className="text-green-800 text-sm">
+                <i className="fas fa-check-circle mr-2"></i>
+                You've rated {completedCriteria} out of {totalCriteria} criteria
+                {completedCriteria >= 3 && (
+                  <span className="font-semibold"> - Great! You meet the minimum requirement.</span>
+                )}
+              </p>
+            </div>
+          )}
+          
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
+            <div className="flex items-start">
+              <i className="fas fa-info-circle text-blue-600 mt-1 mr-3"></i>
+              <div className="text-left">
+                <h4 className="font-semibold text-blue-900 mb-2">Assessment Guidelines:</h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• <strong>No (0):</strong> You don't have evidence for this criterion</li>
+                  <li>• <strong>Weak (1):</strong> You have some evidence but it's limited</li>
+                  <li>• <strong>Good (2):</strong> You have solid evidence that meets the criterion</li>
+                  <li>• <strong>Strong (3):</strong> You have exceptional evidence that clearly exceeds the criterion</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          {Object.keys(criteriaLabels).map(renderCriteriaInput)}
+        </div>
+
+        <div className="mt-8 flex justify-between">
+          <button
+            type="button"
+            onClick={handlePrevStep}
+            className="btn-step bg-gray-500 text-white px-8 py-3 rounded-lg font-semibold hover:bg-gray-600 transition-all flex items-center"
+          >
+            <i className="fas fa-arrow-left mr-2"></i>
+            Back to Information
+          </button>
+          
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="btn-step bg-primary text-white px-12 py-3 rounded-lg text-lg font-semibold hover:bg-secondary transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center relative"
+          >
+            {isSubmitting && (
+              <div className="loading-overlay">
+                <div className="loading-spinner"></div>
+              </div>
+            )}
+            {isSubmitting ? (
+              <>
+                <i className="fas fa-spinner fa-spin mr-2"></i>
+                Analyzing Your Profile...
+              </>
+            ) : (
+              <>
+                <i className="fas fa-chart-line mr-2"></i>
+                Get My Assessment Results
+              </>
+            )}
+          </button>
         </div>
       </div>
     );
@@ -193,145 +643,11 @@ const ProfileAssessmentPage = () => {
       <div className="py-20 bg-white">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
+            {renderStepIndicator()}
+            
             <form onSubmit={handleSubmit} className="space-y-8">
-              {/* Personal Information */}
-              <div className="bg-white rounded-xl shadow-lg p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  <i className="fas fa-user text-primary mr-3"></i>
-                  Personal Information
-                </h2>
-                
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">
-                      Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      name="client_name"
-                      value={formData.client_name}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">
-                      Email Address *
-                    </label>
-                    <input
-                      type="email"
-                      name="client_email"
-                      value={formData.client_email}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      name="client_phone"
-                      value={formData.client_phone}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">
-                      Current Location *
-                    </label>
-                    <input
-                      type="text"
-                      name="current_location"
-                      value={formData.current_location}
-                      onChange={handleInputChange}
-                      required
-                      placeholder="City, Country"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">
-                      Field of Expertise *
-                    </label>
-                    <input
-                      type="text"
-                      name="field_of_expertise"
-                      value={formData.field_of_expertise}
-                      onChange={handleInputChange}
-                      required
-                      placeholder="e.g., Artificial Intelligence, Biotechnology"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">
-                      Years of Experience *
-                    </label>
-                    <select
-                      name="years_of_experience"
-                      value={formData.years_of_experience}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
-                      <option value="">Select experience</option>
-                      <option value="0-2">0-2 years</option>
-                      <option value="3-5">3-5 years</option>
-                      <option value="6-10">6-10 years</option>
-                      <option value="11-15">11-15 years</option>
-                      <option value="16+">16+ years</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* EB-1A Criteria Assessment */}
-              <div className="bg-white rounded-xl shadow-lg p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  <i className="fas fa-trophy text-primary mr-3"></i>
-                  EB-1A Criteria Assessment
-                </h2>
-                
-                <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-                  <p className="text-blue-800">
-                    <i className="fas fa-info-circle mr-2"></i>
-                    Rate each criterion based on your current achievements. You need to demonstrate excellence in at least 3 out of 10 criteria for EB-1A eligibility.
-                  </p>
-                </div>
-
-                {Object.keys(criteriaLabels).map(renderCriteriaInput)}
-              </div>
-
-              {/* Submit Button */}
-              <div className="text-center">
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="bg-primary text-white px-12 py-4 rounded-lg text-lg font-semibold hover:bg-secondary transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin mr-2"></i>
-                      Analyzing Your Profile...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-chart-line mr-2"></i>
-                      Get My Assessment Results
-                    </>
-                  )}
-                </button>
-              </div>
+              {currentStep === 1 && renderStep1()}
+              {currentStep === 2 && renderStep2()}
 
               {/* Messages */}
               {submitMessage && (

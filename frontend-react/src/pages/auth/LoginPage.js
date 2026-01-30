@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { ValidatedInput, PasswordInput } from '../../components/FormComponents';
+import { validateEmail } from '../../utils/validation';
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
@@ -18,26 +20,21 @@ const LoginPage = () => {
   useEffect(() => {
     if (isAuthenticated() && user) {
       const role = user.role;
-      let redirectPath = '/';
       
-      switch (role) {
-        case 'admin':
-          redirectPath = '/dashboard/admin';
-          break;
-        case 'lead_manager':
-          redirectPath = '/dashboard/lead-manager';
-          break;
-        case 'crm_manager':
-          redirectPath = '/dashboard/crm-manager';
-          break;
-        case 'client':
-          redirectPath = '/dashboard/client';
-          break;
-        default:
-          redirectPath = '/';
+      // If user is a manager, redirect to manager login
+      if (['admin', 'lead_manager', 'crm_manager'].includes(role)) {
+        navigate('/manager', { replace: true });
+        return;
       }
       
-      navigate(redirectPath, { replace: true });
+      // If user is a client, redirect to client dashboard
+      if (role === 'client') {
+        navigate('/dashboard/client', { replace: true });
+        return;
+      }
+      
+      // Default redirect
+      navigate('/', { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
 
@@ -57,15 +54,16 @@ const LoginPage = () => {
     setError('');
     setSuccess('');
 
-    // Basic validation
-    if (!formData.email || !formData.password) {
-      setError('Please enter both email and password.');
+    // Enhanced validation
+    const emailValidation = validateEmail(formData.email);
+    if (!emailValidation.isValid) {
+      setError(emailValidation.errors[0]);
       setIsLoading(false);
       return;
     }
 
-    if (!formData.email.includes('@')) {
-      setError('Please enter a valid email address.');
+    if (!formData.password) {
+      setError('Please enter your password.');
       setIsLoading(false);
       return;
     }
@@ -81,31 +79,19 @@ const LoginPage = () => {
       
       if (response.success) {
         const userData = response.data?.user || response.data;
+        
+        // This login is only for clients
+        if (userData?.role !== 'client') {
+          setError('This login is for clients only. Managers should use the manager login.');
+          setIsLoading(false);
+          return;
+        }
+        
         setSuccess(`Welcome back, ${userData?.first_name || 'User'}!`);
         
-        // Redirect based on role
+        // Redirect to client dashboard
         setTimeout(() => {
-          const role = userData?.role;
-          let redirectPath = '/';
-          
-          switch (role) {
-            case 'admin':
-              redirectPath = '/dashboard/admin';
-              break;
-            case 'lead_manager':
-              redirectPath = '/dashboard/lead-manager';
-              break;
-            case 'crm_manager':
-              redirectPath = '/dashboard/crm-manager';
-              break;
-            case 'client':
-              redirectPath = '/dashboard/client';
-              break;
-            default:
-              redirectPath = '/';
-          }
-          
-          navigate(redirectPath, { replace: true });
+          navigate('/dashboard/client', { replace: true });
         }, 1000);
       } else {
         setError(response.error?.message || 'Login failed. Please try again.');
@@ -146,50 +132,56 @@ const LoginPage = () => {
           </div>
 
           <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label">Email Address</label>
-              <input 
-                type="email" 
-                className="form-control-custom" 
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="Enter your email" 
-                required 
-              />
-            </div>
+            <ValidatedInput
+              name="email"
+              label="Email Address"
+              type="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              required={true}
+              placeholder="Enter your email"
+              disabled={isLoading}
+            />
 
-            <div className="form-group">
-              <label className="form-label">Password</label>
-              <input 
-                type="password" 
-                className="form-control-custom" 
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                placeholder="Enter your password" 
-                required 
-              />
-            </div>
+            <PasswordInput
+              name="password"
+              label="Password"
+              value={formData.password}
+              onChange={handleInputChange}
+              required={true}
+              placeholder="Enter your password"
+              disabled={isLoading}
+              showStrength={false}
+            />
 
             <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#4a5568' }}>
-                <input type="checkbox" /> Remember me
+                <input type="checkbox" disabled={isLoading} /> Remember me
               </label>
               <Link to="/forgot-password" style={{ fontSize: '14px', color: '#667eea', textDecoration: 'none' }}>Forgot Password?</Link>
             </div>
 
             {error && (
-              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
-                <i className="fas fa-exclamation-triangle mr-2"></i>
-                {error}
+              <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 rounded-r-lg">
+                <div className="flex items-start">
+                  <i className="fas fa-exclamation-triangle text-red-400 mr-3 mt-0.5"></i>
+                  <div>
+                    <h4 className="text-red-800 font-semibold text-sm">Login Failed</h4>
+                    <p className="text-red-700 text-sm mt-1">{error}</p>
+                  </div>
+                </div>
               </div>
             )}
 
             {success && (
-              <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-lg text-sm">
-                <i className="fas fa-check-circle mr-2"></i>
-                {success}
+              <div className="mb-4 p-4 bg-green-50 border-l-4 border-green-400 rounded-r-lg">
+                <div className="flex items-start">
+                  <i className="fas fa-check-circle text-green-400 mr-3 mt-0.5"></i>
+                  <div>
+                    <h4 className="text-green-800 font-semibold text-sm">Welcome Back!</h4>
+                    <p className="text-green-700 text-sm mt-1">{success}</p>
+                  </div>
+                </div>
               </div>
             )}
 

@@ -25,6 +25,8 @@ import FAQPage from './pages/public/FAQPage';
 import PricingPage from './pages/public/PricingPage';
 import ContactPage from './pages/public/ContactPage';
 import FormSuccessPage from './pages/public/FormSuccessPage';
+import PrivacyPolicyPage from './pages/public/PrivacyPolicyPage';
+import TermsConditionsPage from './pages/public/TermsConditionsPage';
 
 // Dashboard Pages
 import AdminDashboard from './pages/dashboard/admin/AdminDashboard';
@@ -64,6 +66,8 @@ function App() {
             <Route path="/faq" element={<Layout><FAQPage /></Layout>} />
             <Route path="/pricing" element={<Layout><PricingPage /></Layout>} />
             <Route path="/contact" element={<Layout><ContactPage /></Layout>} />
+            <Route path="/privacy-policy" element={<Layout><PrivacyPolicyPage /></Layout>} />
+            <Route path="/terms-conditions" element={<Layout><TermsConditionsPage /></Layout>} />
             <Route path="/form-success" element={<Layout showFooter={false}><FormSuccessPage /></Layout>} />
 
             {/* Protected Dashboard Routes - Role-based routing */}

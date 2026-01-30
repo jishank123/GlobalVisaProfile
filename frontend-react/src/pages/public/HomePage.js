@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import DisclaimerPopup from '../../components/DisclaimerPopup';
 import { contactAPI } from '../../services/api';
 
 const HomePage = () => {
@@ -60,8 +59,6 @@ const HomePage = () => {
 
   return (
     <div>
-      <DisclaimerPopup />
-      
       {/* Hero Section */}
       <section id="home" className="relative pt-28 pb-20 md:pt-32 md:pb-32 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 overflow-hidden">
         {/* Animated Background Elements */}

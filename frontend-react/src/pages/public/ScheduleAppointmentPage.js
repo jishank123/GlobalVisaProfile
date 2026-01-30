@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { appointmentsAPI } from '../../services/api';
+import { validatePhoneWithCountry, getSupportedCountries } from '../../utils/validation';
 
 const ScheduleAppointmentPage = () => {
   const navigate = useNavigate();
@@ -8,6 +9,7 @@ const ScheduleAppointmentPage = () => {
     name: '',
     email: '',
     phone: '',
+    country_code: 'US',
     visa_category: '',
     timezone: '',
     preferred_date: '',
@@ -25,6 +27,14 @@ const ScheduleAppointmentPage = () => {
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  const handleCountryCodeChange = (countryCode) => {
+    setFormData(prev => ({
+      ...prev,
+      country_code: countryCode,
+      phone: '' // Clear phone when country changes
     }));
   };
 
@@ -107,14 +117,67 @@ const ScheduleAppointmentPage = () => {
                   <label className="block text-gray-700 font-semibold mb-2">
                     Phone Number *
                   </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
+                  <div className="flex gap-2">
+                    {/* Country Code Selector */}
+                    <select
+                      value={formData.country_code}
+                      onChange={(e) => handleCountryCodeChange(e.target.value)}
+                      className={`px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
+                        getSupportedCountries().find(c => c.code === formData.country_code) ? 'border-gray-300' : 'border-red-500 bg-red-50'
+                      }`}
+                      style={{ minWidth: '140px' }}
+                    >
+                      {getSupportedCountries().map(country => (
+                        <option key={country.code} value={country.code}>
+                          {country.flag} {country.dialCode}
+                        </option>
+                      ))}
+                    </select>
+                    
+                    {/* Phone Number Input */}
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      required
+                      minLength={getSupportedCountries().find(c => c.code === formData.country_code)?.minDigits || 10}
+                      maxLength={getSupportedCountries().find(c => c.code === formData.country_code)?.maxDigits || 10}
+                      placeholder="Enter phone number"
+                      className={`flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
+                        formData.phone && formData.phone.replace(/\D/g, '').length > 0 && 
+                        (formData.phone.replace(/\D/g, '').length < (getSupportedCountries().find(c => c.code === formData.country_code)?.minDigits || 10) ||
+                         formData.phone.replace(/\D/g, '').length > (getSupportedCountries().find(c => c.code === formData.country_code)?.maxDigits || 10))
+                        ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
+                    />
+                  </div>
+                  <div className="mt-1 flex justify-between items-center text-xs">
+                    <span className="text-gray-500">
+                      Selected: {getSupportedCountries().find(c => c.code === formData.country_code)?.flag} {getSupportedCountries().find(c => c.code === formData.country_code)?.name} ({getSupportedCountries().find(c => c.code === formData.country_code)?.dialCode})
+                    </span>
+                    <span className={`${
+                      formData.phone && formData.phone.replace(/\D/g, '').length > 0 && 
+                      (formData.phone.replace(/\D/g, '').length < (getSupportedCountries().find(c => c.code === formData.country_code)?.minDigits || 10) ||
+                       formData.phone.replace(/\D/g, '').length > (getSupportedCountries().find(c => c.code === formData.country_code)?.maxDigits || 10))
+                      ? 'text-red-500 font-semibold' : 'text-gray-500'
+                    }`}>
+                      {formData.phone.replace(/\D/g, '').length}/{getSupportedCountries().find(c => c.code === formData.country_code)?.maxDigits || 10} digits
+                    </span>
+                  </div>
+                  {!formData.phone && (
+                    <div className="mt-1 text-xs text-gray-400">
+                      Example: {getSupportedCountries().find(c => c.code === formData.country_code)?.example || '(555) 123-4567'}
+                    </div>
+                  )}
+                  {formData.phone && formData.phone.replace(/\D/g, '').length > 0 && 
+                   (formData.phone.replace(/\D/g, '').length < (getSupportedCountries().find(c => c.code === formData.country_code)?.minDigits || 10) ||
+                    formData.phone.replace(/\D/g, '').length > (getSupportedCountries().find(c => c.code === formData.country_code)?.maxDigits || 10)) && (
+                    <div className="validation-error mt-2 text-red-600 text-sm flex items-center">
+                      <i className="fas fa-exclamation-circle mr-2"></i>
+                      Please enter exactly {getSupportedCountries().find(c => c.code === formData.country_code)?.maxDigits || 10} digits for {getSupportedCountries().find(c => c.code === formData.country_code)?.name}
+                    </div>
+                  )}
                 </div>
                 
                 <div>

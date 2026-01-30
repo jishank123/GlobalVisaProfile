@@ -1,5 +1,6 @@
 {
   "name": "immigration-frontend-react",
+  "homepage":"https://immigrationprofile.com/CRM",
   "version": "1.0.0",
   "description": "React Frontend for Immigration Pro application",
   "private": true,
@@ -38,6 +39,5 @@
       "last 1 safari version"
     ]
   },
-  "homepage": "https://immigrationprofile.com/CRM",
   "proxy": "http://localhost:5000"
 }

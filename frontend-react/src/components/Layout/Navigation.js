@@ -106,7 +106,7 @@ const Navigation = () => {
               </button>
               <div className="absolute left-0 top-full hidden group-hover:block bg-white shadow-lg rounded-lg w-56 z-50 -mt-1">
                 <div className="py-2">
-                  <Link to="/eb1a" className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-primary transition-colors">
+                  <Link to="/eb1a-eligibility" className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-primary transition-colors">
                     EB-1A Eligibility
                   </Link>
                   <Link to="/profile-building" className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-primary transition-colors">
@@ -122,11 +122,11 @@ const Navigation = () => {
               </div>
             </div>
             
-            <NavLink to="/assessment">Profile Assessment</NavLink>
+            <NavLink to="/profile-assessment">Profile Assessment</NavLink>
             <NavLink to="/pricing">Pricing</NavLink>
-            <NavLink to="/schedule">Schedule</NavLink>
+            <NavLink to="/schedule-appointment">Schedule</NavLink>
             <NavLink to="/faq">FAQ</NavLink>
-            <NavLink to="/attorneys">Attorneys</NavLink>
+            <NavLink to="/attorney-referrals">Attorneys</NavLink>
             <NavLink to="/contact">Contact</NavLink>
           </div>
           
@@ -196,7 +196,7 @@ const Navigation = () => {
               <div className="border-b border-gray-200"></div>
               <div className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50">Services</div>
               
-              <Link to="/eb1a" onClick={closeMobileMenu} className="block px-6 py-4 pl-12 text-gray-700 hover:bg-blue-50 hover:text-primary transition-all duration-200 text-base border-b border-gray-100 active:bg-gray-50">
+              <Link to="/eb1a-eligibility" onClick={closeMobileMenu} className="block px-6 py-4 pl-12 text-gray-700 hover:bg-blue-50 hover:text-primary transition-all duration-200 text-base border-b border-gray-100 active:bg-gray-50">
                 <i className="fas fa-trophy w-4 inline-block mr-2 text-blue-500"></i>EB-1A Eligibility
               </Link>
               <Link to="/profile-building" onClick={closeMobileMenu} className="block px-6 py-4 pl-12 text-gray-700 hover:bg-blue-50 hover:text-primary transition-all duration-200 text-base border-b border-gray-100 active:bg-gray-50">
@@ -211,19 +211,19 @@ const Navigation = () => {
               
               <div className="border-b border-gray-200"></div>
               
-              <NavLink to="/assessment" onClick={closeMobileMenu} className="block px-6 py-4 text-gray-700 hover:bg-blue-50 hover:text-primary transition-all duration-200 text-base font-medium border-b border-gray-100 active:bg-gray-50">
+              <NavLink to="/profile-assessment" onClick={closeMobileMenu} className="block px-6 py-4 text-gray-700 hover:bg-blue-50 hover:text-primary transition-all duration-200 text-base font-medium border-b border-gray-100 active:bg-gray-50">
                 <i className="fas fa-chart-line w-5 inline-block mr-3 text-primary"></i>Profile Assessment
               </NavLink>
               <NavLink to="/pricing" onClick={closeMobileMenu} className="block px-6 py-4 text-gray-700 hover:bg-blue-50 hover:text-primary transition-all duration-200 text-base font-medium border-b border-gray-100 active:bg-gray-50">
                 <i className="fas fa-dollar-sign w-5 inline-block mr-3 text-primary"></i>Pricing
               </NavLink>
-              <NavLink to="/schedule" onClick={closeMobileMenu} className="block px-6 py-4 text-gray-700 hover:bg-blue-50 hover:text-primary transition-all duration-200 text-base font-medium border-b border-gray-100 active:bg-gray-50">
+              <NavLink to="/schedule-appointment" onClick={closeMobileMenu} className="block px-6 py-4 text-gray-700 hover:bg-blue-50 hover:text-primary transition-all duration-200 text-base font-medium border-b border-gray-100 active:bg-gray-50">
                 <i className="fas fa-calendar w-5 inline-block mr-3 text-primary"></i>Schedule
               </NavLink>
               <NavLink to="/faq" onClick={closeMobileMenu} className="block px-6 py-4 text-gray-700 hover:bg-blue-50 hover:text-primary transition-all duration-200 text-base font-medium border-b border-gray-100 active:bg-gray-50">
                 <i className="fas fa-question-circle w-5 inline-block mr-3 text-primary"></i>FAQ
               </NavLink>
-              <NavLink to="/attorneys" onClick={closeMobileMenu} className="block px-6 py-4 text-gray-700 hover:bg-blue-50 hover:text-primary transition-all duration-200 text-base font-medium border-b border-gray-100 active:bg-gray-50">
+              <NavLink to="/attorney-referrals" onClick={closeMobileMenu} className="block px-6 py-4 text-gray-700 hover:bg-blue-50 hover:text-primary transition-all duration-200 text-base font-medium border-b border-gray-100 active:bg-gray-50">
                 <i className="fas fa-balance-scale w-5 inline-block mr-3 text-primary"></i>Attorneys
               </NavLink>
               <NavLink to="/contact" onClick={closeMobileMenu} className="block px-6 py-4 text-gray-700 hover:bg-blue-50 hover:text-primary transition-all duration-200 text-base font-medium border-b border-gray-100 active:bg-gray-50">

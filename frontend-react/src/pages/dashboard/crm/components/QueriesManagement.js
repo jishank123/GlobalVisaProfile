@@ -226,13 +226,22 @@ const QueryResponseModal = ({ query, clients, onClose, onSubmit }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 dashboard-modal">
       <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Respond to Query</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-              <i className="fas fa-times"></i>
+            <button 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }} 
+              className="text-gray-400 hover:text-gray-600 w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-all duration-200 cursor-pointer bg-transparent border-0 outline-none focus:outline-none modal-close-btn group"
+              aria-label="Close modal"
+              type="button"
+            >
+              <i className="fas fa-times text-sm group-hover:scale-110 transition-transform duration-200"></i>
             </button>
           </div>
           
@@ -276,7 +285,11 @@ const QueryResponseModal = ({ query, clients, onClose, onSubmit }) => {
             <div className="flex justify-end space-x-3">
               <button 
                 type="button" 
-                onClick={onClose}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onClose();
+                }}
                 className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
               >
                 Cancel
@@ -340,13 +353,22 @@ const QueryDetailsModal = ({ query, clients, onClose, onRespond }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 dashboard-modal">
       <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Query Details</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-              <i className="fas fa-times"></i>
+            <button 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }} 
+              className="text-gray-400 hover:text-gray-600 w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-all duration-200 cursor-pointer bg-transparent border-0 outline-none focus:outline-none modal-close-btn group"
+              aria-label="Close modal"
+              type="button"
+            >
+              <i className="fas fa-times text-sm group-hover:scale-110 transition-transform duration-200"></i>
             </button>
           </div>
           
@@ -408,7 +430,11 @@ const QueryDetailsModal = ({ query, clients, onClose, onRespond }) => {
           
           <div className="flex justify-end space-x-3">
             <button 
-              onClick={onClose}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }}
               className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
             >
               Close

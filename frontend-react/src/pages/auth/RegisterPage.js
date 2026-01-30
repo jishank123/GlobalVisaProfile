@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { validateRegistrationForm } from '../../utils/validation';
+import { ValidatedInput, PasswordInput, PhoneInputWithCountry, CountrySelect } from '../../components/FormComponents';
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
@@ -10,12 +12,14 @@ const RegisterPage = () => {
     password: '',
     confirmPassword: '',
     phone: '',
+    phone_country_code: 'US',
     company: '',
     country: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [formValidation, setFormValidation] = useState({ isValid: false, errors: [], warnings: [] });
   
   const { register, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
@@ -47,6 +51,12 @@ const RegisterPage = () => {
     }
   }, [isAuthenticated, user, navigate]);
 
+  // Real-time form validation
+  useEffect(() => {
+    const validation = validateRegistrationForm(formData);
+    setFormValidation(validation);
+  }, [formData]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -57,33 +67,25 @@ const RegisterPage = () => {
     if (error) setError('');
   };
 
+  const handlePhoneCountryChange = (countryCode) => {
+    setFormData(prev => ({
+      ...prev,
+      phone_country_code: countryCode,
+      phone: '' // Clear phone when country changes
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     setSuccess('');
 
-    // Basic validation
-    if (!formData.first_name || !formData.last_name || !formData.email || !formData.password) {
-      setError('Please fill in all required fields.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!formData.email.includes('@')) {
-      setError('Please enter a valid email address.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match.');
+    // Comprehensive validation
+    const validation = validateRegistrationForm(formData);
+    
+    if (!validation.isValid) {
+      setError(validation.errors[0] || 'Please fix the errors in the form.');
       setIsLoading(false);
       return;
     }
@@ -143,138 +145,158 @@ const RegisterPage = () => {
           <form onSubmit={handleSubmit}>
             <div className="row">
               <div className="col-md-6">
-                <div className="form-group">
-                  <label className="form-label">First Name *</label>
-                  <input 
-                    type="text" 
-                    className="form-control-custom" 
-                    name="first_name"
-                    value={formData.first_name}
-                    onChange={handleInputChange}
-                    placeholder="Enter your first name" 
-                    required 
-                  />
-                </div>
+                <ValidatedInput
+                  name="first_name"
+                  label="First Name"
+                  value={formData.first_name}
+                  onChange={handleInputChange}
+                  formData={formData}
+                  required={true}
+                  placeholder="Enter your first name"
+                  disabled={isLoading}
+                />
               </div>
               <div className="col-md-6">
-                <div className="form-group">
-                  <label className="form-label">Last Name *</label>
-                  <input 
-                    type="text" 
-                    className="form-control-custom" 
-                    name="last_name"
-                    value={formData.last_name}
-                    onChange={handleInputChange}
-                    placeholder="Enter your last name" 
-                    required 
-                  />
-                </div>
+                <ValidatedInput
+                  name="last_name"
+                  label="Last Name"
+                  value={formData.last_name}
+                  onChange={handleInputChange}
+                  formData={formData}
+                  required={true}
+                  placeholder="Enter your last name"
+                  disabled={isLoading}
+                />
               </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Email Address *</label>
-              <input 
-                type="email" 
-                className="form-control-custom" 
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="Enter your email" 
-                required 
-              />
-            </div>
+            <ValidatedInput
+              name="email"
+              label="Email Address"
+              type="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              formData={formData}
+              required={true}
+              placeholder="Enter your email address"
+              disabled={isLoading}
+            />
 
             <div className="row">
               <div className="col-md-6">
-                <div className="form-group">
-                  <label className="form-label">Password *</label>
-                  <input 
-                    type="password" 
-                    className="form-control-custom" 
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    placeholder="Enter your password" 
-                    required 
-                  />
-                </div>
+                <PasswordInput
+                  name="password"
+                  label="Password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  formData={formData}
+                  required={true}
+                  placeholder="Create a strong password"
+                  disabled={isLoading}
+                  showStrength={true}
+                />
               </div>
               <div className="col-md-6">
-                <div className="form-group">
-                  <label className="form-label">Confirm Password *</label>
-                  <input 
-                    type="password" 
-                    className="form-control-custom" 
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
-                    placeholder="Confirm your password" 
-                    required 
-                  />
-                </div>
+                <PasswordInput
+                  name="confirmPassword"
+                  label="Confirm Password"
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                  formData={formData}
+                  required={true}
+                  placeholder="Confirm your password"
+                  disabled={isLoading}
+                  showStrength={false}
+                />
               </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Phone Number</label>
-              <input 
-                type="tel" 
-                className="form-control-custom" 
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                placeholder="Enter your phone number" 
-              />
-            </div>
+            <PhoneInputWithCountry
+              name="phone"
+              label="Phone Number"
+              value={formData.phone}
+              onChange={handleInputChange}
+              countryCode={formData.phone_country_code}
+              onCountryChange={handlePhoneCountryChange}
+              required={false}
+              placeholder="Enter phone number"
+              disabled={isLoading}
+            />
 
             <div className="row">
               <div className="col-md-6">
-                <div className="form-group">
-                  <label className="form-label">Company</label>
-                  <input 
-                    type="text" 
-                    className="form-control-custom" 
-                    name="company"
-                    value={formData.company}
-                    onChange={handleInputChange}
-                    placeholder="Enter your company" 
-                  />
-                </div>
+                <ValidatedInput
+                  name="company"
+                  label="Company"
+                  value={formData.company}
+                  onChange={handleInputChange}
+                  formData={formData}
+                  required={false}
+                  placeholder="Enter your company name"
+                  disabled={isLoading}
+                />
               </div>
               <div className="col-md-6">
-                <div className="form-group">
-                  <label className="form-label">Country</label>
-                  <input 
-                    type="text" 
-                    className="form-control-custom" 
-                    name="country"
-                    value={formData.country}
-                    onChange={handleInputChange}
-                    placeholder="Enter your country" 
-                  />
-                </div>
+                <CountrySelect
+                  name="country"
+                  label="Country"
+                  value={formData.country}
+                  onChange={handleInputChange}
+                  required={false}
+                  disabled={isLoading}
+                />
               </div>
             </div>
+
+            {/* Form Validation Summary */}
+            {formValidation.warnings && formValidation.warnings.length > 0 && (
+              <div className="mb-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
+                <div className="flex items-start">
+                  <i className="fas fa-exclamation-triangle text-yellow-400 mr-3 mt-0.5"></i>
+                  <div>
+                    <h4 className="text-yellow-800 font-semibold text-sm">Recommendations</h4>
+                    <ul className="text-yellow-700 text-sm mt-1 list-disc list-inside">
+                      {formValidation.warnings.map((warning, index) => (
+                        <li key={index}>{warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {error && (
-              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
-                <i className="fas fa-exclamation-triangle mr-2"></i>
-                {error}
+              <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 rounded-r-lg">
+                <div className="flex items-start">
+                  <i className="fas fa-exclamation-triangle text-red-400 mr-3 mt-0.5"></i>
+                  <div>
+                    <h4 className="text-red-800 font-semibold text-sm">Registration Error</h4>
+                    <p className="text-red-700 text-sm mt-1">{error}</p>
+                  </div>
+                </div>
               </div>
             )}
 
             {success && (
-              <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-lg text-sm">
-                <i className="fas fa-check-circle mr-2"></i>
-                {success}
+              <div className="mb-4 p-4 bg-green-50 border-l-4 border-green-400 rounded-r-lg">
+                <div className="flex items-start">
+                  <i className="fas fa-check-circle text-green-400 mr-3 mt-0.5"></i>
+                  <div>
+                    <h4 className="text-green-800 font-semibold text-sm">Success!</h4>
+                    <p className="text-green-700 text-sm mt-1">{success}</p>
+                  </div>
+                </div>
               </div>
             )}
 
             <button 
               type="submit" 
               className="btn-login"
-              disabled={isLoading}
+              disabled={isLoading || !formValidation.isValid}
+              style={{
+                opacity: isLoading || !formValidation.isValid ? 0.6 : 1,
+                cursor: isLoading || !formValidation.isValid ? 'not-allowed' : 'pointer'
+              }}
             >
               {isLoading ? (
                 <>

@@ -1,0 +1,386 @@
+🔐 GLOBAL VALIDATION & SECURITY RULES (APPLIED EVERYWHERE)
+1. Password Validations (Signup, Reset, Staff Creation)
+
+Applied to Client + Staff:
+
+Minimum 8 characters
+
+At least:
+
+1 uppercase letter
+
+1 lowercase letter
+
+1 number
+
+1 special character (@#$%!)
+
+❌ No spaces
+
+❌ Cannot contain email or username
+
+Real-time inline validation
+
+2. Field Validations (ALL FORMS, ALL PAGES)
+Field	Rule
+First / Last Name	❌ No numerics
+Organization / Institute	❌ No numerics
+Email	Required, valid, unique
+Phone	Country-based digit validation
+Required fields	Mandatory
+3. Country Code & Phone Validation (STRICT)
+
+Country dropdown controls:
+
+country code
+
+allowed digit length
+
+Examples:
+
+India (+91) → exactly 10 digits
+
+USA (+1) → exactly 10 digits
+
+UK (+44) → 10–11 digits
+
+❌ Form submission blocked if mismatch
+
+4. Terms & Conditions (Signup)
+
+Mandatory checkbox
+
+Cannot submit signup without acceptance
+
+Acceptance timestamp stored
+
+🌍 STEP 1 / DOC 1 — PUBLIC SITE (NO LOGIN)
+Pages Visible
+
+Home
+
+Services
+
+Pricing
+
+Contact
+
+Profile Assessment
+
+Schedule Appointment
+
+Client Login
+
+Client Signup
+
+Staff Login (separate URL)
+
+❌ No dashboards
+❌ No payments
+❌ No projects
+
+🔴 ABSOLUTE RULE (LOCKED)
+
+If a user is NOT logged in → ANY action creates a LEAD
+
+Applies to:
+
+Contact form
+
+Profile assessment
+
+Schedule appointment
+
+Chat initiation
+
+Any enquiry
+
+📌 Client must register first to use:
+
+Assessment
+
+Schedule
+(Otherwise redirected to signup → then continue)
+
+Public Form Submission Flow
+Public User
+ → Form Submitted
+ → Lead Created
+ → Source saved
+ → Priority = default
+ → Status = NEW
+
+
+Success modal auto-closes
+
+Redirects fixed
+
+No client created here
+
+👤 CLIENT REGISTRATION & CONTACTS MANAGEMENT
+When Client Registers
+
+Client account created
+
+Client added to Contacts Management
+
+Contact linked to client ID
+
+If Chat Is Initiated
+
+If client exists → added/linked to Contacts
+
+If not → lead created
+
+🔑 STEP 2 / DOC 2 — CLIENT LOGGED IN
+Client Dashboard Sections (6)
+1️⃣ Overview
+
+Data shown
+
+Active projects
+
+Completed projects
+
+Pending payments
+
+Open queries
+
+Source
+
+projects
+
+payments
+
+queries
+
+2️⃣ My Services (Projects)
+
+Client can purchase multiple services
+
+Each service = separate project
+
+Status shown:
+
+Active
+
+Completed (visible when completed)
+
+3️⃣ Payments
+
+Invoices visible
+
+Make payments
+
+Upload proof (manual payments)
+
+Transaction ID
+
+Generated based on selected method:
+
+UPI
+
+Bank
+
+Card
+
+If proof missing:
+
+Status shows “No file uploaded”
+
+4️⃣ Queries / Support
+
+Client raises query
+
+Admin can see all client queries
+
+CRM can respond
+
+5️⃣ Appointments
+
+Schedule / Reschedule / Cancel
+
+If logged in → form auto-fills client data
+
+6️⃣ Profile Settings
+
+Edit profile
+
+Additional sections added:
+
+LinkedIn
+
+Other profile links
+
+Change password
+
+Logout
+
+Data Created by Client → Visibility
+Data	Admin	CRM	Lead Manager
+Payments	✅	✅	❌
+Queries	✅	✅	❌
+Appointments	✅	✅	❌
+Projects	✅	✅	❌
+🛠 STEP 3 / DOC 3 — ADMIN DASHBOARD
+UI & UX Updates
+
+Admin sidebar color updated
+
+Clicking profile → returns to overview
+
+Deleted records moved to Deleted Section
+
+Admin Sections (Updated)
+
+Overview & Analytics
+
+Contacts Management
+
+Leads Management
+
+Users Management
+
+Clients
+
+CRM Managers
+
+Lead Managers
+
+Deleted Records
+
+Services & Categories
+
+Projects
+
+Tasks
+
+Payments & Invoices
+
+Queries
+
+Admin Capabilities (Important Additions)
+
+Admin can see all client queries
+
+Admin can create services → immediately visible to clients
+
+Admin can create categories while creating services
+
+Admin can create projects
+
+Admin can update task progress & status
+
+Admin can assign tasks to multiple CRMs
+
+Admin can approve payments
+
+Admin can filter payments:
+
+Daily / Weekly / Monthly / Yearly
+
+🧑‍💼 STEP 4 / DOC 4 — CRM MANAGER DASHBOARD
+CRM Sidebar (Updated)
+
+Sidebar shows fetched counts:
+
+Projects
+
+Tasks
+
+Queries
+
+CRM Sections
+
+Overview
+
+Projects (assigned only)
+
+Tasks (assigned only)
+
+Payments (read-only)
+
+Queries
+
+Profile & Logout
+
+CRM Rules
+
+CRM must accept project before execution
+
+CRM can update task progress
+
+CRM cannot create services or leads
+
+CRM sees completed projects as Completed
+
+🎯 STEP 5 / DOC 5 — LEAD MANAGER DASHBOARD
+Lead Manager Sections
+
+Overview
+
+Leads (assigned only)
+
+Lead Activities
+
+Pre-Sale Projects & Invoices
+
+Lead Manager Rules (Final)
+
+Lead Manager can:
+
+Create leads
+
+Add lead activities (called, missed, etc.)
+
+Assign leads → CRM
+
+Create pre-sale projects
+
+Set project start date
+
+Create invoices
+
+Lead Manager:
+
+❌ Cannot see payments
+
+❌ Cannot see tasks
+
+❌ Cannot execute projects
+
+Lead Assignment Updates
+
+Header text fixed:
+“Assign Lead to Lead Manager”
+
+Bulk assign & single assign separated
+
+📊 CRUD SUMMARY (FINAL)
+Module	Admin	CRM	Lead	Client
+Contacts	CRUD	R	R	C
+Leads	CRUD	❌	CRUD	❌
+Clients	CRUD	R	❌	R
+Users	CRUD	❌	❌	❌
+Services	CRUD	R	❌	R
+Projects	CRUD	R	C	R
+Tasks	CRUD	U	❌	R
+Payments	CRUD	R	❌	C
+Invoices	CRUD	R	C	R
+Queries	CRUD	CRUD	❌	C
+🔄 END-TO-END PROCESS FLOW (FINAL)
+Public User
+ → Registers
+ → Submits Assessment / Schedule
+ → Lead Created
+ → Assigned to Lead Manager
+ → Lead Manager logs activity
+ → Lead Manager creates project + invoice + start date
+ → CRM assigned
+ → CRM accepts project
+ → Client pays
+ → Payment approved
+ → Tasks unlocked
+ → CRM/Admin update tasks
+ → Project auto-completes
+ → Client sees Completed

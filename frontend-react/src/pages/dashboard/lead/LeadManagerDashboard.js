@@ -33,7 +33,7 @@ const LeadManagerDashboard = () => {
   const [preSelectedLeadId, setPreSelectedLeadId] = useState(null);
 
   // API configuration
-  const API_BASE = 'https://backend.immigrationprofile.com/api';
+  const API_BASE = 'http://localhost:5000/api';
   const authToken = localStorage.getItem('client_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
 
   const apiCall = useCallback(async (endpoint, options = {}) => {

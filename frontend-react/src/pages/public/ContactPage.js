@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { contactAPI } from '../../services/api';
+import { validatePhoneWithCountry, getSupportedCountries } from '../../utils/validation';
 
 const ContactPage = () => {
   const navigate = useNavigate();
@@ -8,6 +9,7 @@ const ContactPage = () => {
     name: '',
     email: '',
     phone: '',
+    country_code: 'US',
     'visa-type': '',
     message: ''
   });
@@ -53,6 +55,14 @@ const ContactPage = () => {
     setContactForm(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  const handleCountryCodeChange = (countryCode) => {
+    setContactForm(prev => ({
+      ...prev,
+      country_code: countryCode,
+      phone: '' // Clear phone when country changes
     }));
   };
 
@@ -111,15 +121,67 @@ const ContactPage = () => {
                   
                   <div className="mb-4">
                     <label className="block text-gray-700 font-semibold mb-2" htmlFor="phone">Phone Number</label>
-                    <input 
-                      type="tel" 
-                      id="phone" 
-                      name="phone" 
-                      maxLength="20"
-                      value={contactForm.phone}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900"
-                    />
+                    <div className="flex gap-2">
+                      {/* Country Code Selector */}
+                      <select
+                        value={contactForm.country_code}
+                        onChange={(e) => handleCountryCodeChange(e.target.value)}
+                        className={`px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 ${
+                          getSupportedCountries().find(c => c.code === contactForm.country_code) ? 'border-gray-300' : 'border-red-500 bg-red-50'
+                        }`}
+                        style={{ minWidth: '140px' }}
+                      >
+                        {getSupportedCountries().map(country => (
+                          <option key={country.code} value={country.code}>
+                            {country.flag} {country.dialCode}
+                          </option>
+                        ))}
+                      </select>
+                      
+                      {/* Phone Number Input */}
+                      <input 
+                        type="tel" 
+                        id="phone" 
+                        name="phone" 
+                        maxLength="20"
+                        minLength={getSupportedCountries().find(c => c.code === contactForm.country_code)?.minDigits || 10}
+                        value={contactForm.phone}
+                        onChange={handleInputChange}
+                        placeholder="Enter phone number"
+                        className={`flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 ${
+                          contactForm.phone && contactForm.phone.replace(/\D/g, '').length > 0 && 
+                          (contactForm.phone.replace(/\D/g, '').length < (getSupportedCountries().find(c => c.code === contactForm.country_code)?.minDigits || 10) ||
+                           contactForm.phone.replace(/\D/g, '').length > (getSupportedCountries().find(c => c.code === contactForm.country_code)?.maxDigits || 10))
+                          ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
+                      />
+                    </div>
+                    <div className="mt-1 flex justify-between items-center text-xs">
+                      <span className="text-gray-500">
+                        Selected: {getSupportedCountries().find(c => c.code === contactForm.country_code)?.flag} {getSupportedCountries().find(c => c.code === contactForm.country_code)?.name} ({getSupportedCountries().find(c => c.code === contactForm.country_code)?.dialCode})
+                      </span>
+                      <span className={`${
+                        contactForm.phone && contactForm.phone.replace(/\D/g, '').length > 0 && 
+                        (contactForm.phone.replace(/\D/g, '').length < (getSupportedCountries().find(c => c.code === contactForm.country_code)?.minDigits || 10) ||
+                         contactForm.phone.replace(/\D/g, '').length > (getSupportedCountries().find(c => c.code === contactForm.country_code)?.maxDigits || 10))
+                        ? 'text-red-500 font-semibold' : 'text-gray-500'
+                      }`}>
+                        {contactForm.phone.replace(/\D/g, '').length}/{getSupportedCountries().find(c => c.code === contactForm.country_code)?.maxDigits || 10} digits
+                      </span>
+                    </div>
+                    {!contactForm.phone && (
+                      <div className="mt-1 text-xs text-gray-400">
+                        Example: {getSupportedCountries().find(c => c.code === contactForm.country_code)?.example || '(555) 123-4567'}
+                      </div>
+                    )}
+                    {contactForm.phone && contactForm.phone.replace(/\D/g, '').length > 0 && 
+                     (contactForm.phone.replace(/\D/g, '').length < (getSupportedCountries().find(c => c.code === contactForm.country_code)?.minDigits || 10) ||
+                      contactForm.phone.replace(/\D/g, '').length > (getSupportedCountries().find(c => c.code === contactForm.country_code)?.maxDigits || 10)) && (
+                      <div className="validation-error mt-2 text-red-600 text-sm flex items-center">
+                        <i className="fas fa-exclamation-circle mr-2"></i>
+                        Please enter exactly {getSupportedCountries().find(c => c.code === contactForm.country_code)?.maxDigits || 10} digits for {getSupportedCountries().find(c => c.code === contactForm.country_code)?.name}
+                      </div>
+                    )}
                   </div>
                   
                   <div className="mb-4">
