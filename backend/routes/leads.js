@@ -40,9 +40,9 @@ router.get('/my-leads', auth(['crm_manager']), leadController.getMyLeads);
 router.get('/:id', auth(['admin', 'lead_manager']), leadController.getLead);
 
 // @route   POST /api/leads
-// @desc    Create new lead (Admin only)
-// @access  Private (Admin only)
-router.post('/', auth(['admin']), validateLeadCreation, leadController.createLead);
+// @desc    Create new lead (Admin and Lead Manager)
+// @access  Private (Admin, Lead Manager)
+router.post('/', auth(['admin', 'lead_manager']), validateLeadCreation, leadController.createLead);
 
 // @route   POST /api/leads/bulk/convert-to-project
 // @desc    Bulk convert leads to projects (Lead Manager and Admin)
@@ -78,6 +78,16 @@ router.patch('/:id', auth(['admin', 'lead_manager']), validateLeadUpdate, leadCo
 // @desc    Convert lead to client
 // @access  Private (Admin, Lead Manager, CRM Manager)
 router.post('/:id/convert', auth(['admin', 'lead_manager', 'crm_manager']), leadController.convertLead);
+
+// @route   POST /api/leads/:id/interactions
+// @desc    Add interaction/activity to lead
+// @access  Private (Admin, Lead Manager, CRM Manager)
+router.post('/:id/interactions', auth(['admin', 'lead_manager', 'crm_manager']), leadController.addLeadInteraction);
+
+// @route   PATCH /api/leads/:id/qualify
+// @desc    Update lead status to qualified
+// @access  Private (Admin, Lead Manager)
+router.patch('/:id/qualify', auth(['admin', 'lead_manager']), leadController.qualifyLead);
 
 // @route   DELETE /api/leads/:id
 // @desc    Delete lead (soft delete)

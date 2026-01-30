@@ -287,3 +287,115 @@ exports.getRecentActivity = async (req, res) => {
     });
   }
 };
+
+/**
+ * Get Client Dashboard Data
+ * @route GET /api/dashboard/client
+ * @access Private (Client only)
+ */
+exports.getClientDashboard = async (req, res) => {
+  try {
+    console.log('👤 === CLIENT DASHBOARD REQUEST ===');
+    console.log('👤 Client:', req.user?.email, 'Role:', req.user?.role);
+    
+    const clientEmail = req.user.email;
+    
+    // Find or create client record
+    const Client = require('../models/Client');
+    let clientRecord = await Client.findOne({ email: clientEmail });
+    
+    if (!clientRecord) {
+      // Create client record from user account
+      const user = await User.findById(req.user.user_id);
+      clientRecord = await Client.create({
+        name: `${user.first_name} ${user.last_name}`,
+        email: user.email,
+        phone: user.phone,
+        university: user.company || 'Unknown',
+        status: 'active',
+        user_id: user._id
+      });
+      console.log('✅ Created new client record for:', clientEmail);
+    }
+    
+    // Get client's projects
+    const projects = await Project.find({ client: clientRecord._id })
+      .populate('service', 'name category')
+      .populate('assigned_to', 'first_name last_name email')
+      .sort({ createdAt: -1 });
+    
+    // Get client's payments
+    const payments = await Payment.find({ client: clientRecord._id })
+      .populate('project', 'project_id service_name')
+      .sort({ paymentDate: -1 })
+      .limit(10);
+    
+    // Get client's queries
+    const Query = require('../models/Query');
+    const queries = await Query.find({ client: clientRecord._id })
+      .populate('assigned_to', 'first_name last_name email')
+      .sort({ createdAt: -1 })
+      .limit(10);
+    
+    // Get client's appointments
+    const appointments = await AppointmentRequest.find({ email: clientEmail })
+      .sort({ createdAt: -1 })
+      .limit(10);
+    
+    // Calculate statistics
+    const stats = {
+      totalProjects: projects.length,
+      activeProjects: projects.filter(p => p.status === 'active').length,
+      completedProjects: projects.filter(p => p.status === 'completed').length,
+      totalPayments: payments.length,
+      pendingPayments: payments.filter(p => p.status === 'pending').length,
+      completedPayments: payments.filter(p => p.status === 'completed').length,
+      totalQueries: queries.length,
+      openQueries: queries.filter(q => q.status === 'open').length,
+      resolvedQueries: queries.filter(q => q.status === 'resolved').length,
+      totalAppointments: appointments.length,
+      pendingAppointments: appointments.filter(a => a.status === 'pending').length
+    };
+    
+    // Calculate total amount paid and pending
+    const totalPaid = payments
+      .filter(p => p.status === 'completed')
+      .reduce((sum, p) => sum + p.amount, 0);
+    
+    const totalPending = payments
+      .filter(p => p.status === 'pending')
+      .reduce((sum, p) => sum + p.amount, 0);
+    
+    const dashboardData = {
+      client: clientRecord,
+      stats,
+      projects: projects.slice(0, 5), // Recent 5 projects
+      payments: payments.slice(0, 5), // Recent 5 payments
+      queries: queries.slice(0, 5), // Recent 5 queries
+      appointments: appointments.slice(0, 5), // Recent 5 appointments
+      financials: {
+        totalPaid,
+        totalPending,
+        currency: 'USD'
+      }
+    };
+    
+    console.log('👤 Client dashboard data prepared for:', clientEmail);
+    console.log('👤 Stats:', stats);
+    
+    res.json({
+      success: true,
+      data: dashboardData
+    });
+    
+  } catch (error) {
+    console.error('❌ Client dashboard error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'CLIENT_DASHBOARD_FAILED',
+        message: error.message
+      }
+    });
+  }
+};

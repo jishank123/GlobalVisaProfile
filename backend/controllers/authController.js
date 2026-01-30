@@ -2,6 +2,53 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const clientService = require('../services/clientService');
 
+// Password validation function according to documentation
+const validatePassword = (password, email, firstName, lastName) => {
+  // Minimum 8 characters
+  if (password.length < 8) {
+    return { isValid: false, message: 'Password must be at least 8 characters long' };
+  }
+
+  // At least 1 uppercase letter
+  if (!/[A-Z]/.test(password)) {
+    return { isValid: false, message: 'Password must contain at least 1 uppercase letter' };
+  }
+
+  // At least 1 lowercase letter
+  if (!/[a-z]/.test(password)) {
+    return { isValid: false, message: 'Password must contain at least 1 lowercase letter' };
+  }
+
+  // At least 1 number
+  if (!/\d/.test(password)) {
+    return { isValid: false, message: 'Password must contain at least 1 number' };
+  }
+
+  // At least 1 special character (@#$%!)
+  if (!/[@#$%!]/.test(password)) {
+    return { isValid: false, message: 'Password must contain at least 1 special character (@#$%!)' };
+  }
+
+  // No spaces
+  if (/\s/.test(password)) {
+    return { isValid: false, message: 'Password cannot contain spaces' };
+  }
+
+  // Cannot contain email or username
+  const lowerPassword = password.toLowerCase();
+  const lowerEmail = email.toLowerCase();
+  const lowerFirstName = firstName ? firstName.toLowerCase() : '';
+  const lowerLastName = lastName ? lastName.toLowerCase() : '';
+
+  if (lowerPassword.includes(lowerEmail.split('@')[0]) || 
+      (lowerFirstName && lowerPassword.includes(lowerFirstName)) ||
+      (lowerLastName && lowerPassword.includes(lowerLastName))) {
+    return { isValid: false, message: 'Password cannot contain your email or name' };
+  }
+
+  return { isValid: true, message: 'Password is valid' };
+};
+
 // Generate JWT Token
 const generateToken = (userId, role) => {
   return jwt.sign(
@@ -16,7 +63,7 @@ const generateToken = (userId, role) => {
 // @access  Public
 exports.register = async (req, res) => {
   try {
-    const { first_name, last_name, email, password, phone, company, country } = req.body;
+    const { first_name, last_name, email, password, phone, company, country, terms_accepted } = req.body;
 
     // Validate required fields
     if (!first_name || !last_name || !email || !password) {
@@ -25,6 +72,49 @@ exports.register = async (req, res) => {
         error: {
           code: 'MISSING_FIELDS',
           message: 'First name, last name, email, and password are required'
+        }
+      });
+    }
+
+    // Validate terms acceptance
+    if (!terms_accepted) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'TERMS_NOT_ACCEPTED',
+          message: 'You must accept the terms and conditions to register'
+        }
+      });
+    }
+
+    // Validate names - no numerics allowed
+    if (/\d/.test(first_name)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_NAME',
+          message: 'First name cannot contain numbers'
+        }
+      });
+    }
+
+    if (/\d/.test(last_name)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_NAME',
+          message: 'Last name cannot contain numbers'
+        }
+      });
+    }
+
+    // Validate organization/company - no numerics allowed
+    if (company && /\d/.test(company)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_COMPANY',
+          message: 'Company/Organization name cannot contain numbers'
         }
       });
     }
@@ -41,13 +131,14 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Validate password strength
-    if (password.length < 6) {
+    // Validate password strength - must meet documentation requirements
+    const passwordValidation = validatePassword(password, email, first_name, last_name);
+    if (!passwordValidation.isValid) {
       return res.status(400).json({
         success: false,
         error: {
           code: 'WEAK_PASSWORD',
-          message: 'Password must be at least 6 characters long'
+          message: passwordValidation.message
         }
       });
     }
@@ -73,7 +164,9 @@ exports.register = async (req, res) => {
       role: 'client', // Force client role for public registration
       phone: phone?.trim(),
       company: company?.trim(),
-      country: country?.trim()
+      country: country?.trim(),
+      terms_accepted: true,
+      terms_accepted_at: new Date()
     });
 
     // Generate token
@@ -447,12 +540,14 @@ exports.verifyEmailAndSetupPassword = async (req, res) => {
       });
     }
 
-    if (password.length < 6) {
+    // Validate password strength
+    const passwordValidation = validatePassword(password, email, '', '');
+    if (!passwordValidation.isValid) {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'PASSWORD_TOO_SHORT',
-          message: 'Password must be at least 6 characters long'
+          code: 'WEAK_PASSWORD',
+          message: passwordValidation.message
         }
       });
     }
@@ -543,12 +638,14 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    if (password.length < 6) {
+    // Validate password strength
+    const passwordValidation = validatePassword(password, email, '', '');
+    if (!passwordValidation.isValid) {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'PASSWORD_TOO_SHORT',
-          message: 'Password must be at least 6 characters long'
+          code: 'WEAK_PASSWORD',
+          message: passwordValidation.message
         }
       });
     }
@@ -653,12 +750,15 @@ exports.changePasswordEnhanced = async (req, res) => {
       });
     }
 
-    if (new_password.length < 6) {
+    // Validate password strength - get user email for validation
+    const user = await User.findById(req.user.user_id);
+    const passwordValidation = validatePassword(new_password, user.email, user.first_name, user.last_name);
+    if (!passwordValidation.isValid) {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'PASSWORD_TOO_SHORT',
-          message: 'Password must be at least 6 characters long'
+          code: 'WEAK_PASSWORD',
+          message: passwordValidation.message
         }
       });
     }

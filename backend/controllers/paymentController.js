@@ -39,7 +39,7 @@ exports.getPendingPayments = async (req, res) => {
     
     // Filter by assigned clients for CRM managers
     if (req.user.role === 'crm_manager') {
-      const crmManagerId = req.user.user_id || req.user._id;
+      const crmManagerId = req.user.user_id;
       console.log('💳 Looking for clients assigned to CRM manager:', crmManagerId);
       
       const assignedClients = await Client.find({ crm_manager: crmManagerId }).select('_id name email');
@@ -287,8 +287,110 @@ exports.getPaymentStats = async (req, res) => {
   }
 };
 
+// @desc    Upload payment receipt/proof
+// @route   POST /api/payments/:id/upload-receipt
+// @access  Private (Client, Admin, CRM Manager)
+exports.uploadPaymentReceipt = async (req, res) => {
+  try {
+    const paymentId = req.params.id;
+    
+    // Find the payment
+    const payment = await Payment.findById(paymentId).populate('client', 'name email');
+    
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'PAYMENT_NOT_FOUND',
+          message: 'Payment not found'
+        }
+      });
+    }
+    
+    // Security check - clients can only upload receipts for their own payments
+    if (req.user.role === 'client') {
+      // Find client record by email since there's no direct user link
+      const clientRecord = await Client.findOne({ email: req.user.email });
+      if (!clientRecord || payment.client._id.toString() !== clientRecord._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You can only upload receipts for your own payments'
+          }
+        });
+      }
+    }
+    
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'NO_FILE',
+          message: 'Please select a file to upload'
+        }
+      });
+    }
+    
+    // Validate file type (images only)
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
+    if (!allowedTypes.includes(req.file.mimetype)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_FILE_TYPE',
+          message: 'Only image files (JPEG, PNG, GIF) and PDF files are allowed'
+        }
+      });
+    }
+    
+    // Update payment with receipt information
+    payment.receipt_screenshot = req.file.filename;
+    payment.receipt_path = req.file.path;
+    payment.verification_status = 'pending';
+    payment.submitted_at = new Date();
+    
+    await payment.save();
+    
+    // Log activity
+    await logActivity(
+      req.user.user_id || req.user.id,
+      'update',
+      'Payment',
+      `Uploaded receipt for payment ${payment._id}`,
+      req.ip,
+      payment._id
+    );
+    
+    res.json({
+      success: true,
+      message: 'Receipt uploaded successfully',
+      data: {
+        payment: payment,
+        file: {
+          filename: req.file.filename,
+          originalName: req.file.originalname,
+          size: req.file.size,
+          mimetype: req.file.mimetype
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Upload receipt error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'UPLOAD_RECEIPT_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
 module.exports = {
   getPendingPayments: exports.getPendingPayments,
   verifyPayment: exports.verifyPayment,
-  getPaymentStats: exports.getPaymentStats
+  getPaymentStats: exports.getPaymentStats,
+  uploadPaymentReceipt: exports.uploadPaymentReceipt
 };

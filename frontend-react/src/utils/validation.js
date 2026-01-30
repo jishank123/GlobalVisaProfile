@@ -1,6 +1,6 @@
 // Comprehensive form validation utilities
 
-// Email validation with RFC 5322 compliance
+// Email validation with RFC 5322 compliance and .com requirement
 export const validateEmail = (email) => {
   const errors = [];
   
@@ -20,6 +20,17 @@ export const validateEmail = (email) => {
   // Check length
   if (email.length > 254) {
     errors.push('Email is too long (maximum 254 characters)');
+  }
+  
+  // Check for @ symbol
+  if (!email.includes('@')) {
+    errors.push('Email must contain @ symbol');
+    return { isValid: false, errors };
+  }
+  
+  // Check for .com requirement
+  if (!email.toLowerCase().includes('.com')) {
+    errors.push('Email must contain .com domain');
   }
   
   // RFC 5322 compliant email regex
@@ -238,7 +249,7 @@ export const validatePhoneWithCountry = (phone, countryCode = 'US') => {
 export const getSupportedCountries = () => {
   return [
     { code: 'US', name: 'United States', dialCode: '+1', flag: '🇺🇸', minDigits: 10, maxDigits: 10 },
-    { code: 'UK', name: 'United Kingdom', dialCode: '+44', flag: '🇬🇧', minDigits: 10, maxDigits: 10 },
+    { code: 'UK', name: 'United Kingdom', dialCode: '+44', flag: 'UK', minDigits: 10, maxDigits: 10 },
     { code: 'IN', name: 'India', dialCode: '+91', flag: '🇮🇳', minDigits: 10, maxDigits: 10 }
   ];
 };

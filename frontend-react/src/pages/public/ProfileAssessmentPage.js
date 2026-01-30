@@ -7,7 +7,8 @@ const ProfileAssessmentPage = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
-    client_name: '',
+    first_name: '',
+    last_name: '',
     client_email: '',
     client_phone: '',
     client_country_code: 'US',
@@ -31,7 +32,6 @@ const ProfileAssessmentPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
-  const [assessmentResult, setAssessmentResult] = useState(null);
 
   const criteriaLabels = {
     original_contributions: 'Original Contributions',
@@ -73,27 +73,17 @@ const ProfileAssessmentPage = () => {
         [name]: null
       }));
     }
-    
-    // Real-time validation for better UX (debounced)
-    if (value.trim()) {
-      setTimeout(() => {
-        const validation = validateField(name, value);
-        if (!validation.isValid && value === formData[name]) {
-          setValidationErrors(prev => ({
-            ...prev,
-            [name]: validation.errors[0]
-          }));
-        }
-      }, 1000); // 1 second delay for real-time validation
-    }
   };
 
   const validateField = (name, value) => {
     let validation = { isValid: true, errors: [] };
     
     switch (name) {
-      case 'client_name':
-        validation = validateName(value, 'Full name');
+      case 'first_name':
+        validation = validateName(value, 'First name');
+        break;
+      case 'last_name':
+        validation = validateName(value, 'Last name');
         break;
       case 'client_email':
         validation = validateEmail(value);
@@ -121,7 +111,7 @@ const ProfileAssessmentPage = () => {
 
   const validateStep1 = () => {
     const errors = {};
-    const requiredFields = ['client_name', 'client_email', 'field_of_expertise', 'years_of_experience', 'current_location'];
+    const requiredFields = ['first_name', 'last_name', 'client_email', 'field_of_expertise', 'years_of_experience', 'current_location'];
     
     requiredFields.forEach(field => {
       const validation = validateField(field, formData[field]);
@@ -211,8 +201,10 @@ const ProfileAssessmentPage = () => {
     try {
       const result = calculateScore();
       
+      // Combine first_name and last_name into client_name for API compatibility
       const submissionData = {
         ...formData,
+        client_name: `${formData.first_name} ${formData.last_name}`.trim(),
         overall_score: result.totalScore,
         profile_strength: result.strength.toLowerCase(),
         criteria_met: result.criteriaCount
@@ -239,31 +231,31 @@ const ProfileAssessmentPage = () => {
 
   const renderStepIndicator = () => {
     return (
-      <div className="step-indicator flex items-center justify-center mb-8">
+      <div className="flex items-center justify-center mb-8">
         <div className="flex items-center space-x-4">
           {/* Step 1 */}
           <div className="flex items-center">
-            <div className={`step-circle w-12 h-12 rounded-full flex items-center justify-center font-semibold text-lg ${
-              currentStep >= 1 ? 'bg-primary text-white active' : 'bg-gray-200 text-gray-600'
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-semibold text-lg ${
+              currentStep >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
             }`}>
               {currentStep > 1 ? <i className="fas fa-check"></i> : '1'}
             </div>
-            <span className={`ml-3 font-medium text-lg ${currentStep >= 1 ? 'text-primary' : 'text-gray-500'}`}>
+            <span className={`ml-3 font-medium text-lg ${currentStep >= 1 ? 'text-blue-600' : 'text-gray-500'}`}>
               Personal Information
             </span>
           </div>
           
           {/* Connector */}
-          <div className={`step-connector w-20 h-1 rounded ${currentStep > 1 ? 'bg-primary' : 'bg-gray-200'}`}></div>
+          <div className={`w-20 h-1 rounded ${currentStep > 1 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
           
           {/* Step 2 */}
           <div className="flex items-center">
-            <div className={`step-circle w-12 h-12 rounded-full flex items-center justify-center font-semibold text-lg ${
-              currentStep >= 2 ? 'bg-primary text-white active' : 'bg-gray-200 text-gray-600'
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-semibold text-lg ${
+              currentStep >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
             }`}>
               2
             </div>
-            <span className={`ml-3 font-medium text-lg ${currentStep >= 2 ? 'text-primary' : 'text-gray-500'}`}>
+            <span className={`ml-3 font-medium text-lg ${currentStep >= 2 ? 'text-blue-600' : 'text-gray-500'}`}>
               Assessment
             </span>
           </div>
@@ -274,26 +266,21 @@ const ProfileAssessmentPage = () => {
 
   const renderPhoneInputField = () => {
     const hasError = validationErrors.client_phone;
-    const hasValue = formData.client_phone && formData.client_phone.trim();
     const countries = getSupportedCountries();
-    const currentCountry = countries.find(c => c.code === formData.client_country_code) || countries[0];
-    const digitsOnly = formData.client_phone.replace(/\D/g, '');
     
     return (
-      <div className="form-input-container">
-        <label className="block text-gray-700 font-semibold mb-2">
+      <div className="form-group">
+        <label className="form-label">
           Phone Number <span className="text-gray-500 text-sm">(Optional)</span>
         </label>
         
         <div className="flex gap-2">
-          {/* Country Code Selector */}
+          {/* Country Code Selector - Smaller */}
           <select
             value={formData.client_country_code}
             onChange={(e) => handleCountryCodeChange(e.target.value)}
-            className={`px-3 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
-              hasError ? 'border-red-500 bg-red-50' : 'border-gray-300'
-            }`}
-            style={{ minWidth: '140px' }}
+            className={`form-control-custom form-select ${hasError ? 'border-red-500' : ''}`}
+            style={{ width: '100px', flexShrink: 0 }}
           >
             {countries.map(country => (
               <option key={country.code} value={country.code}>
@@ -302,65 +289,34 @@ const ProfileAssessmentPage = () => {
             ))}
           </select>
           
-          {/* Phone Number Input */}
+          {/* Phone Number Input - Larger with min-width for 10+ digits */}
           <input
             type="tel"
             name="client_phone"
             value={formData.client_phone}
             onChange={handleInputChange}
-            placeholder={`Enter phone number`}
-            minLength={currentCountry.minDigits}
-            maxLength={currentCountry.maxDigits}
-            className={`flex-1 px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 transition-all ${
-              hasError 
-                ? 'form-input-error border-red-500 bg-red-50' 
-                : hasValue 
-                  ? 'form-input-success'
-                  : 'border-gray-300 focus:ring-primary focus:border-primary'
-            }`}
+            placeholder="Enter phone number"
+            className={`form-control-custom ${hasError ? 'border-red-500' : ''}`}
+            style={{ flex: 1, minWidth: '200px' }}
           />
         </div>
         
-        {/* Country Info and Digit Counter */}
-        <div className="mt-1 flex justify-between items-center text-xs">
-          <span className="text-gray-500">
-            Selected: {currentCountry.flag} {currentCountry.name} ({currentCountry.dialCode})
-          </span>
-          <span className={`${digitsOnly.length < currentCountry.minDigits || digitsOnly.length > currentCountry.maxDigits ? 'text-red-500 font-semibold' : 'text-gray-500'}`}>
-            {digitsOnly.length}/{currentCountry.maxDigits} digits
-          </span>
-        </div>
-        
-        {/* Format Example */}
-        {!formData.client_phone && !hasError && (
-          <div className="mt-1 text-xs text-gray-400">
-            Example: {currentCountry.example}
-          </div>
-        )}
-        
         {hasError && (
-          <div className="validation-error mt-2 text-red-600 text-sm flex items-center">
-            <i className="fas fa-exclamation-circle mr-2"></i>
+          <div className="validation-error">
+            <i className="fas fa-exclamation-circle"></i>
             {hasError}
-          </div>
-        )}
-        {hasValue && !hasError && (
-          <div className="mt-2 text-green-600 text-sm flex items-center">
-            <i className="fas fa-check-circle mr-2"></i>
-            Valid {currentCountry.name} phone number
           </div>
         )}
       </div>
     );
   };
 
-  const renderInputField = (name, label, type = 'text', required = false, placeholder = '', helpText = '') => {
+  const renderInputField = (name, label, type = 'text', required = false, placeholder = '') => {
     const hasError = validationErrors[name];
-    const hasValue = formData[name] && formData[name].trim();
     
     return (
-      <div className="form-input-container">
-        <label className="block text-gray-700 font-semibold mb-2">
+      <div className="form-group">
+        <label className="form-label">
           {label} {required && <span className="text-red-500">*</span>}
         </label>
         <input
@@ -369,30 +325,12 @@ const ProfileAssessmentPage = () => {
           value={formData[name]}
           onChange={handleInputChange}
           placeholder={placeholder}
-          className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 transition-all ${
-            hasError 
-              ? 'form-input-error' 
-              : hasValue 
-                ? 'form-input-success'
-                : 'border-gray-300 focus:ring-primary focus:border-primary'
-          }`}
+          className={`form-control-custom ${hasError ? 'border-red-500' : ''}`}
         />
-        {helpText && !hasError && !hasValue && (
-          <div className="mt-1 text-gray-500 text-xs">
-            <i className="fas fa-info-circle mr-1"></i>
-            {helpText}
-          </div>
-        )}
         {hasError && (
-          <div className="validation-error mt-2 text-red-600 text-sm flex items-center">
-            <i className="fas fa-exclamation-circle mr-2"></i>
+          <div className="validation-error">
+            <i className="fas fa-exclamation-circle"></i>
             {hasError}
-          </div>
-        )}
-        {hasValue && !hasError && (
-          <div className="mt-2 text-green-600 text-sm flex items-center">
-            <i className="fas fa-check-circle mr-2"></i>
-            Looks good!
           </div>
         )}
       </div>
@@ -401,24 +339,17 @@ const ProfileAssessmentPage = () => {
 
   const renderSelectField = (name, label, options, required = false) => {
     const hasError = validationErrors[name];
-    const hasValue = formData[name];
     
     return (
-      <div className="form-input-container">
-        <label className="block text-gray-700 font-semibold mb-2">
+      <div className="form-group">
+        <label className="form-label">
           {label} {required && <span className="text-red-500">*</span>}
         </label>
         <select
           name={name}
           value={formData[name]}
           onChange={handleInputChange}
-          className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 transition-all ${
-            hasError 
-              ? 'form-input-error' 
-              : hasValue 
-                ? 'form-input-success'
-                : 'border-gray-300 focus:ring-primary focus:border-primary'
-          }`}
+          className={`form-control-custom form-select ${hasError ? 'border-red-500' : ''}`}
         >
           <option value="">Select {label.toLowerCase()}</option>
           {options.map(option => (
@@ -428,15 +359,9 @@ const ProfileAssessmentPage = () => {
           ))}
         </select>
         {hasError && (
-          <div className="validation-error mt-2 text-red-600 text-sm flex items-center">
-            <i className="fas fa-exclamation-circle mr-2"></i>
+          <div className="validation-error">
+            <i className="fas fa-exclamation-circle"></i>
             {hasError}
-          </div>
-        )}
-        {hasValue && !hasError && (
-          <div className="mt-2 text-green-600 text-sm flex items-center">
-            <i className="fas fa-check-circle mr-2"></i>
-            Looks good!
           </div>
         )}
       </div>
@@ -453,29 +378,27 @@ const ProfileAssessmentPage = () => {
     ];
 
     return (
-      <div className="step-content bg-white rounded-xl shadow-lg p-8">
+      <div className="form-container">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            <i className="fas fa-user text-primary mr-3"></i>
+            <i className="fas fa-user text-blue-600 mr-3"></i>
             Personal Information
           </h2>
           <p className="text-gray-600 text-lg">
             Please provide your basic information to get started with your EB-1A profile assessment.
           </p>
-          
-          {/* Progress Bar */}
-          <div className="progress-bar-container w-full h-2 mt-6">
-            <div className="progress-bar-fill h-full" style={{ width: '50%' }}></div>
-          </div>
-          <p className="text-sm text-gray-500 mt-2">Step 1 of 2</p>
         </div>
         
-        <div className="grid md:grid-cols-2 gap-6">
-          {renderInputField('client_name', 'Full Name', 'text', true, 'Enter your full name', 'Please enter your first and last name')}
-          {renderInputField('client_email', 'Email Address', 'email', true, 'your.email@example.com', 'We\'ll use this to send your assessment results')}
+        <div className="form-grid-2">
+          {renderInputField('first_name', 'First Name', 'text', true, 'Enter your first name')}
+          {renderInputField('last_name', 'Last Name', 'text', true, 'Enter your last name')}
+        </div>
+        
+        <div className="form-grid">
+          {renderInputField('client_email', 'Email Address', 'email', true, 'your.email@example.com')}
           {renderPhoneInputField()}
-          {renderInputField('current_location', 'Current Location', 'text', true, 'City, Country', 'e.g., New York, USA or London, UK')}
-          {renderInputField('field_of_expertise', 'Field of Expertise', 'text', true, 'e.g., Artificial Intelligence, Biotechnology', 'Your primary area of professional expertise')}
+          {renderInputField('current_location', 'Current Location', 'text', true, 'City, Country')}
+          {renderInputField('field_of_expertise', 'Field of Expertise', 'text', true, 'e.g., Artificial Intelligence, Biotechnology')}
           {renderSelectField('years_of_experience', 'Years of Experience', experienceOptions, true)}
         </div>
 
@@ -483,18 +406,19 @@ const ProfileAssessmentPage = () => {
           <button
             type="button"
             onClick={handleNextStep}
-            className="btn-step bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-secondary transition-all transform hover:scale-105 flex items-center"
+            className="btn-primary"
           >
             Continue to Assessment
-            <i className="fas fa-arrow-right ml-2"></i>
+            <i className="fas fa-arrow-right"></i>
           </button>
         </div>
       </div>
     );
   };
+
   const renderCriteriaInput = (criteriaKey) => {
     return (
-      <div key={criteriaKey} className="criteria-card bg-gray-50 rounded-lg p-6 mb-6 border-l-4 border-primary">
+      <div key={criteriaKey} className="bg-gray-50 rounded-lg p-6 mb-6 border-l-4 border-blue-600">
         <h4 className="font-semibold text-gray-900 mb-3 text-lg">
           {criteriaLabels[criteriaKey]}
         </h4>
@@ -503,10 +427,10 @@ const ProfileAssessmentPage = () => {
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[0, 1, 2, 3].map(value => (
-            <label key={value} className={`criteria-option flex items-center cursor-pointer p-3 rounded-lg border-2 transition-all ${
+            <label key={value} className={`flex items-center cursor-pointer p-3 rounded-lg border-2 transition-all ${
               formData[criteriaKey] === value 
-                ? 'border-primary bg-primary text-white' 
-                : 'border-gray-200 hover:border-primary'
+                ? 'border-blue-600 bg-blue-600 text-white' 
+                : 'border-gray-200 hover:border-blue-600'
             }`}>
               <input
                 type="radio"
@@ -537,32 +461,24 @@ const ProfileAssessmentPage = () => {
     const totalCriteria = Object.keys(criteriaLabels).length;
     
     return (
-      <div className="step-content bg-white rounded-xl shadow-lg p-8">
+      <div className="form-container">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            <i className="fas fa-trophy text-primary mr-3"></i>
+            <i className="fas fa-trophy text-blue-600 mr-3"></i>
             EB-1A Criteria Assessment
           </h2>
           <p className="text-gray-600 mb-6 text-lg">
             Rate each criterion based on your current achievements. You need to demonstrate excellence in at least 3 out of 10 criteria for EB-1A eligibility.
           </p>
           
-          {/* Progress Bar */}
-          <div className="progress-bar-container w-full h-2 mb-4">
-            <div className="progress-bar-fill h-full" style={{ width: '100%' }}></div>
-          </div>
-          <p className="text-sm text-gray-500 mb-4">Step 2 of 2</p>
-          
           {/* Criteria Progress */}
           {completedCriteria > 0 && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-6">
-              <p className="text-green-800 text-sm">
-                <i className="fas fa-check-circle mr-2"></i>
-                You've rated {completedCriteria} out of {totalCriteria} criteria
-                {completedCriteria >= 3 && (
-                  <span className="font-semibold"> - Great! You meet the minimum requirement.</span>
-                )}
-              </p>
+            <div className="alert alert-success">
+              <i className="fas fa-check-circle mr-2"></i>
+              You've rated {completedCriteria} out of {totalCriteria} criteria
+              {completedCriteria >= 3 && (
+                <span className="font-semibold"> - Great! You meet the minimum requirement.</span>
+              )}
             </div>
           )}
           
@@ -590,30 +506,25 @@ const ProfileAssessmentPage = () => {
           <button
             type="button"
             onClick={handlePrevStep}
-            className="btn-step bg-gray-500 text-white px-8 py-3 rounded-lg font-semibold hover:bg-gray-600 transition-all flex items-center"
+            className="bg-gray-500 text-white px-8 py-3 rounded-lg font-semibold hover:bg-gray-600 transition-all flex items-center gap-2"
           >
-            <i className="fas fa-arrow-left mr-2"></i>
+            <i className="fas fa-arrow-left"></i>
             Back to Information
           </button>
           
           <button
             type="submit"
             disabled={isSubmitting}
-            className="btn-step bg-primary text-white px-12 py-3 rounded-lg text-lg font-semibold hover:bg-secondary transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center relative"
+            className="btn-primary"
           >
-            {isSubmitting && (
-              <div className="loading-overlay">
-                <div className="loading-spinner"></div>
-              </div>
-            )}
             {isSubmitting ? (
               <>
-                <i className="fas fa-spinner fa-spin mr-2"></i>
+                <i className="fas fa-spinner fa-spin"></i>
                 Analyzing Your Profile...
               </>
             ) : (
               <>
-                <i className="fas fa-chart-line mr-2"></i>
+                <i className="fas fa-chart-line"></i>
                 Get My Assessment Results
               </>
             )}
@@ -640,7 +551,7 @@ const ProfileAssessmentPage = () => {
         </div>
       </div>
 
-      <div className="py-20 bg-white">
+      <div className="py-20 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             {renderStepIndicator()}
@@ -651,79 +562,19 @@ const ProfileAssessmentPage = () => {
 
               {/* Messages */}
               {submitMessage && (
-                <div className="p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+                <div className="alert alert-success">
                   <i className="fas fa-check-circle mr-2"></i>
                   {submitMessage}
                 </div>
               )}
               
               {submitError && (
-                <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                <div className="alert alert-error">
                   <i className="fas fa-exclamation-triangle mr-2"></i>
                   {submitError}
                 </div>
               )}
             </form>
-
-            {/* Assessment Results */}
-            {assessmentResult && (
-              <div id="assessment-results" className="mt-12 bg-white rounded-xl shadow-lg p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  <i className="fas fa-chart-bar text-primary mr-3"></i>
-                  Your Assessment Results
-                </h2>
-                
-                <div className="grid md:grid-cols-3 gap-6 mb-8">
-                  <div className="text-center p-6 bg-gray-50 rounded-lg">
-                    <div className={`text-4xl font-bold ${assessmentResult.color} mb-2`}>
-                      {assessmentResult.percentage}%
-                    </div>
-                    <div className="text-gray-600">Overall Score</div>
-                  </div>
-                  
-                  <div className="text-center p-6 bg-gray-50 rounded-lg">
-                    <div className={`text-4xl font-bold ${assessmentResult.color} mb-2`}>
-                      {assessmentResult.criteriaCount}/10
-                    </div>
-                    <div className="text-gray-600">Strong Criteria</div>
-                  </div>
-                  
-                  <div className="text-center p-6 bg-gray-50 rounded-lg">
-                    <div className={`text-2xl font-bold ${assessmentResult.color} mb-2`}>
-                      {assessmentResult.strength}
-                    </div>
-                    <div className="text-gray-600">Profile Strength</div>
-                  </div>
-                </div>
-
-                <div className="p-6 bg-blue-50 rounded-lg mb-6">
-                  <h3 className="font-bold text-blue-900 mb-2">Recommendation:</h3>
-                  <p className="text-blue-800">{assessmentResult.recommendation}</p>
-                </div>
-
-                <div className="text-center space-y-4">
-                  <p className="text-gray-600">
-                    Ready to take the next step in your immigration journey?
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Link 
-                      to="/schedule" 
-                      className="bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-secondary transition-all"
-                    >
-                      <i className="fas fa-calendar mr-2"></i>
-                      Schedule Expert Consultation
-                    </Link>
-                    <Link 
-                      to="/profile-building" 
-                      className="bg-yellow-500 text-white px-8 py-3 rounded-lg font-semibold hover:bg-yellow-600 transition-all"
-                    >
-                      <i className="fas fa-user-plus mr-2"></i>
-                      Learn About Profile Building
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

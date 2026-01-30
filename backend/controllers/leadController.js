@@ -45,17 +45,12 @@ exports.getLeads = async (req, res) => {
       // Lead managers can see:
       // 1. Leads assigned to them (assignedTo = their ID)
       // 2. Leads they assigned to CRM but still manage (assignedTo = their ID AND assignedToCrm exists)
-      query.assignedTo = req.user._id;
-      console.log('🎯 Lead manager filter applied:', req.user._id);
+      query.assignedTo = req.user.user_id;
+      console.log('🎯 Lead manager filter applied:', req.user.user_id);
     } else if (req.user.role === 'crm_manager') {
-      // CRM managers cannot access leads
-      return res.status(403).json({
-        success: false,
-        error: {
-          code: 'FORBIDDEN',
-          message: 'CRM managers cannot access leads'
-        }
-      });
+      // CRM managers can see leads assigned to them
+      query.assignedToCrm = req.user.user_id;
+      console.log('🎯 CRM manager filter applied:', req.user.user_id);
     }
     
     // Apply filters
@@ -178,13 +173,13 @@ exports.getLead = async (req, res) => {
 // @access  Private (Admin only) - Lead managers cannot create leads
 exports.createLead = async (req, res) => {
   try {
-    // Only admins can create leads directly
-    if (req.user.role !== 'admin') {
+    // Allow admins and lead managers to create leads
+    if (req.user.role !== 'admin' && req.user.role !== 'lead_manager') {
       return res.status(403).json({
         success: false,
         error: {
           code: 'FORBIDDEN',
-          message: 'Only administrators can create leads. Leads are created from website forms or by admin assignment.'
+          message: 'Only administrators and lead managers can create leads.'
         }
       });
     }
@@ -1407,6 +1402,183 @@ exports.getMyLeads = async (req, res) => {
       success: false,
       error: {
         code: 'FETCH_CRM_LEADS_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Add interaction/activity to lead
+// @route   POST /api/leads/:id/interactions
+// @access  Private (Admin, Lead Manager, CRM Manager)
+exports.addLeadInteraction = async (req, res) => {
+  try {
+    const { type, note } = req.body;
+    
+    // Validate input
+    if (!type || !note) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_FIELDS',
+          message: 'Interaction type and note are required'
+        }
+      });
+    }
+    
+    // Validate interaction type
+    const validTypes = ['email', 'phone', 'meeting', 'note'];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_TYPE',
+          message: 'Invalid interaction type. Must be: email, phone, meeting, or note'
+        }
+      });
+    }
+    
+    const lead = await Lead.findById(req.params.id);
+    
+    if (!lead) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'LEAD_NOT_FOUND',
+          message: 'Lead not found'
+        }
+      });
+    }
+    
+    // Security check - role-based access control
+    if (req.user.role === 'lead_manager' && 
+        (!lead.assignedTo || lead.assignedTo.toString() !== req.user.user_id.toString())) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You can only add interactions to your assigned leads'
+        }
+      });
+    }
+    
+    if (req.user.role === 'crm_manager' && 
+        (!lead.assignedToCrm || lead.assignedToCrm.toString() !== req.user.user_id.toString())) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You can only add interactions to leads assigned to you'
+        }
+      });
+    }
+    
+    // Add interaction
+    const interaction = {
+      type,
+      note,
+      date: new Date(),
+      user: req.user.user_id
+    };
+    
+    lead.interactions.push(interaction);
+    lead.lastContact = new Date();
+    await lead.save();
+    
+    // Populate the lead with user details
+    await lead.populate('interactions.user', 'first_name last_name email');
+    
+    // Log activity
+    await logActivity(
+      req.user.user_id,
+      'update',
+      'Lead',
+      `Added ${type} interaction to lead: ${lead.firstName} ${lead.lastName}`,
+      req.ip,
+      lead._id
+    );
+    
+    res.json({
+      success: true,
+      message: 'Interaction added successfully',
+      data: {
+        lead,
+        interaction: lead.interactions[lead.interactions.length - 1]
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'ADD_INTERACTION_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Update lead status to qualified
+// @route   PATCH /api/leads/:id/qualify
+// @access  Private (Admin, Lead Manager)
+exports.qualifyLead = async (req, res) => {
+  try {
+    const { notes, estimatedValue } = req.body;
+    
+    const lead = await Lead.findById(req.params.id);
+    
+    if (!lead) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'LEAD_NOT_FOUND',
+          message: 'Lead not found'
+        }
+      });
+    }
+    
+    // Security check - role-based access control
+    if (req.user.role === 'lead_manager' && 
+        (!lead.assignedTo || lead.assignedTo.toString() !== req.user.user_id.toString())) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You can only qualify your assigned leads'
+        }
+      });
+    }
+    
+    // Update lead status to qualified
+    lead.status = 'qualified';
+    if (notes) lead.notes = notes;
+    if (estimatedValue) lead.estimatedValue = estimatedValue;
+    lead.updated_at = new Date();
+    
+    await lead.save();
+    
+    // Populate the updated lead
+    await lead.populate('assignedTo', 'first_name last_name email');
+    
+    // Log activity
+    await logActivity(
+      req.user.user_id,
+      'status_change',
+      'Lead',
+      `Qualified lead: ${lead.firstName} ${lead.lastName}`,
+      req.ip,
+      lead._id
+    );
+    
+    res.json({
+      success: true,
+      message: 'Lead qualified successfully',
+      data: lead
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'QUALIFY_LEAD_FAILED',
         message: error.message
       }
     });

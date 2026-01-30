@@ -1,35 +1,135 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { contactAPI } from '../../services/api';
-import { validatePhoneWithCountry, getSupportedCountries } from '../../utils/validation';
+import { validateEmail, validateName, validatePhoneWithCountry, getSupportedCountries } from '../../utils/validation';
 
 const ContactPage = () => {
   const navigate = useNavigate();
   const [contactForm, setContactForm] = useState({
-    name: '',
+    first_name: '',
+    last_name: '',
     email: '',
     phone: '',
     country_code: 'US',
     'visa-type': '',
     message: ''
   });
+  
+  const [validationErrors, setValidationErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
 
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setContactForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // Clear validation error when user starts typing
+    if (validationErrors[name]) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [name]: null
+      }));
+    }
+    
+    // Real-time validation for message field
+    if (name === 'message' && value.trim().length > 0) {
+      const validation = validateField(name, value);
+      if (!validation.isValid) {
+        setTimeout(() => {
+          setValidationErrors(prev => ({
+            ...prev,
+            [name]: validation.errors[0]
+          }));
+        }, 500); // Small delay to avoid too aggressive validation
+      }
+    }
+  };
+
+  const validateField = (name, value) => {
+    let validation = { isValid: true, errors: [] };
+    
+    switch (name) {
+      case 'first_name':
+        validation = validateName(value, 'First name');
+        break;
+      case 'last_name':
+        validation = validateName(value, 'Last name');
+        break;
+      case 'email':
+        validation = validateEmail(value);
+        break;
+      case 'phone':
+        if (value) { // Phone is optional
+          validation = validatePhoneWithCountry(value, contactForm.country_code);
+        }
+        break;
+      case 'message':
+        if (!value || value.trim().length === 0) {
+          validation = { isValid: false, errors: ['Message is required'] };
+        } else if (value.trim().length < 10) {
+          validation = { isValid: false, errors: ['Message must be at least 10 characters long'] };
+        } else if (value.length > 2000) {
+          validation = { isValid: false, errors: ['Message cannot exceed 2000 characters'] };
+        }
+        break;
+      default:
+        if (!value && ['visa-type'].includes(name)) {
+          validation = { isValid: false, errors: [`${name.replace('-', ' ')} is required`] };
+        }
+        break;
+    }
+    
+    return validation;
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    const requiredFields = ['first_name', 'last_name', 'email', 'visa-type', 'message'];
+    
+    requiredFields.forEach(field => {
+      const validation = validateField(field, contactForm[field]);
+      if (!validation.isValid) {
+        errors[field] = validation.errors[0];
+      }
+    });
+    
+    // Validate phone if provided
+    if (contactForm.phone) {
+      const phoneValidation = validateField('phone', contactForm.phone);
+      if (!phoneValidation.isValid) {
+        errors.phone = phoneValidation.errors[0];
+      }
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleContactSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     setIsSubmitting(true);
     setSubmitMessage('');
     setSubmitError('');
 
     try {
-      // Transform field names for API
+      // Transform field names for API and combine first_name and last_name
       const apiData = {
         ...contactForm,
+        name: `${contactForm.first_name} ${contactForm.last_name}`.trim(),
         visa_type: contactForm['visa-type']
       };
       delete apiData['visa-type'];
+      delete apiData.first_name;
+      delete apiData.last_name;
 
       const response = await contactAPI.submit(apiData);
       
@@ -50,14 +150,6 @@ const ContactPage = () => {
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setContactForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
   const handleCountryCodeChange = (countryCode) => {
     setContactForm(prev => ({
       ...prev,
@@ -65,6 +157,185 @@ const ContactPage = () => {
       phone: '' // Clear phone when country changes
     }));
   };
+
+  const renderInputField = (name, label, type = 'text', required = false, placeholder = '') => {
+    const hasError = validationErrors[name];
+    
+    return (
+      <div className="form-group">
+        <label className="form-label">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        <input
+          type={type}
+          name={name}
+          value={contactForm[name]}
+          onChange={handleInputChange}
+          placeholder={placeholder}
+          className={`form-control-custom ${hasError ? 'border-red-500' : ''}`}
+        />
+        {hasError && (
+          <div className="validation-error">
+            <i className="fas fa-exclamation-circle"></i>
+            {hasError}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderSelectField = (name, label, options, required = false) => {
+    const hasError = validationErrors[name];
+    
+    return (
+      <div className="form-group">
+        <label className="form-label">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        <select
+          name={name}
+          value={contactForm[name]}
+          onChange={handleInputChange}
+          className={`form-control-custom form-select ${hasError ? 'border-red-500' : ''}`}
+        >
+          <option value="">Select {label.toLowerCase()}</option>
+          {options.map(option => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {hasError && (
+          <div className="validation-error">
+            <i className="fas fa-exclamation-circle"></i>
+            {hasError}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderTextareaField = (name, label, required = false, placeholder = '') => {
+    const hasError = validationErrors[name];
+    const value = contactForm[name] || '';
+    const charCount = value.length;
+    const minLength = 10;
+    const maxLength = 2000;
+    const isValid = value.trim().length >= minLength && charCount <= maxLength;
+    const showWarning = value.trim().length > 0 && value.trim().length < minLength;
+    
+    return (
+      <div className="form-group">
+        <label className="form-label">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        <textarea
+          name={name}
+          value={value}
+          onChange={handleInputChange}
+          placeholder={placeholder}
+          rows={5}
+          maxLength={maxLength}
+          className={`form-control-custom form-textarea ${
+            hasError ? 'border-red-500' : 
+            showWarning ? 'border-yellow-500' : 
+            isValid && value.trim().length >= minLength ? 'border-green-500' : ''
+          }`}
+        />
+        
+        {/* Character count and validation feedback */}
+        <div className="flex justify-between items-center mt-1">
+          <div className="text-sm">
+            {showWarning && (
+              <span className="text-yellow-600 flex items-center">
+                <i className="fas fa-exclamation-triangle mr-1"></i>
+                {minLength - value.trim().length} more characters needed (minimum {minLength})
+              </span>
+            )}
+            {isValid && value.trim().length >= minLength && (
+              <span className="text-green-600 flex items-center">
+                <i className="fas fa-check-circle mr-1"></i>
+                Looks good!
+              </span>
+            )}
+            {!value.trim() && (
+              <span className="text-gray-500">
+                Minimum {minLength} characters required
+              </span>
+            )}
+          </div>
+          <div className={`text-sm ${
+            charCount > maxLength * 0.9 ? 'text-red-500 font-semibold' : 
+            charCount > maxLength * 0.8 ? 'text-yellow-600' : 'text-gray-500'
+          }`}>
+            {charCount}/{maxLength}
+          </div>
+        </div>
+        
+        {hasError && (
+          <div className="validation-error">
+            <i className="fas fa-exclamation-circle"></i>
+            {hasError}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderPhoneInputField = () => {
+    const hasError = validationErrors.phone;
+    const countries = getSupportedCountries();
+    
+    return (
+      <div className="form-group">
+        <label className="form-label">
+          Phone Number <span className="text-gray-500 text-sm">(Optional)</span>
+        </label>
+        
+        <div className="flex gap-2">
+          {/* Country Code Selector - Smaller */}
+          <select
+            value={contactForm.country_code}
+            onChange={(e) => handleCountryCodeChange(e.target.value)}
+            className={`form-control-custom form-select ${hasError ? 'border-red-500' : ''}`}
+            style={{ width: '100px', flexShrink: 0 }}
+          >
+            {countries.map(country => (
+              <option key={country.code} value={country.code}>
+                {country.flag} {country.dialCode}
+              </option>
+            ))}
+          </select>
+          
+          {/* Phone Number Input - Larger with min-width for 10+ digits */}
+          <input
+            type="tel"
+            name="phone"
+            value={contactForm.phone}
+            onChange={handleInputChange}
+            placeholder="Enter phone number"
+            className={`form-control-custom ${hasError ? 'border-red-500' : ''}`}
+            style={{ flex: 1, minWidth: '200px' }}
+          />
+        </div>
+        
+        {hasError && (
+          <div className="validation-error">
+            <i className="fas fa-exclamation-circle"></i>
+            {hasError}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const visaTypeOptions = [
+    { value: 'eb1a', label: 'EB-1A (Extraordinary Ability)' },
+    { value: 'eb2-niw', label: 'EB-2 NIW (National Interest Waiver)' },
+    { value: 'o1', label: 'O-1 Visa' },
+    { value: 'profile', label: 'Profile Building' },
+    { value: 'other', label: 'Other / Not Sure' }
+  ];
 
   return (
     <div>
@@ -84,182 +355,84 @@ const ContactPage = () => {
       </div>
 
       {/* Contact Section */}
-      <section className="py-20 bg-white">
+      <div className="py-20 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto">
             <div className="grid md:grid-cols-2 gap-12">
+              
               {/* Contact Form */}
-              <div className="bg-white rounded-xl p-8 shadow-2xl">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">Send Us a Message</h3>
+              <div className="form-container">
+                <div className="text-center mb-8">
+                  <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                    <i className="fas fa-envelope text-blue-600 mr-3"></i>
+                    Get in Touch
+                  </h2>
+                  <p className="text-gray-600 text-lg">
+                    Have questions about your immigration case? We're here to help. Send us a message and we'll get back to you within 24 hours.
+                  </p>
+                </div>
+
                 <form onSubmit={handleContactSubmit}>
-                  <div className="mb-4">
-                    <label className="block text-gray-700 font-semibold mb-2" htmlFor="name">Full Name *</label>
-                    <input 
-                      type="text" 
-                      id="name" 
-                      name="name" 
-                      required 
-                      maxLength="100"
-                      value={contactForm.name}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900"
-                    />
+                  {/* Personal Information */}
+                  <div className="form-grid-2">
+                    {renderInputField('first_name', 'First Name', 'text', true, 'Enter your first name')}
+                    {renderInputField('last_name', 'Last Name', 'text', true, 'Enter your last name')}
                   </div>
-                  
-                  <div className="mb-4">
-                    <label className="block text-gray-700 font-semibold mb-2" htmlFor="email">Email Address *</label>
-                    <input 
-                      type="email" 
-                      id="email" 
-                      name="email" 
-                      required
-                      value={contactForm.email}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900"
-                    />
+
+                  <div className="form-grid-2">
+                    {renderInputField('email', 'Email Address', 'email', true, 'your.email@example.com')}
+                    {renderPhoneInputField()}
                   </div>
-                  
-                  <div className="mb-4">
-                    <label className="block text-gray-700 font-semibold mb-2" htmlFor="phone">Phone Number</label>
-                    <div className="flex gap-2">
-                      {/* Country Code Selector */}
-                      <select
-                        value={contactForm.country_code}
-                        onChange={(e) => handleCountryCodeChange(e.target.value)}
-                        className={`px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 ${
-                          getSupportedCountries().find(c => c.code === contactForm.country_code) ? 'border-gray-300' : 'border-red-500 bg-red-50'
-                        }`}
-                        style={{ minWidth: '140px' }}
-                      >
-                        {getSupportedCountries().map(country => (
-                          <option key={country.code} value={country.code}>
-                            {country.flag} {country.dialCode}
-                          </option>
-                        ))}
-                      </select>
-                      
-                      {/* Phone Number Input */}
-                      <input 
-                        type="tel" 
-                        id="phone" 
-                        name="phone" 
-                        maxLength="20"
-                        minLength={getSupportedCountries().find(c => c.code === contactForm.country_code)?.minDigits || 10}
-                        value={contactForm.phone}
-                        onChange={handleInputChange}
-                        placeholder="Enter phone number"
-                        className={`flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 ${
-                          contactForm.phone && contactForm.phone.replace(/\D/g, '').length > 0 && 
-                          (contactForm.phone.replace(/\D/g, '').length < (getSupportedCountries().find(c => c.code === contactForm.country_code)?.minDigits || 10) ||
-                           contactForm.phone.replace(/\D/g, '').length > (getSupportedCountries().find(c => c.code === contactForm.country_code)?.maxDigits || 10))
-                          ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                        }`}
-                      />
-                    </div>
-                    <div className="mt-1 flex justify-between items-center text-xs">
-                      <span className="text-gray-500">
-                        Selected: {getSupportedCountries().find(c => c.code === contactForm.country_code)?.flag} {getSupportedCountries().find(c => c.code === contactForm.country_code)?.name} ({getSupportedCountries().find(c => c.code === contactForm.country_code)?.dialCode})
-                      </span>
-                      <span className={`${
-                        contactForm.phone && contactForm.phone.replace(/\D/g, '').length > 0 && 
-                        (contactForm.phone.replace(/\D/g, '').length < (getSupportedCountries().find(c => c.code === contactForm.country_code)?.minDigits || 10) ||
-                         contactForm.phone.replace(/\D/g, '').length > (getSupportedCountries().find(c => c.code === contactForm.country_code)?.maxDigits || 10))
-                        ? 'text-red-500 font-semibold' : 'text-gray-500'
-                      }`}>
-                        {contactForm.phone.replace(/\D/g, '').length}/{getSupportedCountries().find(c => c.code === contactForm.country_code)?.maxDigits || 10} digits
-                      </span>
-                    </div>
-                    {!contactForm.phone && (
-                      <div className="mt-1 text-xs text-gray-400">
-                        Example: {getSupportedCountries().find(c => c.code === contactForm.country_code)?.example || '(555) 123-4567'}
-                      </div>
-                    )}
-                    {contactForm.phone && contactForm.phone.replace(/\D/g, '').length > 0 && 
-                     (contactForm.phone.replace(/\D/g, '').length < (getSupportedCountries().find(c => c.code === contactForm.country_code)?.minDigits || 10) ||
-                      contactForm.phone.replace(/\D/g, '').length > (getSupportedCountries().find(c => c.code === contactForm.country_code)?.maxDigits || 10)) && (
-                      <div className="validation-error mt-2 text-red-600 text-sm flex items-center">
-                        <i className="fas fa-exclamation-circle mr-2"></i>
-                        Please enter exactly {getSupportedCountries().find(c => c.code === contactForm.country_code)?.maxDigits || 10} digits for {getSupportedCountries().find(c => c.code === contactForm.country_code)?.name}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="mb-4">
-                    <label className="block text-gray-700 font-semibold mb-2" htmlFor="visa-type">Visa Category of Interest *</label>
-                    <select 
-                      id="visa-type" 
-                      name="visa-type" 
-                      required
-                      value={contactForm['visa-type']}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900"
-                    >
-                      <option value="">Select a category</option>
-                      <option value="eb1a">EB-1A (Extraordinary Ability)</option>
-                      <option value="eb2-niw">EB-2 NIW (National Interest Waiver)</option>
-                      <option value="o1">O-1 Visa</option>
-                      <option value="profile">Profile Building</option>
-                      <option value="other">Other / Not Sure</option>
-                    </select>
-                  </div>
-                  
-                  <div className="mb-6">
-                    <label className="block text-gray-700 font-semibold mb-2" htmlFor="message">Tell Us About Your Background *</label>
-                    <textarea 
-                      id="message" 
-                      name="message" 
-                      rows="4" 
-                      required 
-                      maxLength="2000"
-                      value={contactForm.message}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900"
-                    ></textarea>
-                    <p className="text-xs text-gray-500 mt-1">Maximum 2000 characters</p>
-                  </div>
-                  
-                  <button 
-                    type="submit" 
-                    disabled={isSubmitting}
-                    className="w-full bg-primary text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-secondary transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <i className="fas fa-spinner fa-spin mr-2"></i>
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <i className="fas fa-paper-plane mr-2"></i>
-                        Send Message
-                      </>
-                    )}
-                  </button>
-                  
+
+                  {renderSelectField('visa-type', 'Visa Category', visaTypeOptions, true)}
+
+                  {renderTextareaField('message', 'Your Message', true, 'Please describe your situation, questions, or how we can help you...')}
+
+                  {/* Messages */}
                   {submitMessage && (
-                    <div className="mt-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+                    <div className="alert alert-success">
                       <i className="fas fa-check-circle mr-2"></i>
                       {submitMessage}
                     </div>
                   )}
                   
                   {submitError && (
-                    <div className="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                    <div className="alert alert-error">
                       <i className="fas fa-exclamation-triangle mr-2"></i>
                       {submitError}
                     </div>
                   )}
+
+                  <div className="text-center">
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="btn-primary"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <i className="fas fa-spinner fa-spin"></i>
+                          Sending Message...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-paper-plane"></i>
+                          Send Message
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </form>
               </div>
               
-              {/* Contact Info */}
+              {/* Contact Info & Quick Actions */}
               <div>
                 <div className="mb-8">
-                  <h3 className="text-2xl font-bold mb-6 text-gray-900">Get in Touch</h3>
+                  <h3 className="text-2xl font-bold mb-6 text-gray-900">Contact Information</h3>
                   
                   <div className="flex items-start mb-6">
-                    <div className="bg-primary/20 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <i className="fas fa-map-marker-alt text-xl text-primary"></i>
+                    <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                      <i className="fas fa-map-marker-alt text-xl text-blue-600"></i>
                     </div>
                     <div>
                       <h4 className="font-semibold text-lg mb-1 text-gray-900">Office Address</h4>
@@ -268,8 +441,8 @@ const ContactPage = () => {
                   </div>
                   
                   <div className="flex items-start mb-6">
-                    <div className="bg-primary/20 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <i className="fas fa-phone text-xl text-primary"></i>
+                    <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                      <i className="fas fa-phone text-xl text-blue-600"></i>
                     </div>
                     <div>
                       <h4 className="font-semibold text-lg mb-1 text-gray-900">Phone</h4>
@@ -278,8 +451,8 @@ const ContactPage = () => {
                   </div>
                   
                   <div className="flex items-start mb-6">
-                    <div className="bg-primary/20 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <i className="fas fa-envelope text-xl text-primary"></i>
+                    <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                      <i className="fas fa-envelope text-xl text-blue-600"></i>
                     </div>
                     <div>
                       <h4 className="font-semibold text-lg mb-1 text-gray-900">Email</h4>
@@ -288,8 +461,8 @@ const ContactPage = () => {
                   </div>
                   
                   <div className="flex items-start">
-                    <div className="bg-primary/20 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <i className="fas fa-clock text-xl text-primary"></i>
+                    <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                      <i className="fas fa-clock text-xl text-blue-600"></i>
                     </div>
                     <div>
                       <h4 className="font-semibold text-lg mb-1 text-gray-900">Business Hours</h4>
@@ -297,40 +470,69 @@ const ContactPage = () => {
                     </div>
                   </div>
                 </div>
-                
-                <div className="bg-gray-50 rounded-xl p-6">
-                  <h3 className="text-xl font-bold mb-4 text-gray-900">Follow Us</h3>
-                  <div className="flex space-x-4">
-                    <button type="button" className="bg-primary/20 w-12 h-12 rounded-full flex items-center justify-center hover:bg-primary/30 transition-all text-primary">
-                      <i className="fab fa-linkedin text-xl"></i>
-                    </button>
-                    <button type="button" className="bg-primary/20 w-12 h-12 rounded-full flex items-center justify-center hover:bg-primary/30 transition-all text-primary">
-                      <i className="fab fa-twitter text-xl"></i>
-                    </button>
-                    <button type="button" className="bg-primary/20 w-12 h-12 rounded-full flex items-center justify-center hover:bg-primary/30 transition-all text-primary">
-                      <i className="fab fa-facebook text-xl"></i>
-                    </button>
-                    <button type="button" className="bg-primary/20 w-12 h-12 rounded-full flex items-center justify-center hover:bg-primary/30 transition-all text-primary">
-                      <i className="fab fa-instagram text-xl"></i>
-                    </button>
-                  </div>
-                </div>
 
                 {/* Quick Actions */}
-                <div className="mt-8 bg-gradient-to-r from-primary to-secondary rounded-xl p-6 text-white">
+                <div className="bg-gradient-to-r from-blue-600 to-purple-700 rounded-xl p-6 text-white mb-8">
                   <h3 className="text-xl font-bold mb-4">Quick Actions</h3>
                   <div className="space-y-3">
-                    <a href="/assessment" className="block bg-white/20 hover:bg-white/30 rounded-lg p-3 transition-all">
+                    <Link 
+                      to="/assessment" 
+                      className="block bg-white/20 hover:bg-white/30 rounded-lg p-3 transition-all text-white hover:text-white no-underline"
+                    >
                       <i className="fas fa-chart-line mr-2"></i>
                       Free Profile Assessment
-                    </a>
-                    <a href="/schedule" className="block bg-white/20 hover:bg-white/30 rounded-lg p-3 transition-all">
+                    </Link>
+                    <Link 
+                      to="/schedule" 
+                      className="block bg-white/20 hover:bg-white/30 rounded-lg p-3 transition-all text-white hover:text-white no-underline"
+                    >
                       <i className="fas fa-calendar mr-2"></i>
                       Schedule Consultation
-                    </a>
-                    <a href="/services" className="block bg-white/20 hover:bg-white/30 rounded-lg p-3 transition-all">
+                    </Link>
+                    <Link 
+                      to="/services" 
+                      className="block bg-white/20 hover:bg-white/30 rounded-lg p-3 transition-all text-white hover:text-white no-underline"
+                    >
                       <i className="fas fa-briefcase mr-2"></i>
                       View Our Services
+                    </Link>
+                    <Link 
+                      to="/pricing" 
+                      className="block bg-white/20 hover:bg-white/30 rounded-lg p-3 transition-all text-white hover:text-white no-underline"
+                    >
+                      <i className="fas fa-dollar-sign mr-2"></i>
+                      View Pricing
+                    </Link>
+                  </div>
+                </div>
+                
+                {/* Social Media */}
+                <div className="bg-white rounded-xl p-6 shadow-lg">
+                  <h3 className="text-xl font-bold mb-4 text-gray-900">Follow Us</h3>
+                  <div className="flex space-x-4">
+                    <a 
+                      href="#" 
+                      className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center hover:bg-blue-200 transition-all text-blue-600"
+                    >
+                      <i className="fab fa-linkedin text-xl"></i>
+                    </a>
+                    <a 
+                      href="#" 
+                      className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center hover:bg-blue-200 transition-all text-blue-600"
+                    >
+                      <i className="fab fa-twitter text-xl"></i>
+                    </a>
+                    <a 
+                      href="#" 
+                      className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center hover:bg-blue-200 transition-all text-blue-600"
+                    >
+                      <i className="fab fa-facebook text-xl"></i>
+                    </a>
+                    <a 
+                      href="#" 
+                      className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center hover:bg-blue-200 transition-all text-blue-600"
+                    >
+                      <i className="fab fa-instagram text-xl"></i>
                     </a>
                   </div>
                 </div>
@@ -338,8 +540,7 @@ const ContactPage = () => {
             </div>
           </div>
         </div>
-      </section>
-
+      </div>
     </div>
   );
 };

@@ -410,4 +410,9 @@ router.get('/pending-verification', auth(['admin', 'crm_manager', 'lead_manager'
 // @access  Private (Admin, CRM Manager)
 router.get('/stats/summary', auth(['admin', 'crm_manager']), paymentController.getPaymentStats);
 
+// @route   POST /api/payments/:id/upload-receipt
+// @desc    Upload payment receipt/proof
+// @access  Private (Client, Admin, CRM Manager)
+router.post('/:id/upload-receipt', auth(['admin', 'crm_manager', 'client']), upload.single('receipt'), paymentController.uploadPaymentReceipt);
+
 module.exports = router;

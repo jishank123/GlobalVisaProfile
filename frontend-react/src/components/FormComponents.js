@@ -225,7 +225,7 @@ export const PasswordInput = ({
       {name === 'password' && (
         <div className="mt-3 p-3 bg-gray-50 rounded-lg">
           <div className="text-sm font-semibold text-gray-700 mb-2">Password Requirements:</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-1 text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-1 text-xs">
             <div className={`flex items-center ${value && value.length >= 8 ? 'text-green-600' : 'text-gray-500'}`}>
               <i className={`fas ${value && value.length >= 8 ? 'fa-check' : 'fa-circle'} mr-2`}></i>
               At least 8 characters
@@ -367,13 +367,13 @@ export const PhoneInputWithCountry = ({
       </label>
       
       <div className="flex gap-2">
-        {/* Country Code Selector */}
+        {/* Country Code Selector - Smaller */}
         <select
           value={selectedCountry}
           onChange={handleCountryChange}
           disabled={disabled}
-          className={`${className} w-32 flex-shrink-0 ${hasErrors ? 'border-red-500 focus:border-red-500' : ''}`}
-          style={{ minWidth: '120px' }}
+          className={`${className} ${hasErrors ? 'border-red-500 focus:border-red-500' : ''}`}
+          style={{ width: '100px', flexShrink: 0 }}
         >
           {countries.map(country => (
             <option key={country.code} value={country.code}>
@@ -382,7 +382,7 @@ export const PhoneInputWithCountry = ({
           ))}
         </select>
         
-        {/* Phone Number Input */}
+        {/* Phone Number Input - Larger with min-width for 10+ digits */}
         <input
           type="tel"
           name={name}
@@ -393,9 +393,10 @@ export const PhoneInputWithCountry = ({
           disabled={disabled}
           minLength={currentCountry.minDigits}
           maxLength={currentCountry.maxDigits}
-          className={`${className} flex-1 ${hasErrors ? 'border-red-500 focus:border-red-500 bg-red-50' : ''} ${
+          className={`${className} ${hasErrors ? 'border-red-500 focus:border-red-500 bg-red-50' : ''} ${
             touched && validation.isValid && value ? 'border-green-500' : ''
           }`}
+          style={{ flex: 1, minWidth: '200px' }}
           {...props}
         />
       </div>

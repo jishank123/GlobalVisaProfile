@@ -123,4 +123,9 @@ router.get('/financial', adminAuth, dashboardController.getFinancialOverview);
 // @access  Private (Admin only)
 router.get('/activity', adminAuth, dashboardController.getRecentActivity);
 
+// @route   GET /api/dashboard/client
+// @desc    Get client dashboard data
+// @access  Private (Client only)
+router.get('/client', require('../middleware/auth').auth(['client']), dashboardController.getClientDashboard);
+
 module.exports = router;

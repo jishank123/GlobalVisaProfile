@@ -5,7 +5,10 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
-require('dotenv').config();
+const path = require('path');
+
+// Load environment variables from the correct path
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -16,6 +19,7 @@ const projectRoutes = require('./routes/projects');
 const paymentRoutes = require('./routes/payments');
 const queryRoutes = require('./routes/queries');
 const serviceRoutes = require('./routes/services');
+const invoiceRoutes = require('./routes/invoices');
 // const documentRoutes = require('./routes/documents');
 const analyticsRoutes = require('./routes/analytics');
 const activityRoutes = require('./routes/activity');
@@ -95,9 +99,10 @@ app.use('/uploads', express.static('uploads'));
 
 // MongoDB Connection
 console.log('🔌 Attempting to connect to MongoDB...');
-console.log('🔌 MongoDB URI:', process.env.MONGODB_URI || 'mongodb://localhost:27017/academic_erp');
+const mongoUri = process.env.MONGODB_URI;
+console.log('🔌 MongoDB URI:', mongoUri);
 
-mongoose.connect(process.env.MONGODB_URI).then(() => {
+mongoose.connect(mongoUri).then(() => {
     console.log('✅ MongoDB Connected Successfully');
     console.log(`📊 Database: ${
         mongoose.connection.name
@@ -135,6 +140,14 @@ app.use('/api/services', (req, res, next) => {
     }`);
     next();
 }, serviceRoutes);
+app.use('/api/invoices', (req, res, next) => {
+    console.log(`🛣️ Invoices route hit: ${
+        req.method
+    } ${
+        req.path
+    }`);
+    next();
+}, invoiceRoutes);
 // app.use('/api/documents', documentRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
@@ -214,6 +227,7 @@ app.get('/', (req, res) => {
             payments: '/api/payments',
             queries: '/api/queries',
             services: '/api/services',
+            invoices: '/api/invoices',
             documents: '/api/documents',
             analytics: '/api/analytics',
             // New form endpoints

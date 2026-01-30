@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { appointmentsAPI } from '../../services/api';
-import { validatePhoneWithCountry, getSupportedCountries } from '../../utils/validation';
+import { validateEmail, validateName, validatePhoneWithCountry, getSupportedCountries } from '../../utils/validation';
 
 const ScheduleAppointmentPage = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    name: '',
+    first_name: '',
+    last_name: '',
     email: '',
     phone: '',
     country_code: 'US',
@@ -18,6 +19,7 @@ const ScheduleAppointmentPage = () => {
     details: ''
   });
   
+  const [validationErrors, setValidationErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
@@ -28,6 +30,75 @@ const ScheduleAppointmentPage = () => {
       ...prev,
       [name]: value
     }));
+    
+    // Clear validation error when user starts typing
+    if (validationErrors[name]) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [name]: null
+      }));
+    }
+    
+    // Real-time validation for details field
+    if (name === 'details' && value.trim().length > 0) {
+      const validation = validateField(name, value);
+      if (!validation.isValid) {
+        setTimeout(() => {
+          setValidationErrors(prev => ({
+            ...prev,
+            [name]: validation.errors[0]
+          }));
+        }, 500); // Small delay to avoid too aggressive validation
+      }
+    }
+  };
+
+  const validateField = (name, value) => {
+    let validation = { isValid: true, errors: [] };
+    
+    switch (name) {
+      case 'first_name':
+        validation = validateName(value, 'First name');
+        break;
+      case 'last_name':
+        validation = validateName(value, 'Last name');
+        break;
+      case 'email':
+        validation = validateEmail(value);
+        break;
+      case 'phone':
+        validation = validatePhoneWithCountry(value, formData.country_code);
+        break;
+      case 'details':
+        if (!value || value.trim().length === 0) {
+          validation = { isValid: false, errors: ['Background & Goals is required'] };
+        } else if (value.trim().length < 10) {
+          validation = { isValid: false, errors: ['Please provide at least 10 characters to help us understand your background'] };
+        }
+        break;
+      default:
+        if (!value && ['visa_category', 'timezone', 'preferred_date', 'preferred_time'].includes(name)) {
+          validation = { isValid: false, errors: [`${name.replace('_', ' ')} is required`] };
+        }
+        break;
+    }
+    
+    return validation;
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    const requiredFields = ['first_name', 'last_name', 'email', 'phone', 'visa_category', 'timezone', 'preferred_date', 'preferred_time', 'details'];
+    
+    requiredFields.forEach(field => {
+      const validation = validateField(field, formData[field]);
+      if (!validation.isValid) {
+        errors[field] = validation.errors[0];
+      }
+    });
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleCountryCodeChange = (countryCode) => {
@@ -40,12 +111,23 @@ const ScheduleAppointmentPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     setIsSubmitting(true);
     setSubmitMessage('');
     setSubmitError('');
 
     try {
-      const response = await appointmentsAPI.submit(formData);
+      // Combine first_name and last_name into name for API compatibility
+      const submissionData = {
+        ...formData,
+        name: `${formData.first_name} ${formData.last_name}`.trim()
+      };
+      
+      const response = await appointmentsAPI.submit(submissionData);
       
       if (response.success) {
         // Redirect to success page with account creation info
@@ -64,6 +146,213 @@ const ScheduleAppointmentPage = () => {
     }
   };
 
+  const renderInputField = (name, label, type = 'text', required = false, placeholder = '') => {
+    const hasError = validationErrors[name];
+    
+    return (
+      <div className="form-group">
+        <label className="form-label">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        <input
+          type={type}
+          name={name}
+          value={formData[name]}
+          onChange={handleInputChange}
+          placeholder={placeholder}
+          className={`form-control-custom ${hasError ? 'border-red-500' : ''}`}
+          min={type === 'date' ? new Date().toISOString().split('T')[0] : undefined}
+        />
+        {hasError && (
+          <div className="validation-error">
+            <i className="fas fa-exclamation-circle"></i>
+            {hasError}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderSelectField = (name, label, options, required = false) => {
+    const hasError = validationErrors[name];
+    
+    return (
+      <div className="form-group">
+        <label className="form-label">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        <select
+          name={name}
+          value={formData[name]}
+          onChange={handleInputChange}
+          className={`form-control-custom form-select ${hasError ? 'border-red-500' : ''}`}
+        >
+          <option value="">Select {label.toLowerCase()}</option>
+          {options.map(option => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {hasError && (
+          <div className="validation-error">
+            <i className="fas fa-exclamation-circle"></i>
+            {hasError}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderTextareaField = (name, label, required = false, placeholder = '') => {
+    const hasError = validationErrors[name];
+    const value = formData[name] || '';
+    const charCount = value.length;
+    const minLength = 10;
+    const isValid = value.trim().length >= minLength;
+    const showWarning = value.trim().length > 0 && value.trim().length < minLength;
+    
+    return (
+      <div className="form-group">
+        <label className="form-label">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        <textarea
+          name={name}
+          value={value}
+          onChange={handleInputChange}
+          placeholder={placeholder}
+          rows={4}
+          className={`form-control-custom form-textarea ${
+            hasError ? 'border-red-500' : 
+            showWarning ? 'border-yellow-500' : 
+            isValid && value.trim().length >= minLength ? 'border-green-500' : ''
+          }`}
+        />
+        
+        {/* Character count and validation feedback */}
+        <div className="flex justify-between items-center mt-1">
+          <div className="text-sm">
+            {showWarning && (
+              <span className="text-yellow-600 flex items-center">
+                <i className="fas fa-exclamation-triangle mr-1"></i>
+                {minLength - value.trim().length} more characters needed (minimum {minLength})
+              </span>
+            )}
+            {isValid && value.trim().length >= minLength && (
+              <span className="text-green-600 flex items-center">
+                <i className="fas fa-check-circle mr-1"></i>
+                Looks good!
+              </span>
+            )}
+            {!value.trim() && (
+              <span className="text-gray-500">
+                Minimum {minLength} characters required
+              </span>
+            )}
+          </div>
+          <div className="text-sm text-gray-500">
+            {charCount} characters
+          </div>
+        </div>
+        
+        {hasError && (
+          <div className="validation-error">
+            <i className="fas fa-exclamation-circle"></i>
+            {hasError}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderPhoneInputField = () => {
+    const hasError = validationErrors.phone;
+    const countries = getSupportedCountries();
+    
+    return (
+      <div className="form-group">
+        <label className="form-label">
+          Phone Number <span className="text-red-500">*</span>
+        </label>
+        
+        <div className="flex gap-2">
+          {/* Country Code Selector - Smaller */}
+          <select
+            value={formData.country_code}
+            onChange={(e) => handleCountryCodeChange(e.target.value)}
+            className={`form-control-custom form-select ${hasError ? 'border-red-500' : ''}`}
+            style={{ width: '100px', flexShrink: 0 }}
+          >
+            {countries.map(country => (
+              <option key={country.code} value={country.code}>
+                {country.flag} {country.dialCode}
+              </option>
+            ))}
+          </select>
+          
+          {/* Phone Number Input - Larger with min-width for 10+ digits */}
+          <input
+            type="tel"
+            name="phone"
+            value={formData.phone}
+            onChange={handleInputChange}
+            placeholder="Enter phone number"
+            className={`form-control-custom ${hasError ? 'border-red-500' : ''}`}
+            style={{ flex: 1, minWidth: '200px' }}
+          />
+        </div>
+        
+        {hasError && (
+          <div className="validation-error">
+            <i className="fas fa-exclamation-circle"></i>
+            {hasError}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const visaCategoryOptions = [
+    { value: 'eb1a', label: 'EB-1A (Extraordinary Ability)' },
+    { value: 'eb2-niw', label: 'EB-2 NIW (National Interest Waiver)' },
+    { value: 'o1', label: 'O-1 Visa' },
+    { value: 'multiple', label: 'Multiple Categories' },
+    { value: 'other', label: 'Other / Not Sure' }
+  ];
+
+  const timezoneOptions = [
+    { value: 'EST', label: 'Eastern Time (EST)' },
+    { value: 'CST', label: 'Central Time (CST)' },
+    { value: 'MST', label: 'Mountain Time (MST)' },
+    { value: 'PST', label: 'Pacific Time (PST)' },
+    { value: 'GMT', label: 'Greenwich Mean Time (GMT)' },
+    { value: 'CET', label: 'Central European Time (CET)' },
+    { value: 'IST', label: 'India Standard Time (IST)' },
+    { value: 'CST-China', label: 'China Standard Time (CST)' },
+    { value: 'JST', label: 'Japan Standard Time (JST)' },
+    { value: 'AEST', label: 'Australian Eastern Time (AEST)' },
+    { value: 'other', label: 'Other' }
+  ];
+
+  const timeOptions = [
+    { value: '9:00 AM', label: '9:00 AM' },
+    { value: '10:00 AM', label: '10:00 AM' },
+    { value: '11:00 AM', label: '11:00 AM' },
+    { value: '12:00 PM', label: '12:00 PM' },
+    { value: '1:00 PM', label: '1:00 PM' },
+    { value: '2:00 PM', label: '2:00 PM' },
+    { value: '3:00 PM', label: '3:00 PM' },
+    { value: '4:00 PM', label: '4:00 PM' },
+    { value: '5:00 PM', label: '5:00 PM' }
+  ];
+
+  const consultationTypeOptions = [
+    { value: 'video', label: 'Video Call (Zoom/Teams)' },
+    { value: 'phone', label: 'Phone Call' },
+    { value: 'in-person', label: 'In-Person Meeting' }
+  ];
+
   return (
     <div>
       
@@ -80,216 +369,84 @@ const ScheduleAppointmentPage = () => {
         </div>
       </div>
 
-      <div className="py-20 bg-white">
+      <div className="py-20 bg-gray-50">
         <div className="container mx-auto px-4">
-          <div className="max-w-2xl mx-auto">
-            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg p-8">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    Phone Number *
-                  </label>
-                  <div className="flex gap-2">
-                    {/* Country Code Selector */}
-                    <select
-                      value={formData.country_code}
-                      onChange={(e) => handleCountryCodeChange(e.target.value)}
-                      className={`px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
-                        getSupportedCountries().find(c => c.code === formData.country_code) ? 'border-gray-300' : 'border-red-500 bg-red-50'
-                      }`}
-                      style={{ minWidth: '140px' }}
-                    >
-                      {getSupportedCountries().map(country => (
-                        <option key={country.code} value={country.code}>
-                          {country.flag} {country.dialCode}
-                        </option>
-                      ))}
-                    </select>
-                    
-                    {/* Phone Number Input */}
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      required
-                      minLength={getSupportedCountries().find(c => c.code === formData.country_code)?.minDigits || 10}
-                      maxLength={getSupportedCountries().find(c => c.code === formData.country_code)?.maxDigits || 10}
-                      placeholder="Enter phone number"
-                      className={`flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
-                        formData.phone && formData.phone.replace(/\D/g, '').length > 0 && 
-                        (formData.phone.replace(/\D/g, '').length < (getSupportedCountries().find(c => c.code === formData.country_code)?.minDigits || 10) ||
-                         formData.phone.replace(/\D/g, '').length > (getSupportedCountries().find(c => c.code === formData.country_code)?.maxDigits || 10))
-                        ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                      }`}
-                    />
-                  </div>
-                  <div className="mt-1 flex justify-between items-center text-xs">
-                    <span className="text-gray-500">
-                      Selected: {getSupportedCountries().find(c => c.code === formData.country_code)?.flag} {getSupportedCountries().find(c => c.code === formData.country_code)?.name} ({getSupportedCountries().find(c => c.code === formData.country_code)?.dialCode})
-                    </span>
-                    <span className={`${
-                      formData.phone && formData.phone.replace(/\D/g, '').length > 0 && 
-                      (formData.phone.replace(/\D/g, '').length < (getSupportedCountries().find(c => c.code === formData.country_code)?.minDigits || 10) ||
-                       formData.phone.replace(/\D/g, '').length > (getSupportedCountries().find(c => c.code === formData.country_code)?.maxDigits || 10))
-                      ? 'text-red-500 font-semibold' : 'text-gray-500'
-                    }`}>
-                      {formData.phone.replace(/\D/g, '').length}/{getSupportedCountries().find(c => c.code === formData.country_code)?.maxDigits || 10} digits
-                    </span>
-                  </div>
-                  {!formData.phone && (
-                    <div className="mt-1 text-xs text-gray-400">
-                      Example: {getSupportedCountries().find(c => c.code === formData.country_code)?.example || '(555) 123-4567'}
-                    </div>
-                  )}
-                  {formData.phone && formData.phone.replace(/\D/g, '').length > 0 && 
-                   (formData.phone.replace(/\D/g, '').length < (getSupportedCountries().find(c => c.code === formData.country_code)?.minDigits || 10) ||
-                    formData.phone.replace(/\D/g, '').length > (getSupportedCountries().find(c => c.code === formData.country_code)?.maxDigits || 10)) && (
-                    <div className="validation-error mt-2 text-red-600 text-sm flex items-center">
-                      <i className="fas fa-exclamation-circle mr-2"></i>
-                      Please enter exactly {getSupportedCountries().find(c => c.code === formData.country_code)?.maxDigits || 10} digits for {getSupportedCountries().find(c => c.code === formData.country_code)?.name}
-                    </div>
-                  )}
-                </div>
-                
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    Visa Category *
-                  </label>
-                  <select
-                    name="visa_category"
-                    value={formData.visa_category}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="">Select category</option>
-                    <option value="eb1a">EB-1A (Extraordinary Ability)</option>
-                    <option value="eb2-niw">EB-2 NIW (National Interest Waiver)</option>
-                    <option value="o1">O-1 Visa</option>
-                    <option value="profile-building">Profile Building</option>
-                    <option value="other">Other / Not Sure</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    Preferred Date *
-                  </label>
-                  <input
-                    type="date"
-                    name="preferred_date"
-                    value={formData.preferred_date}
-                    onChange={handleInputChange}
-                    required
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    Preferred Time *
-                  </label>
-                  <select
-                    name="preferred_time"
-                    value={formData.preferred_time}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="">Select time</option>
-                    <option value="09:00">9:00 AM</option>
-                    <option value="10:00">10:00 AM</option>
-                    <option value="11:00">11:00 AM</option>
-                    <option value="14:00">2:00 PM</option>
-                    <option value="15:00">3:00 PM</option>
-                    <option value="16:00">4:00 PM</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="mt-6">
-                <label className="block text-gray-700 font-semibold mb-2">
-                  Tell us about your background and goals *
-                </label>
-                <textarea
-                  name="details"
-                  value={formData.details}
-                  onChange={handleInputChange}
-                  required
-                  rows="4"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Please describe your professional background, achievements, and immigration goals..."
-                ></textarea>
+          <div className="max-w-4xl mx-auto">
+            <form onSubmit={handleSubmit} className="form-container">
+              <div className="text-center mb-8">
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                  <i className="fas fa-calendar-alt text-green-600 mr-3"></i>
+                  Book Your Consultation
+                </h2>
+                <p className="text-gray-600 text-lg">
+                  Fill out the form below and we'll get back to you within 24 hours to confirm your appointment.
+                </p>
               </div>
 
-              <div className="mt-8 text-center">
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="bg-primary text-white px-12 py-4 rounded-lg text-lg font-semibold hover:bg-secondary transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin mr-2"></i>
-                      Submitting Request...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-calendar-check mr-2"></i>
-                      Schedule Consultation
-                    </>
-                  )}
-                </button>
+              {/* Personal Information */}
+              <div className="form-grid-2">
+                {renderInputField('first_name', 'First Name', 'text', true, 'Enter your first name')}
+                {renderInputField('last_name', 'Last Name', 'text', true, 'Enter your last name')}
               </div>
 
+              <div className="form-grid-2">
+                {renderInputField('email', 'Email Address', 'email', true, 'your.email@example.com')}
+                {renderPhoneInputField()}
+              </div>
+
+              {/* Consultation Details */}
+              <div className="form-grid-2">
+                {renderSelectField('visa_category', 'Visa Category', visaCategoryOptions, true)}
+                {renderSelectField('timezone', 'Your Timezone', timezoneOptions, true)}
+              </div>
+
+              <div className="form-grid-2">
+                {renderInputField('preferred_date', 'Preferred Date', 'date', true)}
+                {renderSelectField('preferred_time', 'Preferred Time', timeOptions, true)}
+              </div>
+
+              {renderSelectField('consultation_type', 'Consultation Type', consultationTypeOptions, false)}
+
+              {renderTextareaField('details', 'Background & Goals', true, 'Please tell us about your background, current situation, and what you hope to achieve through this consultation...')}
+
+              {/* Messages */}
               {submitMessage && (
-                <div className="mt-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+                <div className="alert alert-success">
                   <i className="fas fa-check-circle mr-2"></i>
                   {submitMessage}
                 </div>
               )}
               
               {submitError && (
-                <div className="mt-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                <div className="alert alert-error">
                   <i className="fas fa-exclamation-triangle mr-2"></i>
                   {submitError}
                 </div>
               )}
+
+              <div className="text-center">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="btn-primary"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin"></i>
+                      Submitting Request...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-calendar-check"></i>
+                      Schedule Consultation
+                    </>
+                  )}
+                </button>
+              </div>
             </form>
           </div>
         </div>
       </div>
-
     </div>
   );
 };
