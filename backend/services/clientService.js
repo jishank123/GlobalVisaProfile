@@ -94,7 +94,7 @@ class ClientService {
     
     const clientData = {
       user_id: user._id,
-      name: user.full_name,
+      name: `${user.first_name} ${user.last_name}`.trim(),
       email: user.email,
       phone: user.phone,
       university: company || '',

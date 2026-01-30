@@ -40,6 +40,44 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
   }, []);
 
+  const emailLogin = async (email, formData, source) => {
+    try {
+      const response = await authAPI.emailLogin(email, formData, source);
+      
+      if (response.success) {
+        const newToken = response.token || response.data?.token;
+        const userData = response.data?.user || response.data;
+        
+        // Store in state
+        setToken(newToken);
+        setUser(userData);
+        
+        // Store in localStorage
+        localStorage.setItem('token', newToken);
+        localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('userRole', userData?.role || 'client');
+        
+        // For client users, also store as clientToken and clientId for compatibility
+        if (userData?.role === 'client') {
+          localStorage.setItem('clientToken', newToken);
+          localStorage.setItem('clientId', userData.id || userData._id);
+          localStorage.setItem('clientEmail', userData.email);
+          localStorage.setItem('clientName', `${userData.first_name} ${userData.last_name || ''}`);
+          if (userData.phone) {
+            localStorage.setItem('clientPhone', userData.phone);
+          }
+        }
+        
+        return response;
+      }
+      
+      return response;
+    } catch (error) {
+      console.error('Email login error:', error);
+      throw error;
+    }
+  };
+
   const login = async (email, password) => {
     try {
       const response = await authAPI.login(email, password);
@@ -187,6 +225,7 @@ export const AuthProvider = ({ children }) => {
     token,
     loading,
     login,
+    emailLogin,
     managerLogin,
     register,
     logout,

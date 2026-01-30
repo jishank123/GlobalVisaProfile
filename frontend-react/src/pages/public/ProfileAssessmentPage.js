@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { profileAssessmentsAPI } from '../../services/api';
-import { validateEmail, validateName, validatePhoneWithCountry, validateLocation, validateFieldOfExpertise, getSupportedCountries } from '../../utils/validation';
+import { profileAssessmentsAPI, authAPI } from '../../services/api';
+import { validateEmailRealTime, validateNameRealTime, validatePhoneRealTime, validateLocation, validateFieldOfExpertise, getSupportedCountries, getPhoneMaxLength } from '../../utils/validation';
 
 const ProfileAssessmentPage = () => {
   const navigate = useNavigate();
@@ -29,6 +29,7 @@ const ProfileAssessmentPage = () => {
   });
   
   const [validationErrors, setValidationErrors] = useState({});
+  const [fieldValidation, setFieldValidation] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
@@ -61,52 +62,89 @@ const ProfileAssessmentPage = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
     
-    // Clear validation error when user starts typing
-    if (validationErrors[name]) {
-      setValidationErrors(prev => ({
-        ...prev,
-        [name]: null
-      }));
+    // Handle phone number length restriction
+    if (name === 'client_phone') {
+      const digitsOnly = value.replace(/\D/g, '');
+      const maxLength = getPhoneMaxLength(formData.client_country_code);
+      if (digitsOnly.length > maxLength) {
+        return; // Don't allow more digits than the maximum
+      }
     }
-  };
-
-  const validateField = (name, value) => {
-    let validation = { isValid: true, errors: [] };
     
+    const newFormData = {
+      ...formData,
+      [name]: value
+    };
+    
+    setFormData(newFormData);
+    
+    // Real-time validation based on field type
+    let validation;
     switch (name) {
       case 'first_name':
-        validation = validateName(value, 'First name');
+        validation = validateNameRealTime(value, 'First name');
         break;
       case 'last_name':
-        validation = validateName(value, 'Last name');
+        validation = validateNameRealTime(value, 'Last name');
         break;
       case 'client_email':
-        validation = validateEmail(value);
+        validation = validateEmailRealTime(value);
         break;
       case 'client_phone':
-        validation = validatePhoneWithCountry(value, formData.client_country_code);
-        break;
-      case 'field_of_expertise':
-        validation = validateFieldOfExpertise(value);
-        break;
-      case 'years_of_experience':
-        if (!value) {
-          validation = { isValid: false, errors: ['Years of experience is required'] };
-        }
+        validation = validatePhoneRealTime(value, formData.client_country_code);
         break;
       case 'current_location':
         validation = validateLocation(value);
         break;
-      default:
+      case 'field_of_expertise':
+        validation = validateFieldOfExpertise(value);
         break;
+      default:
+        validation = { isValid: true, errors: [], showError: false };
     }
     
-    return validation;
+    // Update field validation state
+    setFieldValidation(prev => ({
+      ...prev,
+      [name]: validation
+    }));
+    
+    // Update validation errors for form submission
+    if (validation.showError && validation.errors.length > 0) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [name]: validation.errors[0]
+      }));
+    } else {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
+
+  const handleCountryChange = (e) => {
+    const newCountryCode = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      client_country_code: newCountryCode,
+      client_phone: '' // Clear phone when country changes
+    }));
+    
+    // Clear phone validation when country changes
+    setFieldValidation(prev => {
+      const newValidation = { ...prev };
+      delete newValidation.client_phone;
+      return newValidation;
+    });
+    
+    setValidationErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors.client_phone;
+      return newErrors;
+    });
   };
 
   const validateStep1 = () => {
@@ -114,15 +152,35 @@ const ProfileAssessmentPage = () => {
     const requiredFields = ['first_name', 'last_name', 'client_email', 'field_of_expertise', 'years_of_experience', 'current_location'];
     
     requiredFields.forEach(field => {
-      const validation = validateField(field, formData[field]);
-      if (!validation.isValid) {
-        errors[field] = validation.errors[0];
+      let validation;
+      switch (field) {
+        case 'first_name':
+          validation = validateNameRealTime(formData[field], 'First name');
+          break;
+        case 'last_name':
+          validation = validateNameRealTime(formData[field], 'Last name');
+          break;
+        case 'client_email':
+          validation = validateEmailRealTime(formData[field]);
+          break;
+        case 'current_location':
+          validation = validateLocation(formData[field]);
+          break;
+        case 'field_of_expertise':
+          validation = validateFieldOfExpertise(formData[field]);
+          break;
+        default:
+          validation = { isValid: !!formData[field], errors: formData[field] ? [] : [`${field.replace('_', ' ')} is required`] };
+      }
+      
+      if (!validation.isValid || (field !== 'client_email' && !formData[field])) {
+        errors[field] = validation.errors[0] || `${field.replace('_', ' ')} is required`;
       }
     });
     
     // Validate phone if provided
     if (formData.client_phone) {
-      const phoneValidation = validateField('client_phone', formData.client_phone);
+      const phoneValidation = validatePhoneRealTime(formData.client_phone, formData.client_country_code);
       if (!phoneValidation.isValid) {
         errors.client_phone = phoneValidation.errors[0];
       }
@@ -210,15 +268,55 @@ const ProfileAssessmentPage = () => {
         criteria_met: result.criteriaCount
       };
 
+      // Submit the profile assessment
       const response = await profileAssessmentsAPI.submit(submissionData);
       
       if (response.success) {
-        // Redirect to success page with account creation info
-        const queryParams = new URLSearchParams({
-          type: 'profile_assessment',
-          email: formData.client_email
-        });
-        navigate(`/form-success?${queryParams.toString()}`);
+        // Auto-create account and login user
+        try {
+          const authResponse = await authAPI.emailLogin(
+            formData.client_email, 
+            {
+              name: `${formData.first_name} ${formData.last_name}`.trim(),
+              email: formData.client_email,
+              phone: formData.phone,
+              field_of_expertise: formData.field_of_expertise,
+              current_location: formData.current_location,
+              company: formData.company
+            }, 
+            'profile_assessment'
+          );
+          
+          if (authResponse.success) {
+            // Store auth data
+            localStorage.setItem('token', authResponse.token);
+            localStorage.setItem('user', JSON.stringify(authResponse.data.user));
+            localStorage.setItem('userRole', 'client');
+            
+            // Redirect to success page with account creation info
+            const queryParams = new URLSearchParams({
+              type: 'profile_assessment',
+              email: formData.client_email,
+              accountCreated: authResponse.data.isNewUser ? 'true' : 'false'
+            });
+            navigate(`/form-success?${queryParams.toString()}`);
+          } else {
+            // Assessment submitted but account creation failed - still redirect to success
+            const queryParams = new URLSearchParams({
+              type: 'profile_assessment',
+              email: formData.client_email
+            });
+            navigate(`/form-success?${queryParams.toString()}`);
+          }
+        } catch (authError) {
+          console.error('Auto-login failed:', authError);
+          // Assessment submitted but auto-login failed - still redirect to success
+          const queryParams = new URLSearchParams({
+            type: 'profile_assessment',
+            email: formData.client_email
+          });
+          navigate(`/form-success?${queryParams.toString()}`);
+        }
       } else {
         setSubmitError(response.error?.message || 'Failed to submit assessment. Please try again.');
       }
@@ -266,7 +364,11 @@ const ProfileAssessmentPage = () => {
 
   const renderPhoneInputField = () => {
     const hasError = validationErrors.client_phone;
+    const validation = fieldValidation.client_phone;
+    const isValid = validation?.isValid && formData.client_phone;
     const countries = getSupportedCountries();
+    const currentCountry = countries.find(c => c.code === formData.client_country_code) || countries[0];
+    const digitsOnly = formData.client_phone.replace(/\D/g, '');
     
     return (
       <div className="form-group">
@@ -278,7 +380,7 @@ const ProfileAssessmentPage = () => {
           {/* Country Code Selector - Smaller */}
           <select
             value={formData.client_country_code}
-            onChange={(e) => handleCountryCodeChange(e.target.value)}
+            onChange={handleCountryChange}
             className={`form-control-custom form-select ${hasError ? 'border-red-500' : ''}`}
             style={{ width: '100px', flexShrink: 0 }}
           >
@@ -295,10 +397,26 @@ const ProfileAssessmentPage = () => {
             name="client_phone"
             value={formData.client_phone}
             onChange={handleInputChange}
-            placeholder="Enter phone number"
-            className={`form-control-custom ${hasError ? 'border-red-500' : ''}`}
-            style={{ flex: 1, minWidth: '200px' }}
+            placeholder={`Enter ${currentCountry.maxDigits} digits`}
+            maxLength={currentCountry.maxDigits + 5} // Allow for formatting characters
+            className={`form-control-custom ${
+              hasError ? 'border-red-500' : 
+              isValid ? 'border-green-500' : ''
+            }`}
+            style={{ flex: 1, minWidth: '200px', fontFamily: 'monospace' }}
           />
+        </div>
+        
+        {/* Country Info and Digit Counter */}
+        <div className="mt-1 flex justify-between items-center text-xs">
+          <span className="text-gray-500">
+            {currentCountry.flag} {currentCountry.name} ({currentCountry.dialCode})
+          </span>
+          <span className={`${
+            digitsOnly.length > 0 && digitsOnly.length !== currentCountry.maxDigits ? 'text-red-500' : 'text-gray-500'
+          }`}>
+            {digitsOnly.length}/{currentCountry.maxDigits} digits
+          </span>
         </div>
         
         {hasError && (
@@ -307,12 +425,20 @@ const ProfileAssessmentPage = () => {
             {hasError}
           </div>
         )}
+        {isValid && !hasError && (
+          <div className="mt-2 text-green-600 text-sm flex items-center">
+            <i className="fas fa-check-circle mr-2"></i>
+            Valid {currentCountry.name} phone number
+          </div>
+        )}
       </div>
     );
   };
 
   const renderInputField = (name, label, type = 'text', required = false, placeholder = '') => {
     const hasError = validationErrors[name];
+    const validation = fieldValidation[name];
+    const isValid = validation?.isValid && formData[name];
     
     return (
       <div className="form-group">
@@ -325,12 +451,21 @@ const ProfileAssessmentPage = () => {
           value={formData[name]}
           onChange={handleInputChange}
           placeholder={placeholder}
-          className={`form-control-custom ${hasError ? 'border-red-500' : ''}`}
+          className={`form-control-custom ${
+            hasError ? 'border-red-500' : 
+            isValid ? 'border-green-500' : ''
+          }`}
         />
         {hasError && (
           <div className="validation-error">
             <i className="fas fa-exclamation-circle"></i>
             {hasError}
+          </div>
+        )}
+        {isValid && !hasError && (
+          <div className="mt-2 text-green-600 text-sm flex items-center">
+            <i className="fas fa-check-circle mr-2"></i>
+            Looks good!
           </div>
         )}
       </div>

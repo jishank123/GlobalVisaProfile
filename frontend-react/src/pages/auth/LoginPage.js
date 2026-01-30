@@ -12,8 +12,10 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showPasswordField, setShowPasswordField] = useState(false);
+  const [isNewUser, setIsNewUser] = useState(false);
   
-  const { login, isAuthenticated, user } = useAuth();
+  const { login, emailLogin, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
   // Redirect if already logged in
@@ -48,6 +50,45 @@ const LoginPage = () => {
     if (error) setError('');
   };
 
+  const checkUserExists = async (email) => {
+    try {
+      // Check if user exists by attempting to find them
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/auth/check-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.exists && !data.needsPasswordSetup;
+      }
+      return false;
+    } catch (error) {
+      console.error('User check failed:', error);
+      return false;
+    }
+  };
+
+  const handleEmailBlur = async () => {
+    if (formData.email && validateEmail(formData.email).isValid) {
+      setIsLoading(true);
+      try {
+        const userExists = await checkUserExists(formData.email);
+        setShowPasswordField(userExists);
+        setIsNewUser(!userExists);
+      } catch (error) {
+        // If check fails, show password field by default
+        setShowPasswordField(true);
+        setIsNewUser(false);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -62,20 +103,22 @@ const LoginPage = () => {
       return;
     }
 
-    if (!formData.password) {
-      setError('Please enter your password.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long.');
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const response = await login(formData.email, formData.password);
+      let response;
+      
+      if (showPasswordField && formData.password) {
+        // Existing user with password
+        if (formData.password.length < 6) {
+          setError('Password must be at least 6 characters long.');
+          setIsLoading(false);
+          return;
+        }
+        
+        response = await login(formData.email, formData.password);
+      } else {
+        // New user or email-only login
+        response = await emailLogin(formData.email, { email: formData.email }, 'client_login');
+      }
       
       if (response.success) {
         const userData = response.data?.user || response.data;
@@ -87,12 +130,18 @@ const LoginPage = () => {
           return;
         }
         
-        setSuccess(`Welcome back, ${userData?.first_name || 'User'}!`);
+        if (response.data?.isNewUser) {
+          setSuccess(`Welcome! Account created for ${userData?.first_name || 'User'}. Please check your email to set up your password.`);
+        } else if (response.data?.needsPasswordSetup) {
+          setSuccess(`Welcome back! Please check your email to set up your password.`);
+        } else {
+          setSuccess(`Welcome back, ${userData?.first_name || 'User'}!`);
+        }
         
         // Redirect to client dashboard
         setTimeout(() => {
           navigate('/dashboard/client', { replace: true });
-        }, 1000);
+        }, 2000);
       } else {
         setError(response.error?.message || 'Login failed. Please try again.');
       }
@@ -138,27 +187,49 @@ const LoginPage = () => {
               type="email"
               value={formData.email}
               onChange={handleInputChange}
+              onBlur={handleEmailBlur}
               required={true}
               placeholder="Enter your email"
               disabled={isLoading}
             />
 
-            <PasswordInput
-              name="password"
-              label="Password"
-              value={formData.password}
-              onChange={handleInputChange}
-              required={true}
-              placeholder="Enter your password"
-              disabled={isLoading}
-              showStrength={false}
-            />
+            {showPasswordField && (
+              <PasswordInput
+                name="password"
+                label="Password"
+                value={formData.password}
+                onChange={handleInputChange}
+                required={true}
+                placeholder="Enter your password"
+                disabled={isLoading}
+                showStrength={false}
+              />
+            )}
+
+            {!showPasswordField && formData.email && (
+              <div className="mb-4 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
+                <div className="flex items-start">
+                  <i className="fas fa-info-circle text-blue-400 mr-3 mt-0.5"></i>
+                  <div>
+                    <h4 className="text-blue-800 font-semibold text-sm">New User</h4>
+                    <p className="text-blue-700 text-sm mt-1">
+                      {isNewUser ? 
+                        'We\'ll create an account for you and send password setup instructions to your email.' :
+                        'Click Sign In to continue with email-only login.'
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#4a5568' }}>
                 <input type="checkbox" disabled={isLoading} /> Remember me
               </label>
-              <Link to="/forgot-password" style={{ fontSize: '14px', color: '#667eea', textDecoration: 'none' }}>Forgot Password?</Link>
+              {showPasswordField && (
+                <Link to="/forgot-password" style={{ fontSize: '14px', color: '#667eea', textDecoration: 'none' }}>Forgot Password?</Link>
+              )}
             </div>
 
             {error && (

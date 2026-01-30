@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { appointmentsAPI } from '../../services/api';
-import { validateEmail, validateName, validatePhoneWithCountry, getSupportedCountries } from '../../utils/validation';
+import { appointmentsAPI, authAPI } from '../../services/api';
+import { validateEmailRealTime, validateNameRealTime, validatePhoneRealTime, getSupportedCountries, getPhoneMaxLength } from '../../utils/validation';
 
 const ScheduleAppointmentPage = () => {
   const navigate = useNavigate();
@@ -20,70 +20,90 @@ const ScheduleAppointmentPage = () => {
   });
   
   const [validationErrors, setValidationErrors] = useState({});
+  const [fieldValidation, setFieldValidation] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
     
-    // Clear validation error when user starts typing
-    if (validationErrors[name]) {
-      setValidationErrors(prev => ({
-        ...prev,
-        [name]: null
-      }));
+    // Handle phone number length restriction
+    if (name === 'phone') {
+      const digitsOnly = value.replace(/\D/g, '');
+      const maxLength = getPhoneMaxLength(formData.country_code);
+      if (digitsOnly.length > maxLength) {
+        return; // Don't allow more digits than the maximum
+      }
     }
     
-    // Real-time validation for details field
-    if (name === 'details' && value.trim().length > 0) {
-      const validation = validateField(name, value);
-      if (!validation.isValid) {
-        setTimeout(() => {
-          setValidationErrors(prev => ({
-            ...prev,
-            [name]: validation.errors[0]
-          }));
-        }, 500); // Small delay to avoid too aggressive validation
-      }
+    const newFormData = {
+      ...formData,
+      [name]: value
+    };
+    
+    setFormData(newFormData);
+    
+    // Real-time validation based on field type
+    let validation;
+    switch (name) {
+      case 'first_name':
+        validation = validateNameRealTime(value, 'First name');
+        break;
+      case 'last_name':
+        validation = validateNameRealTime(value, 'Last name');
+        break;
+      case 'email':
+        validation = validateEmailRealTime(value);
+        break;
+      case 'phone':
+        validation = validatePhoneRealTime(value, formData.country_code);
+        break;
+      default:
+        validation = { isValid: true, errors: [], showError: false };
+    }
+    
+    // Update field validation state
+    setFieldValidation(prev => ({
+      ...prev,
+      [name]: validation
+    }));
+    
+    // Update validation errors for form submission
+    if (validation.showError && validation.errors.length > 0) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [name]: validation.errors[0]
+      }));
+    } else {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
     }
   };
 
-  const validateField = (name, value) => {
-    let validation = { isValid: true, errors: [] };
+  const handleCountryChange = (e) => {
+    const newCountryCode = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      country_code: newCountryCode,
+      phone: '' // Clear phone when country changes
+    }));
     
-    switch (name) {
-      case 'first_name':
-        validation = validateName(value, 'First name');
-        break;
-      case 'last_name':
-        validation = validateName(value, 'Last name');
-        break;
-      case 'email':
-        validation = validateEmail(value);
-        break;
-      case 'phone':
-        validation = validatePhoneWithCountry(value, formData.country_code);
-        break;
-      case 'details':
-        if (!value || value.trim().length === 0) {
-          validation = { isValid: false, errors: ['Background & Goals is required'] };
-        } else if (value.trim().length < 10) {
-          validation = { isValid: false, errors: ['Please provide at least 10 characters to help us understand your background'] };
-        }
-        break;
-      default:
-        if (!value && ['visa_category', 'timezone', 'preferred_date', 'preferred_time'].includes(name)) {
-          validation = { isValid: false, errors: [`${name.replace('_', ' ')} is required`] };
-        }
-        break;
-    }
+    // Clear phone validation when country changes
+    setFieldValidation(prev => {
+      const newValidation = { ...prev };
+      delete newValidation.phone;
+      return newValidation;
+    });
     
-    return validation;
+    setValidationErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors.phone;
+      return newErrors;
+    });
   };
 
   const validateForm = () => {
@@ -91,9 +111,34 @@ const ScheduleAppointmentPage = () => {
     const requiredFields = ['first_name', 'last_name', 'email', 'phone', 'visa_category', 'timezone', 'preferred_date', 'preferred_time', 'details'];
     
     requiredFields.forEach(field => {
-      const validation = validateField(field, formData[field]);
-      if (!validation.isValid) {
-        errors[field] = validation.errors[0];
+      let validation;
+      switch (field) {
+        case 'first_name':
+          validation = validateNameRealTime(formData[field], 'First name');
+          break;
+        case 'last_name':
+          validation = validateNameRealTime(formData[field], 'Last name');
+          break;
+        case 'email':
+          validation = validateEmailRealTime(formData[field]);
+          break;
+        case 'phone':
+          validation = validatePhoneRealTime(formData[field], formData.country_code);
+          break;
+        case 'details':
+          // Check minimum 10 characters for details
+          if (!formData[field] || formData[field].trim().length < 10) {
+            validation = { isValid: false, errors: ['Details must be at least 10 characters long'] };
+          } else {
+            validation = { isValid: true, errors: [] };
+          }
+          break;
+        default:
+          validation = { isValid: !!formData[field], errors: formData[field] ? [] : [`${field.replace('_', ' ')} is required`] };
+      }
+      
+      if (!validation.isValid || (field !== 'email' && !formData[field])) {
+        errors[field] = validation.errors[0] || `${field.replace('_', ' ')} is required`;
       }
     });
     
@@ -127,15 +172,54 @@ const ScheduleAppointmentPage = () => {
         name: `${formData.first_name} ${formData.last_name}`.trim()
       };
       
+      // Submit the appointment request
       const response = await appointmentsAPI.submit(submissionData);
       
       if (response.success) {
-        // Redirect to success page with account creation info
-        const queryParams = new URLSearchParams({
-          type: 'appointment',
-          email: formData.email
-        });
-        navigate(`/form-success?${queryParams.toString()}`);
+        // Auto-create account and login user
+        try {
+          const authResponse = await authAPI.emailLogin(
+            formData.email, 
+            {
+              name: `${formData.first_name} ${formData.last_name}`.trim(),
+              email: formData.email,
+              phone: formData.phone,
+              current_location: formData.timezone,
+              company: ''
+            }, 
+            'appointment'
+          );
+          
+          if (authResponse.success) {
+            // Store auth data
+            localStorage.setItem('token', authResponse.token);
+            localStorage.setItem('user', JSON.stringify(authResponse.data.user));
+            localStorage.setItem('userRole', 'client');
+            
+            // Redirect to success page with account creation info
+            const queryParams = new URLSearchParams({
+              type: 'appointment',
+              email: formData.email,
+              accountCreated: authResponse.data.isNewUser ? 'true' : 'false'
+            });
+            navigate(`/form-success?${queryParams.toString()}`);
+          } else {
+            // Appointment submitted but account creation failed - still redirect to success
+            const queryParams = new URLSearchParams({
+              type: 'appointment',
+              email: formData.email
+            });
+            navigate(`/form-success?${queryParams.toString()}`);
+          }
+        } catch (authError) {
+          console.error('Auto-login failed:', authError);
+          // Appointment submitted but auto-login failed - still redirect to success
+          const queryParams = new URLSearchParams({
+            type: 'appointment',
+            email: formData.email
+          });
+          navigate(`/form-success?${queryParams.toString()}`);
+        }
       } else {
         setSubmitError(response.error?.message || 'Failed to submit appointment request. Please try again.');
       }
@@ -148,6 +232,8 @@ const ScheduleAppointmentPage = () => {
 
   const renderInputField = (name, label, type = 'text', required = false, placeholder = '') => {
     const hasError = validationErrors[name];
+    const validation = fieldValidation[name];
+    const isValid = validation?.isValid && formData[name];
     
     return (
       <div className="form-group">
@@ -160,13 +246,22 @@ const ScheduleAppointmentPage = () => {
           value={formData[name]}
           onChange={handleInputChange}
           placeholder={placeholder}
-          className={`form-control-custom ${hasError ? 'border-red-500' : ''}`}
+          className={`form-control-custom ${
+            hasError ? 'border-red-500' : 
+            isValid ? 'border-green-500' : ''
+          }`}
           min={type === 'date' ? new Date().toISOString().split('T')[0] : undefined}
         />
         {hasError && (
           <div className="validation-error">
             <i className="fas fa-exclamation-circle"></i>
             {hasError}
+          </div>
+        )}
+        {isValid && !hasError && (
+          <div className="mt-2 text-green-600 text-sm flex items-center">
+            <i className="fas fa-check-circle mr-2"></i>
+            Looks good!
           </div>
         )}
       </div>
@@ -185,7 +280,7 @@ const ScheduleAppointmentPage = () => {
           name={name}
           value={formData[name]}
           onChange={handleInputChange}
-          className={`form-control-custom form-select ${hasError ? 'border-red-500' : ''}`}
+          className={`form-control-custom form-select ${hasError ? 'border-red-500 border-2' : ''}`}
         >
           <option value="">Select {label.toLowerCase()}</option>
           {options.map(option => (
@@ -194,12 +289,6 @@ const ScheduleAppointmentPage = () => {
             </option>
           ))}
         </select>
-        {hasError && (
-          <div className="validation-error">
-            <i className="fas fa-exclamation-circle"></i>
-            {hasError}
-          </div>
-        )}
       </div>
     );
   };
@@ -268,7 +357,11 @@ const ScheduleAppointmentPage = () => {
 
   const renderPhoneInputField = () => {
     const hasError = validationErrors.phone;
+    const validation = fieldValidation.phone;
+    const isValid = validation?.isValid && formData.phone;
     const countries = getSupportedCountries();
+    const currentCountry = countries.find(c => c.code === formData.country_code) || countries[0];
+    const digitsOnly = formData.phone.replace(/\D/g, '');
     
     return (
       <div className="form-group">
@@ -280,7 +373,7 @@ const ScheduleAppointmentPage = () => {
           {/* Country Code Selector - Smaller */}
           <select
             value={formData.country_code}
-            onChange={(e) => handleCountryCodeChange(e.target.value)}
+            onChange={handleCountryChange}
             className={`form-control-custom form-select ${hasError ? 'border-red-500' : ''}`}
             style={{ width: '100px', flexShrink: 0 }}
           >
@@ -297,16 +390,38 @@ const ScheduleAppointmentPage = () => {
             name="phone"
             value={formData.phone}
             onChange={handleInputChange}
-            placeholder="Enter phone number"
-            className={`form-control-custom ${hasError ? 'border-red-500' : ''}`}
-            style={{ flex: 1, minWidth: '200px' }}
+            placeholder={`Enter ${currentCountry.maxDigits} digits`}
+            maxLength={currentCountry.maxDigits + 5} // Allow for formatting characters
+            className={`form-control-custom ${
+              hasError ? 'border-red-500' : 
+              isValid ? 'border-green-500' : ''
+            }`}
+            style={{ flex: 1, minWidth: '200px', fontFamily: 'monospace' }}
           />
+        </div>
+        
+        {/* Country Info and Digit Counter */}
+        <div className="mt-1 flex justify-between items-center text-xs">
+          <span className="text-gray-500">
+            {currentCountry.flag} {currentCountry.name} ({currentCountry.dialCode})
+          </span>
+          <span className={`${
+            digitsOnly.length > 0 && digitsOnly.length !== currentCountry.maxDigits ? 'text-red-500' : 'text-gray-500'
+          }`}>
+            {digitsOnly.length}/{currentCountry.maxDigits} digits
+          </span>
         </div>
         
         {hasError && (
           <div className="validation-error">
             <i className="fas fa-exclamation-circle"></i>
             {hasError}
+          </div>
+        )}
+        {isValid && !hasError && (
+          <div className="mt-2 text-green-600 text-sm flex items-center">
+            <i className="fas fa-check-circle mr-2"></i>
+            Valid {currentCountry.name} phone number
           </div>
         )}
       </div>

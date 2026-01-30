@@ -8,6 +8,7 @@ const FormSuccessPage = () => {
   
   const type = searchParams.get('type') || 'form';
   const email = searchParams.get('email');
+  const accountCreated = searchParams.get('accountCreated') === 'true';
   
   useEffect(() => {
     const timer = setInterval(() => {
@@ -85,13 +86,16 @@ const FormSuccessPage = () => {
           {email && (
             <div className="mt-4 p-4 bg-white rounded-lg border border-blue-100">
               <p className="text-sm text-gray-600 mb-2">
-                <strong>Account Created:</strong>
+                <strong>{accountCreated ? 'Account Created:' : 'Existing Account:'}</strong>
               </p>
               <p className="text-blue-600 font-medium">
                 {email}
               </p>
               <p className="text-sm text-gray-500 mt-2">
-                Check your email for login instructions and password setup.
+                {accountCreated 
+                  ? 'A new account has been created for you. Check your email for login instructions and password setup.'
+                  : 'You have been automatically logged in to your existing account. You can access your dashboard now.'
+                }
               </p>
             </div>
           )}

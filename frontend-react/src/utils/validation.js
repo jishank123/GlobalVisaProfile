@@ -155,12 +155,12 @@ export const validatePassword = (password, confirmPassword = null) => {
   };
 };
 
-// Enhanced phone number validation with country code support
+// Enhanced phone number validation with country code support and real-time validation
 export const validatePhoneWithCountry = (phone, countryCode = 'US') => {
   const errors = [];
   
   if (!phone) {
-    return { isValid: true, errors: [], formatted: '' }; // Phone is optional in most forms
+    return { isValid: true, errors: [], formatted: '', digitsOnly: '', maxLength: getPhoneMaxLength(countryCode) }; // Phone is optional in most forms
   }
   
   // Remove all non-digit characters for validation
@@ -168,31 +168,28 @@ export const validatePhoneWithCountry = (phone, countryCode = 'US') => {
   
   if (digitsOnly.length === 0) {
     errors.push('Phone number must contain at least one digit');
-    return { isValid: false, errors };
+    return { isValid: false, errors, maxLength: getPhoneMaxLength(countryCode) };
   }
   
-  // Enhanced country-specific validation patterns (US, UK, IN only)
+  // Enhanced country-specific validation patterns
   const countryPatterns = {
     'US': {
+      exactLength: 10,
       pattern: /^[2-9]\d{9}$/,
-      minLength: 10,
-      maxLength: 10,
       format: '(XXX) XXX-XXXX',
       example: '(555) 123-4567',
       code: '+1'
     },
     'UK': {
+      exactLength: 10,
       pattern: /^[1-9]\d{9}$/,
-      minLength: 10,
-      maxLength: 10,
       format: '+44 XXXX XXXXXX',
       example: '+44 20 7946 0958',
       code: '+44'
     },
     'IN': {
+      exactLength: 10,
       pattern: /^[6-9]\d{9}$/,
-      minLength: 10,
-      maxLength: 10,
       format: '+91 XXXXX XXXXX',
       example: '+91 98765 43210',
       code: '+91'
@@ -204,34 +201,37 @@ export const validatePhoneWithCountry = (phone, countryCode = 'US') => {
   
   if (!pattern) {
     errors.push(`Country code ${countryCode} is not supported`);
-    return { isValid: false, errors };
+    return { isValid: false, errors, maxLength: 10 };
   }
   
-  // Validate length
-  if (digitsOnly.length < pattern.minLength) {
-    errors.push(`Phone number is too short for ${countryCode} (minimum ${pattern.minLength} digits)`);
+  // Validate exact length requirement
+  if (digitsOnly.length !== pattern.exactLength) {
+    if (digitsOnly.length < pattern.exactLength) {
+      errors.push(`Phone number must be exactly ${pattern.exactLength} digits for ${countryCode}`);
+    } else {
+      errors.push(`Phone number must be exactly ${pattern.exactLength} digits for ${countryCode}`);
+    }
   }
-  
-  if (digitsOnly.length > pattern.maxLength) {
-    errors.push(`Phone number is too long for ${countryCode} (maximum ${pattern.maxLength} digits)`);
-  }
-  
-  // Clean phone for pattern matching (remove spaces, hyphens, parentheses)
-  const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
   
   // Check pattern using digits only for more reliable validation
-  if (!pattern.pattern.test(digitsOnly) && errors.length === 0) {
-    errors.push(`Please enter a valid ${countryCode} phone number (${pattern.example})`);
+  if (digitsOnly.length === pattern.exactLength && !pattern.pattern.test(digitsOnly)) {
+    if (countryCode === 'US') {
+      errors.push('US phone numbers must start with 2-9');
+    } else if (countryCode === 'IN') {
+      errors.push('Indian phone numbers must start with 6, 7, 8, or 9');
+    } else if (countryCode === 'UK') {
+      errors.push('UK phone numbers must start with 1-9');
+    } else {
+      errors.push(`Please enter a valid ${countryCode} phone number (${pattern.example})`);
+    }
   }
   
   // Format phone number for display
   let formatted = phone;
-  if (errors.length === 0) {
-    if (countryCode === 'US' && digitsOnly.length === 10) {
+  if (errors.length === 0 && digitsOnly.length === pattern.exactLength) {
+    if (countryCode === 'US') {
       formatted = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6)}`;
-    } else if (countryCode === 'US' && digitsOnly.length === 11 && digitsOnly.startsWith('1')) {
-      formatted = `+1 (${digitsOnly.slice(1, 4)}) ${digitsOnly.slice(4, 7)}-${digitsOnly.slice(7)}`;
-    } else if (!cleanPhone.startsWith('+')) {
+    } else {
       formatted = `${pattern.code} ${phone}`;
     }
   }
@@ -241,7 +241,76 @@ export const validatePhoneWithCountry = (phone, countryCode = 'US') => {
     errors,
     formatted,
     digitsOnly,
-    countryCode: pattern.code
+    countryCode: pattern.code,
+    maxLength: pattern.exactLength
+  };
+};
+
+// Get phone max length for a country
+export const getPhoneMaxLength = (countryCode) => {
+  const lengths = {
+    'US': 10,
+    'UK': 10,
+    'IN': 10
+  };
+  return lengths[countryCode.toUpperCase()] || 10;
+};
+
+// Real-time email validation
+export const validateEmailRealTime = (email) => {
+  const errors = [];
+  
+  if (!email) {
+    return { isValid: true, errors: [], showError: false }; // Don't show error for empty field initially
+  }
+  
+  // Check for @ symbol
+  if (!email.includes('@')) {
+    errors.push('Email must contain @ symbol');
+  }
+  
+  // Check for .com requirement
+  if (!email.toLowerCase().includes('.com')) {
+    errors.push('Email must contain .com domain');
+  }
+  
+  // Basic format check
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+  
+  if (email.length > 0 && !emailRegex.test(email)) {
+    errors.push('Please enter a valid email address');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors,
+    showError: email.length > 0 && errors.length > 0
+  };
+};
+
+// Real-time phone validation
+export const validatePhoneRealTime = (phone, countryCode = 'US') => {
+  if (!phone) {
+    return { isValid: true, errors: [], showError: false, maxLength: getPhoneMaxLength(countryCode) };
+  }
+  
+  const result = validatePhoneWithCountry(phone, countryCode);
+  return {
+    ...result,
+    showError: phone.length > 0 && result.errors.length > 0
+  };
+};
+
+// Real-time name validation
+export const validateNameRealTime = (name, fieldName = 'Name') => {
+  if (!name) {
+    return { isValid: true, errors: [], showError: false };
+  }
+  
+  const result = validateName(name, fieldName);
+  return {
+    ...result,
+    showError: name.length > 0 && result.errors.length > 0
   };
 };
 

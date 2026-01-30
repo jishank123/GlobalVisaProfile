@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { contactAPI } from '../../services/api';
-import { validateEmail, validateName, validatePhoneWithCountry, getSupportedCountries } from '../../utils/validation';
+import { contactAPI, authAPI } from '../../services/api';
+import { validateEmailRealTime, validateNameRealTime, validatePhoneRealTime, getSupportedCountries, getPhoneMaxLength } from '../../utils/validation';
 
 const ContactPage = () => {
   const navigate = useNavigate();
@@ -16,37 +16,100 @@ const ContactPage = () => {
   });
   
   const [validationErrors, setValidationErrors] = useState({});
+  const [fieldValidation, setFieldValidation] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    
+    // Handle phone number length restriction
+    if (name === 'phone') {
+      const digitsOnly = value.replace(/\D/g, '');
+      const maxLength = getPhoneMaxLength(contactForm.country_code);
+      if (digitsOnly.length > maxLength) {
+        return; // Don't allow more digits than the maximum
+      }
+    }
+    
     setContactForm(prev => ({
       ...prev,
       [name]: value
     }));
     
-    // Clear validation error when user starts typing
-    if (validationErrors[name]) {
-      setValidationErrors(prev => ({
-        ...prev,
-        [name]: null
-      }));
+    // Real-time validation based on field type
+    let validation;
+    switch (name) {
+      case 'first_name':
+        validation = validateNameRealTime(value, 'First name');
+        break;
+      case 'last_name':
+        validation = validateNameRealTime(value, 'Last name');
+        break;
+      case 'email':
+        validation = validateEmailRealTime(value);
+        break;
+      case 'phone':
+        validation = validatePhoneRealTime(value, contactForm.country_code);
+        break;
+      case 'message':
+        // Check minimum 10 characters for message
+        if (!value || value.trim().length < 10) {
+          validation = { 
+            isValid: false, 
+            errors: ['Message must be at least 10 characters long'],
+            showError: value.length > 0 && value.trim().length < 10
+          };
+        } else {
+          validation = { isValid: true, errors: [], showError: false };
+        }
+        break;
+      default:
+        validation = { isValid: true, errors: [], showError: false };
     }
     
-    // Real-time validation for message field
-    if (name === 'message' && value.trim().length > 0) {
-      const validation = validateField(name, value);
-      if (!validation.isValid) {
-        setTimeout(() => {
-          setValidationErrors(prev => ({
-            ...prev,
-            [name]: validation.errors[0]
-          }));
-        }, 500); // Small delay to avoid too aggressive validation
-      }
+    // Update field validation state
+    setFieldValidation(prev => ({
+      ...prev,
+      [name]: validation
+    }));
+    
+    // Update validation errors for form submission
+    if (validation.showError && validation.errors.length > 0) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [name]: validation.errors[0]
+      }));
+    } else {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
     }
+  };
+
+  const handleCountryChange = (e) => {
+    const newCountryCode = e.target.value;
+    setContactForm(prev => ({
+      ...prev,
+      country_code: newCountryCode,
+      phone: '' // Clear phone when country changes
+    }));
+    
+    // Clear phone validation when country changes
+    setFieldValidation(prev => {
+      const newValidation = { ...prev };
+      delete newValidation.phone;
+      return newValidation;
+    });
+    
+    setValidationErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors.phone;
+      return newErrors;
+    });
   };
 
   const validateField = (name, value) => {
@@ -91,15 +154,37 @@ const ContactPage = () => {
     const requiredFields = ['first_name', 'last_name', 'email', 'visa-type', 'message'];
     
     requiredFields.forEach(field => {
-      const validation = validateField(field, contactForm[field]);
-      if (!validation.isValid) {
-        errors[field] = validation.errors[0];
+      let validation;
+      switch (field) {
+        case 'first_name':
+          validation = validateNameRealTime(contactForm[field], 'First name');
+          break;
+        case 'last_name':
+          validation = validateNameRealTime(contactForm[field], 'Last name');
+          break;
+        case 'email':
+          validation = validateEmailRealTime(contactForm[field]);
+          break;
+        case 'message':
+          // Check minimum 10 characters for message
+          if (!contactForm[field] || contactForm[field].trim().length < 10) {
+            validation = { isValid: false, errors: ['Message must be at least 10 characters long'] };
+          } else {
+            validation = { isValid: true, errors: [] };
+          }
+          break;
+        default:
+          validation = { isValid: !!contactForm[field], errors: contactForm[field] ? [] : [`${field.replace(/[-_]/g, ' ')} is required`] };
+      }
+      
+      if (!validation.isValid || (field !== 'email' && !contactForm[field])) {
+        errors[field] = validation.errors[0] || `${field.replace(/[-_]/g, ' ')} is required`;
       }
     });
     
     // Validate phone if provided
     if (contactForm.phone) {
-      const phoneValidation = validateField('phone', contactForm.phone);
+      const phoneValidation = validatePhoneRealTime(contactForm.phone, contactForm.country_code);
       if (!phoneValidation.isValid) {
         errors.phone = phoneValidation.errors[0];
       }
@@ -131,15 +216,54 @@ const ContactPage = () => {
       delete apiData.first_name;
       delete apiData.last_name;
 
+      // Submit the contact form
       const response = await contactAPI.submit(apiData);
       
       if (response.success) {
-        // Redirect to success page with account creation info
-        const queryParams = new URLSearchParams({
-          type: 'contact',
-          email: contactForm.email
-        });
-        navigate(`/form-success?${queryParams.toString()}`);
+        // Auto-create account and login user
+        try {
+          const authResponse = await authAPI.emailLogin(
+            contactForm.email, 
+            {
+              name: `${contactForm.first_name} ${contactForm.last_name}`.trim(),
+              email: contactForm.email,
+              phone: contactForm.phone,
+              current_location: '',
+              company: ''
+            }, 
+            'contact_form'
+          );
+          
+          if (authResponse.success) {
+            // Store auth data
+            localStorage.setItem('token', authResponse.token);
+            localStorage.setItem('user', JSON.stringify(authResponse.data.user));
+            localStorage.setItem('userRole', 'client');
+            
+            // Redirect to success page with account creation info
+            const queryParams = new URLSearchParams({
+              type: 'contact',
+              email: contactForm.email,
+              accountCreated: authResponse.data.isNewUser ? 'true' : 'false'
+            });
+            navigate(`/form-success?${queryParams.toString()}`);
+          } else {
+            // Contact form submitted but account creation failed - still redirect to success
+            const queryParams = new URLSearchParams({
+              type: 'contact',
+              email: contactForm.email
+            });
+            navigate(`/form-success?${queryParams.toString()}`);
+          }
+        } catch (authError) {
+          console.error('Auto-login failed:', authError);
+          // Contact form submitted but auto-login failed - still redirect to success
+          const queryParams = new URLSearchParams({
+            type: 'contact',
+            email: contactForm.email
+          });
+          navigate(`/form-success?${queryParams.toString()}`);
+        }
       } else {
         setSubmitError(response.error?.message || 'Failed to send message. Please try again.');
       }
@@ -160,6 +284,8 @@ const ContactPage = () => {
 
   const renderInputField = (name, label, type = 'text', required = false, placeholder = '') => {
     const hasError = validationErrors[name];
+    const validation = fieldValidation[name];
+    const isValid = validation?.isValid && contactForm[name];
     
     return (
       <div className="form-group">
@@ -172,12 +298,21 @@ const ContactPage = () => {
           value={contactForm[name]}
           onChange={handleInputChange}
           placeholder={placeholder}
-          className={`form-control-custom ${hasError ? 'border-red-500' : ''}`}
+          className={`form-control-custom ${
+            hasError ? 'border-red-500' : 
+            isValid ? 'border-green-500' : ''
+          }`}
         />
         {hasError && (
           <div className="validation-error">
             <i className="fas fa-exclamation-circle"></i>
             {hasError}
+          </div>
+        )}
+        {isValid && !hasError && (
+          <div className="mt-2 text-green-600 text-sm flex items-center">
+            <i className="fas fa-check-circle mr-2"></i>
+            Looks good!
           </div>
         )}
       </div>
@@ -284,7 +419,11 @@ const ContactPage = () => {
 
   const renderPhoneInputField = () => {
     const hasError = validationErrors.phone;
+    const validation = fieldValidation.phone;
+    const isValid = validation?.isValid && contactForm.phone;
     const countries = getSupportedCountries();
+    const currentCountry = countries.find(c => c.code === contactForm.country_code) || countries[0];
+    const digitsOnly = contactForm.phone.replace(/\D/g, '');
     
     return (
       <div className="form-group">
@@ -296,7 +435,7 @@ const ContactPage = () => {
           {/* Country Code Selector - Smaller */}
           <select
             value={contactForm.country_code}
-            onChange={(e) => handleCountryCodeChange(e.target.value)}
+            onChange={handleCountryChange}
             className={`form-control-custom form-select ${hasError ? 'border-red-500' : ''}`}
             style={{ width: '100px', flexShrink: 0 }}
           >
@@ -313,16 +452,38 @@ const ContactPage = () => {
             name="phone"
             value={contactForm.phone}
             onChange={handleInputChange}
-            placeholder="Enter phone number"
-            className={`form-control-custom ${hasError ? 'border-red-500' : ''}`}
-            style={{ flex: 1, minWidth: '200px' }}
+            placeholder={`Enter ${currentCountry.maxDigits} digits`}
+            maxLength={currentCountry.maxDigits + 5} // Allow for formatting characters
+            className={`form-control-custom ${
+              hasError ? 'border-red-500' : 
+              isValid ? 'border-green-500' : ''
+            }`}
+            style={{ flex: 1, minWidth: '200px', fontFamily: 'monospace' }}
           />
+        </div>
+        
+        {/* Country Info and Digit Counter */}
+        <div className="mt-1 flex justify-between items-center text-xs">
+          <span className="text-gray-500">
+            {currentCountry.flag} {currentCountry.name} ({currentCountry.dialCode})
+          </span>
+          <span className={`${
+            digitsOnly.length > 0 && digitsOnly.length !== currentCountry.maxDigits ? 'text-red-500' : 'text-gray-500'
+          }`}>
+            {digitsOnly.length}/{currentCountry.maxDigits} digits
+          </span>
         </div>
         
         {hasError && (
           <div className="validation-error">
             <i className="fas fa-exclamation-circle"></i>
             {hasError}
+          </div>
+        )}
+        {isValid && !hasError && (
+          <div className="mt-2 text-green-600 text-sm flex items-center">
+            <i className="fas fa-check-circle mr-2"></i>
+            Valid {currentCountry.name} phone number
           </div>
         )}
       </div>

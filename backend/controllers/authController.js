@@ -722,6 +722,108 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
+// @desc    Check if user exists and needs password setup
+// @route   POST /api/auth/check-user
+// @access  Public
+exports.checkUser = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'EMAIL_REQUIRED',
+          message: 'Email is required'
+        }
+      });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    
+    res.json({
+      success: true,
+      exists: !!user,
+      needsPasswordSetup: user ? user.is_temp_password : false,
+      role: user ? user.role : null
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'CHECK_USER_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Email-only login/account creation for form submissions
+// @route   POST /api/auth/email-login
+// @access  Public
+exports.emailLogin = async (req, res) => {
+  try {
+    const { email, formData, source } = req.body;
+
+    // Validate input
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'EMAIL_REQUIRED',
+          message: 'Email is required'
+        }
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_EMAIL',
+          message: 'Please provide a valid email address'
+        }
+      });
+    }
+
+    // Use clientService to create or get existing client
+    const result = await clientService.createOrGetClient(formData, source);
+    const { user, client, isNewUser } = result;
+
+    // Generate token for immediate login
+    const token = generateToken(user._id, user.role);
+
+    // Update last login
+    user.last_login = new Date();
+    await user.save();
+
+    res.json({
+      success: true,
+      message: isNewUser ? 'Account created and logged in successfully' : 'Logged in successfully',
+      data: {
+        user: user.toAuthJSON(),
+        client,
+        isNewUser,
+        needsPasswordSetup: user.is_temp_password,
+        redirectTo: '/dashboard/client'
+      },
+      token,
+      expires_in: 86400
+    });
+  } catch (error) {
+    console.error('Email login error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'EMAIL_LOGIN_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
 // @desc    Change password (enhanced version)
 // @route   PUT /api/auth/change-password
 // @access  Private
