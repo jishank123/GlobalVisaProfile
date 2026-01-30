@@ -77,7 +77,7 @@ exports.getQuery = async (req, res) => {
     // Check access permission for CRM managers
     if (req.user.role === 'crm_manager') {
       const client = await Client.findById(query.client._id);
-      if (!client || !client.crm_manager || client.crm_manager.toString() !== req.user.user_id) {
+      if (!client || !client.crm_manager || client.crm_manager.toString() !== req.user.user_id.toString()) {
         return res.status(403).json({
           success: false,
           message: 'Access denied'
@@ -104,14 +104,34 @@ exports.getQuery = async (req, res) => {
 // @access  Private (Admin, CRM Manager, Client)
 exports.createQuery = async (req, res) => {
   try {
-    const { client, subject, description, category, priority } = req.body;
+    let { client, subject, description, category, priority } = req.body;
     
     // Validate required fields
-    if (!client || !subject || !description) {
+    if (!subject || !description) {
       return res.status(400).json({
         success: false,
-        message: 'Client, subject, and description are required'
+        message: 'Subject and description are required'
       });
+    }
+    
+    // If the user is a client, find their client record and use it
+    if (req.user.role === 'client') {
+      const clientRecord = await Client.findOne({ email: req.user.email });
+      if (!clientRecord) {
+        return res.status(404).json({
+          success: false,
+          message: 'Client record not found'
+        });
+      }
+      client = clientRecord._id;
+    } else {
+      // For admin/crm_manager, client ID must be provided
+      if (!client) {
+        return res.status(400).json({
+          success: false,
+          message: 'Client ID is required'
+        });
+      }
     }
     
     // Find the client and assign to their CRM manager
@@ -142,7 +162,8 @@ exports.createQuery = async (req, res) => {
       id: query._id,
       client: clientRecord.name,
       subject: query.subject,
-      assignedTo: query.assignedTo?.email
+      assignedTo: query.assignedTo?.email,
+      createdBy: req.user.email
     });
     
     res.status(201).json({
@@ -185,7 +206,7 @@ exports.respondToQuery = async (req, res) => {
     // Check access permission for CRM managers
     if (req.user.role === 'crm_manager') {
       const client = await Client.findById(query.client);
-      if (!client || !client.crm_manager || client.crm_manager.toString() !== req.user.user_id) {
+      if (!client || !client.crm_manager || client.crm_manager.toString() !== req.user.user_id.toString()) {
         return res.status(403).json({
           success: false,
           message: 'Access denied'
@@ -260,7 +281,7 @@ exports.updateQueryStatus = async (req, res) => {
     // Check access permission for CRM managers
     if (req.user.role === 'crm_manager') {
       const client = await Client.findById(query.client);
-      if (!client || !client.crm_manager || client.crm_manager.toString() !== req.user.user_id) {
+      if (!client || !client.crm_manager || client.crm_manager.toString() !== req.user.user_id.toString()) {
         return res.status(403).json({
           success: false,
           message: 'Access denied'

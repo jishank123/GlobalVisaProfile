@@ -9,7 +9,6 @@ const clientSchema = new mongoose.Schema({
   email: {
     type: String,
     required: [true, 'Email is required'],
-    unique: true,
     lowercase: true,
     trim: true
   },
@@ -25,6 +24,10 @@ const clientSchema = new mongoose.Schema({
     type: String,
     enum: ['active', 'inactive', 'vip'],
     default: 'active'
+  },
+  user_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   crm_manager: {
     type: mongoose.Schema.Types.ObjectId,
@@ -71,7 +74,7 @@ clientSchema.virtual('projects', {
 });
 
 // Indexes
-clientSchema.index({ email: 1 });
+clientSchema.index({ email: 1 }, { unique: true });
 clientSchema.index({ crm_manager: 1 });
 clientSchema.index({ status: 1 });
 

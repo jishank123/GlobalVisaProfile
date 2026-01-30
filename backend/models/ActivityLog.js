@@ -14,6 +14,7 @@ const activityLogSchema = new mongoose.Schema({
       'create', 'update', 'delete', 'view',
       'upload', 'download', 'share',
       'status_change', 'payment', 'query',
+      'VIEW_MY_CLIENTS', 'ASSIGN_CLIENT', 'CLIENT_STATS',
       'other'
     ]
   },

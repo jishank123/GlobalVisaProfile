@@ -15,48 +15,17 @@ router.post('/bulk/assign-to-crm', auth(['lead_manager', 'admin']), projectContr
 // @route   GET /api/projects/my-projects
 // @desc    Get projects assigned to current CRM manager
 // @access  Private (CRM Manager only)
-router.get('/my-projects', auth(['crm_manager']), async (req, res) => {
-  try {
-    const { page = 1, limit = 20 } = req.query;
-    
-    // Get assigned clients
-    const assignedClients = await Client.find({ crm_manager: req.user._id }).select('_id');
-    const clientIds = assignedClients.map(client => client._id);
-    
-    const projects = await Project.find({ 
-      client: { $in: clientIds },
-      status: { $ne: 'cancelled' }
-    })
-      .populate('client', 'name email phone university')
-      .populate('service', 'name category')
-      .populate('assigned_to', 'first_name last_name email')
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-    
-    const count = await Project.countDocuments({ 
-      client: { $in: clientIds },
-      status: { $ne: 'cancelled' }
-    });
-    
-    res.json({
-      success: true,
-      count: projects.length,
-      total: count,
-      page: parseInt(page),
-      totalPages: Math.ceil(count / limit),
-      data: projects
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'FETCH_MY_PROJECTS_FAILED',
-        message: error.message
-      }
-    });
-  }
-});
+router.get('/my-projects', auth(['crm_manager']), projectController.getMyProjects);
+
+// @route   POST /api/projects/:id/milestones
+// @desc    Add milestone/task to project
+// @access  Private (CRM Manager, Admin)
+router.post('/:id/milestones', auth(['crm_manager', 'admin']), projectController.addProjectMilestone);
+
+// @route   POST /api/projects/:id/notes
+// @desc    Add note to project
+// @access  Private (CRM Manager, Admin)
+router.post('/:id/notes', auth(['crm_manager', 'admin']), projectController.addProjectNote);
 
 // @route   GET /api/projects
 // @desc    Get all projects with filters
@@ -100,7 +69,7 @@ router.patch('/:id/progress', auth(['admin', 'lead_manager', 'crm_manager']), as
     }
     
     // Check permission
-    const isAssigned = project.assignedTeam.some(member => member.toString() === req.user._id.toString());
+    const isAssigned = project.assigned_to && project.assigned_to.toString() === req.user._id.toString();
     const isAdminOrManager = ['admin', 'lead_manager', 'crm_manager'].includes(req.user.role);
     
     if (!isAssigned && !isAdminOrManager) {
@@ -141,33 +110,7 @@ router.patch('/:id/progress', auth(['admin', 'lead_manager', 'crm_manager']), as
 // @route   POST /api/projects/:id/milestones
 // @desc    Add milestone to project
 // @access  Private (Team Members)
-router.post('/:id/milestones', auth(['admin', 'lead_manager', 'crm_manager']), async (req, res) => {
-  try {
-    const project = await Project.findById(req.params.id);
-    
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found'
-      });
-    }
-    
-    project.milestones.push(req.body);
-    await project.save();
-    
-    res.json({
-      success: true,
-      message: 'Milestone added successfully',
-      data: project
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to add milestone',
-      error: error.message
-    });
-  }
-});
+router.post('/:id/milestones', auth(['admin', 'lead_manager', 'crm_manager']), projectController.addProjectMilestone);
 
 // @route   PATCH /api/projects/:id/milestones/:milestoneId
 // @desc    Update milestone

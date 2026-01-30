@@ -3,14 +3,21 @@ const ActivityLog = require('../models/ActivityLog');
 const { validationResult } = require('express-validator');
 
 // Helper function to log activities
-const logActivity = async (userId, action, details, ipAddress) => {
+const logActivity = async (userId, action, resourceType, description, ipAddress, resourceId = null) => {
   try {
+    // Ensure required fields are provided
+    if (!action || !resourceType || !description) {
+      console.warn('ActivityLog: Missing required fields', { action, resourceType, description });
+      return;
+    }
+
     await ActivityLog.create({
       user: userId,
       action,
-      details,
-      ipAddress,
-      timestamp: new Date()
+      resourceType,
+      resourceId,
+      description,
+      ipAddress
     });
   } catch (error) {
     console.error('Failed to log activity:', error);
@@ -35,14 +42,18 @@ exports.getUsers = async (req, res) => {
       // Lead managers can see clients, other lead managers, and CRM managers (for assignment)
       query.role = { $in: ['client', 'lead_manager', 'crm_manager'] };
     } else if (req.user.role === 'crm_manager') {
-      // CRM managers can only see their assigned clients
-      return res.status(403).json({
-        success: false,
-        error: {
-          code: 'FORBIDDEN',
-          message: 'CRM managers cannot access user list'
-        }
-      });
+      // CRM managers can only see other CRM managers (for handover purposes)
+      if (role === 'crm_manager') {
+        query.role = 'crm_manager';
+      } else {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'CRM managers can only access other CRM managers for handover purposes'
+          }
+        });
+      }
     }
     
     // Apply filters
@@ -69,6 +80,7 @@ exports.getUsers = async (req, res) => {
     await logActivity(
       req.user.user_id,
       'view',
+      'User',
       `Viewed users list with filters: ${JSON.stringify(req.query)}`,
       req.ip
     );
@@ -133,9 +145,11 @@ exports.getUser = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'VIEW_USER',
+      'view',
+      'User',
       `Viewed user profile: ${user.email}`,
-      req.ip
+      req.ip,
+      user._id
     );
     
     res.json({
@@ -201,9 +215,11 @@ exports.createUser = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'CREATE_USER',
+      'create',
+      'User',
       `Created new user: ${user.email} with role: ${user.role}`,
-      req.ip
+      req.ip,
+      user._id
     );
     
     res.status(201).json({
@@ -315,9 +331,11 @@ exports.updateUser = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'UPDATE_USER',
+      'update',
+      'User',
       `Updated user: ${user.email}. Fields: ${Object.keys(updateData).join(', ')}`,
-      req.ip
+      req.ip,
+      user._id
     );
     
     res.json({
@@ -396,9 +414,11 @@ exports.deleteUser = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'DELETE_USER',
+      'delete',
+      'User',
       `Deleted user: ${user.email}`,
-      req.ip
+      req.ip,
+      user._id
     );
     
     res.json({
@@ -452,7 +472,8 @@ exports.getUserStats = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'VIEW_USER_STATS',
+      'view',
+      'System',
       'Viewed user statistics',
       req.ip
     );
@@ -523,9 +544,11 @@ exports.assignManager = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'ASSIGN_MANAGER',
+      'update',
+      'User',
       `Assigned manager ${manager.email} to user ${user.email}`,
-      req.ip
+      req.ip,
+      user._id
     );
     
     res.json({

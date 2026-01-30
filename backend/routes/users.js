@@ -80,8 +80,8 @@ const validateUserUpdate = [
 
 // @route   GET /api/users
 // @desc    Get all users with filters
-// @access  Private (Admin, Lead Manager)
-router.get('/', auth(['admin', 'lead_manager']), userController.getUsers);
+// @access  Private (Admin, Lead Manager, CRM Manager for handover)
+router.get('/', auth(['admin', 'lead_manager', 'crm_manager']), userController.getUsers);
 
 // @route   GET /api/users/stats
 // @desc    Get user statistics

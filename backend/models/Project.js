@@ -2,8 +2,7 @@ const mongoose = require('mongoose');
 
 const projectSchema = new mongoose.Schema({
   project_id: {
-    type: String,
-    unique: true
+    type: String
   },
   client: {
     type: mongoose.Schema.Types.ObjectId,
@@ -161,6 +160,7 @@ projectSchema.pre('save', async function(next) {
 });
 
 // Indexes
+projectSchema.index({ project_id: 1 }, { unique: true });
 projectSchema.index({ client: 1 });
 projectSchema.index({ assigned_to: 1 });
 projectSchema.index({ status: 1 });

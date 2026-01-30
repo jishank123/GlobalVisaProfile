@@ -33,13 +33,11 @@ const paymentSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['credit_card', 'bank_transfer', 'paypal', 'stripe', 'cash', 'check', 'other'],
+    enum: ['credit_card', 'bank_transfer', 'paypal', 'stripe', 'cash', 'check', 'upi', 'online', 'other'],
     default: 'credit_card'
   },
   transactionId: {
-    type: String,
-    unique: true,
-    sparse: true
+    type: String
   },
   paymentDate: {
     type: Date,
@@ -87,6 +85,7 @@ const paymentSchema = new mongoose.Schema({
 });
 
 // Index for faster queries
+paymentSchema.index({ transactionId: 1 }, { unique: true, sparse: true });
 paymentSchema.index({ client: 1, status: 1 });
 paymentSchema.index({ project: 1 });
 paymentSchema.index({ paymentDate: -1 });

@@ -7,14 +7,21 @@ const Query = require('../models/Query');
 const ActivityLog = require('../models/ActivityLog');
 
 // Helper function to log activities
-const logActivity = async (userId, action, details, ipAddress) => {
+const logActivity = async (userId, action, resourceType, description, ipAddress, resourceId = null) => {
   try {
+    // Ensure required fields are provided
+    if (!action || !resourceType || !description) {
+      console.warn('ActivityLog: Missing required fields', { action, resourceType, description });
+      return;
+    }
+
     await ActivityLog.create({
       user: userId,
       action,
-      details,
-      ipAddress,
-      timestamp: new Date()
+      resourceType,
+      resourceId,
+      description,
+      ipAddress
     });
   } catch (error) {
     console.error('Failed to log activity:', error);
@@ -42,7 +49,8 @@ exports.getDashboardAnalytics = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'VIEW_DASHBOARD_ANALYTICS',
+      'view',
+      'System',
       `Viewed dashboard analytics. Role: ${req.user.role}`,
       req.ip
     );
@@ -582,7 +590,8 @@ exports.getRevenueAnalytics = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'VIEW_REVENUE_ANALYTICS',
+      'view',
+      'System',
       `Viewed revenue analytics. Role: ${req.user.role}`,
       req.ip
     );
@@ -638,7 +647,8 @@ exports.getPerformanceAnalytics = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'VIEW_PERFORMANCE_ANALYTICS',
+      'view',
+      'System',
       `Viewed performance analytics. Role: ${req.user.role}`,
       req.ip
     );

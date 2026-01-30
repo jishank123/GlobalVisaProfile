@@ -1,5 +1,6 @@
 const ContactForm = require('../models/ContactForm');
 const ActivityLog = require('../models/ActivityLog');
+const clientService = require('../services/clientService');
 const { validationResult } = require('express-validator');
 
 /**
@@ -111,8 +112,31 @@ const submitContactForm = async (req, res) => {
     console.log('✅ Status:', savedContactSubmission.status);
     console.log('✅ Priority:', savedContactSubmission.priority);
 
+    // Auto-register client account
+    console.log('🔄 Step 5: Auto-registering client account...');
+    try {
+      const { user, client, isNewUser } = await clientService.createOrGetClient({
+        name,
+        email,
+        phone,
+        company: '',
+        current_location: ''
+      }, 'contact_form');
+
+      console.log(`✅ Client ${isNewUser ? 'created' : 'found'}:`, user.email);
+      
+      // Link contact form to user
+      savedContactSubmission.user_id = user._id;
+      savedContactSubmission.client_id = client._id;
+      await savedContactSubmission.save();
+      
+    } catch (autoRegError) {
+      console.error('⚠️ Auto-registration failed (non-critical):', autoRegError.message);
+      // Continue with contact form submission even if auto-registration fails
+    }
+
     // Verify the save by counting documents
-    console.log('🔍 Step 5: Verifying database storage...');
+    console.log('🔍 Step 6: Verifying database storage...');
     const totalContactForms = await ContactForm.countDocuments();
     console.log('📊 Total contact forms in database:', totalContactForms);
 
@@ -133,7 +157,7 @@ const submitContactForm = async (req, res) => {
     }
 
     // Log activity for security audit
-    console.log('📝 Step 6: Creating activity log...');
+    console.log('📝 Step 7: Creating activity log...');
     try {
       await ActivityLog.create({
         user: null, // Anonymous submission
@@ -159,7 +183,7 @@ const submitContactForm = async (req, res) => {
     }
 
     // Return success response (excluding sensitive data)
-    console.log('📤 Step 7: Sending response to client...');
+    console.log('📤 Step 8: Sending response to client...');
     const responseData = {
       success: true,
       message: 'Thank you for contacting us! We will respond to your inquiry within 24-48 hours.',

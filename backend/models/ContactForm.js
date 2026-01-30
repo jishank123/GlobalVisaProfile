@@ -58,6 +58,16 @@ const contactFormSchema = new mongoose.Schema({
     ref: 'User'
   },
   
+  // Linked User and Client
+  user_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  client_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client'
+  },
+  
   // Response and Follow-up
   response_required: {
     type: Boolean,

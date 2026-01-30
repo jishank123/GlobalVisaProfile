@@ -18,6 +18,7 @@ const queryRoutes = require('./routes/queries');
 const serviceRoutes = require('./routes/services');
 // const documentRoutes = require('./routes/documents');
 const analyticsRoutes = require('./routes/analytics');
+const activityRoutes = require('./routes/activity');
 
 // Import new form routes
 const profileAssessmentRoutes = require('./routes/profileAssessments');
@@ -30,16 +31,35 @@ const dashboardRoutes = require('./routes/dashboard');
 // Initialize Express app
 const app = express();
 
+// Trust proxy for rate limiting behind reverse proxy
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet());
 
 // CORS configuration
+const allowedOrigins = [
+    'http://localhost:3000',
+    'https://immigrationprofile.com',
+    'https://www.immigrationprofile.com'
+];
+
 app.use(cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: function (origin, callback) {
+        // Allow requests without origin (Postman, curl)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
     credentials: true
 }));
 
-// Rate limiting
+
+// Rate limiting with proper proxy configuration
 const limiter = rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
     max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
@@ -49,7 +69,10 @@ const limiter = rateLimit({
             code: 'RATE_LIMIT_EXCEEDED',
             message: 'Too many requests, please try again later.'
         }
-    }
+    },
+    trustProxy: true, // Trust the proxy
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 app.use('/api/', limiter);
 
@@ -74,10 +97,7 @@ app.use('/uploads', express.static('uploads'));
 console.log('🔌 Attempting to connect to MongoDB...');
 console.log('🔌 MongoDB URI:', process.env.MONGODB_URI || 'mongodb://localhost:27017/academic_erp');
 
-mongoose.connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => {
+mongoose.connect(process.env.MONGODB_URI).then(() => {
     console.log('✅ MongoDB Connected Successfully');
     console.log(`📊 Database: ${
         mongoose.connection.name
@@ -106,6 +126,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/queries', queryRoutes);
+app.use('/api/activity', activityRoutes);
 app.use('/api/services', (req, res, next) => {
     console.log(`🛣️ Services route hit: ${
         req.method

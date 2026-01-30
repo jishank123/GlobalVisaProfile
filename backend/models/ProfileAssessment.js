@@ -148,6 +148,16 @@ const profileAssessmentSchema = new mongoose.Schema({
     max: 10
   },
 
+  // Linked User and Client
+  user_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  client_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client'
+  },
+
   // Status and Follow-up
   status: {
     type: String,
@@ -167,6 +177,19 @@ const profileAssessmentSchema = new mongoose.Schema({
     type: String,
     trim: true,
     maxlength: [1000, 'Notes cannot exceed 1000 characters']
+  },
+  
+  // Lead Conversion
+  converted_to_lead_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Lead'
+  },
+  converted_at: {
+    type: Date
+  },
+  converted_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   
   // IP and User Agent for security

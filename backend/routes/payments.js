@@ -5,6 +5,7 @@ const path = require('path');
 const Payment = require('../models/Payment');
 const Client = require('../models/Client');
 const { auth, authenticateClient } = require('../middleware/auth');
+const paymentController = require('../controllers/paymentController');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -226,6 +227,86 @@ router.delete('/:id', auth(['admin']), async (req, res) => {
   }
 });
 
+// @route   POST /api/payments/service-request
+// @desc    Submit service request with payment (for clients)
+// @access  Private (Client)
+router.post('/service-request', authenticateClient, async (req, res) => {
+  try {
+    const {
+      service_id,
+      service_name,
+      amount,
+      payment_method,
+      notes
+    } = req.body;
+
+    // Validate required fields
+    if (!service_id || !service_name || !amount || !payment_method) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: service_id, service_name, amount, payment_method'
+      });
+    }
+
+    // Find client record
+    const clientRecord = await Client.findOne({ email: req.client.email });
+    if (!clientRecord) {
+      return res.status(404).json({
+        success: false,
+        message: 'Client record not found'
+      });
+    }
+
+    // Generate transaction ID
+    const transactionId = `SRV-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+    // Create payment record
+    const paymentData = {
+      client: clientRecord._id,
+      service_id,
+      service_name,
+      amount: parseFloat(amount),
+      paymentMethod: payment_method,
+      paymentDate: new Date(),
+      transactionId,
+      status: payment_method === 'online' ? 'completed' : 'pending_verification',
+      verification_status: payment_method === 'online' ? 'verified' : 'pending',
+      notes: notes || '',
+      submitted_by: req.client.email,
+      submitted_at: new Date()
+    };
+
+    const payment = await Payment.create(paymentData);
+
+    // Populate client data for response
+    await payment.populate('client', 'name email phone');
+
+    console.log('💰 Service request payment created:', {
+      client: req.client.email,
+      service: service_name,
+      amount: amount,
+      method: payment_method,
+      transactionId
+    });
+
+    res.status(201).json({
+      success: true,
+      message: payment_method === 'online' 
+        ? 'Service request submitted successfully! Payment processed.' 
+        : 'Service request submitted successfully! Our team will verify your payment and contact you soon.',
+      data: payment
+    });
+
+  } catch (error) {
+    console.error('❌ Service request payment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to submit service request',
+      error: error.message
+    });
+  }
+});
+
 // @route   POST /api/payments/cash-payment
 // @desc    Submit cash payment with receipt screenshot
 // @access  Private (Client)
@@ -317,129 +398,16 @@ router.post('/cash-payment', authenticateClient, upload.single('payment_screensh
 // @route   PATCH /api/payments/:id/verify
 // @desc    Verify cash payment (Admin/Manager only)
 // @access  Private (Admin, CRM Manager, Lead Manager)
-router.patch('/:id/verify', auth(['admin', 'crm_manager', 'lead_manager']), async (req, res) => {
-  try {
-    const { verification_status, admin_notes } = req.body;
-
-    if (!['verified', 'rejected'].includes(verification_status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid verification status. Must be "verified" or "rejected"'
-      });
-    }
-
-    const payment = await Payment.findById(req.params.id);
-    if (!payment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Payment not found'
-      });
-    }
-
-    // Update payment verification
-    payment.verification_status = verification_status;
-    payment.status = verification_status === 'verified' ? 'completed' : 'failed';
-    payment.verified_by = req.user.email;
-    payment.verified_at = new Date();
-    if (admin_notes) payment.admin_notes = admin_notes;
-
-    await payment.save();
-
-    console.log('✅ Payment verification updated:', {
-      paymentId: payment._id,
-      status: verification_status,
-      verifiedBy: req.user.email
-    });
-
-    res.json({
-      success: true,
-      message: `Payment ${verification_status} successfully`,
-      data: payment
-    });
-
-  } catch (error) {
-    console.error('❌ Payment verification error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to verify payment',
-      error: error.message
-    });
-  }
-});
+router.patch('/:id/verify', auth(['admin', 'crm_manager', 'lead_manager']), paymentController.verifyPayment);
 
 // @route   GET /api/payments/pending-verification
 // @desc    Get all payments pending verification (Admin/Manager only)
 // @access  Private (Admin, CRM Manager, Lead Manager)
-router.get('/pending-verification', auth(['admin', 'crm_manager', 'lead_manager']), async (req, res) => {
-  try {
-    const pendingPayments = await Payment.find({
-      verification_status: 'pending'
-    })
-      .populate('client', 'name email phone')
-      .sort({ submitted_at: -1 });
-
-    res.json({
-      success: true,
-      count: pendingPayments.length,
-      data: pendingPayments
-    });
-
-  } catch (error) {
-    console.error('❌ Error fetching pending payments:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch pending payments',
-      error: error.message
-    });
-  }
-});
+router.get('/pending-verification', auth(['admin', 'crm_manager', 'lead_manager']), paymentController.getPendingPayments);
 
 // @route   GET /api/payments/stats/summary
 // @desc    Get payment statistics
 // @access  Private (Admin, CRM Manager)
-router.get('/stats/summary', auth(['admin', 'crm_manager']), async (req, res) => {
-  try {
-    const totalPayments = await Payment.aggregate([
-      {
-        $group: {
-          _id: '$status',
-          total: { $sum: '$amount' },
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-    
-    const monthlyRevenue = await Payment.aggregate([
-      {
-        $match: {
-          paymentDate: {
-            $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-          },
-          status: 'completed'
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: '$amount' }
-        }
-      }
-    ]);
-    
-    res.json({
-      success: true,
-      data: {
-        byStatus: totalPayments,
-        monthlyRevenue: monthlyRevenue[0]?.total || 0
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
-});
+router.get('/stats/summary', auth(['admin', 'crm_manager']), paymentController.getPaymentStats);
 
 module.exports = router;

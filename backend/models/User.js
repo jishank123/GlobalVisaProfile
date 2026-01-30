@@ -17,7 +17,6 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: [true, 'Email is required'],
-    unique: true,
     lowercase: true,
     trim: true,
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email']
@@ -63,6 +62,13 @@ const userSchema = new mongoose.Schema({
     default: false
   },
   email_verification_token: String,
+  email_verification_expires: Date,
+  profile_picture: String,
+  linkedin_url: String,
+  is_temp_password: {
+    type: Boolean,
+    default: false
+  },
   deleted_at: {
     type: Date
   },
@@ -81,6 +87,12 @@ userSchema.virtual('full_name').get(function() {
   return `${this.first_name} ${this.last_name}`;
 });
 
+// Create indexes explicitly (avoiding duplicate with unique: true)
+userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ role: 1 });
+userSchema.index({ status: 1 });
+userSchema.index({ createdAt: -1 });
+
 // Hash password before saving
 userSchema.pre('save', async function(next) {
   // Only hash if password is modified
@@ -95,6 +107,30 @@ userSchema.pre('save', async function(next) {
   }
 });
 
+// Generate email verification token
+userSchema.methods.generateEmailVerificationToken = function() {
+  const crypto = require('crypto');
+  const token = crypto.randomBytes(32).toString('hex');
+  this.email_verification_token = token;
+  this.email_verification_expires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+  return token;
+};
+
+// Generate password reset token
+userSchema.methods.generatePasswordResetToken = function() {
+  const crypto = require('crypto');
+  const token = crypto.randomBytes(32).toString('hex');
+  this.password_reset_token = token;
+  this.password_reset_expires = Date.now() + 1 * 60 * 60 * 1000; // 1 hour
+  return token;
+};
+
+// Generate temporary password
+userSchema.methods.generateTempPassword = function() {
+  const crypto = require('crypto');
+  return crypto.randomBytes(8).toString('hex');
+};
+
 // Method to compare passwords
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
@@ -107,8 +143,19 @@ userSchema.methods.toAuthJSON = function() {
     email: this.email,
     first_name: this.first_name,
     last_name: this.last_name,
+    full_name: this.full_name,
     role: this.role,
-    status: this.status
+    status: this.status,
+    phone: this.phone,
+    company: this.company,
+    country: this.country,
+    avatar: this.avatar,
+    profile_picture: this.profile_picture,
+    linkedin_url: this.linkedin_url,
+    email_verified: this.email_verified,
+    is_temp_password: this.is_temp_password,
+    last_login: this.last_login,
+    createdAt: this.createdAt
   };
 };
 

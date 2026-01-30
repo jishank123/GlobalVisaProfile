@@ -1,5 +1,6 @@
 const AppointmentRequest = require('../models/AppointmentRequest');
 const ActivityLog = require('../models/ActivityLog');
+const clientService = require('../services/clientService');
 const { validationResult } = require('express-validator');
 
 /**
@@ -70,6 +71,29 @@ const submitAppointmentRequest = async (req, res) => {
     });
 
     await appointment.save();
+
+    // Auto-register client account
+    console.log('🔄 Auto-registering client account...');
+    try {
+      const { user, client, isNewUser } = await clientService.createOrGetClient({
+        name,
+        email,
+        phone,
+        company: '',
+        current_location: ''
+      }, 'appointment_request');
+
+      console.log(`✅ Client ${isNewUser ? 'created' : 'found'}:`, user.email);
+      
+      // Link appointment to user
+      appointment.user_id = user._id;
+      appointment.client_id = client._id;
+      await appointment.save();
+      
+    } catch (autoRegError) {
+      console.error('⚠️ Auto-registration failed (non-critical):', autoRegError.message);
+      // Continue with appointment submission even if auto-registration fails
+    }
 
     // Log activity for security audit
     await ActivityLog.create({
@@ -534,6 +558,95 @@ const getMyAppointments = async (req, res) => {
   }
 };
 
+// @desc    Get appointments for a specific client by email
+// @route   GET /api/appointments/client/:email
+// @access  Private (Client/Admin/Manager)
+const getClientAppointments = async (req, res) => {
+  try {
+    console.log('📅 === GET CLIENT APPOINTMENTS REQUEST ===');
+    console.log('📅 Client Email:', req.params.email);
+    console.log('📅 Requested by:', req.user?.email, 'Role:', req.user?.role);
+    console.log('📅 User ID:', req.user?._id || req.user?.id);
+    
+    const clientEmail = req.params.email;
+    
+    // Security check: clients can only access their own appointments
+    if (req.user.role === 'client' && req.user.email !== clientEmail) {
+      console.log('❌ Security check failed: client trying to access other client\'s appointments');
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You can only access your own appointments'
+        }
+      });
+    }
+    
+    const { status, page = 1, limit = 20 } = req.query;
+    
+    // Build query for appointments for this client
+    let query = {
+      email: clientEmail.toLowerCase()
+    };
+    
+    if (status) query.status = status;
+    
+    console.log('📅 Query for appointments:', query);
+    
+    const appointments = await AppointmentRequest.find(query)
+      .populate('assigned_to', 'first_name last_name email')
+      .sort({ scheduled_date: -1, createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .select('-ip_address -user_agent'); // Exclude sensitive data
+    
+    const count = await AppointmentRequest.countDocuments(query);
+    
+    console.log('📅 Found client appointments:', appointments.length, 'Total:', count);
+    console.log('📅 Sample appointment data:', appointments.length > 0 ? {
+      id: appointments[0]._id,
+      email: appointments[0].email,
+      status: appointments[0].status,
+      scheduled_date: appointments[0].scheduled_date
+    } : 'No appointments found');
+    
+    // Log access for audit
+    await ActivityLog.create({
+      user: req.user._id || req.user.id,
+      action: 'view',
+      resourceType: 'AppointmentRequest',
+      description: `Client appointments viewed for ${clientEmail}`,
+      metadata: { 
+        client_email: clientEmail,
+        appointments_count: appointments.length,
+        requested_by: req.user.email,
+        user_role: req.user.role
+      },
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+    
+    res.json({
+      success: true,
+      count: appointments.length,
+      total: count,
+      page: parseInt(page),
+      totalPages: Math.ceil(count / limit),
+      data: appointments
+    });
+    
+  } catch (error) {
+    console.error('❌ Get client appointments error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'FETCH_CLIENT_APPOINTMENTS_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
 module.exports = {
   submitAppointmentRequest,
   getAppointmentRequest,
@@ -542,5 +655,6 @@ module.exports = {
   scheduleAppointment,
   addCommunication,
   deleteAppointmentRequest,
-  getMyAppointments
+  getMyAppointments,
+  getClientAppointments
 };

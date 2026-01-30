@@ -5,15 +5,21 @@ const ActivityLog = require('../models/ActivityLog');
 const { validationResult } = require('express-validator');
 
 // Helper function to log activities
-const logActivity = async (userId, action, details, ipAddress) => {
+const logActivity = async (userId, action, resourceType, description, ipAddress, resourceId = null) => {
   try {
+    // Ensure required fields are provided
+    if (!action || !resourceType || !description) {
+      console.warn('ActivityLog: Missing required fields', { action, resourceType, description });
+      return;
+    }
+
     await ActivityLog.create({
       user: userId,
       action,
-      resourceType: 'Lead',
-      description: details,
-      ipAddress,
-      timestamp: new Date()
+      resourceType,
+      resourceId,
+      description,
+      ipAddress
     });
   } catch (error) {
     console.error('Failed to log activity:', error);
@@ -248,9 +254,11 @@ exports.createLead = async (req, res) => {
     // Log activity
     await logActivity(
       req.user._id,
-      'CREATE_LEAD',
+      'create',
+      'Lead',
       `Admin created new lead: ${lead.firstName} ${lead.lastName} (${lead.email})${assignedTo ? ` and assigned to manager` : ''}`,
-      req.ip
+      req.ip,
+      lead._id
     );
     
     res.status(201).json({
@@ -349,9 +357,11 @@ exports.updateLead = async (req, res) => {
     // Log activity
     await logActivity(
       req.user._id,
-      'UPDATE_LEAD',
+      'update',
+      'Lead',
       `Updated lead: ${lead.firstName} ${lead.lastName}. Fields: ${Object.keys(updateData).join(', ')}`,
-      req.ip
+      req.ip,
+      lead._id
     );
     
     res.json({
@@ -466,9 +476,11 @@ exports.convertLead = async (req, res) => {
     // Log activity
     await logActivity(
       req.user._id,
-      'CONVERT_LEAD',
+      'status_change',
+      'Lead',
       `Converted lead ${lead.firstName} ${lead.lastName} to client. Assigned to: ${client.assignedManager ? client.assignedManager.email : 'Unassigned'}`,
-      req.ip
+      req.ip,
+      lead._id
     );
     
     res.json({
@@ -516,9 +528,11 @@ exports.deleteLead = async (req, res) => {
     // Log activity
     await logActivity(
       req.user._id,
-      'DELETE_LEAD',
+      'delete',
+      'Lead',
       `Deleted lead: ${lead.firstName} ${lead.lastName} (${lead.email})`,
-      req.ip
+      req.ip,
+      lead._id
     );
     
     res.json({
@@ -719,9 +733,11 @@ exports.createLeadFromForm = async (req, res) => {
     if (req.user) {
       await logActivity(
         req.user._id,
-        'CREATE_LEAD_FROM_FORM',
+        'create',
+        'Lead',
         `Created lead from ${formType}: ${lead.firstName} ${lead.lastName} (${lead.email})`,
-        req.ip
+        req.ip,
+        lead._id
       );
     }
     
@@ -792,9 +808,11 @@ exports.assignLead = async (req, res) => {
     // Log activity
     await logActivity(
       req.user._id,
-      'ASSIGN_LEAD',
+      'update',
+      'Lead',
       `Assigned lead ${lead.firstName} ${lead.lastName} to manager ${manager.email}`,
-      req.ip
+      req.ip,
+      lead._id
     );
     
     res.json({
@@ -886,9 +904,11 @@ exports.bulkAssignLeads = async (req, res) => {
           // Log activity
           await logActivity(
             req.user._id,
-            'BULK_ASSIGN_LEAD',
+            'update',
+            'Lead',
             `Bulk assigned lead ${lead.firstName} ${lead.lastName} to lead manager ${manager.email}`,
-            req.ip
+            req.ip,
+            lead._id
           );
         } else {
           errors.push({
@@ -1263,9 +1283,11 @@ exports.bulkConvertToProject = async (req, res) => {
           // Log activity
           await logActivity(
             req.user._id,
-            'CONVERT_LEAD_TO_PROJECT',
+            'status_change',
+            'Lead',
             `Converted lead ${lead.firstName} ${lead.lastName} to project ${project.project_id}`,
-            req.ip
+            req.ip,
+            lead._id
           );
         } else {
           errors.push({
@@ -1365,7 +1387,8 @@ exports.getMyLeads = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'VIEW_MY_LEADS',
+      'view',
+      'Lead',
       `Viewed assigned leads list`,
       req.ip
     );

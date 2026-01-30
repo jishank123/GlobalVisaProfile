@@ -4,14 +4,21 @@ const ActivityLog = require('../models/ActivityLog');
 const { validationResult } = require('express-validator');
 
 // Helper function to log activities
-const logActivity = async (userId, action, details, ipAddress) => {
+const logActivity = async (userId, action, resourceType, description, ipAddress, resourceId = null) => {
   try {
+    // Ensure required fields are provided
+    if (!action || !resourceType || !description) {
+      console.warn('ActivityLog: Missing required fields', { action, resourceType, description });
+      return;
+    }
+
     await ActivityLog.create({
       user: userId,
       action,
-      details,
-      ipAddress,
-      timestamp: new Date()
+      resourceType,
+      resourceId,
+      description,
+      ipAddress
     });
   } catch (error) {
     console.error('Failed to log activity:', error);
@@ -51,8 +58,7 @@ exports.getClients = async (req, res) => {
     }
     
     const clients = await Client.find(query)
-      .populate('assignedManager', 'first_name last_name email phone')
-      .populate('user', 'email role last_login status')
+      .populate('crm_manager', 'first_name last_name email phone')
       .sort({ created_at: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -62,7 +68,8 @@ exports.getClients = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'VIEW_CLIENTS',
+      'view',
+      'Client',
       `Viewed clients list. Role: ${req.user.role}, Filters: ${JSON.stringify(req.query)}`,
       req.ip
     );
@@ -92,8 +99,7 @@ exports.getClients = async (req, res) => {
 exports.getClient = async (req, res) => {
   try {
     const client = await Client.findById(req.params.id)
-      .populate('assignedManager', 'first_name last_name email phone')
-      .populate('user', 'email role last_login status');
+      .populate('crm_manager', 'first_name last_name email phone');
     
     if (!client) {
       return res.status(404).json({
@@ -106,7 +112,7 @@ exports.getClient = async (req, res) => {
     }
     
     // Security check - role-based access control
-    if (req.user.role === 'client' && client.user.toString() !== req.user.user_id) {
+    if (req.user.role === 'client' && client._id.toString() !== req.user.user_id) {
       return res.status(403).json({
         success: false,
         error: {
@@ -130,9 +136,11 @@ exports.getClient = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'VIEW_CLIENT',
+      'view',
+      'Client',
       `Viewed client profile: ${client.email}`,
-      req.ip
+      req.ip,
+      client._id
     );
     
     res.json({
@@ -178,9 +186,11 @@ exports.createClient = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'CREATE_CLIENT',
+      'create',
+      'Client',
       `Created new client: ${client.email}`,
-      req.ip
+      req.ip,
+      client._id
     );
     
     res.status(201).json({
@@ -230,8 +240,8 @@ exports.updateClient = async (req, res) => {
     }
     
     // Security check - role-based access control
-    const isOwnProfile = client.user && client.user.toString() === req.user.user_id;
-    const isAssignedManager = client.assignedManager && client.assignedManager.toString() === req.user.user_id;
+    const isOwnProfile = client._id.toString() === req.user.user_id;
+    const isAssignedManager = client.crm_manager && client.crm_manager.toString() === req.user.user_id;
     const isAdminOrLeadManager = ['admin', 'lead_manager'].includes(req.user.role);
     
     if (!isOwnProfile && !isAssignedManager && !isAdminOrLeadManager) {
@@ -248,7 +258,7 @@ exports.updateClient = async (req, res) => {
     let allowedFields = ['phone', 'company', 'country', 'notes'];
     
     if (req.user.role === 'admin' || req.user.role === 'lead_manager') {
-      allowedFields.push('status', 'assignedManager', 'priority');
+      allowedFields.push('status', 'crm_manager', 'priority');
     }
     
     if (isOwnProfile) {
@@ -270,9 +280,11 @@ exports.updateClient = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'UPDATE_CLIENT',
+      'update',
+      'Client',
       `Updated client: ${client.email}. Fields: ${Object.keys(updateData).join(', ')}`,
-      req.ip
+      req.ip,
+      client._id
     );
     
     res.json({
@@ -323,11 +335,11 @@ exports.assignClient = async (req, res) => {
     const client = await Client.findByIdAndUpdate(
       req.params.id,
       { 
-        assignedManager: managerId,
+        crm_manager: managerId,
         updated_at: new Date()
       },
       { new: true }
-    ).populate('assignedManager', 'first_name last_name email');
+    ).populate('crm_manager', 'first_name last_name email');
     
     if (!client) {
       return res.status(404).json({
@@ -342,9 +354,11 @@ exports.assignClient = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'ASSIGN_CLIENT',
+      'update',
+      'Client',
       `Assigned client ${client.email} to manager ${manager.email}`,
-      req.ip
+      req.ip,
+      client._id
     );
     
     res.json({
@@ -389,9 +403,11 @@ exports.deleteClient = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'DELETE_CLIENT',
+      'delete',
+      'Client',
       `Deleted client: ${client.email}`,
-      req.ip
+      req.ip,
+      client._id
     );
     
     res.json({
@@ -446,14 +462,15 @@ exports.getClientStats = async (req, res) => {
     ]);
     
     const recentClients = await Client.find(query)
-      .populate('assignedManager', 'first_name last_name')
+      .populate('crm_manager', 'first_name last_name')
       .sort({ created_at: -1 })
       .limit(5);
     
     // Log activity
     await logActivity(
       req.user.user_id,
-      'VIEW_CLIENT_STATS',
+      'view',
+      'System',
       `Viewed client statistics. Role: ${req.user.role}`,
       req.ip
     );
@@ -512,7 +529,8 @@ exports.getMyClients = async (req, res) => {
     // Log activity
     await logActivity(
       req.user._id,
-      'VIEW_MY_CLIENTS',
+      'view',
+      'Client',
       `Viewed assigned clients list`,
       req.ip
     );

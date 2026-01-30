@@ -45,7 +45,7 @@ const leadSchema = new mongoose.Schema({
   }],
   status: {
     type: String,
-    enum: ['new', 'contacted', 'qualified', 'negotiation', 'converted', 'assigned', 'assigned_to_crm', 'converted_to_project', 'lost'],
+    enum: ['new', 'contacted', 'qualified', 'negotiation', 'converted', 'assigned', 'assigned_to_crm', 'converted_to_project', 'lost','deleted'],
     default: 'new'
   },
   priority: {
@@ -55,7 +55,7 @@ const leadSchema = new mongoose.Schema({
   },
   source: {
     type: String,
-    enum: ['website', 'referral', 'social_media', 'advertisement', 'event', 'cold_call', 'email_campaign', 'profile_assessment', 'contact_form', 'other'],
+    enum: ['website', 'referral', 'social_media', 'advertisement', 'event', 'cold_call', 'email_campaign', 'profile_assessment', 'contact_form','appointment', 'other'],
     default: 'website'
   },
   assignedTo: {

@@ -1,5 +1,6 @@
 const ProfileAssessment = require('../models/ProfileAssessment');
 const ActivityLog = require('../models/ActivityLog');
+const clientService = require('../services/clientService');
 const { validationResult } = require('express-validator');
 
 /**
@@ -149,8 +150,31 @@ const submitProfileAssessment = async (req, res) => {
     console.log('✅ Assessment ID:', savedAssessment._id);
     console.log('✅ Created At:', savedAssessment.createdAt);
 
+    // Auto-register client account
+    console.log('🔄 Step 5: Auto-registering client account...');
+    try {
+      const { user, client, isNewUser } = await clientService.createOrGetClient({
+        name: client_name,
+        email: client_email,
+        phone: client_phone,
+        field_of_expertise,
+        current_location
+      }, 'profile_assessment');
+
+      console.log(`✅ Client ${isNewUser ? 'created' : 'found'}:`, user.email);
+      
+      // Link assessment to user
+      savedAssessment.user_id = user._id;
+      savedAssessment.client_id = client._id;
+      await savedAssessment.save();
+      
+    } catch (autoRegError) {
+      console.error('⚠️ Auto-registration failed (non-critical):', autoRegError.message);
+      // Continue with assessment submission even if auto-registration fails
+    }
+
     // Verify the save by counting documents
-    console.log('🔍 Step 5: Verifying database storage...');
+    console.log('🔍 Step 6: Verifying database storage...');
     const totalAssessments = await ProfileAssessment.countDocuments();
     console.log('📊 Total assessments in database:', totalAssessments);
 
@@ -169,7 +193,7 @@ const submitProfileAssessment = async (req, res) => {
     }
 
     // Log activity for security audit
-    console.log('📝 Step 6: Creating activity log...');
+    console.log('📝 Step 7: Creating activity log...');
     try {
       await ActivityLog.create({
         user: null, // Anonymous submission
@@ -192,7 +216,7 @@ const submitProfileAssessment = async (req, res) => {
     }
 
     // Return assessment results (excluding sensitive data)
-    console.log('📤 Step 7: Sending response to client...');
+    console.log('📤 Step 8: Sending response to client...');
     const responseData = {
       success: true,
       message: 'Profile assessment submitted successfully',
@@ -336,14 +360,40 @@ const getAllProfileAssessments = async (req, res) => {
     if (req.query.profile_strength) filter.profile_strength = req.query.profile_strength;
     if (req.query.min_score) filter.overall_score = { $gte: parseInt(req.query.min_score) };
 
-    // Get assessments with pagination
+    // Get assessments with pagination and populate conversion data
     const assessments = await ProfileAssessment.find(filter)
+      .populate('converted_to_lead_id', 'firstName lastName email status')
+      .populate('converted_by', 'first_name last_name email')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .select('-ip_address -user_agent'); // Exclude sensitive data
 
     const total = await ProfileAssessment.countDocuments(filter);
+
+    // Check for leads created from assessments (for assessments without converted_to_lead_id)
+    const Lead = require('../models/Lead');
+    const assessmentsWithConversionStatus = await Promise.all(
+      assessments.map(async (assessment) => {
+        const assessmentObj = assessment.toObject();
+        
+        // If not already marked as converted, check if a lead exists with same email and source
+        if (!assessmentObj.converted_to_lead_id && assessmentObj.status !== 'Converted') {
+          const existingLead = await Lead.findOne({
+            email: assessment.client_email,
+            source: 'profile_assessment'
+          });
+          
+          if (existingLead) {
+            // Mark as converted (but don't save to DB here, just for display)
+            assessmentObj.converted_to_lead = existingLead;
+            assessmentObj.status = 'Converted';
+          }
+        }
+        
+        return assessmentObj;
+      })
+    );
 
     // Log access
     await ActivityLog.create({
@@ -359,7 +409,7 @@ const getAllProfileAssessments = async (req, res) => {
     res.json({
       success: true,
       data: {
-        assessments,
+        assessments: assessmentsWithConversionStatus,
         pagination: {
           current_page: page,
           total_pages: Math.ceil(total / limit),

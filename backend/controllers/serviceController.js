@@ -3,14 +3,21 @@ const ActivityLog = require('../models/ActivityLog');
 const { validationResult } = require('express-validator');
 
 // Helper function to log activities
-const logActivity = async (userId, action, details, ipAddress) => {
+const logActivity = async (userId, action, resourceType, description, ipAddress, resourceId = null) => {
   try {
+    // Ensure required fields are provided
+    if (!action || !resourceType || !description) {
+      console.warn('ActivityLog: Missing required fields', { action, resourceType, description });
+      return;
+    }
+
     await ActivityLog.create({
       user: userId,
       action,
-      details,
-      ipAddress,
-      timestamp: new Date()
+      resourceType,
+      resourceId,
+      description,
+      ipAddress
     });
   } catch (error) {
     console.error('Failed to log activity:', error);
@@ -65,7 +72,8 @@ exports.getServices = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'VIEW_SERVICES',
+      'view',
+      'Service',
       `Viewed services list with filters: ${JSON.stringify(req.query)}`,
       req.ip
     );
@@ -117,9 +125,11 @@ exports.getService = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'VIEW_SERVICE',
+      'view',
+      'Service',
       `Viewed service: ${service.name}`,
-      req.ip
+      req.ip,
+      service._id
     );
     
     res.json({
@@ -192,9 +202,11 @@ exports.createService = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'CREATE_SERVICE',
+      'create',
+      'Service',
       `Created new service: ${service.name}`,
-      req.ip
+      req.ip,
+      service._id
     );
     
     res.status(201).json({
@@ -270,9 +282,11 @@ exports.updateService = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'UPDATE_SERVICE',
+      'update',
+      'Service',
       `Updated service: ${service.name}. Fields: ${Object.keys(updateData).join(', ')}`,
-      req.ip
+      req.ip,
+      service._id
     );
     
     res.json({
@@ -324,9 +338,11 @@ exports.deleteService = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'DELETE_SERVICE',
+      'delete',
+      'Service',
       `Deleted service: ${service.name}`,
-      req.ip
+      req.ip,
+      service._id
     );
     
     res.json({
@@ -378,9 +394,11 @@ exports.toggleServiceStatus = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'TOGGLE_SERVICE_STATUS',
+      'status_change',
+      'Service',
       `${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)} service: ${service.name}`,
-      req.ip
+      req.ip,
+      service._id
     );
     
     res.json({
@@ -441,7 +459,8 @@ exports.getServiceStats = async (req, res) => {
     // Log activity
     await logActivity(
       req.user.user_id,
-      'VIEW_SERVICE_STATS',
+      'view',
+      'System',
       'Viewed service statistics',
       req.ip
     );

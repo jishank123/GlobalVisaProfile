@@ -21,7 +21,19 @@ const querySchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['General', 'Technical', 'Billing', 'Project', 'Complaint', 'Other'],
+    enum: [
+      'General', 
+      'Technical', 
+      'Billing', 
+      'Project', 
+      'Complaint', 
+      'Other',
+      'service_inquiry',
+      'payment_issue',
+      'document_request',
+      'status_update',
+      'technical_support'
+    ],
     default: 'General'
   },
   priority: {

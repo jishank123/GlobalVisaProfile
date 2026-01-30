@@ -12,7 +12,6 @@ const clientAccountSchema = new mongoose.Schema({
   email: {
     type: String,
     required: [true, 'Email is required'],
-    unique: true,
     lowercase: true,
     trim: true,
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email']
@@ -152,7 +151,7 @@ clientAccountSchema.virtual('is_locked').get(function() {
 });
 
 // Indexes for better query performance
-clientAccountSchema.index({ email: 1 });
+clientAccountSchema.index({ email: 1 }, { unique: true });
 clientAccountSchema.index({ account_status: 1 });
 clientAccountSchema.index({ last_login: -1 });
 clientAccountSchema.index({ registration_date: -1 });

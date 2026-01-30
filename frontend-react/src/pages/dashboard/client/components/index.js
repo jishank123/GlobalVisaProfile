@@ -1,0 +1,10 @@
+export { default as ClientOverview } from './ClientOverview';
+export { default as ClientProjects } from './ClientProjects';
+export { default as ClientPayments } from './ClientPayments';
+export { default as ClientServices } from './ClientServices';
+export { default as ClientAppointments } from './ClientAppointments';
+export { default as ClientTimeline } from './ClientTimeline';
+export { default as ClientQueries } from './ClientQueries';
+export { default as ClientProfileSettings } from './ClientProfileSettings';
+export { default as Sidebar } from './Sidebar';
+export { default as TopNavbar } from './TopNavbar';
