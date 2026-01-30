@@ -23,6 +23,7 @@ const RegisterPage = () => {
   const [formValidation, setFormValidation] = useState({ isValid: false, errors: [], warnings: [] });
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [termsError, setTermsError] = useState(false); // Specific state for terms error
   
   const { register, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
@@ -68,6 +69,11 @@ const RegisterPage = () => {
     }));
     // Clear errors when user starts typing
     if (error) setError('');
+    
+    // Clear terms error specifically when checkbox is checked
+    if (name === 'acceptTerms') {
+      setTermsError(!checked); // Set terms error to false when checked, true when unchecked
+    }
   };
 
   const handlePhoneCountryChange = (countryCode) => {
@@ -87,6 +93,7 @@ const RegisterPage = () => {
     // Check terms acceptance first
     if (!formData.acceptTerms) {
       setError('You must accept the Terms & Conditions and Privacy Policy to create an account.');
+      setTermsError(true);
       setIsLoading(false);
       return;
     }
@@ -307,7 +314,7 @@ const RegisterPage = () => {
                   <span className="text-red-500 ml-1">*</span>
                 </label>
               </div>
-              {!formData.acceptTerms && error && error.includes('Terms') && (
+              {termsError && !formData.acceptTerms && (
                 <div className="mt-2 text-red-600 text-sm flex items-center">
                   <i className="fas fa-exclamation-circle mr-2"></i>
                   You must accept the Terms & Conditions and Privacy Policy

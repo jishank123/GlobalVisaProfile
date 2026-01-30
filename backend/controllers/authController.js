@@ -190,20 +190,20 @@ exports.register = async (req, res) => {
   }
 };
 
-// @desc    Login client user (public login)
+// @desc    Login client user (public login) - Enhanced with password setup
 // @route   POST /api/auth/login
 // @access  Public
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, isPasswordSetup } = req.body;
 
     // Validate input
-    if (!email || !password) {
+    if (!email) {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'MISSING_CREDENTIALS',
-          message: 'Please provide email and password'
+          code: 'MISSING_EMAIL',
+          message: 'Please provide email address'
         }
       });
     }
@@ -226,8 +226,8 @@ exports.login = async (req, res) => {
       return res.status(401).json({
         success: false,
         error: {
-          code: 'INVALID_CREDENTIALS',
-          message: 'Invalid email or password'
+          code: 'USER_NOT_FOUND',
+          message: 'No account found with this email address'
         }
       });
     }
@@ -254,7 +254,78 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Verify password
+    // Check if user needs to set password
+    if (user.is_temp_password || !user.password) {
+      if (!password) {
+        return res.status(200).json({
+          success: false,
+          needsPasswordSetup: true,
+          message: 'Please create a password for your account',
+          data: {
+            email: user.email,
+            first_name: user.first_name,
+            last_name: user.last_name
+          }
+        });
+      }
+
+      if (!isPasswordSetup) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'PASSWORD_SETUP_REQUIRED',
+            message: 'Password setup is required for this account'
+          }
+        });
+      }
+
+      // Validate password strength for new password
+      const passwordValidation = validatePassword(password, email, user.first_name, user.last_name);
+      if (!passwordValidation.isValid) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'WEAK_PASSWORD',
+            message: passwordValidation.message
+          }
+        });
+      }
+
+      // Set the new password
+      user.password = password;
+      user.is_temp_password = false;
+      user.email_verified = true;
+      user.last_login = new Date();
+      await user.save();
+
+      // Generate token
+      const token = generateToken(user._id, user.role);
+
+      return res.json({
+        success: true,
+        message: 'Password set successfully and logged in',
+        isNewPassword: true,
+        data: {
+          ...user.toAuthJSON(),
+          redirectTo: '/dashboard/client'
+        },
+        token,
+        expires_in: 86400
+      });
+    }
+
+    // User has existing password - validate it
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'PASSWORD_REQUIRED',
+          message: 'Please provide your password'
+        }
+      });
+    }
+
+    // Verify existing password
     const isPasswordValid = await user.comparePassword(password);
     
     if (!isPasswordValid) {
@@ -276,7 +347,7 @@ exports.login = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Client login successful',
+      message: 'Login successful',
       data: {
         ...user.toAuthJSON(),
         redirectTo: '/dashboard/client'

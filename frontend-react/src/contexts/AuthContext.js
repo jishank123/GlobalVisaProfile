@@ -78,9 +78,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = async (email, password) => {
+  const login = async (email, password, isPasswordSetup = false) => {
     try {
-      const response = await authAPI.login(email, password);
+      const response = await authAPI.login(email, password, isPasswordSetup);
       
       if (response.success) {
         const newToken = response.token || response.data?.token;
