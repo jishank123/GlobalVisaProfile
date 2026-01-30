@@ -190,7 +190,7 @@ exports.register = async (req, res) => {
   }
 };
 
-// @desc    Login client user (public login) - Enhanced with password setup
+// @desc    Login client user (public login) - Step 2: Password entry/setup
 // @route   POST /api/auth/login
 // @access  Public
 exports.login = async (req, res) => {
@@ -198,12 +198,12 @@ exports.login = async (req, res) => {
     const { email, password, isPasswordSetup } = req.body;
 
     // Validate input
-    if (!email) {
+    if (!email || !password) {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'MISSING_EMAIL',
-          message: 'Please provide email address'
+          code: 'MISSING_CREDENTIALS',
+          message: 'Please provide email and password'
         }
       });
     }
@@ -256,19 +256,6 @@ exports.login = async (req, res) => {
 
     // Check if user needs to set password
     if (user.is_temp_password || !user.password) {
-      if (!password) {
-        return res.status(200).json({
-          success: false,
-          needsPasswordSetup: true,
-          message: 'Please create a password for your account',
-          data: {
-            email: user.email,
-            first_name: user.first_name,
-            last_name: user.last_name
-          }
-        });
-      }
-
       if (!isPasswordSetup) {
         return res.status(400).json({
           success: false,
@@ -315,17 +302,6 @@ exports.login = async (req, res) => {
     }
 
     // User has existing password - validate it
-    if (!password) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'PASSWORD_REQUIRED',
-          message: 'Please provide your password'
-        }
-      });
-    }
-
-    // Verify existing password
     const isPasswordValid = await user.comparePassword(password);
     
     if (!isPasswordValid) {
@@ -824,12 +800,27 @@ exports.checkUser = async (req, res) => {
 
     const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
     
+    if (!user) {
+      return res.json({
+        success: true,
+        exists: false,
+        hasPassword: false,
+        needsPasswordSetup: false,
+        role: null
+      });
+    }
+
+    // Check if user has a real password (not temporary)
+    const hasRealPassword = user.password && !user.is_temp_password;
+    
     res.json({
       success: true,
-      exists: !!user,
-      hasPassword: user ? !!user.password && !user.is_temp_password : false,
-      role: user ? user.role : null,
-      needsPasswordSetup: user ? user.is_temp_password : false
+      exists: true,
+      hasPassword: hasRealPassword,
+      needsPasswordSetup: user.is_temp_password || !user.password,
+      role: user.role,
+      first_name: user.first_name,
+      last_name: user.last_name
     });
   } catch (error) {
     res.status(500).json({

@@ -23,7 +23,6 @@ const RegisterPage = () => {
   const [formValidation, setFormValidation] = useState({ isValid: false, errors: [], warnings: [] });
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
-  const [termsError, setTermsError] = useState(false); // Specific state for terms error
   
   const { register, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
@@ -63,16 +62,15 @@ const RegisterPage = () => {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+    
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
-    // Clear errors when user starts typing
-    if (error) setError('');
     
-    // Clear terms error specifically when checkbox is checked
-    if (name === 'acceptTerms') {
-      setTermsError(!checked); // Set terms error to false when checked, true when unchecked
+    // Clear errors when user interacts with form
+    if (error) {
+      setError('');
     }
   };
 
@@ -93,7 +91,6 @@ const RegisterPage = () => {
     // Check terms acceptance first
     if (!formData.acceptTerms) {
       setError('You must accept the Terms & Conditions and Privacy Policy to create an account.');
-      setTermsError(true);
       setIsLoading(false);
       return;
     }
@@ -108,8 +105,11 @@ const RegisterPage = () => {
     }
 
     try {
-      // Remove confirmPassword and acceptTerms from the data sent to API
+      // Remove confirmPassword and convert acceptTerms to terms_accepted for backend
       const { confirmPassword, acceptTerms, ...registrationData } = formData;
+      
+      // Add terms_accepted field that backend expects
+      registrationData.terms_accepted = acceptTerms;
       
       const response = await register(registrationData);
       
@@ -314,7 +314,7 @@ const RegisterPage = () => {
                   <span className="text-red-500 ml-1">*</span>
                 </label>
               </div>
-              {termsError && !formData.acceptTerms && (
+              {!formData.acceptTerms && error && error.includes('Terms') && (
                 <div className="mt-2 text-red-600 text-sm flex items-center">
                   <i className="fas fa-exclamation-circle mr-2"></i>
                   You must accept the Terms & Conditions and Privacy Policy

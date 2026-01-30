@@ -98,19 +98,6 @@ export const validatePassword = (password, confirmPassword = null) => {
     errors.push('Password must contain at least one special character (!@#$%^&*()_+-=[]{}|;:,.<>?)');
   }
   
-  // Common password patterns to avoid
-  const commonPatterns = [
-    /^(.)\1+$/, // All same character
-    /^(012|123|234|345|456|567|678|789|890|abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)/i, // Sequential
-    /^(qwerty|asdfgh|zxcvbn|password|admin|user|guest|test)/i // Common words
-  ];
-  
-  commonPatterns.forEach(pattern => {
-    if (pattern.test(password)) {
-      warnings.push('Password contains common patterns that are easy to guess');
-    }
-  });
-  
   // Check for common weak passwords
   const weakPasswords = [
     'password', 'password123', '123456', '123456789', 'qwerty', 'abc123',
