@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { getFieldValidation, getPasswordStrengthColor, getPasswordStrengthText, validatePhoneWithCountry, getSupportedCountries } from '../utils/validation';
 
 // Enhanced Input Field with Real-time Validation
@@ -221,34 +221,8 @@ export const PasswordInput = ({
         </>
       )}
       
-      {/* Password Requirements */}
-      {name === 'password' && (
-        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-          <div className="text-sm font-semibold text-gray-700 mb-2">Password Requirements:</div>
-          <div className="grid grid-cols-1 md:grid-cols-1 gap-1 text-xs">
-            <div className={`flex items-center ${value && value.length >= 8 ? 'text-green-600' : 'text-gray-500'}`}>
-              <i className={`fas ${value && value.length >= 8 ? 'fa-check' : 'fa-circle'} mr-2`}></i>
-              At least 8 characters
-            </div>
-            <div className={`flex items-center ${value && /[A-Z]/.test(value) ? 'text-green-600' : 'text-gray-500'}`}>
-              <i className={`fas ${value && /[A-Z]/.test(value) ? 'fa-check' : 'fa-circle'} mr-2`}></i>
-              One uppercase letter
-            </div>
-            <div className={`flex items-center ${value && /[a-z]/.test(value) ? 'text-green-600' : 'text-gray-500'}`}>
-              <i className={`fas ${value && /[a-z]/.test(value) ? 'fa-check' : 'fa-circle'} mr-2`}></i>
-              One lowercase letter
-            </div>
-            <div className={`flex items-center ${value && /\d/.test(value) ? 'text-green-600' : 'text-gray-500'}`}>
-              <i className={`fas ${value && /\d/.test(value) ? 'fa-check' : 'fa-circle'} mr-2`}></i>
-              One number
-            </div>
-            <div className={`flex items-center ${value && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(value) ? 'text-green-600' : 'text-gray-500'}`}>
-              <i className={`fas ${value && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(value) ? 'fa-check' : 'fa-circle'} mr-2`}></i>
-              One special character
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Password Requirements - REMOVED to make form cleaner */}
+      {/* Password requirements are validated but not displayed to reduce form clutter */}
     </div>
   );
 };
@@ -309,12 +283,12 @@ export const PhoneInputWithCountry = ({
     // Remove all non-digits for length validation
     const digitsOnly = inputValue.replace(/\D/g, '');
     
-    // Enforce max length based on country
-    if (digitsOnly.length > currentCountry.maxDigits) {
-      return; // Don't allow more digits than the maximum
+    // Allow input but limit to reasonable maximum (20 digits) to prevent abuse
+    if (digitsOnly.length > 20) {
+      return; // Don't allow more than 20 digits total
     }
     
-    // Auto-format based on country
+    // Auto-format based on country (but don't restrict input length here)
     if (selectedCountry === 'US') {
       // Format as (XXX) XXX-XXXX
       if (digitsOnly.length <= 3) {
@@ -344,6 +318,7 @@ export const PhoneInputWithCountry = ({
       ...e,
       target: {
         ...e.target,
+        name: name, // Ensure the name is preserved
         value: inputValue
       }
     };
@@ -391,8 +366,6 @@ export const PhoneInputWithCountry = ({
           onBlur={handleBlur}
           placeholder={getPlaceholder()}
           disabled={disabled}
-          minLength={currentCountry.minDigits}
-          maxLength={currentCountry.maxDigits}
           className={`${className} ${hasErrors ? 'border-red-500 focus:border-red-500 bg-red-50' : ''} ${
             touched && validation.isValid && value ? 'border-green-500' : ''
           }`}

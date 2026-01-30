@@ -55,13 +55,26 @@ const submitProfileAssessment = async (req, res) => {
       criterion_10_commercial
     } = req.body;
 
+    // Convert years_of_experience string ranges to numeric values for database storage
+    let experienceYears = years_of_experience;
+    if (typeof years_of_experience === 'string') {
+      const experienceMap = {
+        '0-2': 1,    // Use midpoint or representative value
+        '3-5': 4,
+        '6-10': 8,
+        '11-15': 13,
+        '16+': 20    // Use a reasonable value for 16+
+      };
+      experienceYears = experienceMap[years_of_experience] || years_of_experience;
+    }
+
     console.log('📊 Step 2: Processing form data...');
     console.log('📊 Client Info:', {
       name: client_name,
       email: client_email,
       phone: client_phone || 'Not provided',
       field: field_of_expertise,
-      experience: years_of_experience,
+      experience: experienceYears, // Use converted value for logging
       location: current_location
     });
 
@@ -115,7 +128,7 @@ const submitProfileAssessment = async (req, res) => {
       client_email,
       client_phone,
       field_of_expertise,
-      years_of_experience,
+      years_of_experience: experienceYears, // Use converted numeric value
       current_location,
       criterion_1_awards,
       criterion_2_memberships,

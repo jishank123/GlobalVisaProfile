@@ -2,18 +2,21 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ValidatedInput, PasswordInput } from '../../components/FormComponents';
-import { validateEmail } from '../../utils/validation';
+import { validateEmail, validatePassword } from '../../utils/validation';
+import { authAPI } from '../../services/api';
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
     email: '',
-    password: ''
+    password: '',
+    confirmPassword: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [showPasswordField, setShowPasswordField] = useState(false);
-  const [isNewUser, setIsNewUser] = useState(false);
+  const [step, setStep] = useState(1); // 1: Email verification, 2: Password entry/creation
+  const [userStatus, setUserStatus] = useState(null); // null, 'existing', 'new', 'needs_password'
+  const [emailVerified, setEmailVerified] = useState(false);
   
   const { login, emailLogin, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
@@ -50,52 +53,11 @@ const LoginPage = () => {
     if (error) setError('');
   };
 
-  const checkUserExists = async (email) => {
-    try {
-      // Check if user exists by attempting to find them
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/auth/check-user`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        return data.exists && !data.needsPasswordSetup;
-      }
-      return false;
-    } catch (error) {
-      console.error('User check failed:', error);
-      return false;
-    }
-  };
-
-  const handleEmailBlur = async () => {
-    if (formData.email && validateEmail(formData.email).isValid) {
-      setIsLoading(true);
-      try {
-        const userExists = await checkUserExists(formData.email);
-        setShowPasswordField(userExists);
-        setIsNewUser(!userExists);
-      } catch (error) {
-        // If check fails, show password field by default
-        setShowPasswordField(true);
-        setIsNewUser(false);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const verifyEmail = async () => {
     setIsLoading(true);
     setError('');
-    setSuccess('');
-
-    // Enhanced validation
+    
+    // Validate email first
     const emailValidation = validateEmail(formData.email);
     if (!emailValidation.isValid) {
       setError(emailValidation.errors[0]);
@@ -104,20 +66,70 @@ const LoginPage = () => {
     }
 
     try {
+      const data = await authAPI.checkUser(formData.email);
+      
+      if (data.exists && data.hasPassword) {
+        // Existing user with password
+        setUserStatus('existing');
+        setSuccess('Email verified! Please enter your password.');
+      } else if (data.exists && !data.hasPassword) {
+        // Existing user without password (needs to create one)
+        setUserStatus('needs_password');
+        setSuccess('Email verified! Please create a password for your account.');
+      } else {
+        // New user
+        setUserStatus('new');
+        setSuccess('Email verified! Please create a password to set up your account.');
+      }
+      
+      setEmailVerified(true);
+      setStep(2);
+    } catch (error) {
+      console.error('Email verification failed:', error);
+      setError(error.message || 'Email verification failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEmailSubmit = (e) => {
+    e.preventDefault();
+    verifyEmail();
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
       let response;
       
-      if (showPasswordField && formData.password) {
-        // Existing user with password
-        if (formData.password.length < 6) {
-          setError('Password must be at least 6 characters long.');
+      if (userStatus === 'existing') {
+        // Existing user - validate password and login
+        if (!formData.password) {
+          setError('Password is required.');
           setIsLoading(false);
           return;
         }
         
         response = await login(formData.email, formData.password);
-      } else {
-        // New user or email-only login
-        response = await emailLogin(formData.email, { email: formData.email }, 'client_login');
+      } else if (userStatus === 'new' || userStatus === 'needs_password') {
+        // New user or existing user without password - validate password creation
+        const passwordValidation = validatePassword(formData.password, formData.confirmPassword);
+        
+        if (!passwordValidation.isValid) {
+          setError(passwordValidation.errors[0]);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Create/update password and login
+        await authAPI.setupPassword(formData.email, formData.password, userStatus === 'new');
+        
+        // Now login with the new password
+        response = await login(formData.email, formData.password);
       }
       
       if (response.success) {
@@ -130,10 +142,10 @@ const LoginPage = () => {
           return;
         }
         
-        if (response.data?.isNewUser) {
-          setSuccess(`Welcome! Account created for ${userData?.first_name || 'User'}. Please check your email to set up your password.`);
-        } else if (response.data?.needsPasswordSetup) {
-          setSuccess(`Welcome back! Please check your email to set up your password.`);
+        if (userStatus === 'new') {
+          setSuccess(`Welcome! Your account has been created successfully.`);
+        } else if (userStatus === 'needs_password') {
+          setSuccess(`Welcome back! Your password has been set up successfully.`);
         } else {
           setSuccess(`Welcome back, ${userData?.first_name || 'User'}!`);
         }
@@ -141,7 +153,7 @@ const LoginPage = () => {
         // Redirect to client dashboard
         setTimeout(() => {
           navigate('/dashboard/client', { replace: true });
-        }, 2000);
+        }, 1500);
       } else {
         setError(response.error?.message || 'Login failed. Please try again.');
       }
@@ -151,6 +163,15 @@ const LoginPage = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const goBackToEmail = () => {
+    setStep(1);
+    setEmailVerified(false);
+    setUserStatus(null);
+    setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
+    setError('');
+    setSuccess('');
   };
 
   return (
@@ -177,101 +198,184 @@ const LoginPage = () => {
         <div className="login-right">
           <div className="login-header">
             <h2>Client Sign In</h2>
-            <p>Enter your credentials to access your client dashboard</p>
+            <p>
+              {step === 1 
+                ? 'Enter your email address to get started' 
+                : `${userStatus === 'existing' ? 'Enter your password' : 'Create a password for your account'}`
+              }
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit}>
-            <ValidatedInput
-              name="email"
-              label="Email Address"
-              type="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              onBlur={handleEmailBlur}
-              required={true}
-              placeholder="Enter your email"
-              disabled={isLoading}
-            />
-
-            {showPasswordField && (
-              <PasswordInput
-                name="password"
-                label="Password"
-                value={formData.password}
+          {step === 1 ? (
+            // Step 1: Email Verification
+            <form onSubmit={handleEmailSubmit}>
+              <ValidatedInput
+                name="email"
+                label="Email Address"
+                type="email"
+                value={formData.email}
                 onChange={handleInputChange}
                 required={true}
-                placeholder="Enter your password"
+                placeholder="Enter your email address"
                 disabled={isLoading}
-                showStrength={false}
               />
-            )}
 
-            {!showPasswordField && formData.email && (
-              <div className="mb-4 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
-                <div className="flex items-start">
-                  <i className="fas fa-info-circle text-blue-400 mr-3 mt-0.5"></i>
-                  <div>
-                    <h4 className="text-blue-800 font-semibold text-sm">New User</h4>
-                    <p className="text-blue-700 text-sm mt-1">
-                      {isNewUser ? 
-                        'We\'ll create an account for you and send password setup instructions to your email.' :
-                        'Click Sign In to continue with email-only login.'
-                      }
-                    </p>
+              {error && (
+                <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 rounded-r-lg">
+                  <div className="flex items-start">
+                    <i className="fas fa-exclamation-triangle text-red-400 mr-3 mt-0.5"></i>
+                    <div>
+                      <h4 className="text-red-800 font-semibold text-sm">Error</h4>
+                      <p className="text-red-700 text-sm mt-1">{error}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-
-            <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#4a5568' }}>
-                <input type="checkbox" disabled={isLoading} /> Remember me
-              </label>
-              {showPasswordField && (
-                <Link to="/forgot-password" style={{ fontSize: '14px', color: '#667eea', textDecoration: 'none' }}>Forgot Password?</Link>
               )}
-            </div>
 
-            {error && (
-              <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 rounded-r-lg">
-                <div className="flex items-start">
-                  <i className="fas fa-exclamation-triangle text-red-400 mr-3 mt-0.5"></i>
-                  <div>
-                    <h4 className="text-red-800 font-semibold text-sm">Login Failed</h4>
-                    <p className="text-red-700 text-sm mt-1">{error}</p>
+              {success && (
+                <div className="mb-4 p-4 bg-green-50 border-l-4 border-green-400 rounded-r-lg">
+                  <div className="flex items-start">
+                    <i className="fas fa-check-circle text-green-400 mr-3 mt-0.5"></i>
+                    <div>
+                      <h4 className="text-green-800 font-semibold text-sm">Success!</h4>
+                      <p className="text-green-700 text-sm mt-1">{success}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {success && (
-              <div className="mb-4 p-4 bg-green-50 border-l-4 border-green-400 rounded-r-lg">
-                <div className="flex items-start">
-                  <i className="fas fa-check-circle text-green-400 mr-3 mt-0.5"></i>
-                  <div>
-                    <h4 className="text-green-800 font-semibold text-sm">Welcome Back!</h4>
-                    <p className="text-green-700 text-sm mt-1">{success}</p>
-                  </div>
+              <button 
+                type="submit" 
+                className="btn-login"
+                disabled={isLoading || !formData.email}
+              >
+                {isLoading ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin mr-2"></i> Verifying Email...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-envelope-check mr-2"></i> Verify Email
+                  </>
+                )}
+              </button>
+            </form>
+          ) : (
+            // Step 2: Password Entry/Creation
+            <form onSubmit={handlePasswordSubmit}>
+              {/* Show verified email */}
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center">
+                  <i className="fas fa-check-circle text-green-500 mr-2"></i>
+                  <span className="text-green-700 font-medium">{formData.email}</span>
+                  <button
+                    type="button"
+                    onClick={goBackToEmail}
+                    className="ml-auto text-blue-600 hover:text-blue-800 text-sm underline"
+                  >
+                    Change Email
+                  </button>
                 </div>
               </div>
-            )}
 
-            <button 
-              type="submit" 
-              className="btn-login"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <i className="fas fa-spinner fa-spin mr-2"></i> Signing In...
-                </>
+              {userStatus === 'existing' ? (
+                // Existing user - just password
+                <PasswordInput
+                  name="password"
+                  label="Password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  required={true}
+                  placeholder="Enter your password"
+                  disabled={isLoading}
+                  showStrength={false}
+                />
               ) : (
+                // New user or needs password - password creation with confirmation
                 <>
-                  <i className="fas fa-sign-in-alt mr-2"></i> Sign In
+                  <div className="form-grid-2">
+                    <PasswordInput
+                      name="password"
+                      label="Create Password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      formData={formData}
+                      required={true}
+                      placeholder="Create a strong password"
+                      disabled={isLoading}
+                      showStrength={true}
+                    />
+                    <PasswordInput
+                      name="confirmPassword"
+                      label="Confirm Password"
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      formData={formData}
+                      required={true}
+                      placeholder="Confirm your password"
+                      disabled={isLoading}
+                      showStrength={false}
+                    />
+                  </div>
                 </>
               )}
-            </button>
-          </form>
+
+              {userStatus === 'existing' && (
+                <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#4a5568' }}>
+                    <input type="checkbox" disabled={isLoading} /> Remember me
+                  </label>
+                  <Link to="/forgot-password" style={{ fontSize: '14px', color: '#667eea', textDecoration: 'none' }}>
+                    Forgot Password?
+                  </Link>
+                </div>
+              )}
+
+              {error && (
+                <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 rounded-r-lg">
+                  <div className="flex items-start">
+                    <i className="fas fa-exclamation-triangle text-red-400 mr-3 mt-0.5"></i>
+                    <div>
+                      <h4 className="text-red-800 font-semibold text-sm">
+                        {userStatus === 'existing' ? 'Login Failed' : 'Password Setup Failed'}
+                      </h4>
+                      <p className="text-red-700 text-sm mt-1">{error}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {success && (
+                <div className="mb-4 p-4 bg-green-50 border-l-4 border-green-400 rounded-r-lg">
+                  <div className="flex items-start">
+                    <i className="fas fa-check-circle text-green-400 mr-3 mt-0.5"></i>
+                    <div>
+                      <h4 className="text-green-800 font-semibold text-sm">Welcome!</h4>
+                      <p className="text-green-700 text-sm mt-1">{success}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button 
+                type="submit" 
+                className="btn-login"
+                disabled={isLoading || !formData.password || (userStatus !== 'existing' && !formData.confirmPassword)}
+              >
+                {isLoading ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin mr-2"></i> 
+                    {userStatus === 'existing' ? 'Signing In...' : 'Setting Up Account...'}
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-sign-in-alt mr-2"></i> 
+                    {userStatus === 'existing' ? 'Sign In' : 'Create Account & Sign In'}
+                  </>
+                )}
+              </button>
+            </form>
+          )}
 
           <div className="footer-links">
             Don't have an account? <Link to="/signup">Sign Up</Link> | 

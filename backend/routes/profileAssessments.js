@@ -55,8 +55,19 @@ const validateProfileAssessment = [
     .withMessage('Field of expertise must be between 2 and 200 characters'),
   
   body('years_of_experience')
-    .isInt({ min: 0, max: 100 })
-    .withMessage('Years of experience must be between 0 and 100'),
+    .custom((value) => {
+      // Handle both numeric values and string ranges
+      if (typeof value === 'number') {
+        return value >= 0 && value <= 100;
+      }
+      if (typeof value === 'string') {
+        // Accept string ranges like "0-2", "3-5", "6-10", "11-15", "16+"
+        const validRanges = ['0-2', '3-5', '6-10', '11-15', '16+'];
+        return validRanges.includes(value);
+      }
+      return false;
+    })
+    .withMessage('Years of experience must be between 0 and 100 or a valid range (0-2, 3-5, 6-10, 11-15, 16+)'),
   
   body('current_location')
     .trim()

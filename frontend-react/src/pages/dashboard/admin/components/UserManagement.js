@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { usersAPI } from '../../../../services/api';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -723,7 +722,6 @@ Last Login: ${user.last_login ? new Date(user.last_login).toLocaleDateString() :
                           minLength="8" 
                           required 
                         />
-                        <div className="form-text">Minimum 8 characters</div>
                       </div>
                     </div>
                   </div>

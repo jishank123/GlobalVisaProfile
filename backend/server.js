@@ -44,6 +44,7 @@ app.use(helmet());
 // CORS configuration
 const allowedOrigins = [
     'http://localhost:3000',
+    'http://localhost:3001',
     'https://immigrationprofile.com',
     'https://www.immigrationprofile.com'
 ];

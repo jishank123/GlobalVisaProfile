@@ -8,6 +8,7 @@ router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/email-login', authController.emailLogin);
 router.post('/check-user', authController.checkUser);
+router.post('/setup-password', authController.setupPassword);
 
 // Public routes - Manager authentication
 router.post('/manager', authController.managerLogin);

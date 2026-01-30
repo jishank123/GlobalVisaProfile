@@ -722,7 +722,7 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
-// @desc    Check if user exists and needs password setup
+// @desc    Check if user exists and has password
 // @route   POST /api/auth/check-user
 // @access  Public
 exports.checkUser = async (req, res) => {
@@ -739,19 +739,158 @@ exports.checkUser = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    // Validate email format
+    const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_EMAIL',
+          message: 'Please provide a valid email address'
+        }
+      });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
     
     res.json({
       success: true,
       exists: !!user,
-      needsPasswordSetup: user ? user.is_temp_password : false,
-      role: user ? user.role : null
+      hasPassword: user ? !!user.password && !user.is_temp_password : false,
+      role: user ? user.role : null,
+      needsPasswordSetup: user ? user.is_temp_password : false
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       error: {
         code: 'CHECK_USER_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Setup password for new or existing user without password
+// @route   POST /api/auth/setup-password
+// @access  Public
+exports.setupPassword = async (req, res) => {
+  try {
+    const { email, password, isNewUser } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_FIELDS',
+          message: 'Email and password are required'
+        }
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_EMAIL',
+          message: 'Please provide a valid email address'
+        }
+      });
+    }
+
+    let user;
+
+    if (isNewUser) {
+      // Create new user
+      // Extract first and last name from email if not provided
+      const emailUsername = email.split('@')[0];
+      const nameParts = emailUsername.split(/[._-]/);
+      const firstName = nameParts[0] || 'User';
+      const lastName = nameParts[1] || '';
+
+      // Validate password strength
+      const passwordValidation = validatePassword(password, email, firstName, lastName);
+      if (!passwordValidation.isValid) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'WEAK_PASSWORD',
+            message: passwordValidation.message
+          }
+        });
+      }
+
+      // Check if user already exists
+      const existingUser = await User.findOne({ email: email.toLowerCase() });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'USER_EXISTS',
+            message: 'User with this email already exists'
+          }
+        });
+      }
+
+      // Create new user
+      user = await User.create({
+        first_name: firstName,
+        last_name: lastName,
+        email: email.toLowerCase().trim(),
+        password,
+        role: 'client',
+        is_temp_password: false,
+        status: 'active'
+      });
+    } else {
+      // Update existing user's password
+      user = await User.findOne({ email: email.toLowerCase() });
+      
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found'
+          }
+        });
+      }
+
+      // Validate password strength
+      const passwordValidation = validatePassword(password, email, user.first_name, user.last_name);
+      if (!passwordValidation.isValid) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'WEAK_PASSWORD',
+            message: passwordValidation.message
+          }
+        });
+      }
+
+      // Update password
+      user.password = password;
+      user.is_temp_password = false;
+      await user.save();
+    }
+
+    res.json({
+      success: true,
+      message: isNewUser ? 'Account created successfully' : 'Password set successfully',
+      data: {
+        user: user.toAuthJSON(),
+        isNewUser
+      }
+    });
+  } catch (error) {
+    console.error('Setup password error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SETUP_PASSWORD_FAILED',
         message: error.message
       }
     });

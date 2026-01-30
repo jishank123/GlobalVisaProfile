@@ -98,6 +98,8 @@ export const authAPI = {
   resetPassword: (data) => apiClient.post('/auth/reset-password', data),
   updateProfile: (data) => apiClient.put('/auth/profile', data),
   changePassword: (data) => apiClient.put('/auth/change-password', data),
+  checkUser: (email) => apiClient.post('/auth/check-user', { email }),
+  setupPassword: (email, password, isNewUser) => apiClient.post('/auth/setup-password', { email, password, isNewUser }),
 };
 
 // Users API
