@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { queriesAPI, clientsAPI } from '../../../../services/api';
+import { designSystem, componentStyles, hoverEffects, getStatusBadgeStyle } from '../../../../styles/designSystem';
 
 const QueriesManagement = () => {
   const [queries, setQueries] = useState([]);
@@ -145,16 +146,49 @@ const QueriesManagement = () => {
     closed: queries.filter(q => q.status === 'closed').length
   };
 
+  const StatCard = ({ icon, number, label, borderColor, iconColor }) => (
+    <div 
+      style={{
+        ...componentStyles.contactsStatCard,
+        borderColor: borderColor,
+        cursor: 'pointer'
+      }}
+      {...hoverEffects.card}
+    >
+      <i className={`${icon} fa-2x mb-2`} style={{ color: iconColor }}></i>
+      <h4 style={{ 
+        color: iconColor,
+        fontWeight: designSystem.typography.fontWeight.bold,
+        marginBottom: '4px'
+      }}>
+        {number}
+      </h4>
+      <small style={{ color: designSystem.colors.gray[500] }}>
+        {label}
+      </small>
+    </div>
+  );
+
   return (
-    <div>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>
-          <i className="fas fa-question-circle text-primary me-2"></i>
-          Queries Management
-        </h2>
+    <div style={componentStyles.managementCard}>
+      {/* Unified Header */}
+      <div style={componentStyles.header}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={componentStyles.headerIcon}>
+            <i className="fas fa-question-circle fa-lg"></i>
+          </div>
+          <div>
+            <h4 style={componentStyles.headerTitle}>Queries Management</h4>
+            <p style={componentStyles.headerSubtitle}>Manage customer support queries and responses</p>
+          </div>
+        </div>
         <button 
-          className="btn btn-primary"
+          style={{
+            ...componentStyles.primaryButton,
+            background: designSystem.colors.primary
+          }}
           onClick={() => setShowAddModal(true)}
+          {...hoverEffects.button}
         >
           <i className="fas fa-plus me-2"></i>
           Add New Query
@@ -162,59 +196,35 @@ const QueriesManagement = () => {
       </div>
 
       {/* Query Stats */}
-      <div className="row mb-4">
-        <div className="col-md-3">
-          <div className="card bg-warning text-white">
-            <div className="card-body">
-              <div className="d-flex justify-content-between">
-                <div>
-                  <h4>{queryStats.open}</h4>
-                  <p className="mb-0">Open Queries</p>
-                </div>
-                <i className="fas fa-exclamation-circle fa-2x"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card bg-info text-white">
-            <div className="card-body">
-              <div className="d-flex justify-content-between">
-                <div>
-                  <h4>{queryStats.in_progress}</h4>
-                  <p className="mb-0">In Progress</p>
-                </div>
-                <i className="fas fa-spinner fa-2x"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card bg-success text-white">
-            <div className="card-body">
-              <div className="d-flex justify-content-between">
-                <div>
-                  <h4>{queryStats.resolved}</h4>
-                  <p className="mb-0">Resolved</p>
-                </div>
-                <i className="fas fa-check fa-2x"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card bg-dark text-white">
-            <div className="card-body">
-              <div className="d-flex justify-content-between">
-                <div>
-                  <h4>{queryStats.closed}</h4>
-                  <p className="mb-0">Closed</p>
-                </div>
-                <i className="fas fa-archive fa-2x"></i>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div style={componentStyles.statsContainer}>
+        <StatCard
+          icon="fas fa-exclamation-circle"
+          number={queryStats.open}
+          label="Open Queries"
+          borderColor="#f59e0b"
+          iconColor="#f59e0b"
+        />
+        <StatCard
+          icon="fas fa-spinner"
+          number={queryStats.in_progress}
+          label="In Progress"
+          borderColor="#8b5cf6"
+          iconColor="#8b5cf6"
+        />
+        <StatCard
+          icon="fas fa-check"
+          number={queryStats.resolved}
+          label="Resolved"
+          borderColor="#10b981"
+          iconColor="#10b981"
+        />
+        <StatCard
+          icon="fas fa-archive"
+          number={queryStats.closed}
+          label="Closed"
+          borderColor="#6b7280"
+          iconColor="#6b7280"
+        />
       </div>
 
       {/* Filters */}

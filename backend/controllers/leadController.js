@@ -81,7 +81,7 @@ exports.getLeads = async (req, res) => {
     console.log('🎯 Final query:', query);
     
     const leads = await Lead.find(query)
-      .populate('assignedTo', 'name email')
+      .populate('assignedTo', 'first_name last_name email')
       .populate('assignedToCrm', 'first_name last_name email')
       .populate('interestedServices', 'name')
       .populate('convertedToClient', 'name email')
@@ -617,7 +617,7 @@ exports.getLeadStats = async (req, res) => {
     
     // Get recent leads
     const recentLeads = await Lead.find(query)
-      .populate('assignedTo', 'name email')
+      .populate('assignedTo', 'first_name last_name email')
       .populate('interestedServices', 'name')
       .sort({ createdAt: -1 })
       .limit(5);
@@ -700,24 +700,8 @@ exports.createLeadFromForm = async (req, res) => {
         type: formType,
         id: formId
       }
+      // Removed auto-assignment - leads should be manually assigned after qualification
     };
-    
-    // Auto-assign to available lead manager with least workload
-    const leadManagers = await User.find({ role: 'lead_manager', status: 'active' });
-    if (leadManagers.length > 0) {
-      const leadCounts = await Promise.all(
-        leadManagers.map(async (manager) => ({
-          manager: manager._id,
-          count: await Lead.countDocuments({ assignedTo: manager._id, status: { $ne: 'converted' } })
-        }))
-      );
-      
-      const leastBusyManager = leadCounts.reduce((min, current) => 
-        current.count < min.count ? current : min
-      );
-      
-      leadData.assignedTo = leastBusyManager.manager;
-    }
     
     const lead = await Lead.create(leadData);
     

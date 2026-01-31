@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { projectsAPI, usersAPI } from '../../../../services/api';
+import { designSystem, componentStyles, hoverEffects, getStatusBadgeStyle } from '../../../../styles/designSystem';
 
 const TasksManagement = () => {
   const [tasks, setTasks] = useState([]);
@@ -138,36 +139,59 @@ const TasksManagement = () => {
     }
   };
 
-  const getStatusBadgeClass = (status) => {
-    const statusClasses = {
-      'pending': 'bg-warning',
-      'in_progress': 'bg-info',
-      'completed': 'bg-success',
-      'on_hold': 'bg-secondary'
+  const getPriorityStyle = (priority) => {
+    const priorityColors = {
+      'low': designSystem.colors.success,
+      'medium': designSystem.colors.warning,
+      'high': designSystem.colors.danger,
+      'urgent': designSystem.colors.danger
     };
-    return statusClasses[status] || 'bg-secondary';
+    return { color: priorityColors[priority] || designSystem.colors.gray[500] };
   };
 
-  const getPriorityBadgeClass = (priority) => {
-    const priorityClasses = {
-      'low': 'bg-success',
-      'medium': 'bg-warning',
-      'high': 'bg-danger',
-      'urgent': 'bg-danger'
-    };
-    return priorityClasses[priority] || 'bg-secondary';
-  };
+  const StatCard = ({ icon, number, label, borderColor, iconColor }) => (
+    <div 
+      style={{
+        ...componentStyles.contactsStatCard,
+        borderColor: borderColor,
+        cursor: 'pointer'
+      }}
+      {...hoverEffects.card}
+    >
+      <i className={`${icon} fa-2x mb-2`} style={{ color: iconColor }}></i>
+      <h4 style={{ 
+        color: iconColor,
+        fontWeight: designSystem.typography.fontWeight.bold,
+        marginBottom: '4px'
+      }}>
+        {number}
+      </h4>
+      <small style={{ color: designSystem.colors.gray[500] }}>
+        {label}
+      </small>
+    </div>
+  );
 
   return (
-    <div>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>
-          <i className="fas fa-tasks text-primary me-2"></i>
-          Tasks Management
-        </h2>
+    <div style={componentStyles.managementCard}>
+      {/* Unified Header */}
+      <div style={componentStyles.header}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={componentStyles.headerIcon}>
+            <i className="fas fa-tasks fa-lg"></i>
+          </div>
+          <div>
+            <h4 style={componentStyles.headerTitle}>Tasks Management</h4>
+            <p style={componentStyles.headerSubtitle}>Manage project tasks and assignments</p>
+          </div>
+        </div>
         <button 
-          className="btn btn-primary"
+          style={{
+            ...componentStyles.primaryButton,
+            background: designSystem.colors.primary
+          }}
           onClick={() => setShowAddModal(true)}
+          {...hoverEffects.button}
         >
           <i className="fas fa-plus me-2"></i>
           Add New Task
@@ -175,191 +199,181 @@ const TasksManagement = () => {
       </div>
 
       {/* Tasks Stats */}
-      <div className="row mb-4">
-        <div className="col-md-3">
-          <div className="card bg-warning text-white">
-            <div className="card-body">
-              <div className="d-flex justify-content-between">
-                <div>
-                  <h4>{tasks.filter(t => t.status === 'pending').length}</h4>
-                  <p className="mb-0">Pending Tasks</p>
-                </div>
-                <i className="fas fa-clock fa-2x"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card bg-info text-white">
-            <div className="card-body">
-              <div className="d-flex justify-content-between">
-                <div>
-                  <h4>{tasks.filter(t => t.status === 'in_progress').length}</h4>
-                  <p className="mb-0">In Progress</p>
-                </div>
-                <i className="fas fa-spinner fa-2x"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card bg-success text-white">
-            <div className="card-body">
-              <div className="d-flex justify-content-between">
-                <div>
-                  <h4>{tasks.filter(t => t.status === 'completed').length}</h4>
-                  <p className="mb-0">Completed</p>
-                </div>
-                <i className="fas fa-check fa-2x"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card bg-secondary text-white">
-            <div className="card-body">
-              <div className="d-flex justify-content-between">
-                <div>
-                  <h4>{tasks.filter(t => t.status === 'on_hold').length}</h4>
-                  <p className="mb-0">On Hold</p>
-                </div>
-                <i className="fas fa-pause fa-2x"></i>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div style={componentStyles.statsContainer}>
+        <StatCard
+          icon="fas fa-clock"
+          number={tasks.filter(t => t.status === 'pending').length}
+          label="Pending Tasks"
+          borderColor="#f59e0b"
+          iconColor="#f59e0b"
+        />
+        <StatCard
+          icon="fas fa-spinner"
+          number={tasks.filter(t => t.status === 'in_progress').length}
+          label="In Progress"
+          borderColor="#8b5cf6"
+          iconColor="#8b5cf6"
+        />
+        <StatCard
+          icon="fas fa-check"
+          number={tasks.filter(t => t.status === 'completed').length}
+          label="Completed"
+          borderColor="#10b981"
+          iconColor="#10b981"
+        />
+        <StatCard
+          icon="fas fa-pause"
+          number={tasks.filter(t => t.status === 'on_hold').length}
+          label="On Hold"
+          borderColor="#6b7280"
+          iconColor="#6b7280"
+        />
       </div>
 
       {/* Tasks Table */}
-      <div className="card">
-        <div className="card-header">
-          <h5 className="mb-0">All Tasks</h5>
+      <div style={{ borderRadius: designSystem.borderRadius.button, overflow: 'hidden', boxShadow: designSystem.shadows.card }}>
+        <div style={{
+          background: designSystem.colors.primary,
+          color: 'white',
+          padding: designSystem.spacing.md,
+          fontWeight: designSystem.typography.fontWeight.semibold
+        }}>
+          All Tasks ({tasks.length})
         </div>
-        <div className="card-body">
+        <div style={{ background: 'white', padding: designSystem.spacing.lg }}>
           {loading ? (
-            <div className="text-center py-4">
-              <div className="spinner-border" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </div>
+            <div style={componentStyles.loading}>
+              <i className="fas fa-spinner fa-spin fa-2x" style={{ color: designSystem.colors.primary.split(' ')[0].split('(')[1] }}></i>
+              <p style={{ marginTop: designSystem.spacing.md }}>Loading tasks...</p>
             </div>
           ) : (
-            <div className="table-responsive">
-              <table className="table table-hover">
-                <thead>
+            <div style={{ borderRadius: designSystem.borderRadius.button, overflow: 'hidden', boxShadow: designSystem.shadows.card }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead style={componentStyles.tableHeader}>
                   <tr>
-                    <th>Task Title</th>
-                    <th>Project</th>
-                    <th>Client</th>
-                    <th>Assigned To</th>
-                    <th>Priority</th>
-                    <th>Status</th>
-                    <th>Due Date</th>
-                    <th>Actions</th>
+                    <th style={componentStyles.tableHeaderCell}>Task Title</th>
+                    <th style={componentStyles.tableHeaderCell}>Project</th>
+                    <th style={componentStyles.tableHeaderCell}>Client</th>
+                    <th style={componentStyles.tableHeaderCell}>Assigned To</th>
+                    <th style={componentStyles.tableHeaderCell}>Priority</th>
+                    <th style={componentStyles.tableHeaderCell}>Status</th>
+                    <th style={componentStyles.tableHeaderCell}>Due Date</th>
+                    <th style={componentStyles.tableHeaderCell}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {tasks.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="text-center py-4">
-                        <i className="fas fa-tasks fa-3x text-muted mb-3"></i>
-                        <p className="text-muted">No tasks found</p>
+                      <td colSpan="8" style={{ ...componentStyles.tableCell, textAlign: 'center', padding: designSystem.spacing.xl }}>
+                        <div style={componentStyles.emptyState}>
+                          <i className="fas fa-tasks fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
+                          <p style={{ color: designSystem.colors.gray[500] }}>No tasks found</p>
+                        </div>
                       </td>
                     </tr>
                   ) : (
-                    tasks.map((task, index) => (
-                      <tr key={`${task.project_id}-${index}`}>
-                        <td>
-                          <strong>{task.title}</strong>
-                          {task.description && (
-                            <small className="d-block text-muted">
-                              {task.description.substring(0, 50)}...
-                            </small>
-                          )}
-                        </td>
-                        <td>{task.project_name}</td>
-                        <td>{task.client_name}</td>
-                        <td>
-                          {task.assigned_to ? (
-                            <span className="badge bg-info">
-                              {crmManagers.find(crm => crm._id === task.assigned_to)?.first_name || 'Unknown'}
+                    tasks.map((task, index) => {
+                      const statusStyle = getStatusBadgeStyle(task.status);
+                      const priorityStyle = getPriorityStyle(task.priority);
+                      
+                      return (
+                        <tr 
+                          key={`${task.project_id}-${index}`}
+                          style={componentStyles.tableRow}
+                          {...hoverEffects.tableRow}
+                        >
+                          <td style={componentStyles.tableCell}>
+                            <strong>{task.title}</strong>
+                            {task.description && (
+                              <div>
+                                <small style={{ color: designSystem.colors.gray[500] }}>
+                                  {task.description.substring(0, 50)}...
+                                </small>
+                              </div>
+                            )}
+                          </td>
+                          <td style={componentStyles.tableCell}>{task.project_name}</td>
+                          <td style={componentStyles.tableCell}>{task.client_name}</td>
+                          <td style={componentStyles.tableCell}>
+                            {task.assigned_to ? (
+                              <span style={{
+                                ...componentStyles.badge,
+                                background: designSystem.colors.info,
+                                color: 'white'
+                              }}>
+                                {crmManagers.find(crm => crm._id === task.assigned_to)?.first_name || 'Unknown'}
+                              </span>
+                            ) : (
+                              <span style={{
+                                ...componentStyles.badge,
+                                background: designSystem.colors.gray[400],
+                                color: 'white'
+                              }}>Unassigned</span>
+                            )}
+                          </td>
+                          <td style={componentStyles.tableCell}>
+                            <span style={{
+                              ...priorityStyle,
+                              fontWeight: designSystem.typography.fontWeight.bold
+                            }}>
+                              {task.priority.toUpperCase()}
                             </span>
-                          ) : (
-                            <span className="badge bg-secondary">Unassigned</span>
-                          )}
-                        </td>
-                        <td>
-                          <span className={`badge ${getPriorityBadgeClass(task.priority)}`}>
-                            {task.priority}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`badge ${getStatusBadgeClass(task.status)}`}>
-                            {task.status?.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td>
-                          {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}
-                        </td>
-                        <td>
-                          <div className="btn-group btn-group-sm">
-                            <button
-                              className="btn btn-outline-primary"
-                              onClick={() => {
-                                setSelectedTask({ ...task, taskIndex: index });
-                                setShowAssignModal(true);
-                              }}
-                              title="Assign Task"
-                            >
-                              <i className="fas fa-user-plus"></i>
-                            </button>
-                            <div className="dropdown">
+                          </td>
+                          <td style={componentStyles.tableCell}>
+                            <span style={{
+                              ...componentStyles.badge,
+                              background: statusStyle.background,
+                              color: statusStyle.color
+                            }}>
+                              {task.status?.replace('_', ' ').toUpperCase()}
+                            </span>
+                          </td>
+                          <td style={componentStyles.tableCell}>
+                            {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}
+                          </td>
+                          <td style={componentStyles.tableCell}>
+                            <div style={{ display: 'flex', gap: designSystem.spacing.xs }}>
                               <button
-                                className="btn btn-outline-secondary dropdown-toggle"
-                                type="button"
-                                data-bs-toggle="dropdown"
-                                title="Update Status"
+                                style={{
+                                  ...componentStyles.secondaryButton,
+                                  padding: `${designSystem.spacing.xs} ${designSystem.spacing.sm}`,
+                                  fontSize: designSystem.typography.fontSize.sm,
+                                  background: designSystem.colors.primary,
+                                  color: 'white'
+                                }}
+                                onClick={() => {
+                                  setSelectedTask({ ...task, taskIndex: index });
+                                  setShowAssignModal(true);
+                                }}
+                                title="Assign Task"
                               >
-                                <i className="fas fa-edit"></i>
+                                <i className="fas fa-user-plus"></i>
                               </button>
-                              <ul className="dropdown-menu">
-                                <li>
-                                  <button
-                                    className="dropdown-item"
-                                    onClick={() => handleUpdateTaskStatus(task._id, task.project_id, 'pending')}
-                                  >
-                                    Pending
-                                  </button>
-                                </li>
-                                <li>
-                                  <button
-                                    className="dropdown-item"
-                                    onClick={() => handleUpdateTaskStatus(task._id, task.project_id, 'in_progress')}
-                                  >
-                                    In Progress
-                                  </button>
-                                </li>
-                                <li>
-                                  <button
-                                    className="dropdown-item"
-                                    onClick={() => handleUpdateTaskStatus(task._id, task.project_id, 'completed')}
-                                  >
-                                    Completed
-                                  </button>
-                                </li>
-                                <li>
-                                  <button
-                                    className="dropdown-item"
-                                    onClick={() => handleUpdateTaskStatus(task._id, task.project_id, 'on_hold')}
-                                  >
-                                    On Hold
-                                  </button>
-                                </li>
-                              </ul>
+                              <div style={{ position: 'relative', display: 'inline-block' }}>
+                                <button
+                                  style={{
+                                    ...componentStyles.secondaryButton,
+                                    padding: `${designSystem.spacing.xs} ${designSystem.spacing.sm}`,
+                                    fontSize: designSystem.typography.fontSize.sm,
+                                    background: designSystem.colors.warning,
+                                    color: 'white'
+                                  }}
+                                  title="Update Status"
+                                  onClick={() => {
+                                    const newStatus = prompt(`Update status for: ${task.title}\n\nCurrent: ${task.status}\n\nOptions: pending, in_progress, completed, on_hold\n\nEnter new status:`);
+                                    if (newStatus && ['pending', 'in_progress', 'completed', 'on_hold'].includes(newStatus)) {
+                                      handleUpdateTaskStatus(task._id, task.project_id, newStatus);
+                                    }
+                                  }}
+                                >
+                                  <i className="fas fa-edit"></i>
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -370,42 +384,88 @@ const TasksManagement = () => {
 
       {/* Add Task Modal */}
       {showAddModal && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Add New Task</h5>
-                <button
-                  type="button"
-                  className="btn-close"
+        <div style={componentStyles.modal}>
+          <div style={{ 
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '90%',
+            maxWidth: '600px',
+            zIndex: 1050
+          }}>
+            <div style={componentStyles.modalContent}>
+              <div style={componentStyles.modalHeader}>
+                <h5 style={{ margin: 0, fontWeight: designSystem.typography.fontWeight.semibold }}>
+                  <i className="fas fa-plus me-3"></i>Add New Task
+                </h5>
+                <button 
+                  type="button" 
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'white',
+                    fontSize: '24px',
+                    cursor: 'pointer'
+                  }}
                   onClick={() => setShowAddModal(false)}
-                ></button>
+                >
+                  ×
+                </button>
               </div>
               <form onSubmit={handleAddTask}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Task Title *</label>
+                <div style={componentStyles.modalBody}>
+                  <div style={{ marginBottom: designSystem.spacing.md }}>
+                    <label style={{ 
+                      display: 'block', 
+                      marginBottom: designSystem.spacing.xs,
+                      color: designSystem.colors.gray[600],
+                      fontSize: designSystem.typography.fontSize.sm,
+                      fontWeight: designSystem.typography.fontWeight.medium
+                    }}>
+                      Task Title <span style={{ color: designSystem.colors.danger.split(' ')[0].split('(')[1] }}>*</span>
+                    </label>
                     <input
                       type="text"
-                      className="form-control"
+                      style={componentStyles.formInput}
                       value={formData.title}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                       required
                     />
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Description</label>
+                  <div style={{ marginBottom: designSystem.spacing.md }}>
+                    <label style={{ 
+                      display: 'block', 
+                      marginBottom: designSystem.spacing.xs,
+                      color: designSystem.colors.gray[600],
+                      fontSize: designSystem.typography.fontSize.sm,
+                      fontWeight: designSystem.typography.fontWeight.medium
+                    }}>
+                      Description
+                    </label>
                     <textarea
-                      className="form-control"
+                      style={{
+                        ...componentStyles.formInput,
+                        minHeight: '80px',
+                        resize: 'vertical'
+                      }}
                       rows="3"
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     ></textarea>
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Project *</label>
+                  <div style={{ marginBottom: designSystem.spacing.md }}>
+                    <label style={{ 
+                      display: 'block', 
+                      marginBottom: designSystem.spacing.xs,
+                      color: designSystem.colors.gray[600],
+                      fontSize: designSystem.typography.fontSize.sm,
+                      fontWeight: designSystem.typography.fontWeight.medium
+                    }}>
+                      Project <span style={{ color: designSystem.colors.danger.split(' ')[0].split('(')[1] }}>*</span>
+                    </label>
                     <select
-                      className="form-select"
+                      style={componentStyles.formInput}
                       value={formData.project_id}
                       onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
                       required
@@ -418,10 +478,18 @@ const TasksManagement = () => {
                       ))}
                     </select>
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Assign To</label>
+                  <div style={{ marginBottom: designSystem.spacing.md }}>
+                    <label style={{ 
+                      display: 'block', 
+                      marginBottom: designSystem.spacing.xs,
+                      color: designSystem.colors.gray[600],
+                      fontSize: designSystem.typography.fontSize.sm,
+                      fontWeight: designSystem.typography.fontWeight.medium
+                    }}>
+                      Assign To
+                    </label>
                     <select
-                      className="form-select"
+                      style={componentStyles.formInput}
                       value={formData.assigned_to}
                       onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
                     >
@@ -433,11 +501,19 @@ const TasksManagement = () => {
                       ))}
                     </select>
                   </div>
-                  <div className="row">
-                    <div className="col-md-6">
-                      <label className="form-label">Priority</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: designSystem.spacing.md }}>
+                    <div>
+                      <label style={{ 
+                        display: 'block', 
+                        marginBottom: designSystem.spacing.xs,
+                        color: designSystem.colors.gray[600],
+                        fontSize: designSystem.typography.fontSize.sm,
+                        fontWeight: designSystem.typography.fontWeight.medium
+                      }}>
+                        Priority
+                      </label>
                       <select
-                        className="form-select"
+                        style={componentStyles.formInput}
                         value={formData.priority}
                         onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
                       >
@@ -447,26 +523,43 @@ const TasksManagement = () => {
                         <option value="urgent">Urgent</option>
                       </select>
                     </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Due Date</label>
+                    <div>
+                      <label style={{ 
+                        display: 'block', 
+                        marginBottom: designSystem.spacing.xs,
+                        color: designSystem.colors.gray[600],
+                        fontSize: designSystem.typography.fontSize.sm,
+                        fontWeight: designSystem.typography.fontWeight.medium
+                      }}>
+                        Due Date
+                      </label>
                       <input
                         type="date"
-                        className="form-control"
+                        style={componentStyles.formInput}
                         value={formData.due_date}
                         onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
                       />
                     </div>
                   </div>
                 </div>
-                <div className="modal-footer">
+                <div style={componentStyles.modalFooter}>
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    style={componentStyles.secondaryButton}
                     onClick={() => setShowAddModal(false)}
                   >
                     Cancel
                   </button>
-                  <button type="submit" className="btn btn-primary" disabled={loading}>
+                  <button 
+                    type="submit" 
+                    style={{
+                      ...componentStyles.primaryButton,
+                      background: designSystem.colors.primary,
+                      marginLeft: designSystem.spacing.md
+                    }}
+                    disabled={loading}
+                    {...hoverEffects.button}
+                  >
                     {loading ? 'Adding...' : 'Add Task'}
                   </button>
                 </div>
@@ -478,25 +571,51 @@ const TasksManagement = () => {
 
       {/* Assign Task Modal */}
       {showAssignModal && selectedTask && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Assign Task: {selectedTask.title}</h5>
-                <button
-                  type="button"
-                  className="btn-close"
+        <div style={componentStyles.modal}>
+          <div style={{ 
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '90%',
+            maxWidth: '500px',
+            zIndex: 1050
+          }}>
+            <div style={componentStyles.modalContent}>
+              <div style={componentStyles.modalHeader}>
+                <h5 style={{ margin: 0, fontWeight: designSystem.typography.fontWeight.semibold }}>
+                  <i className="fas fa-user-plus me-3"></i>Assign Task: {selectedTask.title}
+                </h5>
+                <button 
+                  type="button" 
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'white',
+                    fontSize: '24px',
+                    cursor: 'pointer'
+                  }}
                   onClick={() => {
                     setShowAssignModal(false);
                     setSelectedTask(null);
                   }}
-                ></button>
+                >
+                  ×
+                </button>
               </div>
-              <div className="modal-body">
-                <div className="mb-3">
-                  <label className="form-label">Assign to CRM Manager</label>
+              <div style={componentStyles.modalBody}>
+                <div>
+                  <label style={{ 
+                    display: 'block', 
+                    marginBottom: designSystem.spacing.xs,
+                    color: designSystem.colors.gray[600],
+                    fontSize: designSystem.typography.fontSize.sm,
+                    fontWeight: designSystem.typography.fontWeight.medium
+                  }}>
+                    Assign to CRM Manager
+                  </label>
                   <select
-                    className="form-select"
+                    style={componentStyles.formInput}
                     value={selectedTask.assigned_to || ''}
                     onChange={(e) => setSelectedTask({ ...selectedTask, assigned_to: e.target.value })}
                   >
@@ -509,10 +628,10 @@ const TasksManagement = () => {
                   </select>
                 </div>
               </div>
-              <div className="modal-footer">
+              <div style={componentStyles.modalFooter}>
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  style={componentStyles.secondaryButton}
                   onClick={() => {
                     setShowAssignModal(false);
                     setSelectedTask(null);
@@ -522,9 +641,14 @@ const TasksManagement = () => {
                 </button>
                 <button
                   type="button"
-                  className="btn btn-primary"
+                  style={{
+                    ...componentStyles.primaryButton,
+                    background: designSystem.colors.primary,
+                    marginLeft: designSystem.spacing.md
+                  }}
                   onClick={() => handleAssignTask(selectedTask._id, selectedTask.project_id, selectedTask.assigned_to)}
                   disabled={loading || !selectedTask.assigned_to}
+                  {...hoverEffects.button}
                 >
                   {loading ? 'Assigning...' : 'Assign Task'}
                 </button>

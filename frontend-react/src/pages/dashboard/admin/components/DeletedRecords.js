@@ -8,6 +8,7 @@ import {
   paymentsAPI,
   queriesAPI 
 } from '../../../../services/api';
+import { componentStyles } from '../../../../styles/designSystem';
 
 const DeletedRecords = () => {
   const [deletedRecords, setDeletedRecords] = useState({
@@ -174,8 +175,8 @@ const DeletedRecords = () => {
 
     return (
       <div className="table-responsive">
-        <table className="table table-hover">
-          <thead>
+        <table className="table table-hover" style={{ borderRadius: '12px', overflow: 'hidden' }}>
+          <thead style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white' }}>
             <tr>
               {type === 'clients' && (
                 <>
@@ -335,20 +336,45 @@ const DeletedRecords = () => {
   };
 
   return (
-    <div>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>
-          <i className="fas fa-trash-alt text-danger me-2"></i>
-          Deleted Records
-        </h2>
+    <div className="management-card" style={componentStyles.managementCard}>
+      {/* Enhanced Header */}
+      <div style={componentStyles.header}>
+        <div className="d-flex align-items-center">
+          <div 
+            className="icon-wrapper me-3"
+            style={{
+              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+              borderRadius: '12px',
+              padding: '12px',
+              color: 'white'
+            }}
+          >
+            <i className="fas fa-trash-alt fa-lg"></i>
+          </div>
+          <div>
+            <h4 className="mb-1" style={{ color: '#1e293b', fontWeight: '600' }}>
+              Deleted Records
+            </h4>
+            <p className="text-muted mb-0">Manage and restore deleted records</p>
+          </div>
+        </div>
         <div className="d-flex gap-2">
           <span className="badge bg-danger fs-6">
             Total Deleted: {getTotalDeletedCount()}
           </span>
           <button 
-            className="btn btn-outline-warning"
+            className="btn btn-lg px-4 py-2"
             onClick={loadDeletedRecords}
             disabled={loading}
+            style={{
+              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              border: 'none',
+              borderRadius: '12px',
+              color: 'white',
+              fontWeight: '500',
+              boxShadow: '0 4px 15px rgba(79, 172, 254, 0.3)',
+              transition: 'all 0.3s ease'
+            }}
           >
             <i className="fas fa-sync me-2"></i>
             Refresh
@@ -356,51 +382,93 @@ const DeletedRecords = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Statistics Cards - ContactsManagement Style */}
       <div className="row mb-4">
         <div className="col-md-3">
-          <div className="card bg-light">
+          <div className="card border-danger" style={componentStyles.contactsStatCard}>
             <div className="card-body text-center">
+              <i className="fas fa-users fa-2x text-danger mb-2"></i>
               <h4 className="text-danger">{getRecordCount('clients')}</h4>
-              <p className="mb-0">Deleted Clients</p>
+              <small className="text-muted">Deleted Clients</small>
             </div>
           </div>
         </div>
         <div className="col-md-3">
-          <div className="card bg-light">
+          <div className="card border-warning" style={componentStyles.contactsStatCard}>
             <div className="card-body text-center">
-              <h4 className="text-danger">{getRecordCount('leads')}</h4>
-              <p className="mb-0">Deleted Leads</p>
+              <i className="fas fa-user-tie fa-2x text-warning mb-2"></i>
+              <h4 className="text-warning">{getRecordCount('leads')}</h4>
+              <small className="text-muted">Deleted Leads</small>
             </div>
           </div>
         </div>
         <div className="col-md-3">
-          <div className="card bg-light">
+          <div className="card border-primary" style={componentStyles.contactsStatCard}>
             <div className="card-body text-center">
-              <h4 className="text-danger">{getRecordCount('projects')}</h4>
-              <p className="mb-0">Deleted Projects</p>
+              <i className="fas fa-project-diagram fa-2x text-primary mb-2"></i>
+              <h4 className="text-primary">{getRecordCount('projects')}</h4>
+              <small className="text-muted">Deleted Projects</small>
             </div>
           </div>
         </div>
         <div className="col-md-3">
-          <div className="card bg-light">
+          <div className="card border-secondary" style={componentStyles.contactsStatCard}>
             <div className="card-body text-center">
-              <h4 className="text-danger">{getRecordCount('users')}</h4>
-              <p className="mb-0">Deleted Users</p>
+              <i className="fas fa-user-cog fa-2x text-secondary mb-2"></i>
+              <h4 className="text-secondary">{getRecordCount('users')}</h4>
+              <small className="text-muted">Deleted Users</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Additional Stats Row */}
+      <div className="row mb-4">
+        <div className="col-md-4">
+          <div className="card border-success" style={componentStyles.contactsStatCard}>
+            <div className="card-body text-center">
+              <i className="fas fa-cogs fa-2x text-success mb-2"></i>
+              <h4 className="text-success">{getRecordCount('services')}</h4>
+              <small className="text-muted">Deleted Services</small>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-4">
+          <div className="card border-info" style={componentStyles.contactsStatCard}>
+            <div className="card-body text-center">
+              <i className="fas fa-credit-card fa-2x text-info mb-2"></i>
+              <h4 className="text-info">{getRecordCount('payments')}</h4>
+              <small className="text-muted">Deleted Payments</small>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-4">
+          <div className="card border-dark" style={componentStyles.contactsStatCard}>
+            <div className="card-body text-center">
+              <i className="fas fa-question-circle fa-2x text-dark mb-2"></i>
+              <h4 className="text-dark">{getRecordCount('queries')}</h4>
+              <small className="text-muted">Deleted Queries</small>
             </div>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="card">
-        <div className="card-header">
-          <ul className="nav nav-tabs card-header-tabs">
+      <div className="card" style={{ borderRadius: '16px', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.08)' }}>
+        <div className="card-header" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', border: 'none' }}>
+          <ul className="nav nav-tabs card-header-tabs" style={{ border: 'none' }}>
             {Object.keys(deletedRecords).map((type) => (
               <li className="nav-item" key={type}>
                 <button
                   className={`nav-link ${activeTab === type ? 'active' : ''}`}
                   onClick={() => setActiveTab(type)}
+                  style={{
+                    border: 'none',
+                    color: activeTab === type ? '#1e3a8a' : 'rgba(255,255,255,0.8)',
+                    backgroundColor: activeTab === type ? 'white' : 'transparent',
+                    borderRadius: '8px 8px 0 0',
+                    fontWeight: '500'
+                  }}
                 >
                   {type.charAt(0).toUpperCase() + type.slice(1)} 
                   <span className="badge bg-danger ms-2">{getRecordCount(type)}</span>
@@ -409,7 +477,7 @@ const DeletedRecords = () => {
             ))}
           </ul>
         </div>
-        <div className="card-body">
+        <div className="card-body" style={{ padding: '32px' }}>
           {loading ? (
             <div className="text-center py-4">
               <div className="spinner-border" role="status">
@@ -424,23 +492,25 @@ const DeletedRecords = () => {
 
       {/* Restore Confirmation Modal */}
       {showRestoreModal && selectedRecord && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Restore Record</h5>
+            <div className="modal-content" style={{ border: 'none', borderRadius: '20px', overflow: 'hidden', boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)' }}>
+              <div className="modal-header" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white', border: 'none', padding: '24px 32px 16px' }}>
+                <h5 className="modal-title">
+                  <i className="fas fa-undo me-2"></i>Restore Record
+                </h5>
                 <button
                   type="button"
-                  className="btn-close"
+                  className="btn-close btn-close-white"
                   onClick={() => {
                     setShowRestoreModal(false);
                     setSelectedRecord(null);
                   }}
                 ></button>
               </div>
-              <div className="modal-body">
+              <div className="modal-body" style={{ padding: '32px' }}>
                 <p>Are you sure you want to restore this {selectedRecord.type.slice(0, -1)} record?</p>
-                <div className="card bg-light">
+                <div className="card" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
                   <div className="card-body">
                     {selectedRecord.type === 'clients' && (
                       <>
@@ -487,7 +557,7 @@ const DeletedRecords = () => {
                   </div>
                 </div>
               </div>
-              <div className="modal-footer">
+              <div className="modal-footer" style={{ padding: '16px 32px 32px', background: '#f8fafc', border: 'none' }}>
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -495,6 +565,7 @@ const DeletedRecords = () => {
                     setShowRestoreModal(false);
                     setSelectedRecord(null);
                   }}
+                  style={{ borderRadius: '12px', fontWeight: '500' }}
                 >
                   Cancel
                 </button>
@@ -503,6 +574,13 @@ const DeletedRecords = () => {
                   className="btn btn-success"
                   onClick={() => handleRestore(selectedRecord.type, selectedRecord._id)}
                   disabled={loading}
+                  style={{ 
+                    borderRadius: '12px', 
+                    fontWeight: '500',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    border: 'none',
+                    boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+                  }}
                 >
                   {loading ? 'Restoring...' : 'Restore Record'}
                 </button>

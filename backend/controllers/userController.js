@@ -187,6 +187,17 @@ exports.createUser = async (req, res) => {
     
     const { first_name, last_name, email, password, role, phone, company, country } = req.body;
     
+    // Prevent creating admin users
+    if (role === 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'ADMIN_CREATION_FORBIDDEN',
+          message: 'Cannot create admin users through this endpoint'
+        }
+      });
+    }
+    
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -286,6 +297,17 @@ exports.updateUser = async (req, res) => {
         error: {
           code: 'FORBIDDEN',
           message: 'Only admins can change user roles'
+        }
+      });
+    }
+    
+    // Prevent creating admin users
+    if (req.body.role === 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'ADMIN_ROLE_ASSIGNMENT_FORBIDDEN',
+          message: 'Cannot assign admin role to users'
         }
       });
     }

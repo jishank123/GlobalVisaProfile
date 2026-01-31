@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { paymentsAPI, clientsAPI } from '../../../../services/api';
+import { designSystem, componentStyles, hoverEffects, getStatusBadgeStyle } from '../../../../styles/designSystem';
 
 const PaymentsManagement = () => {
   const [payments, setPayments] = useState([]);
@@ -131,19 +132,60 @@ const PaymentsManagement = () => {
 
   const filteredPayments = getFilteredPaymentsByPeriod();
 
+  const StatCard = ({ icon, number, label, borderColor, iconColor }) => (
+    <div 
+      style={{
+        ...componentStyles.contactsStatCard,
+        borderColor: borderColor,
+        cursor: 'pointer'
+      }}
+      {...hoverEffects.card}
+    >
+      <i className={`${icon} fa-2x mb-2`} style={{ color: iconColor }}></i>
+      <h4 style={{ 
+        color: iconColor,
+        fontWeight: designSystem.typography.fontWeight.bold,
+        marginBottom: '4px'
+      }}>
+        {number}
+      </h4>
+      <small style={{ color: designSystem.colors.gray[500] }}>
+        {label}
+      </small>
+    </div>
+  );
+
   return (
-    <div>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>
-          <i className="fas fa-credit-card text-primary me-2"></i>
-          Payments & Invoices Management
-        </h2>
-        <div className="d-flex gap-2">
-          <button className="btn btn-outline-primary">
+    <div style={componentStyles.managementCard}>
+      {/* Unified Header */}
+      <div style={componentStyles.header}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={componentStyles.headerIcon}>
+            <i className="fas fa-credit-card fa-lg"></i>
+          </div>
+          <div>
+            <h4 style={componentStyles.headerTitle}>Payments & Invoices Management</h4>
+            <p style={componentStyles.headerSubtitle}>Manage payment verification and invoicing</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: designSystem.spacing.sm }}>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: designSystem.colors.primary
+            }}
+            {...hoverEffects.button}
+          >
             <i className="fas fa-download me-2"></i>
             Export Report
           </button>
-          <button className="btn btn-success">
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: designSystem.colors.success
+            }}
+            {...hoverEffects.button}
+          >
             <i className="fas fa-plus me-2"></i>
             Create Invoice
           </button>
@@ -151,72 +193,42 @@ const PaymentsManagement = () => {
       </div>
 
       {/* Payment Stats */}
-      <div className="row mb-4">
-        <div className="col-md-2">
-          <div className="card bg-primary text-white">
-            <div className="card-body">
-              <div className="d-flex justify-content-between">
-                <div>
-                  <h4>{paymentStats.total}</h4>
-                  <p className="mb-0">Total Payments</p>
-                </div>
-                <i className="fas fa-credit-card fa-2x"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-2">
-          <div className="card bg-warning text-white">
-            <div className="card-body">
-              <div className="d-flex justify-content-between">
-                <div>
-                  <h4>{paymentStats.pending}</h4>
-                  <p className="mb-0">Pending Approval</p>
-                </div>
-                <i className="fas fa-clock fa-2x"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-2">
-          <div className="card bg-success text-white">
-            <div className="card-body">
-              <div className="d-flex justify-content-between">
-                <div>
-                  <h4>{paymentStats.verified}</h4>
-                  <p className="mb-0">Verified</p>
-                </div>
-                <i className="fas fa-check fa-2x"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-2">
-          <div className="card bg-danger text-white">
-            <div className="card-body">
-              <div className="d-flex justify-content-between">
-                <div>
-                  <h4>{paymentStats.rejected}</h4>
-                  <p className="mb-0">Rejected</p>
-                </div>
-                <i className="fas fa-times fa-2x"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-4">
-          <div className="card bg-info text-white">
-            <div className="card-body">
-              <div className="d-flex justify-content-between">
-                <div>
-                  <h4>{formatCurrency(paymentStats.totalAmount)}</h4>
-                  <p className="mb-0">Total Revenue</p>
-                </div>
-                <i className="fas fa-dollar-sign fa-2x"></i>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div style={componentStyles.statsContainer}>
+        <StatCard
+          icon="fas fa-credit-card"
+          number={paymentStats.total}
+          label="Total Payments"
+          borderColor="#3b82f6"
+          iconColor="#3b82f6"
+        />
+        <StatCard
+          icon="fas fa-clock"
+          number={paymentStats.pending}
+          label="Pending Approval"
+          borderColor="#f59e0b"
+          iconColor="#f59e0b"
+        />
+        <StatCard
+          icon="fas fa-check"
+          number={paymentStats.verified}
+          label="Verified"
+          borderColor="#10b981"
+          iconColor="#10b981"
+        />
+        <StatCard
+          icon="fas fa-times"
+          number={paymentStats.rejected}
+          label="Rejected"
+          borderColor="#ef4444"
+          iconColor="#ef4444"
+        />
+        <StatCard
+          icon="fas fa-dollar-sign"
+          number={formatCurrency(paymentStats.totalAmount)}
+          label="Total Revenue"
+          borderColor="#8b5cf6"
+          iconColor="#8b5cf6"
+        />
       </div>
 
       {/* Filters */}

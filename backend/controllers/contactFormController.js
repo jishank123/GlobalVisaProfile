@@ -657,24 +657,8 @@ const convertToLead = async (req, res) => {
       priority: priority || contactForm.priority || 'medium',
       estimatedValue: 0,
       status: 'new'
+      // Removed auto-assignment - leads should be manually assigned after qualification
     };
-    
-    // Auto-assign to available lead manager with least workload
-    const leadManagers = await User.find({ role: 'lead_manager', status: 'active' });
-    if (leadManagers.length > 0) {
-      const leadCounts = await Promise.all(
-        leadManagers.map(async (manager) => ({
-          manager: manager._id,
-          count: await Lead.countDocuments({ assignedTo: manager._id, status: { $ne: 'converted' } })
-        }))
-      );
-      
-      const leastBusyManager = leadCounts.reduce((min, current) => 
-        current.count < min.count ? current : min
-      );
-      
-      leadData.assignedTo = leastBusyManager.manager;
-    }
     
     const lead = new Lead(leadData);
     await lead.save();
@@ -846,31 +830,11 @@ const convertContactsToLeads = async (req, res) => {
           visa_interest: contactForm.visa_type
         };
 
-        // Auto-assign to least busy lead manager if not specified
+        // Only assign if explicitly specified (no auto-assignment)
         if (assignedTo) {
           leadData.assignedTo = assignedTo;
-        } else {
-          // Find least busy lead manager
-          const leadManagers = await User.find({ 
-            role: 'lead_manager', 
-            status: 'active' 
-          });
-          
-          if (leadManagers.length > 0) {
-            const leadCounts = await Promise.all(
-              leadManagers.map(async (manager) => ({
-                manager: manager._id,
-                count: await Lead.countDocuments({ assignedTo: manager._id, status: { $ne: 'converted' } })
-              }))
-            );
-            
-            const leastBusyManager = leadCounts.reduce((min, current) => 
-              current.count < min.count ? current : min
-            );
-            
-            leadData.assignedTo = leastBusyManager.manager;
-          }
         }
+        // Removed auto-assignment logic - leads should be manually assigned after qualification
 
         const newLead = await Lead.create(leadData);
         await newLead.populate('assignedTo', 'first_name last_name email');

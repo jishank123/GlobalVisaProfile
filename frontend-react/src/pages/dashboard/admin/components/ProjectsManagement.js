@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { projectsAPI } from '../../../../services/api';
+import { designSystem, componentStyles, hoverEffects, getStatusBadgeStyle } from '../../../../styles/designSystem';
 
 const ProjectsManagement = () => {
   const [projects, setProjects] = useState([]);
@@ -47,31 +48,20 @@ const ProjectsManagement = () => {
     }
   };
 
-  const getStatusBadgeClass = (status) => {
-    const statusClasses = {
-      'pending': 'bg-warning',
-      'in_progress': 'bg-primary',
-      'on_hold': 'bg-secondary',
-      'completed': 'bg-success',
-      'cancelled': 'bg-danger'
+  const getPriorityStyle = (priority) => {
+    const priorityColors = {
+      'low': designSystem.colors.success,
+      'medium': designSystem.colors.warning,
+      'high': designSystem.colors.danger
     };
-    return statusClasses[status] || 'bg-secondary';
-  };
-
-  const getPriorityClass = (priority) => {
-    const priorityClasses = {
-      'low': 'text-success',
-      'medium': 'text-warning',
-      'high': 'text-danger'
-    };
-    return priorityClasses[priority] || 'text-secondary';
+    return { color: priorityColors[priority] || designSystem.colors.gray[500] };
   };
 
   const getProgressBarClass = (progress) => {
-    if (progress >= 80) return 'bg-success';
-    if (progress >= 50) return 'bg-info';
-    if (progress >= 25) return 'bg-warning';
-    return 'bg-danger';
+    if (progress >= 80) return designSystem.colors.success;
+    if (progress >= 50) return designSystem.colors.info;
+    if (progress >= 25) return designSystem.colors.warning;
+    return designSystem.colors.danger;
   };
 
   const handleProjectSelection = (projectId) => {
@@ -99,8 +89,8 @@ Service: ${project.service?.name || project.service_name || 'Unknown Service'}
 Status: ${project.status.replace('_', ' ').toUpperCase()}
 Priority: ${(project.priority || 'medium').toUpperCase()}
 Progress: ${project.progress || 0}%
-Budget: $${(project.budget || 0).toLocaleString()}
-Spent: $${(project.spent || 0).toLocaleString()}
+Budget: ${(project.budget || 0).toLocaleString()}
+Spent: ${(project.spent || 0).toLocaleString()}
 Assigned To: ${project.assigned_to ? `${project.assigned_to.first_name} ${project.assigned_to.last_name}` : 'Unassigned'}
 Due Date: ${project.dueDate ? new Date(project.dueDate).toLocaleDateString() : 'No due date'}`);
   };
@@ -188,75 +178,113 @@ Enter new status:`);
     }
   };
 
-  const managementCardStyle = {
-    background: 'white',
-    borderRadius: '10px',
-    padding: '25px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-    marginBottom: '20px'
-  };
+  const StatCard = ({ icon, number, label, borderColor, iconColor }) => (
+    <div 
+      style={{
+        ...componentStyles.contactsStatCard,
+        borderColor: borderColor,
+        cursor: 'pointer'
+      }}
+      {...hoverEffects.card}
+    >
+      <i className={`${icon} fa-2x mb-2`} style={{ color: iconColor }}></i>
+      <h4 style={{ 
+        color: iconColor,
+        fontWeight: designSystem.typography.fontWeight.bold,
+        marginBottom: '4px'
+      }}>
+        {number}
+      </h4>
+      <small style={{ color: designSystem.colors.gray[500] }}>
+        {label}
+      </small>
+    </div>
+  );
 
   return (
-    <div className="management-card" style={managementCardStyle}>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h5>
-          <i className="fas fa-project-diagram me-2"></i>
-          Projects Management
-        </h5>
-        <div className="btn-group" role="group">
-          <button className="btn btn-outline-primary btn-sm" onClick={loadProjectsData}>
-            <i className="fas fa-sync-alt me-1"></i>Refresh
+    <div style={componentStyles.managementCard}>
+      {/* Unified Header */}
+      <div style={componentStyles.header}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={componentStyles.headerIcon}>
+            <i className="fas fa-project-diagram fa-lg"></i>
+          </div>
+          <div>
+            <h4 style={componentStyles.headerTitle}>Projects Management</h4>
+            <p style={componentStyles.headerSubtitle}>Track and manage project lifecycle</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: designSystem.spacing.sm }}>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: designSystem.colors.success
+            }}
+            onClick={loadProjectsData}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-sync-alt me-2"></i>Refresh
           </button>
-          <button className="btn btn-success btn-sm">
-            <i className="fas fa-plus me-1"></i>New Project
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: designSystem.colors.primary
+            }}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-plus me-2"></i>New Project
           </button>
         </div>
       </div>
 
       {/* Project Statistics */}
-      <div className="row mb-4">
-        <div className="col-md-3">
-          <div className="card border-info">
-            <div className="card-body text-center">
-              <i className="fas fa-project-diagram fa-2x text-info mb-2"></i>
-              <h4 className="text-info">{stats.totalProjects}</h4>
-              <small className="text-muted">Total Projects</small>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card border-primary">
-            <div className="card-body text-center">
-              <i className="fas fa-play-circle fa-2x text-primary mb-2"></i>
-              <h4 className="text-primary">{stats.activeProjects}</h4>
-              <small className="text-muted">Active</small>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card border-warning">
-            <div className="card-body text-center">
-              <i className="fas fa-clock fa-2x text-warning mb-2"></i>
-              <h4 className="text-warning">{stats.pendingProjects}</h4>
-              <small className="text-muted">Pending</small>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card border-success">
-            <div className="card-body text-center">
-              <i className="fas fa-check-circle fa-2x text-success mb-2"></i>
-              <h4 className="text-success">{stats.completedProjects}</h4>
-              <small className="text-muted">Completed</small>
-            </div>
-          </div>
-        </div>
+      <div style={componentStyles.statsContainer}>
+        <StatCard
+          icon="fas fa-project-diagram"
+          number={stats.totalProjects}
+          label="Total Projects"
+          borderColor="#8b5cf6"
+          iconColor="#8b5cf6"
+        />
+        <StatCard
+          icon="fas fa-play-circle"
+          number={stats.activeProjects}
+          label="Active"
+          borderColor="#3b82f6"
+          iconColor="#3b82f6"
+        />
+        <StatCard
+          icon="fas fa-clock"
+          number={stats.pendingProjects}
+          label="Pending"
+          borderColor="#f59e0b"
+          iconColor="#f59e0b"
+        />
+        <StatCard
+          icon="fas fa-check-circle"
+          number={stats.completedProjects}
+          label="Completed"
+          borderColor="#10b981"
+          iconColor="#10b981"
+        />
       </div>
 
       {/* Project Filters and Actions */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div className="d-flex gap-2">
-          <select className="form-select form-select-sm">
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: designSystem.spacing.md,
+        padding: designSystem.spacing.md,
+        background: designSystem.colors.gray[50],
+        borderRadius: designSystem.borderRadius.button
+      }}>
+        <div style={{ display: 'flex', gap: designSystem.spacing.sm }}>
+          <select style={{
+            ...componentStyles.formInput,
+            width: 'auto',
+            minWidth: '120px'
+          }}>
             <option value="">All Status</option>
             <option value="pending">Pending</option>
             <option value="in_progress">In Progress</option>
@@ -264,163 +292,263 @@ Enter new status:`);
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
           </select>
-          <select className="form-select form-select-sm">
+          <select style={{
+            ...componentStyles.formInput,
+            width: 'auto',
+            minWidth: '140px'
+          }}>
             <option value="">All Attorneys</option>
             <option value="attorney_1">Immigration Attorney 1</option>
             <option value="attorney_2">Immigration Attorney 2</option>
           </select>
-          <select className="form-select form-select-sm">
+          <select style={{
+            ...componentStyles.formInput,
+            width: 'auto',
+            minWidth: '120px'
+          }}>
             <option value="">All Priority</option>
             <option value="high">High</option>
             <option value="medium">Medium</option>
             <option value="low">Low</option>
           </select>
         </div>
-        <div className="btn-group" role="group">
+        <div>
           {selectedProjects.length > 0 && (
-            <>
-              <button className="btn btn-warning btn-sm">
+            <div style={{ display: 'flex', gap: designSystem.spacing.sm }}>
+              <button style={{
+                ...componentStyles.primaryButton,
+                background: designSystem.colors.warning,
+                fontSize: designSystem.typography.fontSize.sm
+              }}>
                 <i className="fas fa-user-cog me-1"></i>
                 Reassign ({selectedProjects.length})
               </button>
-              <button className="btn btn-info btn-sm">
+              <button style={{
+                ...componentStyles.primaryButton,
+                background: designSystem.colors.info,
+                fontSize: designSystem.typography.fontSize.sm
+              }}>
                 <i className="fas fa-edit me-1"></i>
                 Update Status
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>
 
       {/* Projects Table */}
-      <div className="table-responsive">
-        <table className="table table-hover">
-          <thead style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white' }}>
+      <div style={{ borderRadius: designSystem.borderRadius.button, overflow: 'hidden', boxShadow: designSystem.shadows.card }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead style={componentStyles.tableHeader}>
             <tr>
-              <th>
+              <th style={componentStyles.tableHeaderCell}>
                 <input 
                   type="checkbox" 
                   onChange={handleSelectAll}
                   checked={selectedProjects.length === projects.length && projects.length > 0}
                 />
               </th>
-              <th>Project</th>
-              <th>Client</th>
-              <th>Service</th>
-              <th>Status</th>
-              <th>Priority</th>
-              <th>Assigned To</th>
-              <th>Progress</th>
-              <th>Budget</th>
-              <th>Due Date</th>
-              <th>Actions</th>
+              <th style={componentStyles.tableHeaderCell}>Project</th>
+              <th style={componentStyles.tableHeaderCell}>Client</th>
+              <th style={componentStyles.tableHeaderCell}>Service</th>
+              <th style={componentStyles.tableHeaderCell}>Status</th>
+              <th style={componentStyles.tableHeaderCell}>Priority</th>
+              <th style={componentStyles.tableHeaderCell}>Assigned To</th>
+              <th style={componentStyles.tableHeaderCell}>Progress</th>
+              <th style={componentStyles.tableHeaderCell}>Budget</th>
+              <th style={componentStyles.tableHeaderCell}>Due Date</th>
+              <th style={componentStyles.tableHeaderCell}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="11" className="text-center">
-                  <div className="spinner-border spinner-border-sm me-2"></div>
-                  Loading projects...
+                <td colSpan="11" style={{ ...componentStyles.tableCell, textAlign: 'center', padding: designSystem.spacing.xl }}>
+                  <div style={componentStyles.loading}>
+                    <i className="fas fa-spinner fa-spin fa-2x" style={{ color: designSystem.colors.primary.split(' ')[0].split('(')[1] }}></i>
+                    <p style={{ marginTop: designSystem.spacing.md }}>Loading projects...</p>
+                  </div>
+                </td>
+              </tr>
+            ) : projects.length === 0 ? (
+              <tr>
+                <td colSpan="11" style={{ ...componentStyles.tableCell, textAlign: 'center', padding: designSystem.spacing.xl }}>
+                  <div style={componentStyles.emptyState}>
+                    <i className="fas fa-project-diagram fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
+                    <p style={{ color: designSystem.colors.gray[500] }}>No projects found</p>
+                  </div>
                 </td>
               </tr>
             ) : (
-              projects.map(project => (
-                <tr key={project._id}>
-                  <td>
-                    <input 
-                      type="checkbox" 
-                      checked={selectedProjects.includes(project._id)}
-                      onChange={() => handleProjectSelection(project._id)}
-                    />
-                  </td>
-                  <td>
-                    <div>
-                      <strong>{project.title || project.project_name || 'Untitled Project'}</strong>
-                      <br />
-                      <small className="text-muted">ID: {project._id.slice(-6).toUpperCase()}</small>
-                    </div>
-                  </td>
-                  <td>
-                    <div>
-                      <strong>{project.client?.name || project.client?.firstName + ' ' + project.client?.lastName || 'Unknown Client'}</strong>
-                      <br />
-                      <small className="text-muted">{project.client?.email || 'No email'}</small>
-                    </div>
-                  </td>
-                  <td>
-                    <span className="badge bg-secondary">{project.service?.name || project.service_name || 'Unknown Service'}</span>
-                  </td>
-                  <td>
-                    <span className={`badge ${getStatusBadgeClass(project.status)}`}>
-                      {project.status.replace('_', ' ').toUpperCase()}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={getPriorityClass(project.priority || 'medium')}>
-                      <strong>{(project.priority || 'medium').toUpperCase()}</strong>
-                    </span>
-                  </td>
-                  <td>
-                    {project.assigned_to ? (
-                      <span className="badge bg-info">{project.assigned_to.first_name} {project.assigned_to.last_name}</span>
-                    ) : (
-                      <span className="text-muted">Unassigned</span>
-                    )}
-                  </td>
-                  <td>
-                    <div className="d-flex align-items-center">
-                      <div className="progress me-2" style={{ width: '60px', height: '8px' }}>
-                        <div 
-                          className={`progress-bar ${getProgressBarClass(project.progress || 0)}`}
-                          style={{ width: `${project.progress || 0}%` }}
-                        ></div>
+              projects.map(project => {
+                const statusStyle = getStatusBadgeStyle(project.status);
+                const priorityStyle = getPriorityStyle(project.priority || 'medium');
+                const progressBarColor = getProgressBarClass(project.progress || 0);
+                
+                return (
+                  <tr 
+                    key={project._id}
+                    style={componentStyles.tableRow}
+                    {...hoverEffects.tableRow}
+                  >
+                    <td style={componentStyles.tableCell}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedProjects.includes(project._id)}
+                        onChange={() => handleProjectSelection(project._id)}
+                      />
+                    </td>
+                    <td style={componentStyles.tableCell}>
+                      <div>
+                        <strong>{project.title || project.project_name || 'Untitled Project'}</strong>
+                        <br />
+                        <small style={{ color: designSystem.colors.gray[500] }}>
+                          ID: {project._id.slice(-6).toUpperCase()}
+                        </small>
                       </div>
-                      <small>{project.progress || 0}%</small>
-                    </div>
-                  </td>
-                  <td>
-                    <div>
-                      <strong>${(project.spent || 0).toLocaleString()}</strong>
-                      <br />
-                      <small className="text-muted">of ${(project.budget || 0).toLocaleString()}</small>
-                    </div>
-                  </td>
-                  <td>{project.dueDate ? new Date(project.dueDate).toLocaleDateString() : 'No due date'}</td>
-                  <td>
-                    <div className="btn-group btn-group-sm">
-                      <button 
-                        className="btn btn-outline-primary" 
-                        onClick={() => viewProjectDetails(project)}
-                        title="View Details"
-                      >
-                        <i className="fas fa-eye"></i>
-                      </button>
-                      <button 
-                        className="btn btn-outline-warning" 
-                        onClick={() => editProject(project)}
-                        title="Edit Project"
-                      >
-                        <i className="fas fa-edit"></i>
-                      </button>
-                      <button 
-                        className="btn btn-outline-info" 
-                        onClick={() => addProjectNote(project)}
-                        title="Add Note"
-                      >
-                        <i className="fas fa-sticky-note"></i>
-                      </button>
-                      <button 
-                        className="btn btn-outline-success" 
-                        onClick={() => updateProjectProgress(project)}
-                        title="Update Progress"
-                      >
-                        <i className="fas fa-tasks"></i>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+                    </td>
+                    <td style={componentStyles.tableCell}>
+                      <div>
+                        <strong>{project.client?.name || project.client?.firstName + ' ' + project.client?.lastName || 'Unknown Client'}</strong>
+                        <br />
+                        <small style={{ color: designSystem.colors.gray[500] }}>
+                          {project.client?.email || 'No email'}
+                        </small>
+                      </div>
+                    </td>
+                    <td style={componentStyles.tableCell}>
+                      <span style={{
+                        ...componentStyles.badge,
+                        background: designSystem.colors.gray[400],
+                        color: 'white'
+                      }}>
+                        {project.service?.name || project.service_name || 'Unknown Service'}
+                      </span>
+                    </td>
+                    <td style={componentStyles.tableCell}>
+                      <span style={{
+                        ...componentStyles.badge,
+                        background: statusStyle.background,
+                        color: statusStyle.color
+                      }}>
+                        {project.status.replace('_', ' ').toUpperCase()}
+                      </span>
+                    </td>
+                    <td style={componentStyles.tableCell}>
+                      <span style={{
+                        ...priorityStyle,
+                        fontWeight: designSystem.typography.fontWeight.bold
+                      }}>
+                        {(project.priority || 'medium').toUpperCase()}
+                      </span>
+                    </td>
+                    <td style={componentStyles.tableCell}>
+                      {project.assigned_to ? (
+                        <span style={{
+                          ...componentStyles.badge,
+                          background: designSystem.colors.info,
+                          color: 'white'
+                        }}>
+                          {project.assigned_to.first_name} {project.assigned_to.last_name}
+                        </span>
+                      ) : (
+                        <span style={{ color: designSystem.colors.gray[500] }}>Unassigned</span>
+                      )}
+                    </td>
+                    <td style={componentStyles.tableCell}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: designSystem.spacing.xs }}>
+                        <div style={{ 
+                          width: '60px', 
+                          height: '8px',
+                          background: designSystem.colors.gray[200],
+                          borderRadius: '4px',
+                          overflow: 'hidden'
+                        }}>
+                          <div 
+                            style={{
+                              width: `${project.progress || 0}%`,
+                              height: '100%',
+                              background: progressBarColor,
+                              transition: 'width 0.3s ease'
+                            }}
+                          ></div>
+                        </div>
+                        <small style={{ fontSize: designSystem.typography.fontSize.xs }}>
+                          {project.progress || 0}%
+                        </small>
+                      </div>
+                    </td>
+                    <td style={componentStyles.tableCell}>
+                      <div>
+                        <strong>${(project.spent || 0).toLocaleString()}</strong>
+                        <br />
+                        <small style={{ color: designSystem.colors.gray[500] }}>
+                          of ${(project.budget || 0).toLocaleString()}
+                        </small>
+                      </div>
+                    </td>
+                    <td style={componentStyles.tableCell}>
+                      {project.dueDate ? new Date(project.dueDate).toLocaleDateString() : 'No due date'}
+                    </td>
+                    <td style={componentStyles.tableCell}>
+                      <div style={{ display: 'flex', gap: designSystem.spacing.xs }}>
+                        <button 
+                          style={{
+                            ...componentStyles.secondaryButton,
+                            padding: `${designSystem.spacing.xs} ${designSystem.spacing.sm}`,
+                            fontSize: designSystem.typography.fontSize.sm,
+                            background: designSystem.colors.primary,
+                            color: 'white'
+                          }}
+                          onClick={() => viewProjectDetails(project)}
+                          title="View Details"
+                        >
+                          <i className="fas fa-eye"></i>
+                        </button>
+                        <button 
+                          style={{
+                            ...componentStyles.secondaryButton,
+                            padding: `${designSystem.spacing.xs} ${designSystem.spacing.sm}`,
+                            fontSize: designSystem.typography.fontSize.sm,
+                            background: designSystem.colors.warning,
+                            color: 'white'
+                          }}
+                          onClick={() => editProject(project)}
+                          title="Edit Project"
+                        >
+                          <i className="fas fa-edit"></i>
+                        </button>
+                        <button 
+                          style={{
+                            ...componentStyles.secondaryButton,
+                            padding: `${designSystem.spacing.xs} ${designSystem.spacing.sm}`,
+                            fontSize: designSystem.typography.fontSize.sm,
+                            background: designSystem.colors.info,
+                            color: 'white'
+                          }}
+                          onClick={() => addProjectNote(project)}
+                          title="Add Note"
+                        >
+                          <i className="fas fa-sticky-note"></i>
+                        </button>
+                        <button 
+                          style={{
+                            ...componentStyles.secondaryButton,
+                            padding: `${designSystem.spacing.xs} ${designSystem.spacing.sm}`,
+                            fontSize: designSystem.typography.fontSize.sm,
+                            background: designSystem.colors.success,
+                            color: 'white'
+                          }}
+                          onClick={() => updateProjectProgress(project)}
+                          title="Update Progress"
+                        >
+                          <i className="fas fa-tasks"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -428,25 +556,47 @@ Enter new status:`);
 
       {/* Bulk Actions */}
       {selectedProjects.length > 0 && (
-        <div className="mt-3 p-3 bg-light rounded">
-          <div className="d-flex justify-content-between align-items-center">
-            <span>
+        <div style={{
+          marginTop: designSystem.spacing.md,
+          padding: designSystem.spacing.md,
+          background: designSystem.colors.light,
+          borderRadius: designSystem.borderRadius.button,
+          border: `1px solid ${designSystem.colors.gray[200]}`
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: designSystem.typography.fontWeight.medium }}>
               <strong>{selectedProjects.length}</strong> project(s) selected
             </span>
-            <div className="btn-group" role="group">
-              <button className="btn btn-primary btn-sm">
+            <div style={{ display: 'flex', gap: designSystem.spacing.sm }}>
+              <button style={{
+                ...componentStyles.primaryButton,
+                background: designSystem.colors.primary,
+                fontSize: designSystem.typography.fontSize.sm
+              }}>
                 <i className="fas fa-user-cog me-1"></i>
                 Reassign Projects
               </button>
-              <button className="btn btn-warning btn-sm">
+              <button style={{
+                ...componentStyles.primaryButton,
+                background: designSystem.colors.warning,
+                fontSize: designSystem.typography.fontSize.sm
+              }}>
                 <i className="fas fa-edit me-1"></i>
                 Update Status
               </button>
-              <button className="btn btn-info btn-sm">
+              <button style={{
+                ...componentStyles.primaryButton,
+                background: designSystem.colors.info,
+                fontSize: designSystem.typography.fontSize.sm
+              }}>
                 <i className="fas fa-sticky-note me-1"></i>
                 Add Bulk Note
               </button>
-              <button className="btn btn-success btn-sm">
+              <button style={{
+                ...componentStyles.primaryButton,
+                background: designSystem.colors.success,
+                fontSize: designSystem.typography.fontSize.sm
+              }}>
                 <i className="fas fa-file-export me-1"></i>
                 Export Selected
               </button>
@@ -459,4 +609,3 @@ Enter new status:`);
 };
 
 export default ProjectsManagement;
-   

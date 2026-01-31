@@ -1,23 +1,25 @@
 import { useState, useEffect } from 'react';
-import { contactAPI, profileAssessmentsAPI, appointmentsAPI } from '../../../../services/api';
+import { contactAPI, profileAssessmentsAPI, appointmentsAPI, usersAPI, leadsAPI } from '../../../../services/api';
 
 const ContactsManagement = () => {
   const [activeTab, setActiveTab] = useState('contact');
   const [contacts, setContacts] = useState([]);
   const [assessments, setAssessments] = useState([]);
   const [appointments, setAppointments] = useState([]);
+  const [registrations, setRegistrations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
-  const [selectedContacts, setSelectedContacts] = useState([]);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedContact, setSelectedContact] = useState(null);
   const [convertFormData, setConvertFormData] = useState({
     priority: 'medium',
-    assignedTo: '',
     notes: ''
   });
   const [stats, setStats] = useState({
     contactForms: 0,
     assessments: 0,
-    appointments: 0
+    appointments: 0,
+    registrations: 0
   });
 
   useEffect(() => {
@@ -30,27 +32,84 @@ const ContactsManagement = () => {
       
       // Load contact forms
       const contactsResponse = await contactAPI.getAll();
+      let contactsData = [];
       if (contactsResponse.success) {
-        setContacts(contactsResponse.data?.contact_forms || contactsResponse.data || []);
+        contactsData = contactsResponse.data?.contact_forms || contactsResponse.data || [];
+        // Filter out converted contacts
+        contactsData = contactsData.filter(contact => 
+          !contact.converted_to_lead && contact.status !== 'converted'
+        );
+        setContacts(Array.isArray(contactsData) ? contactsData : []);
+      } else {
+        setContacts([]);
       }
 
       // Load profile assessments
       const assessmentsResponse = await profileAssessmentsAPI.getAll();
+      let assessmentsData = [];
       if (assessmentsResponse.success) {
-        setAssessments(assessmentsResponse.data || []);
+        assessmentsData = assessmentsResponse.data?.assessments || assessmentsResponse.data || [];
+        // Filter out converted assessments
+        assessmentsData = assessmentsData.filter(assessment => 
+          assessment.status !== 'Converted' && !assessment.converted_to_lead_id
+        );
+        setAssessments(Array.isArray(assessmentsData) ? assessmentsData : []);
+      } else {
+        setAssessments([]);
       }
 
       // Load appointments
       const appointmentsResponse = await appointmentsAPI.getAll();
+      let appointmentsData = [];
       if (appointmentsResponse.success) {
-        setAppointments(appointmentsResponse.data || []);
+        appointmentsData = appointmentsResponse.data?.appointments || appointmentsResponse.data || [];
+        // Filter out converted appointments (check if lead exists with same email and source)
+        setAppointments(Array.isArray(appointmentsData) ? appointmentsData : []);
+      } else {
+        setAppointments([]);
       }
 
-      // Update statistics
+      // Load existing leads to check for duplicates
+      const leadsResponse = await leadsAPI.getAll();
+      let existingLeadEmails = new Set();
+      if (leadsResponse.success) {
+        const leadsData = leadsResponse.data?.leads || leadsResponse.data || [];
+        existingLeadEmails = new Set(
+          leadsData.map(lead => lead.email?.toLowerCase()).filter(Boolean)
+        );
+      }
+
+      // Load user registrations (clients who registered directly)
+      const registrationsResponse = await usersAPI.getAll({ role: 'client' });
+      let registrationsData = [];
+      if (registrationsResponse.success) {
+        registrationsData = registrationsResponse.data || [];
+        
+        // Filter out users who have filled any forms (to avoid duplicates)
+        const contactEmails = contactsData.map(c => c.email?.toLowerCase()).filter(Boolean);
+        const assessmentEmails = assessmentsData.map(a => a.client_email?.toLowerCase()).filter(Boolean);
+        const appointmentEmails = appointmentsData.map(a => a.email?.toLowerCase()).filter(Boolean);
+        
+        const formEmails = new Set([...contactEmails, ...assessmentEmails, ...appointmentEmails]);
+        
+        registrationsData = registrationsData.filter(user => {
+          const userEmail = user.email?.toLowerCase();
+          return userEmail && 
+                 !formEmails.has(userEmail) && // Not filled any forms
+                 !existingLeadEmails.has(userEmail); // Not already a lead
+        });
+        
+        setRegistrations(Array.isArray(registrationsData) ? registrationsData : []);
+      } else {
+        setRegistrations([]);
+      }
+
+      // Update statistics with filtered data
       setStats({
-        contactForms: contactsResponse.data?.contact_forms?.length || contactsResponse.data?.length || 0,
-        assessments: assessmentsResponse.data?.length || 0,
-        appointments: appointmentsResponse.data?.length || 0
+        contactForms: Array.isArray(contactsData) ? contactsData.length : 0,
+        assessments: Array.isArray(assessmentsData) ? assessmentsData.length : 0,
+        appointments: Array.isArray(appointmentsData) ? appointmentsData.length : 0,
+        registrations: Array.isArray(registrationsData) ? registrationsData.length : 0
       });
 
     } catch (error) {
@@ -59,7 +118,8 @@ const ContactsManagement = () => {
       setContacts([]);
       setAssessments([]);
       setAppointments([]);
-      setStats({ contactForms: 0, assessments: 0, appointments: 0 });
+      setRegistrations([]);
+      setStats({ contactForms: 0, assessments: 0, appointments: 0, registrations: 0 });
     } finally {
       setLoading(false);
     }
@@ -88,100 +148,202 @@ const ContactsManagement = () => {
   };
 
   const viewContactDetails = (contact) => {
-    alert(`Contact Details:
-    
-Name: ${contact.name}
-Email: ${contact.email}
-Phone: ${contact.phone || 'Not provided'}
-Visa Type: ${contact.visa_type || 'Not specified'}
-Priority: ${contact.priority || 'Medium'}
-Status: ${contact.status || 'New'}
-Message: ${contact.message || 'No message'}
-Submitted: ${new Date(contact.createdAt || contact.submitted_at).toLocaleDateString()}`);
+    setSelectedContact({
+      type: 'contact',
+      data: contact
+    });
+    setShowDetailsModal(true);
   };
 
-  const convertSingleContact = (contactId) => {
-    setSelectedContacts([contactId]);
+  const convertSingleContact = (contact, contactType = 'contact') => {
+    setSelectedContact({
+      id: contact._id || contact.id,
+      type: contactType,
+      data: contact
+    });
     setShowConvertModal(true);
   };
 
   const viewAssessmentDetails = (assessment) => {
-    alert(`Profile Assessment Details:
-    
-Name: ${assessment.client_name}
-Email: ${assessment.client_email}
-Overall Score: ${assessment.overall_score || 'Not calculated'}
-Education Score: ${assessment.education_score || 'N/A'}
-Experience Score: ${assessment.experience_score || 'N/A'}
-Publications Score: ${assessment.publications_score || 'N/A'}
-Awards Score: ${assessment.awards_score || 'N/A'}
-Status: ${assessment.status || 'Pending'}
-Submitted: ${new Date(assessment.submitted_at).toLocaleDateString()}`);
+    setSelectedContact({
+      type: 'assessment',
+      data: assessment
+    });
+    setShowDetailsModal(true);
   };
 
   const viewAppointmentDetails = (appointment) => {
-    alert(`Appointment Details:
-    
-Name: ${appointment.name}
-Email: ${appointment.email}
-Phone: ${appointment.phone || 'Not provided'}
-Service: ${appointment.service || 'General consultation'}
-Preferred Date: ${appointment.preferred_date ? new Date(appointment.preferred_date).toLocaleDateString() : 'Not specified'}
-Preferred Time: ${appointment.preferred_time || 'Not specified'}
-Status: ${appointment.status || 'Pending'}
-Message: ${appointment.message || 'No message'}
-Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
+    setSelectedContact({
+      type: 'appointment',
+      data: appointment
+    });
+    setShowDetailsModal(true);
+  };
+
+  const viewRegistrationDetails = (registration) => {
+    setSelectedContact({
+      type: 'registration',
+      data: registration
+    });
+    setShowDetailsModal(true);
+  };
+
+  const checkLeadExists = async (email) => {
+    try {
+      const leadsResponse = await leadsAPI.getAll();
+      if (leadsResponse.success) {
+        const leadsData = leadsResponse.data?.leads || leadsResponse.data || [];
+        return leadsData.some(lead => 
+          lead.email?.toLowerCase() === email?.toLowerCase()
+        );
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking existing leads:', error);
+      return false;
+    }
   };
 
   const handleConvertToLead = async () => {
-    if (selectedContacts.length === 0) {
-      alert('Please select at least one contact to convert to lead.');
+    if (!selectedContact?.id) {
+      alert('Please select a contact to convert to lead.');
       return;
     }
 
     try {
-      const response = await contactAPI.convertToLeads({
-        contactIds: selectedContacts,
-        priority: convertFormData.priority,
-        assignedTo: convertFormData.assignedTo || null,
-        notes: convertFormData.notes
-      });
+      // Get email based on contact type
+      let contactEmail;
+      switch (selectedContact.type) {
+        case 'contact':
+          contactEmail = selectedContact.data?.email;
+          break;
+        case 'assessment':
+          contactEmail = selectedContact.data?.client_email;
+          break;
+        case 'appointment':
+        case 'registration':
+          contactEmail = selectedContact.data?.email;
+          break;
+        default:
+          contactEmail = selectedContact.data?.email;
+      }
+
+      if (!contactEmail) {
+        alert('Cannot convert: Email address not found.');
+        return;
+      }
+
+      // Check if lead already exists with this email
+      const leadExists = await checkLeadExists(contactEmail);
+      if (leadExists) {
+        alert(`⚠️ Warning: A lead already exists with the email "${contactEmail}". Cannot create duplicate lead.`);
+        return;
+      }
+
+      let response;
+      const conversionData = {
+        priority: convertFormData.priority
+      };
+
+      // Only add notes if they're not empty
+      if (convertFormData.notes && convertFormData.notes.trim()) {
+        conversionData.notes = convertFormData.notes.trim();
+      }
+
+      // Use appropriate API endpoint based on contact type
+      switch (selectedContact.type) {
+        case 'contact':
+          response = await contactAPI.convertToLead(selectedContact.id, conversionData);
+          break;
+        
+        case 'assessment':
+          response = await profileAssessmentsAPI.convertToLead(selectedContact.id, conversionData);
+          break;
+        
+        case 'appointment':
+          // For appointments, create a new lead since there's no specific convert endpoint
+          const appointmentName = selectedContact.data?.name || 'Unknown';
+          const nameParts = appointmentName.split(' ');
+          const appointmentPhone = selectedContact.data?.phone;
+          const appointmentEmail = selectedContact.data?.email;
+          
+          if (!appointmentEmail) {
+            throw new Error('Email is required for appointment conversion');
+          }
+          
+          response = await leadsAPI.create({
+            firstName: nameParts[0] || 'Unknown',
+            lastName: nameParts.slice(1).join(' ') || 'Unknown',
+            email: appointmentEmail,
+            phone: (appointmentPhone && appointmentPhone.length >= 10) ? appointmentPhone : undefined,
+            source: 'website',
+            priority: convertFormData.priority,
+            notes: `Converted from appointment request. ${convertFormData.notes || ''}`.trim(),
+            estimatedValue: 0
+          });
+          break;
+        
+        case 'registration':
+          // For user registrations, create a new lead since there's no specific convert endpoint
+          const registrationPhone = selectedContact.data?.phone;
+          const registrationEmail = selectedContact.data?.email;
+          
+          if (!registrationEmail) {
+            throw new Error('Email is required for registration conversion');
+          }
+          
+          response = await leadsAPI.create({
+            firstName: selectedContact.data?.first_name || 'Unknown',
+            lastName: selectedContact.data?.last_name || 'Unknown',
+            email: registrationEmail,
+            phone: (registrationPhone && registrationPhone.length >= 10) ? registrationPhone : undefined,
+            source: 'website',
+            priority: convertFormData.priority,
+            notes: `Converted from user registration. Company: ${selectedContact.data?.company || 'Not specified'}. ${convertFormData.notes || ''}`.trim(),
+            estimatedValue: 0
+          });
+          break;
+        
+        default:
+          throw new Error('Invalid contact type for conversion');
+      }
 
       if (response.success) {
-        alert(`Successfully converted ${response.data.conversion_count} contact(s) to lead(s) with ${convertFormData.priority} priority.`);
+        alert(`✅ Successfully converted ${selectedContact.type} to lead with ${convertFormData.priority} priority!`);
         
-        if (response.data.errors && response.data.errors.length > 0) {
-          console.warn('Some conversions had errors:', response.data.errors);
+        // Remove the converted record from the UI immediately
+        switch (selectedContact.type) {
+          case 'contact':
+            setContacts(prev => prev.filter(c => (c._id || c.id) !== selectedContact.id));
+            setStats(prev => ({ ...prev, contactForms: prev.contactForms - 1 }));
+            break;
+          case 'assessment':
+            setAssessments(prev => prev.filter(a => (a._id || a.id) !== selectedContact.id));
+            setStats(prev => ({ ...prev, assessments: prev.assessments - 1 }));
+            break;
+          case 'appointment':
+            setAppointments(prev => prev.filter(a => (a._id || a.id) !== selectedContact.id));
+            setStats(prev => ({ ...prev, appointments: prev.appointments - 1 }));
+            break;
+          case 'registration':
+            setRegistrations(prev => prev.filter(r => (r._id || r.id) !== selectedContact.id));
+            setStats(prev => ({ ...prev, registrations: prev.registrations - 1 }));
+            break;
         }
         
         setShowConvertModal(false);
-        setSelectedContacts([]);
-        setConvertFormData({ priority: 'medium', assignedTo: '', notes: '' });
-        loadContactsData();
+        setSelectedContact(null);
+        setConvertFormData({ priority: 'medium', notes: '' });
+        
+        // Optional: Refresh data to ensure consistency
+        // loadContactsData();
       } else {
         throw new Error(response.error?.message || 'Conversion failed');
       }
+      
     } catch (error) {
-      console.error('Error converting to leads:', error);
-      alert(`Error converting contacts to leads: ${error.message}`);
-    }
-  };
-
-  const handleContactSelection = (contactId, isSelected) => {
-    if (isSelected) {
-      setSelectedContacts(prev => [...prev, contactId]);
-    } else {
-      setSelectedContacts(prev => prev.filter(id => id !== contactId));
-    }
-  };
-
-  const handleSelectAll = (isSelected) => {
-    if (isSelected) {
-      const currentTabContacts = activeTab === 'contact' ? contacts : 
-                                activeTab === 'assessment' ? assessments : appointments;
-      setSelectedContacts(currentTabContacts.map(item => item.id));
-    } else {
-      setSelectedContacts([]);
+      console.error('❌ Error converting to lead:', error);
+      alert(`❌ Error converting contact to lead: ${error.message}`);
     }
   };
 
@@ -196,7 +358,6 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
 
   const primaryGradient = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
   const successGradient = 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)';
-  const warningGradient = 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)';
 
   return (
     <div className="management-card" style={managementCardStyle}>
@@ -240,7 +401,7 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
 
       {/* Statistics Cards */}
       <div className="row mb-4">
-        <div className="col-md-4">
+        <div className="col-md-3">
           <div className="card border-primary">
             <div className="card-body text-center">
               <i className="fas fa-user-check fa-2x text-primary mb-2"></i>
@@ -249,7 +410,7 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
             </div>
           </div>
         </div>
-        <div className="col-md-4">
+        <div className="col-md-3">
           <div className="card border-success">
             <div className="card-body text-center">
               <i className="fas fa-chart-line fa-2x text-success mb-2"></i>
@@ -258,12 +419,21 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
             </div>
           </div>
         </div>
-        <div className="col-md-4">
+        <div className="col-md-3">
           <div className="card border-warning">
             <div className="card-body text-center">
               <i className="fas fa-calendar-check fa-2x text-warning mb-2"></i>
               <h4 className="text-warning">{stats.appointments}</h4>
               <small className="text-muted">Appointment Requests</small>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="card border-info">
+            <div className="card-body text-center">
+              <i className="fas fa-user-plus fa-2x text-info mb-2"></i>
+              <h4 className="text-info">{stats.registrations}</h4>
+              <small className="text-muted">Registrations</small>
             </div>
           </div>
         </div>
@@ -295,43 +465,24 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
             <i className="fas fa-calendar-check me-1"></i>Appointments
           </button>
         </li>
+        <li className="nav-item" role="presentation">
+          <button 
+            className={`nav-link ${activeTab === 'registration' ? 'active' : ''}`}
+            onClick={() => setActiveTab('registration')}
+          >
+            <i className="fas fa-user-plus me-1"></i>Pure Registrations
+          </button>
+        </li>
       </ul>
 
       <div className="tab-content mt-3">
         {/* Contact Us Tab */}
         {activeTab === 'contact' && (
           <div className="tab-pane fade show active">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <div className="d-flex gap-2">
-                <select className="form-select form-select-sm">
-                  <option value="">All Status</option>
-                  <option value="new">New</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="resolved">Resolved</option>
-                </select>
-                <select className="form-select form-select-sm">
-                  <option value="">All Visa Types</option>
-                  <option value="eb1a">EB-1A</option>
-                  <option value="eb2-niw">EB-2 NIW</option>
-                  <option value="o1">O-1 Visa</option>
-                </select>
-              </div>
-              <button className="btn btn-success btn-sm" onClick={() => setShowConvertModal(true)}>
-                <i className="fas fa-user-plus me-1"></i>Convert to Leads ({selectedContacts.length})
-              </button>
-            </div>
-
             <div className="table-responsive">
               <table className="table table-hover">
                 <thead style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white' }}>
                   <tr>
-                    <th>
-                      <input 
-                        type="checkbox" 
-                        onChange={(e) => handleSelectAll(e.target.checked)}
-                        checked={selectedContacts.length === contacts.length && contacts.length > 0}
-                      />
-                    </th>
                     <th>Name</th>
                     <th>Email</th>
                     <th>Visa Type</th>
@@ -344,21 +495,14 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="8" className="text-center">
+                      <td colSpan="7" className="text-center">
                         <div className="spinner-border spinner-border-sm me-2"></div>
                         Loading contact submissions...
                       </td>
                     </tr>
                   ) : (
-                    contacts.map(contact => (
+                    (contacts || []).map(contact => (
                       <tr key={contact._id || contact.id}>
-                        <td>
-                          <input 
-                            type="checkbox" 
-                            checked={selectedContacts.includes(contact._id || contact.id)}
-                            onChange={(e) => handleContactSelection(contact._id || contact.id, e.target.checked)}
-                          />
-                        </td>
                         <td><strong>{contact.name}</strong></td>
                         <td>{contact.email}</td>
                         <td>
@@ -388,10 +532,10 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
                             </button>
                             <button 
                               className="btn btn-outline-success"
-                              onClick={() => convertSingleContact(contact._id)}
+                              onClick={() => convertSingleContact(contact, 'contact')}
                               title="Convert to Lead"
                             >
-                              <i className="fas fa-user-plus"></i>
+                              <i className="fas fa-calendar-plus"></i>
                             </button>
                           </div>
                         </td>
@@ -407,27 +551,10 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
         {/* Profile Assessments Tab */}
         {activeTab === 'assessment' && (
           <div className="tab-pane fade show active">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <div className="d-flex gap-2">
-                <select className="form-select form-select-sm">
-                  <option value="">All Strengths</option>
-                  <option value="Excellent Profile Strength">Excellent</option>
-                  <option value="Good Profile Strength">Good</option>
-                  <option value="Moderate Profile Strength">Moderate</option>
-                  <option value="Needs Development">Needs Development</option>
-                </select>
-                <input type="number" className="form-control form-control-sm" placeholder="Min Score" />
-              </div>
-              <button className="btn btn-success btn-sm" onClick={() => setShowConvertModal(true)}>
-                <i className="fas fa-user-plus me-1"></i>Convert to Leads ({selectedContacts.length})
-              </button>
-            </div>
-
             <div className="table-responsive">
               <table className="table table-hover">
                 <thead style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white' }}>
                   <tr>
-                    <th><input type="checkbox" /></th>
                     <th>Name</th>
                     <th>Email</th>
                     <th>Score</th>
@@ -439,30 +566,29 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
                   </tr>
                 </thead>
                 <tbody>
-                  {assessments.map(assessment => (
-                    <tr key={assessment.id}>
-                      <td><input type="checkbox" /></td>
-                      <td><strong>{assessment.name}</strong></td>
-                      <td>{assessment.email}</td>
+                  {(assessments || []).map(assessment => (
+                    <tr key={assessment._id || assessment.id}>
+                      <td><strong>{assessment.client_name}</strong></td>
+                      <td>{assessment.client_email}</td>
                       <td>
                         <div className="d-flex align-items-center">
-                          <span className="me-2">{assessment.score}</span>
+                          <span className="me-2">{assessment.overall_score || 0}</span>
                           <div className="progress" style={{ width: '60px', height: '6px' }}>
                             <div 
                               className="progress-bar bg-success" 
-                              style={{ width: `${assessment.score}%` }}
+                              style={{ width: `${assessment.overall_score || 0}%` }}
                             ></div>
                           </div>
                         </div>
                       </td>
                       <td>
                         <span className="badge bg-success">
-                          {assessment.strength}
+                          {assessment.profile_strength || 'Not calculated'}
                         </span>
                       </td>
-                      <td>{assessment.field}</td>
-                      <td>{assessment.experience}</td>
-                      <td>{new Date(assessment.submitted_at).toLocaleDateString()}</td>
+                      <td>{assessment.field_of_expertise}</td>
+                      <td>{assessment.years_of_experience}</td>
+                      <td>{new Date(assessment.createdAt || assessment.submitted_at).toLocaleDateString()}</td>
                       <td>
                         <div className="btn-group btn-group-sm">
                           <button 
@@ -474,10 +600,10 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
                           </button>
                           <button 
                             className="btn btn-outline-success"
-                            onClick={() => convertSingleContact(assessment._id)}
+                            onClick={() => convertSingleContact(assessment, 'assessment')}
                             title="Convert to Lead"
                           >
-                            <i className="fas fa-user-plus"></i>
+                            <i className="fas fa-calendar-plus"></i>
                           </button>
                         </div>
                       </td>
@@ -492,37 +618,10 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
         {/* Appointments Tab */}
         {activeTab === 'appointment' && (
           <div className="tab-pane fade show active">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <div className="d-flex gap-2">
-                <select className="form-select form-select-sm">
-                  <option value="">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="scheduled">Scheduled</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-                <select className="form-select form-select-sm">
-                  <option value="">All Visa Types</option>
-                  <option value="eb1a">EB-1A</option>
-                  <option value="eb2-niw">EB-2 NIW</option>
-                  <option value="o1">O-1 Visa</option>
-                </select>
-              </div>
-              <div className="btn-group" role="group">
-                <button className="btn btn-primary btn-sm">
-                  <i className="fas fa-calendar-plus me-1"></i>Schedule Selected
-                </button>
-                <button className="btn btn-success btn-sm" onClick={() => setShowConvertModal(true)}>
-                  <i className="fas fa-user-plus me-1"></i>Convert to Leads ({selectedContacts.length})
-                </button>
-              </div>
-            </div>
-
             <div className="table-responsive">
               <table className="table table-hover">
                 <thead style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white' }}>
                   <tr>
-                    <th><input type="checkbox" /></th>
                     <th>Name</th>
                     <th>Email</th>
                     <th>Visa Category</th>
@@ -534,24 +633,25 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
                   </tr>
                 </thead>
                 <tbody>
-                  {appointments.map(appointment => (
-                    <tr key={appointment.id}>
-                      <td><input type="checkbox" /></td>
+                  {(appointments || []).map(appointment => (
+                    <tr key={appointment._id || appointment.id}>
                       <td><strong>{appointment.name}</strong></td>
                       <td>{appointment.email}</td>
                       <td>
                         <span className="badge bg-info">
-                          {appointment.visa_category.toUpperCase()}
+                          {(appointment.visa_category || 'other').toUpperCase()}
                         </span>
                       </td>
                       <td>
                         <span className={`badge ${getStatusBadgeClass(appointment.status)}`}>
-                          {appointment.status.toUpperCase()}
+                          {(appointment.status || 'pending').toUpperCase()}
                         </span>
                       </td>
                       <td>{appointment.timezone}</td>
-                      <td>{new Date(appointment.preferred_datetime).toLocaleString()}</td>
-                      <td>{new Date(appointment.submitted_at).toLocaleDateString()}</td>
+                      <td>{appointment.preferred_date && appointment.preferred_time ? 
+                        `${appointment.preferred_date} ${appointment.preferred_time}` : 
+                        'Not specified'}</td>
+                      <td>{new Date(appointment.createdAt || appointment.submitted_at).toLocaleDateString()}</td>
                       <td>
                         <div className="btn-group btn-group-sm">
                           <button 
@@ -563,8 +663,8 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
                           </button>
                           <button 
                             className="btn btn-outline-success"
-                            onClick={() => convertSingleContact(appointment._id)}
-                            title="Schedule Appointment"
+                            onClick={() => convertSingleContact(appointment, 'appointment')}
+                            title="Convert to Lead"
                           >
                             <i className="fas fa-calendar-plus"></i>
                           </button>
@@ -577,16 +677,375 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
             </div>
           </div>
         )}
+
+        {/* User Registrations Tab */}
+        {activeTab === 'registration' && (
+          <div className="tab-pane fade show active">
+            <div className="alert alert-info mb-3">
+              <i className="fas fa-info-circle me-2"></i>
+              <strong>Registrations:</strong> Users who registered directly but have NOT filled any public forms (Contact Us, Profile Assessment, or Appointment).
+            </div>
+            <div className="table-responsive">
+              <table className="table table-hover">
+                <thead style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white' }}>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Company</th>
+                    <th>Status</th>
+                    <th>Email Verified</th>
+                    <th>Registered</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan="8" className="text-center">
+                        <div className="spinner-border spinner-border-sm me-2"></div>
+                        Loading user registrations...
+                      </td>
+                    </tr>
+                  ) : (
+                    (registrations || []).map(registration => (
+                      <tr key={registration._id || registration.id}>
+                        <td><strong>{registration.first_name} {registration.last_name}</strong></td>
+                        <td>{registration.email}</td>
+                        <td>{registration.phone || 'Not provided'}</td>
+                        <td>{registration.company || 'Not specified'}</td>
+                        <td>
+                          <span className={`badge ${getStatusBadgeClass(registration.status || 'active')}`}>
+                            {(registration.status || 'active').toUpperCase()}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`badge ${registration.email_verified ? 'bg-success' : 'bg-warning'}`}>
+                            {registration.email_verified ? 'Verified' : 'Pending'}
+                          </span>
+                        </td>
+                        <td>{new Date(registration.createdAt || registration.created_at).toLocaleDateString()}</td>
+                        <td>
+                          <div className="btn-group btn-group-sm">
+                            <button 
+                              className="btn btn-outline-primary"
+                              onClick={() => viewRegistrationDetails(registration)}
+                              title="View Details"
+                            >
+                              <i className="fas fa-eye"></i>
+                            </button>
+                            <button 
+                              className="btn btn-outline-success"
+                              onClick={() => convertSingleContact(registration, 'registration')}
+                              title="Convert to Lead"
+                            >
+                              <i className="fas fa-calendar-plus"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Convert to Lead Modal */}
-      {showConvertModal && (
+      {/* Details Modal */}
+      {showDetailsModal && selectedContact && (
         <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog modal-lg">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white' }}>
                 <h5 className="modal-title">
-                  <i className="fas fa-user-plus me-2"></i>Convert to Leads
+                  <i className="fas fa-eye me-2"></i>
+                  {selectedContact.type === 'contact' && 'Contact Details'}
+                  {selectedContact.type === 'assessment' && 'Profile Assessment Details'}
+                  {selectedContact.type === 'appointment' && 'Appointment Details'}
+                  {selectedContact.type === 'registration' && 'User Registration Details'}
+                </h5>
+                <button 
+                  type="button" 
+                  className="btn-close btn-close-white" 
+                  onClick={() => setShowDetailsModal(false)}
+                ></button>
+              </div>
+              <div className="modal-body">
+                {selectedContact.type === 'contact' && (
+                  <div className="row">
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Name</label>
+                        <p className="fw-bold">{selectedContact.data.name}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Email</label>
+                        <p className="fw-bold">{selectedContact.data.email}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Phone</label>
+                        <p className="fw-bold">{selectedContact.data.phone || 'Not provided'}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Visa Type</label>
+                        <p className="fw-bold">{selectedContact.data.visa_type || 'Not specified'}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Status</label>
+                        <span className={`badge ${getStatusBadgeClass(selectedContact.data.status)}`}>
+                          {(selectedContact.data.status || 'new').replace('_', ' ').toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Submitted</label>
+                        <p className="fw-bold">{new Date(selectedContact.data.createdAt || selectedContact.data.submitted_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <div className="col-12">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Message</label>
+                        <p className="fw-bold">{selectedContact.data.message || 'No message provided'}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedContact.type === 'assessment' && (
+                  <div className="row">
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Name</label>
+                        <p className="fw-bold">{selectedContact.data.client_name}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Email</label>
+                        <p className="fw-bold">{selectedContact.data.client_email}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Overall Score</label>
+                        <p className="fw-bold">{selectedContact.data.overall_score || 'Not calculated'}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Status</label>
+                        <span className={`badge ${getStatusBadgeClass(selectedContact.data.status)}`}>
+                          {(selectedContact.data.status || 'pending').replace('_', ' ').toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Education Score</label>
+                        <p className="fw-bold">{selectedContact.data.education_score || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Experience Score</label>
+                        <p className="fw-bold">{selectedContact.data.experience_score || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Publications Score</label>
+                        <p className="fw-bold">{selectedContact.data.publications_score || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Awards Score</label>
+                        <p className="fw-bold">{selectedContact.data.awards_score || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className="col-12">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Submitted</label>
+                        <p className="fw-bold">{new Date(selectedContact.data.submitted_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedContact.type === 'appointment' && (
+                  <div className="row">
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Name</label>
+                        <p className="fw-bold">{selectedContact.data.name}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Email</label>
+                        <p className="fw-bold">{selectedContact.data.email}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Phone</label>
+                        <p className="fw-bold">{selectedContact.data.phone || 'Not provided'}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Visa Category</label>
+                        <p className="fw-bold">{selectedContact.data.visa_category || 'Not specified'}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Consultation Type</label>
+                        <p className="fw-bold">{selectedContact.data.consultation_type || 'Video'}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Preferred Date</label>
+                        <p className="fw-bold">{selectedContact.data.preferred_date ? new Date(selectedContact.data.preferred_date).toLocaleDateString() : 'Not specified'}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Preferred Time</label>
+                        <p className="fw-bold">{selectedContact.data.preferred_time || 'Not specified'}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Status</label>
+                        <span className={`badge ${getStatusBadgeClass(selectedContact.data.status)}`}>
+                          {(selectedContact.data.status || 'pending').replace('_', ' ').toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Submitted</label>
+                        <p className="fw-bold">{new Date(selectedContact.data.createdAt || selectedContact.data.submitted_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <div className="col-12">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Details</label>
+                        <p className="fw-bold">{selectedContact.data.details || 'No details provided'}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedContact.type === 'registration' && (
+                  <div className="row">
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Name</label>
+                        <p className="fw-bold">{selectedContact.data.first_name} {selectedContact.data.last_name}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Email</label>
+                        <p className="fw-bold">{selectedContact.data.email}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Phone</label>
+                        <p className="fw-bold">{selectedContact.data.phone || 'Not provided'}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Company</label>
+                        <p className="fw-bold">{selectedContact.data.company || 'Not specified'}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Country</label>
+                        <p className="fw-bold">{selectedContact.data.country || 'Not specified'}</p>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Status</label>
+                        <span className={`badge ${getStatusBadgeClass(selectedContact.data.status)}`}>
+                          {(selectedContact.data.status || 'active').toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Email Verified</label>
+                        <span className={`badge ${selectedContact.data.email_verified ? 'bg-success' : 'bg-warning'}`}>
+                          {selectedContact.data.email_verified ? 'Verified' : 'Pending'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Last Login</label>
+                        <p className="fw-bold">{selectedContact.data.last_login ? new Date(selectedContact.data.last_login).toLocaleDateString() : 'Never'}</p>
+                      </div>
+                    </div>
+                    <div className="col-12">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Registered</label>
+                        <p className="fw-bold">{new Date(selectedContact.data.createdAt || selectedContact.data.created_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => setShowDetailsModal(false)}
+                >
+                  Close
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-success" 
+                  onClick={() => {
+                    setShowDetailsModal(false);
+                    convertSingleContact(selectedContact.data, selectedContact.type);
+                  }}
+                >
+                  <i className="fas fa-calendar-plus me-1"></i>
+                  Convert to Lead
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Convert to Lead Modal */}
+      {showConvertModal && selectedContact && (
+        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white' }}>
+                <h5 className="modal-title">
+                  <i className="fas fa-user-plus me-2"></i>Convert to Lead
                 </h5>
                 <button 
                   type="button" 
@@ -596,55 +1055,32 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
               </div>
               <div className="modal-body">
                 <div className="mb-4">
-                  <h6 className="text-muted">Selected Contacts ({selectedContacts.length})</h6>
+                  <h6 className="text-muted">Converting Contact to Lead</h6>
                   <p className="small text-muted">
-                    Converting {selectedContacts.length} contact{selectedContacts.length !== 1 ? 's' : ''} to lead{selectedContacts.length !== 1 ? 's' : ''} 
-                    for follow-up by Lead Managers.
+                    This contact will be converted to a lead for follow-up by Lead Managers.
                   </p>
                 </div>
 
-                <div className="row">
-                  <div className="col-md-6">
-                    <div className="mb-3">
-                      <label className="form-label fw-bold">
-                        Lead Priority <span className="text-danger">*</span>
-                      </label>
-                      <select 
-                        className="form-select" 
-                        value={convertFormData.priority}
-                        onChange={(e) => setConvertFormData(prev => ({ ...prev, priority: e.target.value }))}
-                        required
-                      >
-                        <option value="low">Low Priority - Standard follow-up</option>
-                        <option value="medium">Medium Priority - Regular follow-up</option>
-                        <option value="high">High Priority - Urgent follow-up</option>
-                      </select>
-                      <div className="form-text">
-                        <small>
-                          <strong>Low:</strong> Standard 48-72 hour response time<br/>
-                          <strong>Medium:</strong> 24-48 hour response time<br/>
-                          <strong>High:</strong> Same day response required
-                        </small>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="mb-3">
-                      <label className="form-label fw-bold">Assign to Lead Manager</label>
-                      <select 
-                        className="form-select" 
-                        value={convertFormData.assignedTo}
-                        onChange={(e) => setConvertFormData(prev => ({ ...prev, assignedTo: e.target.value }))}
-                      >
-                        <option value="">Auto-assign (least busy)</option>
-                        <option value="john_smith">John Smith - Lead Manager</option>
-                        <option value="sarah_johnson">Sarah Johnson - Lead Manager</option>
-                        <option value="david_wilson">David Wilson - Lead Manager</option>
-                      </select>
-                      <div className="form-text">
-                        <small>Leave blank for automatic assignment to the least busy Lead Manager</small>
-                      </div>
-                    </div>
+                <div className="mb-3">
+                  <label className="form-label fw-bold">
+                    Lead Priority <span className="text-danger">*</span>
+                  </label>
+                  <select 
+                    className="form-select" 
+                    value={convertFormData.priority}
+                    onChange={(e) => setConvertFormData(prev => ({ ...prev, priority: e.target.value }))}
+                    required
+                  >
+                    <option value="low">Low Priority - Standard follow-up</option>
+                    <option value="medium">Medium Priority - Regular follow-up</option>
+                    <option value="high">High Priority - Urgent follow-up</option>
+                  </select>
+                  <div className="form-text">
+                    <small>
+                      <strong>Low:</strong> Standard 48-72 hour response time<br/>
+                      <strong>Medium:</strong> 24-48 hour response time<br/>
+                      <strong>High:</strong> Same day response required
+                    </small>
                   </div>
                 </div>
 
@@ -655,7 +1091,7 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
                     rows="3"
                     value={convertFormData.notes}
                     onChange={(e) => setConvertFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Add any notes about these leads for the Lead Manager..."
+                    placeholder="Add any notes about this lead for the Lead Manager..."
                   ></textarea>
                 </div>
 
@@ -663,9 +1099,10 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
                   <i className="fas fa-info-circle me-2"></i>
                   <strong>What happens next:</strong>
                   <ul className="mb-0 mt-2">
-                    <li>Contacts will be converted to leads with the specified priority</li>
-                    <li>Lead Manager will be notified of new lead assignments</li>
-                    <li>Original contact forms will be marked as "resolved"</li>
+                    <li>System will check if a lead already exists with this email</li>
+                    <li>If no duplicate found, contact will be converted to a lead with the specified priority</li>
+                    <li>Lead Manager will be automatically assigned</li>
+                    <li>Original contact will be marked as "converted" and removed from this list</li>
                     <li>Lead tracking and follow-up process will begin</li>
                   </ul>
                 </div>
@@ -682,10 +1119,9 @@ Submitted: ${new Date(appointment.submitted_at).toLocaleDateString()}`);
                   type="button" 
                   className="btn btn-success" 
                   onClick={handleConvertToLead}
-                  disabled={selectedContacts.length === 0}
                 >
-                  <i className="fas fa-user-plus me-1"></i>
-                  Convert {selectedContacts.length} Contact{selectedContacts.length !== 1 ? 's' : ''} to Lead{selectedContacts.length !== 1 ? 's' : ''}
+                  <i className="fas fa-calendar-plus me-1"></i>
+                  Convert to Lead
                 </button>
               </div>
             </div>

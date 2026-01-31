@@ -20,24 +20,21 @@ exports.getDashboardStats = async (req, res) => {
     console.log('📊 Fetching statistics from database...');
     
     // Get total clients (from ClientAccount collection)
-    const totalClients = await ClientAccount.countDocuments();
+    const totalClients = await ClientAccount.countDocuments({ status: { $ne: 'deleted' } });
     console.log('👥 Total Clients:', totalClients);
     
-    // Get total team members (from User collection, excluding admin)
-    const teamMembers = await User.countDocuments({ role: { $ne: 'admin' } });
-    console.log('👨‍💼 Team Members:', teamMembers);
+    // Get active projects (from Project collection)
+    const activeProjects = await Project.countDocuments({ 
+      status: { $in: ['active', 'in_progress', 'pending'] } 
+    });
+    console.log('📋 Active Projects:', activeProjects);
     
-    // Get total profile assessments (active projects proxy)
-    const activeProjects = await ProfileAssessment.countDocuments();
-    console.log('📋 Profile Assessments (Active Projects):', activeProjects);
-    
-    // Get total contact forms (leads)
-    const totalLeads = await ContactForm.countDocuments();
-    console.log('📞 Total Contact Forms (Leads):', totalLeads);
-    
-    // Get total appointment requests
-    const appointmentRequests = await AppointmentRequest.countDocuments();
-    console.log('📅 Appointment Requests:', appointmentRequests);
+    // Get total team members (admin, lead_manager, crm_manager - excluding clients and deleted users)
+    const teamMembers = await User.countDocuments({ 
+      role: { $in: ['admin', 'lead_manager', 'crm_manager'] },
+      status: { $ne: 'deleted' }
+    });
+    console.log('👨‍💼 Team Members (admin, lead_manager, crm_manager):', teamMembers);
     
     // Calculate real monthly revenue from payments
     const currentMonth = new Date();
@@ -47,7 +44,10 @@ exports.getDashboardStats = async (req, res) => {
     const monthlyPayments = await Payment.aggregate([
       {
         $match: {
-          paymentDate: { $gte: startOfMonth, $lte: endOfMonth },
+          $or: [
+            { paymentDate: { $gte: startOfMonth, $lte: endOfMonth } },
+            { createdAt: { $gte: startOfMonth, $lte: endOfMonth } }
+          ],
           status: 'completed'
         }
       },
@@ -62,6 +62,12 @@ exports.getDashboardStats = async (req, res) => {
     const monthlyRevenue = monthlyPayments.length > 0 ? monthlyPayments[0].totalRevenue : 0;
     console.log('💰 Real Monthly Revenue:', monthlyRevenue);
     
+    // Get additional statistics
+    const totalLeads = await ContactForm.countDocuments();
+    const appointmentRequests = await AppointmentRequest.countDocuments();
+    const totalProjects = await Project.countDocuments();
+    const completedProjects = await Project.countDocuments({ status: 'completed' });
+    
     // Get recent activity counts
     const recentClients = await ClientAccount.countDocuments({
       createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Last 30 days
@@ -73,11 +79,13 @@ exports.getDashboardStats = async (req, res) => {
     
     const stats = {
       totalClients,
-      teamMembers,
       activeProjects,
       monthlyRevenue,
+      teamMembers,
       totalLeads,
       appointmentRequests,
+      totalProjects,
+      completedProjects,
       recentActivity: {
         newClients: recentClients,
         newAssessments: recentAssessments
@@ -247,33 +255,126 @@ exports.getRecentActivity = async (req, res) => {
   try {
     console.log('📊 Fetching recent activity...');
     
+    const activities = [];
+    
     // Get recent client registrations
     const recentClients = await ClientAccount.find()
       .sort({ createdAt: -1 })
-      .limit(5)
+      .limit(3)
       .select('full_name email createdAt');
+    
+    recentClients.forEach(client => {
+      activities.push({
+        id: `client_${client._id}`,
+        type: 'user_registration',
+        icon: 'fas fa-user-plus',
+        color: '#3b82f6',
+        message: `New client registered: ${client.full_name || client.email}`,
+        timestamp: client.createdAt
+      });
+    });
     
     // Get recent profile assessments
     const recentAssessments = await ProfileAssessment.find()
       .sort({ createdAt: -1 })
-      .limit(5)
+      .limit(3)
       .select('client_name client_email overall_score createdAt');
+    
+    recentAssessments.forEach(assessment => {
+      activities.push({
+        id: `assessment_${assessment._id}`,
+        type: 'profile_assessment',
+        icon: 'fas fa-chart-line',
+        color: '#14b8a6',
+        message: `Profile assessment completed for ${assessment.client_name}`,
+        timestamp: assessment.createdAt
+      });
+    });
     
     // Get recent contact forms
     const recentContacts = await ContactForm.find()
       .sort({ createdAt: -1 })
-      .limit(5)
+      .limit(3)
       .select('name email visa_type createdAt');
     
-    const activity = {
-      recentClients,
-      recentAssessments,
-      recentContacts
-    };
+    recentContacts.forEach(contact => {
+      activities.push({
+        id: `contact_${contact._id}`,
+        type: 'contact_form',
+        icon: 'fas fa-envelope',
+        color: '#8b5cf6',
+        message: `New contact form submission from ${contact.name}`,
+        timestamp: contact.createdAt
+      });
+    });
+    
+    // Get recent payments
+    const recentPayments = await Payment.find({ status: 'completed' })
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .populate('client', 'name email')
+      .select('amount client createdAt');
+    
+    recentPayments.forEach(payment => {
+      activities.push({
+        id: `payment_${payment._id}`,
+        type: 'payment_received',
+        icon: 'fas fa-dollar-sign',
+        color: '#f59e0b',
+        message: `Payment received: $${payment.amount.toLocaleString()} from ${payment.client?.name || 'Client'}`,
+        timestamp: payment.createdAt
+      });
+    });
+    
+    // Get recent projects
+    const recentProjects = await Project.find()
+      .sort({ createdAt: -1 })
+      .limit(2)
+      .populate('client', 'name email')
+      .select('service_name client status createdAt');
+    
+    recentProjects.forEach(project => {
+      const isCompleted = project.status === 'completed';
+      activities.push({
+        id: `project_${project._id}`,
+        type: isCompleted ? 'project_completion' : 'project_created',
+        icon: isCompleted ? 'fas fa-check' : 'fas fa-project-diagram',
+        color: isCompleted ? '#10b981' : '#06b6d4',
+        message: isCompleted 
+          ? `Project completed: ${project.service_name} for ${project.client?.name || 'Client'}`
+          : `New project created: ${project.service_name} for ${project.client?.name || 'Client'}`,
+        timestamp: project.createdAt
+      });
+    });
+    
+    // Get recent appointments
+    const recentAppointments = await AppointmentRequest.find()
+      .sort({ createdAt: -1 })
+      .limit(2)
+      .select('name email status createdAt');
+    
+    recentAppointments.forEach(appointment => {
+      activities.push({
+        id: `appointment_${appointment._id}`,
+        type: 'appointment_scheduled',
+        icon: 'fas fa-calendar-check',
+        color: '#84cc16',
+        message: `Appointment ${appointment.status === 'scheduled' ? 'scheduled' : 'requested'} with ${appointment.name}`,
+        timestamp: appointment.createdAt
+      });
+    });
+    
+    // Sort all activities by timestamp (most recent first)
+    activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    // Return top 10 activities
+    const topActivities = activities.slice(0, 10);
+    
+    console.log(`📊 Found ${topActivities.length} recent activities`);
     
     res.json({
       success: true,
-      data: activity
+      data: topActivities
     });
     
   } catch (error) {

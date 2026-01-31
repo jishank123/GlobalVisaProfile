@@ -1,21 +1,28 @@
 import { useState, useEffect } from 'react';
 import { servicesAPI } from '../../../../services/api';
+import { designSystem, componentStyles, hoverEffects } from '../../../../styles/designSystem';
+import ServiceModal from './ServiceModal';
 
 const ServicesManagement = () => {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('active');
+  const [showModal, setShowModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [modalType, setModalType] = useState('');
+  const [modalData, setModalData] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     category: '',
     description: '',
-    pricing_type: '',
+    pricing_type: 'fixed',
     min_price: '',
     max_price: '',
     duration: '',
-    is_active: 'true',
+    is_active: true,
     features: ''
   });
+  const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
     loadServicesManagement();
@@ -35,19 +42,66 @@ const ServicesManagement = () => {
 
     } catch (error) {
       console.error('Error loading services management:', error);
-      // Set empty state on error
       setServices([]);
     } finally {
       setLoading(false);
     }
   };
 
+  // Filter services by status
+  const getFilteredServices = (status) => {
+    return services.filter(service => {
+      if (status === 'active') {
+        return service.is_active !== false;
+      } else {
+        return service.is_active === false;
+      }
+    });
+  };
+
+  // Get service counts for stats
+  const getServiceCounts = () => {
+    return {
+      total: services.length,
+      active: services.filter(service => service.is_active !== false).length,
+      inactive: services.filter(service => service.is_active === false).length,
+      categories: [...new Set(services.map(service => service.category))].length
+    };
+  };
+
+  const validateForm = () => {
+    const errors = {};
+
+    if (!formData.name.trim()) errors.name = 'Service name is required';
+    if (!formData.category) errors.category = 'Category is required';
+    if (!formData.description.trim()) errors.description = 'Description is required';
+    if (!formData.pricing_type) errors.pricing_type = 'Pricing type is required';
+    if (!formData.min_price || formData.min_price <= 0) errors.min_price = 'Valid minimum price is required';
+    if (!formData.max_price || formData.max_price <= 0) errors.max_price = 'Valid maximum price is required';
+    if (parseFloat(formData.min_price) > parseFloat(formData.max_price)) {
+      errors.max_price = 'Maximum price must be greater than minimum price';
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
+    
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }));
+    
+    // Clear error for this field when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
 
   const resetForm = () => {
@@ -55,401 +109,447 @@ const ServicesManagement = () => {
       name: '',
       category: '',
       description: '',
-      pricing_type: '',
+      pricing_type: 'fixed',
       min_price: '',
       max_price: '',
       duration: '',
-      is_active: 'true',
+      is_active: true,
       features: ''
     });
+    setFormErrors({});
+  };
+
+  const handleModalClose = () => {
+    setShowModal(false);
+    setModalData(null);
+    setModalType('');
+  };
+
+  const handleAddModalClose = () => {
+    setShowAddModal(false);
+    resetForm();
   };
 
   const viewServiceDetails = (service) => {
-    const minPrice = service.min_price || service.pricing?.minPrice || 0;
-    const maxPrice = service.max_price || service.pricing?.maxPrice || 0;
-    const pricingType = service.pricing_type || service.pricing?.type || 'fixed';
-    
-    alert(`Service Details:
-    
-Name: ${service.name}
-Category: ${service.category || 'Other'}
-Description: ${service.description || 'No description'}
-Pricing Type: ${pricingType}
-Price Range: $${minPrice.toLocaleString()} - $${maxPrice.toLocaleString()}
-Duration: ${service.duration || 'Not specified'}
-Status: ${service.is_active !== false ? 'Active' : 'Inactive'}
-Features: ${service.features ? (Array.isArray(service.features) ? service.features.join(', ') : service.features) : 'No features listed'}
-Service ID: ${service._id}`);
+    setModalData(service);
+    setModalType('view');
+    setShowModal(true);
   };
 
-  const handleAddService = async (e) => {
-    e.preventDefault();
-    
-    // Validate required fields
-    const requiredFields = ['name', 'category', 'description', 'pricing_type', 'min_price', 'max_price'];
-    for (const field of requiredFields) {
-      if (!formData[field]) {
-        alert(`Please fill in the ${field.replace('_', ' ')} field.`);
-        return;
-      }
-    }
+  const editService = (service) => {
+    setModalData(service);
+    setModalType('edit');
+    setFormData({
+      name: service.name || '',
+      category: service.category || '',
+      description: service.description || '',
+      pricing_type: service.pricing_type || service.pricing?.type || 'fixed',
+      min_price: service.min_price || service.pricing?.minPrice || '',
+      max_price: service.max_price || service.pricing?.maxPrice || '',
+      duration: service.duration || '',
+      is_active: service.is_active !== false,
+      features: Array.isArray(service.features) ? service.features.join('\n') : (service.features || '')
+    });
+    setShowAddModal(true);
+  };
+
+  const deleteService = (service) => {
+    setModalData(service);
+    setModalType('delete');
+    setShowModal(true);
+  };
+
+  const handleAddService = async () => {
+    if (!validateForm()) return;
 
     try {
-      // In real implementation, call API
-      // await servicesAPI.create(formData);
+      const serviceData = {
+        ...formData,
+        min_price: parseFloat(formData.min_price),
+        max_price: parseFloat(formData.max_price),
+        features: formData.features.split('\n').filter(f => f.trim())
+      };
+
+      const response = await servicesAPI.create(serviceData);
       
-      alert('Service created successfully!');
-      setShowAddModal(false);
-      resetForm();
-      loadServicesManagement();
+      if (response.success) {
+        alert('✅ Service created successfully!');
+        handleAddModalClose();
+        loadServicesManagement();
+      } else {
+        throw new Error(response.error?.message || 'Failed to create service');
+      }
     } catch (error) {
       console.error('Error creating service:', error);
-      alert('Error creating service. Please try again.');
+      alert(`❌ Error creating service: ${error.message}`);
     }
   };
 
-  const handleEditService = async (service) => {
-    const newStatus = service.is_active !== false ? 'inactive' : 'active';
-    
-    if (window.confirm(`Change service status?\n\nService: ${service.name}\nCurrent: ${service.is_active !== false ? 'Active' : 'Inactive'}\nNew: ${newStatus === 'active' ? 'Active' : 'Inactive'}`)) {
-      try {
-        const response = await servicesAPI.update(service._id, { 
-          is_active: newStatus === 'active' 
-        });
-        
-        if (response.success) {
-          alert('Service status updated successfully!');
-          loadServicesManagement();
-        } else {
-          throw new Error(response.error?.message || 'Failed to update service');
-        }
-      } catch (error) {
-        console.error('Error updating service:', error);
-        alert(`Error updating service: ${error.message}`);
-      }
-    }
-  };
-
-  const deleteService = async (serviceId, serviceName) => {
-    if (!window.confirm(`Are you sure you want to delete service: ${serviceName}?
-
-This action cannot be undone.`)) {
-      return;
-    }
+  const handleEditService = async () => {
+    if (!validateForm()) return;
 
     try {
-      // In real implementation, call API
-      // await servicesAPI.delete(serviceId);
+      const serviceData = {
+        ...formData,
+        min_price: parseFloat(formData.min_price),
+        max_price: parseFloat(formData.max_price),
+        features: formData.features.split('\n').filter(f => f.trim())
+      };
+
+      const response = await servicesAPI.update(modalData._id, serviceData);
       
-      alert('Service deleted successfully!');
-      loadServicesManagement();
+      if (response.success) {
+        alert('✅ Service updated successfully!');
+        handleAddModalClose();
+        loadServicesManagement();
+      } else {
+        throw new Error(response.error?.message || 'Failed to update service');
+      }
     } catch (error) {
-      console.error('Error deleting service:', error);
-      alert('Error deleting service. Please try again.');
+      console.error('Error updating service:', error);
+      alert(`❌ Error updating service: ${error.message}`);
     }
   };
 
-  const managementCardStyle = {
-    background: 'white',
-    borderRadius: '10px',
-    padding: '25px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-    marginBottom: '20px'
+  const handleDeleteService = async () => {
+    try {
+      const response = await servicesAPI.delete(modalData._id);
+      
+      if (response.success) {
+        alert('✅ Service deleted successfully!');
+        handleModalClose();
+        loadServicesManagement();
+      } else {
+        throw new Error(response.error?.message || 'Failed to delete service');
+      }
+    } catch (error) {
+      console.error('Error deleting service:', error);
+      alert(`❌ Error deleting service: ${error.message}`);
+    }
   };
 
-  const ServiceModal = ({ show, onHide, title, onSubmit, isEdit = false }) => {
-    if (!show) return null;
+  const formatPrice = (minPrice, maxPrice, pricingType) => {
+    const min = minPrice || 0;
+    const max = maxPrice || 0;
+    
+    if (pricingType === 'fixed') {
+      return `$${min.toLocaleString()}`;
+    } else {
+      return `$${min.toLocaleString()} - $${max.toLocaleString()}`;
+    }
+  };
+
+  const StatCard = ({ icon, number, label, borderColor, iconColor }) => (
+    <div 
+      style={{
+        ...componentStyles.contactsStatCard,
+        borderColor: borderColor,
+        cursor: 'pointer'
+      }}
+      {...hoverEffects.card}
+    >
+      <i className={`${icon} fa-2x mb-2`} style={{ color: iconColor }}></i>
+      <h4 style={{ 
+        color: iconColor,
+        fontWeight: designSystem.typography.fontWeight.bold,
+        marginBottom: '4px'
+      }}>
+        {number}
+      </h4>
+      <small style={{ color: designSystem.colors.gray[500] }}>
+        {label}
+      </small>
+    </div>
+  );
+
+  const renderServiceTable = (serviceType) => {
+    const filteredServices = getFilteredServices(serviceType);
+    
+    if (filteredServices.length === 0) {
+      return (
+        <div style={componentStyles.emptyState}>
+          <i className="fas fa-briefcase fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
+          <p style={{ color: designSystem.colors.gray[500] }}>
+            No {serviceType} services found
+          </p>
+        </div>
+      );
+    }
 
     return (
-      <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-        <div className="modal-dialog modal-xl">
-          <div className="modal-content">
-            <div className="modal-header" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white' }}>
-              <h5 className="modal-title">
-                <i className="fas fa-briefcase me-2"></i>{title}
-              </h5>
-              <button type="button" className="btn-close btn-close-white" onClick={onHide}></button>
-            </div>
-            <div className="modal-body">
-              <form onSubmit={onSubmit}>
-                <div className="row">
-                  <div className="col-md-8">
-                    <div className="mb-3">
-                      <label className="form-label">Service Name <span className="text-danger">*</span></label>
-                      <input 
-                        type="text" 
-                        className="form-control" 
-                        name="name"
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        required 
-                      />
+      <div style={{ borderRadius: designSystem.borderRadius.button, overflow: 'hidden', boxShadow: designSystem.shadows.card }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead style={componentStyles.tableHeader}>
+            <tr>
+              <th style={componentStyles.tableHeaderCell}>Service ID</th>
+              <th style={componentStyles.tableHeaderCell}>Service Name</th>
+              <th style={componentStyles.tableHeaderCell}>Category</th>
+              <th style={componentStyles.tableHeaderCell}>Price Range</th>
+              <th style={componentStyles.tableHeaderCell}>Duration</th>
+              <th style={componentStyles.tableHeaderCell}>Status</th>
+              <th style={componentStyles.tableHeaderCell}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredServices.map(service => {
+              const minPrice = service.min_price || service.pricing?.minPrice || 0;
+              const maxPrice = service.max_price || service.pricing?.maxPrice || 0;
+              const pricingType = service.pricing_type || service.pricing?.type || 'fixed';
+              
+              return (
+                <tr 
+                  key={service._id}
+                  style={componentStyles.tableRow}
+                  {...hoverEffects.tableRow}
+                >
+                  <td style={componentStyles.tableCell}>
+                    <span 
+                      style={{
+                        ...componentStyles.badge,
+                        background: designSystem.colors.gray[100],
+                        color: designSystem.colors.gray[600],
+                        fontFamily: 'monospace'
+                      }}
+                    >
+                      {service._id.slice(-6).toUpperCase()}
+                    </span>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <div>
+                      <div style={{ 
+                        color: designSystem.colors.dark, 
+                        fontSize: designSystem.typography.fontSize.base,
+                        fontWeight: designSystem.typography.fontWeight.medium,
+                        marginBottom: '2px'
+                      }}>
+                        {service.name}
+                      </div>
+                      <small style={{ color: designSystem.colors.gray[500] }}>
+                        {(service.description || '').substring(0, 50)}...
+                      </small>
                     </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="mb-3">
-                      <label className="form-label">Category <span className="text-danger">*</span></label>
-                      <select 
-                        className="form-select" 
-                        name="category"
-                        value={formData.category}
-                        onChange={handleInputChange}
-                        required
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <span style={{
+                      background: '#3b82f6',
+                      color: 'white',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)'
+                    }}>
+                      {service.category || 'Other'}
+                    </span>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <strong>{formatPrice(minPrice, maxPrice, pricingType)}</strong>
+                  </td>
+                  <td style={componentStyles.tableCell}>{service.duration || 'Not specified'}</td>
+                  <td style={componentStyles.tableCell}>
+                    <span style={{
+                      ...componentStyles.badge,
+                      background: service.is_active !== false ? '#28a745' : '#ffc107',
+                      color: service.is_active !== false ? 'white' : '#000'
+                    }}>
+                      {service.is_active !== false ? 'ACTIVE' : 'INACTIVE'}
+                    </span>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <div style={{ display: 'flex', gap: designSystem.spacing.xs }}>
+                      <button 
+                        className="btn btn-outline-primary btn-sm"
+                        onClick={() => viewServiceDetails(service)}
+                        title="View Details"
                       >
-                        <option value="">Select Category</option>
-                        <option value="Immigration">Immigration</option>
-                        <option value="Consultation">Consultation</option>
-                        <option value="Assessment">Assessment</option>
-                        <option value="Documentation">Documentation</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="mb-3">
-                  <label className="form-label">Description <span className="text-danger">*</span></label>
-                  <textarea 
-                    className="form-control" 
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    rows="3" 
-                    required
-                  ></textarea>
-                </div>
-                
-                <div className="row">
-                  <div className="col-md-4">
-                    <div className="mb-3">
-                      <label className="form-label">Pricing Type <span className="text-danger">*</span></label>
-                      <select 
-                        className="form-select" 
-                        name="pricing_type"
-                        value={formData.pricing_type}
-                        onChange={handleInputChange}
-                        required
+                        <i className="fas fa-eye"></i>
+                      </button>
+                      <button 
+                        className="btn btn-outline-warning btn-sm"
+                        onClick={() => editService(service)}
+                        title="Edit Service"
                       >
-                        <option value="">Select Type</option>
-                        <option value="fixed">Fixed Price</option>
-                        <option value="hourly">Hourly Rate</option>
-                        <option value="range">Price Range</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="mb-3">
-                      <label className="form-label">Min Price ($) <span className="text-danger">*</span></label>
-                      <input 
-                        type="number" 
-                        className="form-control" 
-                        name="min_price"
-                        value={formData.min_price}
-                        onChange={handleInputChange}
-                        min="0" 
-                        step="0.01" 
-                        required 
-                      />
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="mb-3">
-                      <label className="form-label">Max Price ($) <span className="text-danger">*</span></label>
-                      <input 
-                        type="number" 
-                        className="form-control" 
-                        name="max_price"
-                        value={formData.max_price}
-                        onChange={handleInputChange}
-                        min="0" 
-                        step="0.01" 
-                        required 
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="row">
-                  <div className="col-md-6">
-                    <div className="mb-3">
-                      <label className="form-label">Duration</label>
-                      <input 
-                        type="text" 
-                        className="form-control" 
-                        name="duration"
-                        value={formData.duration}
-                        onChange={handleInputChange}
-                        placeholder="e.g., 2-4 weeks" 
-                      />
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="mb-3">
-                      <label className="form-label">Status</label>
-                      <select 
-                        className="form-select" 
-                        name="is_active"
-                        value={formData.is_active}
-                        onChange={handleInputChange}
+                        <i className="fas fa-edit"></i>
+                      </button>
+                      <button 
+                        className="btn btn-outline-danger btn-sm"
+                        onClick={() => deleteService(service)}
+                        title="Delete Service"
                       >
-                        <option value="true">Active</option>
-                        <option value="false">Inactive</option>
-                      </select>
+                        <i className="fas fa-trash"></i>
+                      </button>
                     </div>
-                  </div>
-                </div>
-                
-                <div className="mb-3">
-                  <label className="form-label">Features (one per line)</label>
-                  <textarea 
-                    className="form-control" 
-                    name="features"
-                    value={formData.features}
-                    onChange={handleInputChange}
-                    rows="4" 
-                    placeholder="Enter each feature on a new line"
-                  ></textarea>
-                  <div className="form-text">Each line will be treated as a separate feature</div>
-                </div>
-              </form>
-            </div>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={onHide}>Cancel</button>
-              <button type="button" className="btn btn-primary" onClick={onSubmit}>
-                <i className="fas fa-save me-1"></i>{isEdit ? 'Update' : 'Create'} Service
-              </button>
-            </div>
-          </div>
-        </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     );
   };
 
   return (
-    <div className="management-card" style={managementCardStyle}>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h5>
-          <i className="fas fa-briefcase me-2"></i>
-          Services Management
-        </h5>
+    <div style={componentStyles.managementCard}>
+      {/* Header with Refresh Button */}
+      <div style={componentStyles.header}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={componentStyles.headerIcon}>
+            <i className="fas fa-briefcase fa-lg"></i>
+          </div>
+          <div>
+            <h4 style={componentStyles.headerTitle}>Services Management</h4>
+            <p style={componentStyles.headerSubtitle}>Manage service catalog and pricing</p>
+          </div>
+        </div>
         <button 
-          className="btn btn-primary btn-sm" 
-          onClick={() => setShowAddModal(true)}
+          style={{
+            ...componentStyles.primaryButton,
+            background: designSystem.colors.success
+          }}
+          onClick={loadServicesManagement}
+          {...hoverEffects.button}
         >
-          <i className="fas fa-plus me-1"></i>Add New Service
+          <i className="fas fa-sync-alt me-2"></i>Refresh
         </button>
+      </div>
+
+      {/* Overview Statistics */}
+      <div style={componentStyles.statsContainer}>
+        <StatCard
+          icon="fas fa-briefcase"
+          number={getServiceCounts().total}
+          label="Total Services"
+          borderColor="#3b82f6"
+          iconColor="#3b82f6"
+        />
+        <StatCard
+          icon="fas fa-check-circle"
+          number={getServiceCounts().active}
+          label="Active Services"
+          borderColor="#10b981"
+          iconColor="#10b981"
+        />
+        <StatCard
+          icon="fas fa-pause-circle"
+          number={getServiceCounts().inactive}
+          label="Inactive Services"
+          borderColor="#f59e0b"
+          iconColor="#f59e0b"
+        />
+        <StatCard
+          icon="fas fa-tags"
+          number={getServiceCounts().categories}
+          label="Categories"
+          borderColor="#8b5cf6"
+          iconColor="#8b5cf6"
+        />
       </div>
 
       {/* Loading State */}
       {loading && (
-        <div className="text-center py-4">
-          <i className="fas fa-spinner fa-spin fa-2x text-primary"></i>
-          <p className="mt-2 text-muted">Loading services...</p>
+        <div style={componentStyles.loading}>
+          <i className="fas fa-spinner fa-spin fa-2x" style={{ color: designSystem.colors.primary }}></i>
+          <p style={{ marginTop: designSystem.spacing.md, color: designSystem.colors.gray[500] }}>Loading services...</p>
         </div>
       )}
 
-      {/* Services Table */}
+      {/* Service Type Tabs with Add Button */}
       {!loading && (
-        <div className="table-responsive">
-          <table className="table table-hover">
-            <thead style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white' }}>
-              <tr>
-                <th>Service ID</th>
-                <th>Service Name</th>
-                <th>Category</th>
-                <th>Price Range</th>
-                <th>Duration</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {services.map(service => {
-                const minPrice = service.min_price || service.pricing?.minPrice || 0;
-                const maxPrice = service.max_price || service.pricing?.maxPrice || 0;
-                const pricingType = service.pricing_type || service.pricing?.type || 'fixed';
-                
-                const priceRange = pricingType === 'fixed' ? 
-                  `$${minPrice.toLocaleString()}` :
-                  `$${minPrice.toLocaleString()} - $${maxPrice.toLocaleString()}`;
-                
-                return (
-                  <tr key={service._id}>
-                    <td><strong>{service._id.slice(-6).toUpperCase()}</strong></td>
-                    <td>
-                      <div>
-                        <strong>{service.name}</strong>
-                        <br />
-                        <small className="text-muted">{(service.description || '').substring(0, 50)}...</small>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="badge bg-info">{service.category || 'Other'}</span>
-                    </td>
-                    <td><strong>{priceRange}</strong></td>
-                    <td>{service.duration || 'Not specified'}</td>
-                    <td>
-                      <span className={`badge ${service.is_active !== false ? 'bg-success' : 'bg-warning'}`}>
-                        {service.is_active !== false ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="btn-group btn-group-sm">
-                        <button 
-                          className="btn btn-outline-primary"
-                          onClick={() => viewServiceDetails(service)}
-                          title="View Details"
-                        >
-                          <i className="fas fa-eye"></i>
-                        </button>
-                        <button 
-                          className="btn btn-outline-warning"
-                          onClick={() => handleEditService(service)}
-                          title="Edit Service"
-                        >
-                          <i className="fas fa-edit"></i>
-                        </button>
-                        <button 
-                          className="btn btn-outline-danger"
-                          onClick={() => deleteService(service._id, service.name)}
-                          title="Delete Service"
-                        >
-                          <i className="fas fa-trash"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div style={{ marginBottom: designSystem.spacing.lg }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: designSystem.spacing.xs }}>
+                <button 
+                  style={{
+                    ...componentStyles.primaryButton,
+                    background: activeTab === 'active' ? designSystem.colors.success : designSystem.colors.gray[100],
+                    color: activeTab === 'active' ? 'white' : designSystem.colors.gray[600],
+                    boxShadow: activeTab === 'active' ? designSystem.shadows.button : 'none'
+                  }}
+                  onClick={() => setActiveTab('active')}
+                  {...hoverEffects.button}
+                >
+                  Active Services ({getServiceCounts().active})
+                </button>
+                <button 
+                  style={{
+                    ...componentStyles.primaryButton,
+                    background: activeTab === 'inactive' ? designSystem.colors.warning : designSystem.colors.gray[100],
+                    color: activeTab === 'inactive' ? 'white' : designSystem.colors.gray[600],
+                    boxShadow: activeTab === 'inactive' ? designSystem.shadows.button : 'none'
+                  }}
+                  onClick={() => setActiveTab('inactive')}
+                  {...hoverEffects.button}
+                >
+                  Inactive Services ({getServiceCounts().inactive})
+                </button>
+              </div>
+              <button 
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: designSystem.colors.primary,
+                  fontSize: designSystem.typography.fontSize.base,
+                  padding: `${designSystem.spacing.sm} ${designSystem.spacing.lg}`
+                }}
+                onClick={() => {
+                  setModalType('add');
+                  resetForm();
+                  setShowAddModal(true);
+                }}
+                {...hoverEffects.button}
+              >
+                <i className="fas fa-plus me-2"></i>Add Service
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          <div>
+            {renderServiceTable(activeTab)}
+          </div>
+        </>
       )}
 
       {/* No Services Message */}
       {!loading && services.length === 0 && (
-        <div className="text-center py-4">
-          <i className="fas fa-briefcase fa-3x text-muted mb-3"></i>
-          <p className="text-muted">No services found in the system</p>
-          <button 
-            className="btn btn-primary btn-sm" 
-            onClick={() => setShowAddModal(true)}
-          >
-            <i className="fas fa-plus me-1"></i>Add First Service
-          </button>
+        <div style={componentStyles.emptyState}>
+          <i className="fas fa-briefcase fa-4x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.lg }}></i>
+          <h6 style={{ color: designSystem.colors.gray[500], marginBottom: designSystem.spacing.md }}>No services found in the system</h6>
+          <p style={{ color: designSystem.colors.gray[500], marginBottom: designSystem.spacing.lg }}>Get started by adding your first service to the catalog</p>
         </div>
       )}
 
-      {/* Add Service Modal */}
+      {/* View/Delete Modal */}
+      <ServiceModal
+        show={showModal}
+        onHide={handleModalClose}
+        type={modalType}
+        data={modalData}
+        formData={formData}
+        formErrors={formErrors}
+        onInputChange={handleInputChange}
+        onAddService={handleAddService}
+        onEditService={handleEditService}
+        onDeleteService={handleDeleteService}
+        formatPrice={formatPrice}
+      />
+
+      {/* Add/Edit Modal */}
       <ServiceModal
         show={showAddModal}
-        onHide={() => {
-          setShowAddModal(false);
-          resetForm();
-        }}
-        title="Add New Service"
-        onSubmit={handleAddService}
-        isEdit={false}
+        onHide={handleAddModalClose}
+        type={modalType}
+        data={modalData}
+        formData={formData}
+        formErrors={formErrors}
+        onInputChange={handleInputChange}
+        onAddService={handleAddService}
+        onEditService={handleEditService}
+        onDeleteService={handleDeleteService}
+        formatPrice={formatPrice}
       />
     </div>
   );

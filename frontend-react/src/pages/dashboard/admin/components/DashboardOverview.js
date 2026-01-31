@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { dashboardAPI } from '../../../../services/api';
+import { designSystem, componentStyles, hoverEffects } from '../../../../styles/designSystem';
 
 const DashboardOverview = () => {
   const [stats, setStats] = useState({
@@ -8,10 +9,13 @@ const DashboardOverview = () => {
     monthlyRevenue: 0,
     teamMembers: 0
   });
+  const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [activityLoading, setActivityLoading] = useState(false);
 
   useEffect(() => {
     loadDashboardStats();
+    loadRecentActivity();
   }, []);
 
   const loadDashboardStats = async () => {
@@ -27,11 +31,18 @@ const DashboardOverview = () => {
           teamMembers: response.data.teamMembers || 0
         });
       } else {
-        throw new Error(response.error?.message || 'Failed to load dashboard stats');
+        console.error('Failed to load dashboard stats:', response.error);
+        // Keep zeros as fallback for failed API calls
+        setStats({
+          totalClients: 0,
+          activeProjects: 0,
+          monthlyRevenue: 0,
+          teamMembers: 0
+        });
       }
     } catch (error) {
       console.error('Error loading dashboard stats:', error);
-      // Fallback to default values on error
+      // Keep zeros as fallback for network errors
       setStats({
         totalClients: 0,
         activeProjects: 0,
@@ -43,215 +54,262 @@ const DashboardOverview = () => {
     }
   };
 
-  const StatCard = ({ icon, number, label, color = 'primary' }) => (
-    <div className="col-md-3">
-      <div 
-        className="stat-card"
-        style={{
-          background: 'white',
-          borderRadius: '10px',
-          padding: '25px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          borderLeft: '4px solid #1e3a8a'
-        }}
-      >
-        <div className="d-flex justify-content-between align-items-start">
-          <div>
-            <div 
-              className="stat-number"
-              style={{
-                fontSize: '32px',
-                fontWeight: '700',
-                color: '#1e3a8a'
-              }}
-            >
-              {loading ? '...' : number}
-            </div>
-            <div className="text-muted">{label}</div>
-          </div>
-          <i className={`${icon} fa-2x text-${color}`}></i>
-        </div>
-      </div>
+  const loadRecentActivity = async () => {
+    try {
+      setActivityLoading(true);
+      const response = await dashboardAPI.getRecentActivity();
+      
+      if (response.success) {
+        setRecentActivity(response.data || []);
+      } else {
+        console.error('Failed to load recent activity:', response.error);
+        setRecentActivity([]);
+      }
+    } catch (error) {
+      console.error('Error loading recent activity:', error);
+      setRecentActivity([]);
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
+  const formatTimeAgo = (timestamp) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffInMinutes = Math.floor((now - time) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+  };
+
+  const StatCard = ({ icon, number, label, borderColor, iconColor }) => (
+    <div 
+      style={{
+        ...componentStyles.contactsStatCard,
+        borderColor: borderColor,
+        cursor: 'pointer'
+      }}
+      {...hoverEffects.card}
+    >
+      <i className={`${icon} fa-2x mb-2`} style={{ color: iconColor }}></i>
+      <h4 style={{ 
+        color: iconColor,
+        fontWeight: designSystem.typography.fontWeight.bold,
+        marginBottom: '4px'
+      }}>
+        {loading ? '...' : number}
+      </h4>
+      <small style={{ color: designSystem.colors.gray[500] }}>
+        {label}
+      </small>
     </div>
   );
 
   return (
     <div>
       {/* Overview Stats */}
-      <div className="row mb-4">
+      <div style={componentStyles.statsContainer}>
         <StatCard 
           icon="fas fa-users" 
           number={stats.totalClients} 
           label="Total Clients" 
-          color="primary" 
+          borderColor="#3b82f6"
+          iconColor="#3b82f6"
         />
+
         <StatCard 
           icon="fas fa-project-diagram" 
           number={stats.activeProjects} 
           label="Active Projects" 
-          color="success" 
+          borderColor="#10b981"
+          iconColor="#10b981"
         />
+
         <StatCard 
           icon="fas fa-dollar-sign" 
-          number={`$${(stats.monthlyRevenue / 1000).toFixed(0)}K`} 
+          number={`$${stats.monthlyRevenue.toLocaleString()}`} 
           label="Monthly Revenue" 
-          color="warning" 
+          borderColor="#8b5cf6"
+          iconColor="#8b5cf6"
         />
+
         <StatCard 
-          icon="fas fa-user-friends" 
+          icon="fas fa-user-tie" 
           number={stats.teamMembers} 
           label="Team Members" 
-          color="info" 
+          borderColor="#f59e0b"
+          iconColor="#f59e0b"
         />
       </div>
 
-      {/* Quick Actions */}
-      <div className="row mb-4">
-        <div className="col-md-6">
-          <div 
-            className="management-card"
+      {/* Recent Activity - Full Section */}
+      <div style={{
+        background: 'white',
+        borderRadius: designSystem.borderRadius.card,
+        boxShadow: designSystem.shadows.card,
+        padding: designSystem.spacing.lg,
+        marginTop: designSystem.spacing.lg
+      }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: designSystem.spacing.lg
+        }}>
+          <h5 style={{ 
+            margin: 0,
+            color: designSystem.colors.dark,
+            fontWeight: designSystem.typography.fontWeight.semibold
+          }}>
+            <i className="fas fa-clock me-2" style={{ color: '#3b82f6' }}></i>
+            Recent Activity
+          </h5>
+          <button 
+            onClick={loadRecentActivity}
             style={{
-              background: 'white',
-              borderRadius: '10px',
-              padding: '25px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-              marginBottom: '20px'
+              ...componentStyles.secondaryButton,
+              padding: `${designSystem.spacing.xs} ${designSystem.spacing.md}`,
+              fontSize: designSystem.typography.fontSize.sm
             }}
+            {...hoverEffects.button}
           >
-            <h5 className="mb-3">
-              <i className="fas fa-bolt text-warning me-2"></i>
-              Quick Actions
-            </h5>
-            <div className="row">
-              <div className="col-md-6 mb-2">
-                <button className="btn btn-primary w-100">
-                  <i className="fas fa-user-plus me-2"></i>
-                  Add New User
-                </button>
-              </div>
-              <div className="col-md-6 mb-2">
-                <button className="btn btn-success w-100">
-                  <i className="fas fa-briefcase me-2"></i>
-                  Add Service
-                </button>
-              </div>
-              <div className="col-md-6 mb-2">
-                <button className="btn btn-info w-100">
-                  <i className="fas fa-project-diagram me-2"></i>
-                  New Project
-                </button>
-              </div>
-              <div className="col-md-6 mb-2">
-                <button className="btn btn-warning w-100">
-                  <i className="fas fa-chart-bar me-2"></i>
-                  View Reports
-                </button>
-              </div>
-            </div>
-          </div>
+            <i className="fas fa-sync-alt me-1"></i>
+            Refresh
+          </button>
         </div>
 
-        <div className="col-md-6">
-          <div 
-            className="management-card"
-            style={{
-              background: 'white',
-              borderRadius: '10px',
-              padding: '25px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-              marginBottom: '20px'
-            }}
-          >
-            <h5 className="mb-3">
-              <i className="fas fa-clock text-primary me-2"></i>
-              Recent Activity
-            </h5>
-            <div className="space-y-3">
-              <div className="d-flex align-items-center mb-3">
-                <div className="bg-blue-100 rounded-circle p-2 me-3" style={{ width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <i className="fas fa-user-plus text-blue-600"></i>
-                </div>
-                <div>
-                  <p className="mb-0 text-sm">New user registered: John Smith</p>
-                  <p className="text-muted text-xs mb-0">2 hours ago</p>
-                </div>
-              </div>
-              <div className="d-flex align-items-center mb-3">
-                <div className="bg-green-100 rounded-circle p-2 me-3" style={{ width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <i className="fas fa-project-diagram text-green-600"></i>
-                </div>
-                <div>
-                  <p className="mb-0 text-sm">Project completed: EB-1A Application</p>
-                  <p className="text-muted text-xs mb-0">4 hours ago</p>
-                </div>
-              </div>
-              <div className="d-flex align-items-center mb-3">
-                <div className="bg-purple-100 rounded-circle p-2 me-3" style={{ width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <i className="fas fa-dollar-sign text-purple-600"></i>
-                </div>
-                <div>
-                  <p className="mb-0 text-sm">Payment received: $5,000</p>
-                  <p className="text-muted text-xs mb-0">1 day ago</p>
-                </div>
-              </div>
-            </div>
+        {activityLoading ? (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: designSystem.spacing.xl
+          }}>
+            <i className="fas fa-spinner fa-spin fa-2x" style={{ color: designSystem.colors.primary }}></i>
+            <span style={{ marginLeft: designSystem.spacing.md }}>Loading recent activity...</span>
           </div>
-        </div>
-      </div>
+        ) : (
+          <div style={{ 
+            border: `1px solid ${designSystem.colors.gray[200]}`,
+            borderRadius: designSystem.borderRadius.button,
+            maxHeight: '600px',
+            overflowY: 'auto'
+          }}>
+            {recentActivity.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: designSystem.spacing.xl,
+                color: designSystem.colors.gray[500]
+              }}>
+                <i className="fas fa-clock fa-3x" style={{ marginBottom: designSystem.spacing.md }}></i>
+                <p>No recent activity found</p>
+              </div>
+            ) : (
+              recentActivity.map((activity, index) => (
+                <div 
+                  key={activity.id || index}
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    padding: designSystem.spacing.md,
+                    borderBottom: index < recentActivity.length - 1 ? `1px solid ${designSystem.colors.gray[100]}` : 'none',
+                    transition: 'background-color 0.2s ease'
+                  }}
+                  {...hoverEffects.tableRow}
+                >
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    background: activity.color || '#3b82f6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: designSystem.spacing.md,
+                    flexShrink: 0
+                  }}>
+                    <i className={activity.icon || 'fas fa-info'} style={{ color: 'white', fontSize: '16px' }}></i>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ 
+                      margin: 0, 
+                      fontWeight: designSystem.typography.fontWeight.medium,
+                      color: designSystem.colors.dark,
+                      lineHeight: '1.4'
+                    }}>
+                      {activity.message}
+                    </p>
+                    <small style={{ 
+                      color: designSystem.colors.gray[500],
+                      fontSize: designSystem.typography.fontSize.sm
+                    }}>
+                      {formatTimeAgo(activity.timestamp)}
+                    </small>
+                  </div>
+                  <div style={{
+                    marginLeft: designSystem.spacing.md,
+                    flexShrink: 0
+                  }}>
+                    <button
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: designSystem.colors.gray[400],
+                        cursor: 'pointer',
+                        padding: designSystem.spacing.xs,
+                        borderRadius: '4px',
+                        transition: 'color 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => e.target.style.color = designSystem.colors.primary}
+                      onMouseLeave={(e) => e.target.style.color = designSystem.colors.gray[400]}
+                      title="View details"
+                    >
+                      <i className="fas fa-chevron-right"></i>
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
-      {/* System Status */}
-      <div className="row">
-        <div className="col-12">
-          <div 
-            className="management-card"
-            style={{
-              background: 'white',
-              borderRadius: '10px',
-              padding: '25px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-              marginBottom: '20px'
-            }}
-          >
-            <h5 className="mb-3">
-              <i className="fas fa-server text-success me-2"></i>
-              System Status
-            </h5>
-            <div className="row">
-              <div className="col-md-3 text-center">
-                <div className="border rounded p-3">
-                  <div className="d-flex justify-content-between align-items-center">
-                    <span>Database</span>
-                    <span className="badge bg-success">Online</span>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-3 text-center">
-                <div className="border rounded p-3">
-                  <div className="d-flex justify-content-between align-items-center">
-                    <span>API Server</span>
-                    <span className="badge bg-success">Running</span>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-3 text-center">
-                <div className="border rounded p-3">
-                  <div className="d-flex justify-content-between align-items-center">
-                    <span>Email Service</span>
-                    <span className="badge bg-success">Active</span>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-3 text-center">
-                <div className="border rounded p-3">
-                  <div className="d-flex justify-content-between align-items-center">
-                    <span>Backup Status</span>
-                    <span className="badge bg-warning">Pending</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+        {/* Activity Summary */}
+        {recentActivity.length > 0 && (
+          <div style={{
+            marginTop: designSystem.spacing.md,
+            padding: designSystem.spacing.md,
+            background: designSystem.colors.gray[50],
+            borderRadius: designSystem.borderRadius.button,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <span style={{ 
+              color: designSystem.colors.gray[600],
+              fontSize: designSystem.typography.fontSize.sm
+            }}>
+              Showing {recentActivity.length} recent activities
+            </span>
+            <button
+              style={{
+                ...componentStyles.secondaryButton,
+                padding: `${designSystem.spacing.xs} ${designSystem.spacing.md}`,
+                fontSize: designSystem.typography.fontSize.sm,
+                background: designSystem.colors.primary,
+                color: 'white'
+              }}
+              {...hoverEffects.button}
+            >
+              View All Activity
+            </button>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

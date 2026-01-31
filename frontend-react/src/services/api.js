@@ -104,7 +104,8 @@ export const usersAPI = {
 export const dashboardAPI = {
     getData: () => apiClient.get('/dashboard/stats'),
     getFinancialOverview: () => apiClient.get('/dashboard/financial'),
-    getActivity: () => apiClient.get('/dashboard/activity')
+    getActivity: () => apiClient.get('/dashboard/activity'),
+    getRecentActivity: () => apiClient.get('/dashboard/activity')
 };
 
 // Services API
@@ -123,6 +124,7 @@ export const leadsAPI = {
     getById: (id) => apiClient.get(`/leads/${id}`),
     create: (data) => apiClient.post('/leads', data),
     update: (id, data) => apiClient.patch(`/leads/${id}`, data),
+    patch: (endpoint, data) => apiClient.patch(`/leads/${endpoint}`, data),
     delete: (id) => apiClient.delete(`/leads/${id}`),
     convertToClient: (id) => apiClient.post(`/leads/${id}/convert`),
     bulkAssign: (data) => apiClient.post('/leads/bulk/assign', data),
@@ -183,7 +185,8 @@ export const profileAssessmentsAPI = {
     getAll: (params) => apiClient.get('/profile-assessments', {params}),
     getById: (id) => apiClient.get(`/profile-assessments/${id}`),
     updateStatus: (id, data) => apiClient.patch(`/profile-assessments/${id}/status`, data),
-    addNotes: (id, notes) => apiClient.patch(`/profile-assessments/${id}/notes`, {notes})
+    addNotes: (id, notes) => apiClient.patch(`/profile-assessments/${id}/notes`, {notes}),
+    convertToLead: (id, data) => apiClient.post(`/profile-assessments/${id}/convert-to-lead`, data)
 };
 
 // Appointments API
