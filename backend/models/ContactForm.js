@@ -58,6 +58,19 @@ const contactFormSchema = new mongoose.Schema({
     ref: 'User'
   },
   
+  // Lead Conversion
+  converted_to_lead: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Lead'
+  },
+  converted_at: {
+    type: Date
+  },
+  converted_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  
   // Linked User and Client
   user_id: {
     type: mongoose.Schema.Types.ObjectId,

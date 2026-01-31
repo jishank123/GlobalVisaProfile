@@ -169,6 +169,30 @@ exports.register = async (req, res) => {
       terms_accepted_at: new Date()
     });
 
+    // Automatically add client to Contacts Management for lead conversion
+    try {
+      const ContactForm = require('../models/ContactForm');
+      await ContactForm.create({
+        name: `${first_name.trim()} ${last_name.trim()}`,
+        email: email.toLowerCase().trim(),
+        phone: phone?.trim(),
+        visa_type: 'other', // Default visa type for registration
+        message: 'Client registered through website registration form',
+        inquiry_type: 'consultation',
+        priority: 'medium',
+        status: 'new',
+        user_id: user._id,
+        source: 'client_registration',
+        ip_address: req.ip,
+        user_agent: req.get('User-Agent')
+      });
+      
+      console.log(`✅ Client automatically added to Contacts Management: ${email}`);
+    } catch (contactError) {
+      console.error('⚠️ Failed to add client to Contacts Management:', contactError);
+      // Don't fail registration if contact creation fails
+    }
+
     // Generate token
     const token = generateToken(user._id, user.role);
 

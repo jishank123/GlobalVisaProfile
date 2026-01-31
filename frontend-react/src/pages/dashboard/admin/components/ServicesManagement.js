@@ -5,8 +5,6 @@ const ServicesManagement = () => {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingService, setEditingService] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -27,68 +25,18 @@ const ServicesManagement = () => {
     try {
       setLoading(true);
       
-      // Mock data for demonstration
-      setServices([
-        {
-          _id: '507f1f77bcf86cd799439021',
-          name: 'EB-1A Petition Preparation',
-          category: 'Immigration',
-          description: 'Complete EB-1A extraordinary ability petition preparation and filing',
-          pricing: {
-            type: 'range',
-            minPrice: 8000,
-            maxPrice: 15000
-          },
-          duration: '3-6 months',
-          isActive: true,
-          features: ['Document preparation', 'Evidence compilation', 'Legal review', 'Filing assistance']
-        },
-        {
-          _id: '507f1f77bcf86cd799439022',
-          name: 'EB-2 NIW Application',
-          category: 'Immigration',
-          description: 'National Interest Waiver application for EB-2 category',
-          pricing: {
-            type: 'range',
-            minPrice: 6000,
-            maxPrice: 12000
-          },
-          duration: '4-8 months',
-          isActive: true,
-          features: ['Petition drafting', 'Supporting documentation', 'Case strategy', 'Government filing']
-        },
-        {
-          _id: '507f1f77bcf86cd799439023',
-          name: 'O-1 Visa Consultation',
-          category: 'Consultation',
-          description: 'Expert consultation for O-1 extraordinary ability visa',
-          pricing: {
-            type: 'fixed',
-            minPrice: 500,
-            maxPrice: 500
-          },
-          duration: '1-2 hours',
-          isActive: true,
-          features: ['Case evaluation', 'Strategy discussion', 'Document review', 'Next steps planning']
-        },
-        {
-          _id: '507f1f77bcf86cd799439024',
-          name: 'Profile Assessment',
-          category: 'Assessment',
-          description: 'Comprehensive profile assessment for immigration eligibility',
-          pricing: {
-            type: 'fixed',
-            minPrice: 200,
-            maxPrice: 200
-          },
-          duration: '1 week',
-          isActive: false,
-          features: ['Detailed analysis', 'Strength evaluation', 'Recommendation report', 'Follow-up consultation']
-        }
-      ]);
+      const response = await servicesAPI.getAll();
+      
+      if (response.success) {
+        setServices(response.data || []);
+      } else {
+        throw new Error(response.error?.message || 'Failed to load services');
+      }
 
     } catch (error) {
-      console.error('Error loading services:', error);
+      console.error('Error loading services management:', error);
+      // Set empty state on error
+      setServices([]);
     } finally {
       setLoading(false);
     }
@@ -114,6 +62,24 @@ const ServicesManagement = () => {
       is_active: 'true',
       features: ''
     });
+  };
+
+  const viewServiceDetails = (service) => {
+    const minPrice = service.min_price || service.pricing?.minPrice || 0;
+    const maxPrice = service.max_price || service.pricing?.maxPrice || 0;
+    const pricingType = service.pricing_type || service.pricing?.type || 'fixed';
+    
+    alert(`Service Details:
+    
+Name: ${service.name}
+Category: ${service.category || 'Other'}
+Description: ${service.description || 'No description'}
+Pricing Type: ${pricingType}
+Price Range: $${minPrice.toLocaleString()} - $${maxPrice.toLocaleString()}
+Duration: ${service.duration || 'Not specified'}
+Status: ${service.is_active !== false ? 'Active' : 'Inactive'}
+Features: ${service.features ? (Array.isArray(service.features) ? service.features.join(', ') : service.features) : 'No features listed'}
+Service ID: ${service._id}`);
   };
 
   const handleAddService = async (e) => {
@@ -142,37 +108,25 @@ const ServicesManagement = () => {
     }
   };
 
-  const handleEditService = (service) => {
-    setEditingService(service);
-    setFormData({
-      name: service.name,
-      category: service.category,
-      description: service.description,
-      pricing_type: service.pricing.type,
-      min_price: service.pricing.minPrice.toString(),
-      max_price: service.pricing.maxPrice.toString(),
-      duration: service.duration,
-      is_active: service.isActive.toString(),
-      features: service.features.join('\n')
-    });
-    setShowEditModal(true);
-  };
-
-  const handleUpdateService = async (e) => {
-    e.preventDefault();
+  const handleEditService = async (service) => {
+    const newStatus = service.is_active !== false ? 'inactive' : 'active';
     
-    try {
-      // In real implementation, call API
-      // await servicesAPI.update(editingService._id, formData);
-      
-      alert('Service updated successfully!');
-      setShowEditModal(false);
-      setEditingService(null);
-      resetForm();
-      loadServicesManagement();
-    } catch (error) {
-      console.error('Error updating service:', error);
-      alert('Error updating service. Please try again.');
+    if (window.confirm(`Change service status?\n\nService: ${service.name}\nCurrent: ${service.is_active !== false ? 'Active' : 'Inactive'}\nNew: ${newStatus === 'active' ? 'Active' : 'Inactive'}`)) {
+      try {
+        const response = await servicesAPI.update(service._id, { 
+          is_active: newStatus === 'active' 
+        });
+        
+        if (response.success) {
+          alert('Service status updated successfully!');
+          loadServicesManagement();
+        } else {
+          throw new Error(response.error?.message || 'Failed to update service');
+        }
+      } catch (error) {
+        console.error('Error updating service:', error);
+        alert(`Error updating service: ${error.message}`);
+      }
     }
   };
 
@@ -411,9 +365,13 @@ This action cannot be undone.`)) {
             </thead>
             <tbody>
               {services.map(service => {
-                const priceRange = service.pricing.type === 'fixed' ? 
-                  `$${service.pricing.minPrice.toLocaleString()}` :
-                  `$${service.pricing.minPrice.toLocaleString()} - $${service.pricing.maxPrice.toLocaleString()}`;
+                const minPrice = service.min_price || service.pricing?.minPrice || 0;
+                const maxPrice = service.max_price || service.pricing?.maxPrice || 0;
+                const pricingType = service.pricing_type || service.pricing?.type || 'fixed';
+                
+                const priceRange = pricingType === 'fixed' ? 
+                  `$${minPrice.toLocaleString()}` :
+                  `$${minPrice.toLocaleString()} - $${maxPrice.toLocaleString()}`;
                 
                 return (
                   <tr key={service._id}>
@@ -422,23 +380,24 @@ This action cannot be undone.`)) {
                       <div>
                         <strong>{service.name}</strong>
                         <br />
-                        <small className="text-muted">{service.description.substring(0, 50)}...</small>
+                        <small className="text-muted">{(service.description || '').substring(0, 50)}...</small>
                       </div>
                     </td>
                     <td>
-                      <span className="badge bg-info">{service.category}</span>
+                      <span className="badge bg-info">{service.category || 'Other'}</span>
                     </td>
                     <td><strong>{priceRange}</strong></td>
                     <td>{service.duration || 'Not specified'}</td>
                     <td>
-                      <span className={`badge ${service.isActive ? 'bg-success' : 'bg-warning'}`}>
-                        {service.isActive ? 'Active' : 'Inactive'}
+                      <span className={`badge ${service.is_active !== false ? 'bg-success' : 'bg-warning'}`}>
+                        {service.is_active !== false ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td>
                       <div className="btn-group btn-group-sm">
                         <button 
                           className="btn btn-outline-primary"
+                          onClick={() => viewServiceDetails(service)}
                           title="View Details"
                         >
                           <i className="fas fa-eye"></i>
@@ -491,19 +450,6 @@ This action cannot be undone.`)) {
         title="Add New Service"
         onSubmit={handleAddService}
         isEdit={false}
-      />
-
-      {/* Edit Service Modal */}
-      <ServiceModal
-        show={showEditModal}
-        onHide={() => {
-          setShowEditModal(false);
-          setEditingService(null);
-          resetForm();
-        }}
-        title="Edit Service"
-        onSubmit={handleUpdateService}
-        isEdit={true}
       />
     </div>
   );

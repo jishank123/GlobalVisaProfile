@@ -779,6 +779,151 @@ const deleteContactForm = async (req, res) => {
   }
 };
 
+// @desc    Convert Multiple Contact Forms to Leads (Bulk)
+// @route   POST /api/contact/convert-to-leads
+// @access  Private (Admin/Manager only)
+const convertContactsToLeads = async (req, res) => {
+  try {
+    const { contactIds, priority = 'medium', assignedTo, notes } = req.body;
+    
+    if (!contactIds || !Array.isArray(contactIds) || contactIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_INPUT',
+          message: 'Please provide an array of contact IDs to convert'
+        }
+      });
+    }
+
+    // Validate priority
+    const validPriorities = ['low', 'medium', 'high'];
+    if (!validPriorities.includes(priority)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_PRIORITY',
+          message: 'Priority must be low, medium, or high'
+        }
+      });
+    }
+
+    const Lead = require('../models/Lead');
+    const User = require('../models/User');
+    const convertedLeads = [];
+    const errors = [];
+
+    // Process each contact form
+    for (const contactId of contactIds) {
+      try {
+        const contactForm = await ContactForm.findById(contactId);
+        if (!contactForm) {
+          errors.push(`Contact form ${contactId} not found`);
+          continue;
+        }
+
+        // Check if already converted
+        if (contactForm.converted_to_lead) {
+          errors.push(`Contact form ${contactId} already converted to lead`);
+          continue;
+        }
+
+        // Prepare lead data
+        const nameParts = contactForm.name.trim().split(' ');
+        const firstName = nameParts[0] || contactForm.name;
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+        
+        const leadData = {
+          firstName: firstName,
+          lastName: lastName,
+          email: contactForm.email,
+          phone: contactForm.phone,
+          priority: priority,
+          source: 'contact_form',
+          status: 'new',
+          notes: notes || `Converted from contact form submission. Original message: ${contactForm.message}`,
+          assignmentNotes: notes,
+          visa_interest: contactForm.visa_type
+        };
+
+        // Auto-assign to least busy lead manager if not specified
+        if (assignedTo) {
+          leadData.assignedTo = assignedTo;
+        } else {
+          // Find least busy lead manager
+          const leadManagers = await User.find({ 
+            role: 'lead_manager', 
+            status: 'active' 
+          });
+          
+          if (leadManagers.length > 0) {
+            const leadCounts = await Promise.all(
+              leadManagers.map(async (manager) => ({
+                manager: manager._id,
+                count: await Lead.countDocuments({ assignedTo: manager._id, status: { $ne: 'converted' } })
+              }))
+            );
+            
+            const leastBusyManager = leadCounts.reduce((min, current) => 
+              current.count < min.count ? current : min
+            );
+            
+            leadData.assignedTo = leastBusyManager.manager;
+          }
+        }
+
+        const newLead = await Lead.create(leadData);
+        await newLead.populate('assignedTo', 'first_name last_name email');
+        convertedLeads.push(newLead);
+
+        // Update contact form with conversion
+        await contactForm.convertToLead(newLead);
+
+        // Log conversion activity
+        await ActivityLog.create({
+          user: req.user._id,
+          action: 'convert',
+          resourceType: 'ContactForm',
+          resourceId: contactForm._id,
+          description: `Contact form converted to lead with ${priority} priority`,
+          metadata: { 
+            lead_id: newLead._id,
+            priority: priority,
+            assigned_to: leadData.assignedTo 
+          },
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent')
+        });
+
+      } catch (error) {
+        console.error(`Error converting contact ${contactId}:`, error);
+        errors.push(`Failed to convert contact ${contactId}: ${error.message}`);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully converted ${convertedLeads.length} contact(s) to lead(s) with ${priority} priority`,
+      data: {
+        converted_leads: convertedLeads,
+        conversion_count: convertedLeads.length,
+        errors: errors,
+        priority: priority
+      }
+    });
+
+  } catch (error) {
+    console.error('Convert Contacts to Leads Error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'CONVERSION_ERROR',
+        message: 'Failed to convert contacts to leads'
+      }
+    });
+  }
+};
+
 module.exports = {
   submitContactForm,
   getContactForm,
@@ -787,5 +932,6 @@ module.exports = {
   respondToContactForm,
   addCommunication,
   convertToLead,
+  convertContactsToLeads,
   deleteContactForm
 };

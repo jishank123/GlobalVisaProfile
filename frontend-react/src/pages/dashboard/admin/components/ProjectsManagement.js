@@ -20,104 +20,28 @@ const ProjectsManagement = () => {
     try {
       setLoading(true);
       
-      // Mock data for demonstration
-      setProjects([
-        {
-          _id: '507f1f77bcf86cd799439031',
-          title: 'EB-1A Petition - Dr. Sarah Chen',
-          client: {
-            name: 'Dr. Sarah Chen',
-            email: 'sarah.chen@university.edu'
-          },
-          service: 'EB-1A Petition Preparation',
-          status: 'in_progress',
-          priority: 'high',
-          assignedTo: 'Immigration Attorney 1',
-          startDate: '2026-01-15T00:00:00Z',
-          dueDate: '2026-04-15T00:00:00Z',
-          progress: 65,
-          budget: 12000,
-          spent: 7800
-        },
-        {
-          _id: '507f1f77bcf86cd799439032',
-          title: 'EB-2 NIW Application - John Martinez',
-          client: {
-            name: 'John Martinez',
-            email: 'j.martinez@techcorp.com'
-          },
-          service: 'EB-2 NIW Application',
-          status: 'pending',
-          priority: 'medium',
-          assignedTo: 'Immigration Attorney 2',
-          startDate: '2026-01-20T00:00:00Z',
-          dueDate: '2026-06-20T00:00:00Z',
-          progress: 25,
-          budget: 9000,
-          spent: 2250
-        },
-        {
-          _id: '507f1f77bcf86cd799439033',
-          title: 'O-1 Visa Consultation - Maria Rodriguez',
-          client: {
-            name: 'Maria Rodriguez',
-            email: 'maria.r@artist.com'
-          },
-          service: 'O-1 Visa Consultation',
-          status: 'completed',
-          priority: 'low',
-          assignedTo: 'Immigration Attorney 1',
-          startDate: '2026-01-10T00:00:00Z',
-          dueDate: '2026-01-17T00:00:00Z',
-          progress: 100,
-          budget: 500,
-          spent: 500
-        },
-        {
-          _id: '507f1f77bcf86cd799439034',
-          title: 'Profile Assessment - David Kim',
-          client: {
-            name: 'David Kim',
-            email: 'david.kim@startup.io'
-          },
-          service: 'Profile Assessment',
-          status: 'on_hold',
-          priority: 'medium',
-          assignedTo: 'Immigration Attorney 2',
-          startDate: '2026-01-25T00:00:00Z',
-          dueDate: '2026-02-01T00:00:00Z',
-          progress: 10,
-          budget: 200,
-          spent: 20
-        },
-        {
-          _id: '507f1f77bcf86cd799439035',
-          title: 'EB-1A Documentation Review - Emily Wilson',
-          client: {
-            name: 'Emily Wilson',
-            email: 'emily.w@research.org'
-          },
-          service: 'EB-1A Petition Preparation',
-          status: 'in_progress',
-          priority: 'high',
-          assignedTo: 'Immigration Attorney 1',
-          startDate: '2026-01-12T00:00:00Z',
-          dueDate: '2026-05-12T00:00:00Z',
-          progress: 80,
-          budget: 14000,
-          spent: 11200
-        }
-      ]);
+      // Load projects
+      const projectsResponse = await projectsAPI.getAll();
+      if (projectsResponse.success) {
+        setProjects(projectsResponse.data || []);
+      }
 
-      setStats({
-        totalProjects: 5,
-        activeProjects: 2,
-        pendingProjects: 1,
-        completedProjects: 1
-      });
+      // Load project statistics
+      const statsResponse = await projectsAPI.getStats();
+      if (statsResponse.success) {
+        setStats({
+          totalProjects: statsResponse.data.total || 0,
+          activeProjects: statsResponse.data.byStatus?.find(s => s._id === 'active')?.count || 0,
+          pendingProjects: statsResponse.data.byStatus?.find(s => s._id === 'pending')?.count || 0,
+          completedProjects: statsResponse.data.byStatus?.find(s => s._id === 'completed')?.count || 0
+        });
+      }
 
     } catch (error) {
       console.error('Error loading projects data:', error);
+      // Set empty state on error
+      setProjects([]);
+      setStats({ totalProjects: 0, activeProjects: 0, pendingProjects: 0, completedProjects: 0 });
     } finally {
       setLoading(false);
     }
@@ -163,6 +87,104 @@ const ProjectsManagement = () => {
       setSelectedProjects(projects.map(project => project._id));
     } else {
       setSelectedProjects([]);
+    }
+  };
+
+  const viewProjectDetails = (project) => {
+    alert(`Project Details:
+    
+Title: ${project.title || project.project_name || 'Untitled Project'}
+Client: ${project.client?.name || project.client?.firstName + ' ' + project.client?.lastName || 'Unknown Client'}
+Service: ${project.service?.name || project.service_name || 'Unknown Service'}
+Status: ${project.status.replace('_', ' ').toUpperCase()}
+Priority: ${(project.priority || 'medium').toUpperCase()}
+Progress: ${project.progress || 0}%
+Budget: $${(project.budget || 0).toLocaleString()}
+Spent: $${(project.spent || 0).toLocaleString()}
+Assigned To: ${project.assigned_to ? `${project.assigned_to.first_name} ${project.assigned_to.last_name}` : 'Unassigned'}
+Due Date: ${project.dueDate ? new Date(project.dueDate).toLocaleDateString() : 'No due date'}`);
+  };
+
+  const editProject = async (project) => {
+    const newStatus = prompt(`Update project status:
+    
+Current: ${project.status}
+
+Options:
+- pending
+- in_progress  
+- on_hold
+- completed
+- cancelled
+
+Enter new status:`);
+    
+    if (newStatus && ['pending', 'in_progress', 'on_hold', 'completed', 'cancelled'].includes(newStatus)) {
+      try {
+        const response = await projectsAPI.update(project._id, { status: newStatus });
+        
+        if (response.success) {
+          alert('Project status updated successfully!');
+          loadProjectsData();
+        } else {
+          throw new Error(response.error?.message || 'Failed to update project');
+        }
+      } catch (error) {
+        console.error('Error updating project:', error);
+        alert(`Error updating project: ${error.message}`);
+      }
+    } else if (newStatus) {
+      alert('Invalid status. Please use: pending, in_progress, on_hold, completed, or cancelled');
+    }
+  };
+
+  const addProjectNote = async (project) => {
+    const note = prompt(`Add note for project: ${project.title || project.project_name}\n\nEnter your note:`);
+    if (note) {
+      try {
+        // For now, we'll update the project with a note field
+        // In a full implementation, this might be a separate notes API
+        const response = await projectsAPI.update(project._id, { 
+          notes: [...(project.notes || []), {
+            text: note,
+            createdAt: new Date().toISOString(),
+            createdBy: 'current_user' // Would be actual user ID
+          }]
+        });
+        
+        if (response.success) {
+          alert('Note added successfully!');
+          loadProjectsData();
+        } else {
+          throw new Error(response.error?.message || 'Failed to add note');
+        }
+      } catch (error) {
+        console.error('Error adding note:', error);
+        alert(`Error adding note: ${error.message}`);
+      }
+    }
+  };
+
+  const updateProjectProgress = async (project) => {
+    const newProgress = prompt(`Update progress for: ${project.title || project.project_name}\n\nCurrent progress: ${project.progress || 0}%\n\nEnter new progress (0-100):`);
+    const progress = parseInt(newProgress);
+    
+    if (!isNaN(progress) && progress >= 0 && progress <= 100) {
+      try {
+        const response = await projectsAPI.updateProgress(project._id, progress);
+        
+        if (response.success) {
+          alert('Project progress updated successfully!');
+          loadProjectsData();
+        } else {
+          throw new Error(response.error?.message || 'Failed to update progress');
+        }
+      } catch (error) {
+        console.error('Error updating progress:', error);
+        alert(`Error updating progress: ${error.message}`);
+      }
+    } else if (newProgress) {
+      alert('Please enter a valid number between 0 and 100');
     }
   };
 
@@ -314,20 +336,20 @@ const ProjectsManagement = () => {
                   </td>
                   <td>
                     <div>
-                      <strong>{project.title}</strong>
+                      <strong>{project.title || project.project_name || 'Untitled Project'}</strong>
                       <br />
                       <small className="text-muted">ID: {project._id.slice(-6).toUpperCase()}</small>
                     </div>
                   </td>
                   <td>
                     <div>
-                      <strong>{project.client.name}</strong>
+                      <strong>{project.client?.name || project.client?.firstName + ' ' + project.client?.lastName || 'Unknown Client'}</strong>
                       <br />
-                      <small className="text-muted">{project.client.email}</small>
+                      <small className="text-muted">{project.client?.email || 'No email'}</small>
                     </div>
                   </td>
                   <td>
-                    <span className="badge bg-secondary">{project.service}</span>
+                    <span className="badge bg-secondary">{project.service?.name || project.service_name || 'Unknown Service'}</span>
                   </td>
                   <td>
                     <span className={`badge ${getStatusBadgeClass(project.status)}`}>
@@ -335,44 +357,64 @@ const ProjectsManagement = () => {
                     </span>
                   </td>
                   <td>
-                    <span className={getPriorityClass(project.priority)}>
-                      <strong>{project.priority.toUpperCase()}</strong>
+                    <span className={getPriorityClass(project.priority || 'medium')}>
+                      <strong>{(project.priority || 'medium').toUpperCase()}</strong>
                     </span>
                   </td>
                   <td>
-                    <span className="badge bg-info">{project.assignedTo}</span>
+                    {project.assigned_to ? (
+                      <span className="badge bg-info">{project.assigned_to.first_name} {project.assigned_to.last_name}</span>
+                    ) : (
+                      <span className="text-muted">Unassigned</span>
+                    )}
                   </td>
                   <td>
                     <div className="d-flex align-items-center">
                       <div className="progress me-2" style={{ width: '60px', height: '8px' }}>
                         <div 
-                          className={`progress-bar ${getProgressBarClass(project.progress)}`}
-                          style={{ width: `${project.progress}%` }}
+                          className={`progress-bar ${getProgressBarClass(project.progress || 0)}`}
+                          style={{ width: `${project.progress || 0}%` }}
                         ></div>
                       </div>
-                      <small>{project.progress}%</small>
+                      <small>{project.progress || 0}%</small>
                     </div>
                   </td>
                   <td>
                     <div>
-                      <strong>${project.spent.toLocaleString()}</strong>
+                      <strong>${(project.spent || 0).toLocaleString()}</strong>
                       <br />
-                      <small className="text-muted">of ${project.budget.toLocaleString()}</small>
+                      <small className="text-muted">of ${(project.budget || 0).toLocaleString()}</small>
                     </div>
                   </td>
-                  <td>{new Date(project.dueDate).toLocaleDateString()}</td>
+                  <td>{project.dueDate ? new Date(project.dueDate).toLocaleDateString() : 'No due date'}</td>
                   <td>
                     <div className="btn-group btn-group-sm">
-                      <button className="btn btn-outline-primary" title="View Details">
+                      <button 
+                        className="btn btn-outline-primary" 
+                        onClick={() => viewProjectDetails(project)}
+                        title="View Details"
+                      >
                         <i className="fas fa-eye"></i>
                       </button>
-                      <button className="btn btn-outline-warning" title="Edit Project">
+                      <button 
+                        className="btn btn-outline-warning" 
+                        onClick={() => editProject(project)}
+                        title="Edit Project"
+                      >
                         <i className="fas fa-edit"></i>
                       </button>
-                      <button className="btn btn-outline-info" title="Add Note">
+                      <button 
+                        className="btn btn-outline-info" 
+                        onClick={() => addProjectNote(project)}
+                        title="Add Note"
+                      >
                         <i className="fas fa-sticky-note"></i>
                       </button>
-                      <button className="btn btn-outline-success" title="Update Progress">
+                      <button 
+                        className="btn btn-outline-success" 
+                        onClick={() => updateProjectProgress(project)}
+                        title="Update Progress"
+                      >
                         <i className="fas fa-tasks"></i>
                       </button>
                     </div>

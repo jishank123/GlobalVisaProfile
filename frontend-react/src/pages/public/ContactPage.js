@@ -112,42 +112,7 @@ const ContactPage = () => {
     });
   };
 
-  const validateField = (name, value) => {
-    let validation = { isValid: true, errors: [] };
-    
-    switch (name) {
-      case 'first_name':
-        validation = validateName(value, 'First name');
-        break;
-      case 'last_name':
-        validation = validateName(value, 'Last name');
-        break;
-      case 'email':
-        validation = validateEmail(value);
-        break;
-      case 'phone':
-        if (value) { // Phone is optional
-          validation = validatePhoneWithCountry(value, contactForm.country_code);
-        }
-        break;
-      case 'message':
-        if (!value || value.trim().length === 0) {
-          validation = { isValid: false, errors: ['Message is required'] };
-        } else if (value.trim().length < 10) {
-          validation = { isValid: false, errors: ['Message must be at least 10 characters long'] };
-        } else if (value.length > 2000) {
-          validation = { isValid: false, errors: ['Message cannot exceed 2000 characters'] };
-        }
-        break;
-      default:
-        if (!value && ['visa-type'].includes(name)) {
-          validation = { isValid: false, errors: [`${name.replace('-', ' ')} is required`] };
-        }
-        break;
-    }
-    
-    return validation;
-  };
+  // Removed unused validateField function - using real-time validation instead
 
   const validateForm = () => {
     const errors = {};
@@ -274,13 +239,7 @@ const ContactPage = () => {
     }
   };
 
-  const handleCountryCodeChange = (countryCode) => {
-    setContactForm(prev => ({
-      ...prev,
-      country_code: countryCode,
-      phone: '' // Clear phone when country changes
-    }));
-  };
+  // Removed unused handleCountryCodeChange function - using handleCountryChange instead
 
   const renderInputField = (name, label, type = 'text', required = false, placeholder = '') => {
     const hasError = validationErrors[name];
@@ -672,25 +631,33 @@ const ContactPage = () => {
                   <h3 className="text-xl font-bold mb-4 text-gray-900">Follow Us</h3>
                   <div className="flex space-x-4">
                     <a 
-                      href="#" 
+                      href="https://linkedin.com/company/immigrationpro" 
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center hover:bg-blue-200 transition-all text-blue-600"
                     >
                       <i className="fab fa-linkedin text-xl"></i>
                     </a>
                     <a 
-                      href="#" 
+                      href="https://twitter.com/immigrationpro" 
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center hover:bg-blue-200 transition-all text-blue-600"
                     >
                       <i className="fab fa-twitter text-xl"></i>
                     </a>
                     <a 
-                      href="#" 
+                      href="https://facebook.com/immigrationpro" 
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center hover:bg-blue-200 transition-all text-blue-600"
                     >
                       <i className="fab fa-facebook text-xl"></i>
                     </a>
                     <a 
-                      href="#" 
+                      href="https://instagram.com/immigrationpro" 
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center hover:bg-blue-200 transition-all text-blue-600"
                     >
                       <i className="fab fa-instagram text-xl"></i>

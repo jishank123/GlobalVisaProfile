@@ -10,6 +10,7 @@ const {
   respondToContactForm,
   addCommunication,
   convertToLead,
+  convertContactsToLeads,
   deleteContactForm
 } = require('../controllers/contactFormController');
 
@@ -133,6 +134,32 @@ const validateCommunication = [
     .withMessage('Invalid communication direction')
 ];
 
+// Validation for bulk lead conversion
+const validateBulkLeadConversion = [
+  body('contactIds')
+    .isArray({ min: 1 })
+    .withMessage('Contact IDs array is required and must contain at least one ID'),
+  
+  body('contactIds.*')
+    .isMongoId()
+    .withMessage('Each contact ID must be a valid MongoDB ObjectId'),
+  
+  body('priority')
+    .optional()
+    .isIn(['high', 'medium', 'low'])
+    .withMessage('Invalid priority value'),
+  
+  body('assignedTo')
+    .optional()
+    .isMongoId()
+    .withMessage('Invalid user ID for assignment'),
+  
+  body('notes')
+    .optional()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage('Notes cannot exceed 1000 characters')
+];
 // Validation for lead conversion
 const validateLeadConversion = [
   body('service_interest')
@@ -221,6 +248,15 @@ router.post('/:id/convert-to-lead',
   auth(['admin', 'lead_manager', 'crm_manager']),
   validateLeadConversion,
   convertToLead
+);
+
+// @route   POST /api/contact/convert-to-leads
+// @desc    Convert multiple contact forms to leads (bulk)
+// @access  Private (Admin/Manager)
+router.post('/convert-to-leads', 
+  auth(['admin', 'lead_manager', 'crm_manager']),
+  validateBulkLeadConversion,
+  convertContactsToLeads
 );
 
 // @route   DELETE /api/contact/:id

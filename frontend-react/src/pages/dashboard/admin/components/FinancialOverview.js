@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { dashboardAPI } from '../../../../services/api';
 
 const FinancialOverview = () => {
   const [financialData, setFinancialData] = useState({
@@ -30,68 +31,107 @@ const FinancialOverview = () => {
     try {
       setLoading(true);
       
-      // Mock financial data
-      setFinancialData({
-        revenue: {
-          total: 245000,
-          thisMonth: 32000,
-          lastMonth: 28000,
-          growth: 14.3
-        },
-        expenses: {
-          total: 89000,
-          thisMonth: 12000,
-          lastMonth: 11500
-        },
-        profit: {
-          total: 156000,
-          thisMonth: 20000,
-          margin: 62.5
-        },
-        payments: [
-          {
-            id: 1,
-            client: 'Dr. Sarah Chen',
-            service: 'EB-1A Petition',
-            amount: 12000,
-            status: 'paid',
-            date: '2026-01-28T00:00:00Z',
-            method: 'Bank Transfer'
+      const response = await dashboardAPI.getFinancialOverview();
+      
+      if (response.success) {
+        // Map the backend response to the expected frontend structure
+        const backendData = response.data;
+        
+        setFinancialData({
+          revenue: {
+            total: backendData.totalPayments || 0,
+            thisMonth: backendData.monthlyRevenue || 0,
+            lastMonth: 0, // Could be calculated from backend
+            growth: 0 // Could be calculated from backend
           },
-          {
-            id: 2,
-            client: 'John Martinez',
-            service: 'EB-2 NIW Application',
-            amount: 9000,
-            status: 'pending',
-            date: '2026-01-25T00:00:00Z',
-            method: 'Credit Card'
+          expenses: {
+            total: 0, // Not implemented in backend yet
+            thisMonth: 0,
+            lastMonth: 0
           },
-          {
-            id: 3,
-            client: 'Maria Rodriguez',
-            service: 'O-1 Visa Consultation',
-            amount: 500,
-            status: 'paid',
-            date: '2026-01-20T00:00:00Z',
-            method: 'PayPal'
+          profit: {
+            total: backendData.monthlyRevenue || 0,
+            thisMonth: backendData.monthlyRevenue || 0,
+            margin: 0 // Could be calculated
           },
-          {
-            id: 4,
-            client: 'Emily Wilson',
-            service: 'EB-1A Documentation',
-            amount: 14000,
-            status: 'overdue',
-            date: '2026-01-15T00:00:00Z',
-            method: 'Bank Transfer'
-          }
-        ]
-      });
-
+          payments: [] // Recent payments would need separate endpoint
+        });
+      } else {
+        throw new Error(response.error?.message || 'Failed to load financial data');
+      }
+      
     } catch (error) {
       console.error('Error loading financial data:', error);
+      // Set empty state on error
+      setFinancialData({
+        revenue: { total: 0, thisMonth: 0, lastMonth: 0, growth: 0 },
+        expenses: { total: 0, thisMonth: 0, lastMonth: 0 },
+        profit: { total: 0, thisMonth: 0, margin: 0 },
+        payments: []
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const viewPaymentReceipt = (payment) => {
+    alert(`Payment Receipt:
+    
+Client: ${payment.client}
+Service: ${payment.service}
+Amount: $${payment.amount.toLocaleString()}
+Status: ${payment.status.toUpperCase()}
+Payment Method: ${payment.method}
+Date: ${new Date(payment.date).toLocaleDateString()}
+Payment ID: ${payment.id || payment._id}`);
+  };
+
+  const sendInvoice = async (payment) => {
+    if (window.confirm(`Send invoice to client?\n\nClient: ${payment.client}\nAmount: $${payment.amount.toLocaleString()}`)) {
+      try {
+        // This would call the payments API to send invoice
+        const response = await fetch(`/api/payments/${payment.id || payment._id}/send-invoice`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (response.ok) {
+          alert('Invoice sent successfully!');
+        } else {
+          throw new Error('Failed to send invoice');
+        }
+      } catch (error) {
+        console.error('Error sending invoice:', error);
+        alert(`Error sending invoice: ${error.message}`);
+      }
+    }
+  };
+
+  const markAsPaid = async (payment) => {
+    if (window.confirm(`Mark payment as paid?\n\nClient: ${payment.client}\nAmount: $${payment.amount.toLocaleString()}`)) {
+      try {
+        // This would call the payments API to mark as paid
+        const response = await fetch(`/api/payments/${payment.id || payment._id}/mark-paid`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (response.ok) {
+          alert('Payment marked as paid successfully!');
+          loadFinancialData();
+        } else {
+          throw new Error('Failed to mark payment as paid');
+        }
+      } catch (error) {
+        console.error('Error marking payment as paid:', error);
+        alert(`Error updating payment: ${error.message}`);
+      }
     }
   };
 
@@ -217,37 +257,58 @@ const FinancialOverview = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {financialData.payments.map(payment => (
-                    <tr key={payment.id}>
-                      <td><strong>{payment.client}</strong></td>
-                      <td>{payment.service}</td>
-                      <td><strong>${payment.amount.toLocaleString()}</strong></td>
-                      <td>
-                        <span className={`badge ${getPaymentStatusBadge(payment.status)}`}>
-                          {payment.status.toUpperCase()}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="badge bg-secondary">{payment.method}</span>
-                      </td>
-                      <td>{new Date(payment.date).toLocaleDateString()}</td>
-                      <td>
-                        <div className="btn-group btn-group-sm">
-                          <button className="btn btn-outline-primary" title="View Receipt">
-                            <i className="fas fa-eye"></i>
-                          </button>
-                          <button className="btn btn-outline-info" title="Send Invoice">
-                            <i className="fas fa-file-invoice"></i>
-                          </button>
-                          {payment.status === 'pending' && (
-                            <button className="btn btn-outline-success" title="Mark as Paid">
-                              <i className="fas fa-check"></i>
+                  {financialData.payments.length > 0 ? (
+                    financialData.payments.map(payment => (
+                      <tr key={payment.id || payment._id}>
+                        <td><strong>{payment.client}</strong></td>
+                        <td>{payment.service}</td>
+                        <td><strong>${payment.amount.toLocaleString()}</strong></td>
+                        <td>
+                          <span className={`badge ${getPaymentStatusBadge(payment.status)}`}>
+                            {payment.status.toUpperCase()}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="badge bg-secondary">{payment.method}</span>
+                        </td>
+                        <td>{new Date(payment.date).toLocaleDateString()}</td>
+                        <td>
+                          <div className="btn-group btn-group-sm">
+                            <button 
+                              className="btn btn-outline-primary" 
+                              onClick={() => viewPaymentReceipt(payment)}
+                              title="View Receipt"
+                            >
+                              <i className="fas fa-eye"></i>
                             </button>
-                          )}
-                        </div>
+                            <button 
+                              className="btn btn-outline-info" 
+                              onClick={() => sendInvoice(payment)}
+                              title="Send Invoice"
+                            >
+                              <i className="fas fa-file-invoice"></i>
+                            </button>
+                            {payment.status === 'pending' && (
+                              <button 
+                                className="btn btn-outline-success" 
+                                onClick={() => markAsPaid(payment)}
+                                title="Mark as Paid"
+                              >
+                                <i className="fas fa-check"></i>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="7" className="text-center text-muted py-4">
+                        <i className="fas fa-receipt fa-2x mb-2"></i>
+                        <p>No recent payments found</p>
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>

@@ -8,7 +8,11 @@ import LeadManagement from './components/LeadManagement';
 import UserManagement from './components/UserManagement';
 import ServicesManagement from './components/ServicesManagement';
 import ProjectsManagement from './components/ProjectsManagement';
-import FinancialOverview from './components/FinancialOverview';
+import TasksManagement from './components/TasksManagement';
+import QueriesManagement from './components/QueriesManagement';
+import PaymentsManagement from './components/PaymentsManagement';
+import EnhancedAnalytics from './components/EnhancedAnalytics';
+import DeletedRecords from './components/DeletedRecords';
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
@@ -46,8 +50,16 @@ const AdminDashboard = () => {
         return <ServicesManagement />;
       case 'projects':
         return <ProjectsManagement />;
-      case 'financial':
-        return <FinancialOverview />;
+      case 'tasks':
+        return <TasksManagement />;
+      case 'queries':
+        return <QueriesManagement />;
+      case 'payments':
+        return <PaymentsManagement />;
+      case 'analytics':
+        return <EnhancedAnalytics />;
+      case 'deleted':
+        return <DeletedRecords />;
       default:
         return <DashboardOverview />;
     }

@@ -3,10 +3,10 @@ import { dashboardAPI } from '../../../../services/api';
 
 const DashboardOverview = () => {
   const [stats, setStats] = useState({
-    totalClients: 156,
-    activeProjects: 45,
-    monthlyRevenue: 245000,
-    teamMembers: 23
+    totalClients: 0,
+    activeProjects: 0,
+    monthlyRevenue: 0,
+    teamMembers: 0
   });
   const [loading, setLoading] = useState(false);
 
@@ -17,22 +17,28 @@ const DashboardOverview = () => {
   const loadDashboardStats = async () => {
     try {
       setLoading(true);
-      // In a real implementation, you would fetch from API
-      // const response = await dashboardAPI.getData();
-      // setStats(response.data);
+      const response = await dashboardAPI.getData();
       
-      // Using mock data for now
-      setTimeout(() => {
+      if (response.success) {
         setStats({
-          totalClients: 156,
-          activeProjects: 45,
-          monthlyRevenue: 245000,
-          teamMembers: 23
+          totalClients: response.data.totalClients || 0,
+          activeProjects: response.data.activeProjects || 0,
+          monthlyRevenue: response.data.monthlyRevenue || 0,
+          teamMembers: response.data.teamMembers || 0
         });
-        setLoading(false);
-      }, 1000);
+      } else {
+        throw new Error(response.error?.message || 'Failed to load dashboard stats');
+      }
     } catch (error) {
       console.error('Error loading dashboard stats:', error);
+      // Fallback to default values on error
+      setStats({
+        totalClients: 0,
+        activeProjects: 0,
+        monthlyRevenue: 0,
+        teamMembers: 0
+      });
+    } finally {
       setLoading(false);
     }
   };
