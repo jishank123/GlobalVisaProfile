@@ -1,11 +1,9 @@
-const Sidebar = ({ activeSection, setActiveSection, sidebarOpen, setSidebarOpen, stats }) => {
+const Sidebar = ({ activeSection, setActiveSection, sidebarOpen, setSidebarOpen }) => {
   const sidebarItems = [
-    { id: 'dashboard', icon: 'fas fa-tachometer-alt', label: 'Dashboard Overview' },
-    { id: 'leads', icon: 'fas fa-user-plus', label: 'Lead Management', count: stats?.total },
-    { id: 'qualified', icon: 'fas fa-user-check', label: 'Qualified Leads', count: stats?.qualifiedCount },
-    { id: 'projects', icon: 'fas fa-project-diagram', label: 'Converted Projects', count: stats?.convertedCount },
-    { id: 'analytics', icon: 'fas fa-chart-line', label: 'Lead Analytics' },
-    { id: 'reports', icon: 'fas fa-file-alt', label: 'Reports & Export' }
+    { id: 'leads', icon: 'fas fa-user-tie', label: 'Assigned Leads' },
+    { id: 'qualified', icon: 'fas fa-user-check', label: 'Qualified Leads' },
+    { id: 'projects', icon: 'fas fa-project-diagram', label: 'Active Projects' },
+    { id: 'meetings', icon: 'fas fa-calendar-alt', label: 'Appointments' }
   ];
 
   const getSidebarStyle = () => {
@@ -46,9 +44,7 @@ const Sidebar = ({ activeSection, setActiveSection, sidebarOpen, setSidebarOpen,
     padding: '15px 20px',
     color: isActive ? '#1e3a8a' : '#4b5563',
     textDecoration: 'none',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    display: 'block',
     transition: 'all 0.3s',
     borderLeft: `3px solid ${isActive ? '#1e3a8a' : 'transparent'}`,
     background: isActive ? '#f3f4f6' : 'transparent',
@@ -77,15 +73,8 @@ const Sidebar = ({ activeSection, setActiveSection, sidebarOpen, setSidebarOpen,
             }
           }}
         >
-          <div>
-            <i className={`${item.icon} me-2`}></i>
-            {item.label}
-          </div>
-          {item.count !== undefined && item.count > 0 && (
-            <span className="badge bg-danger rounded-pill" style={{ fontSize: '10px' }}>
-              {item.count}
-            </span>
-          )}
+          <i className={`${item.icon} me-2`}></i>
+          {item.label}
         </div>
       ))}
     </div>

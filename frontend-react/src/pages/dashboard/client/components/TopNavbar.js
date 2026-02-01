@@ -1,11 +1,21 @@
-const TopNavbar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
+import { designSystem } from '../../../../styles/designSystem';
+
+const TopNavbar = ({ user, clientData, logout, sidebarOpen, setSidebarOpen }) => {
+  const getInitials = (firstName, lastName) => {
+    return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
+  };
+
+  const displayName = clientData?.user?.full_name || 
+                     `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 
+                     clientData?.name || 
+                     'Client';
+
   return (
     <div 
-      className="top-navbar"
       style={{
         background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
         color: 'white',
-        padding: '15px 0',
+        padding: '0 30px',
         boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
         position: 'fixed',
         top: 0,
@@ -14,37 +24,109 @@ const TopNavbar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
         height: '70px',
         zIndex: 1000,
         display: 'flex',
-        alignItems: 'center'
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        fontFamily: designSystem.typography.fontFamily
       }}
     >
-      <div className="container-fluid">
-        <div className="d-flex justify-content-between align-items-center">
-          <div className="d-flex align-items-center">
-            {/* Mobile menu toggle */}
-            <button 
-              className="btn btn-link text-white d-md-none me-3"
-              onClick={() => setSidebarOpen && setSidebarOpen(!sidebarOpen)}
-              style={{ border: 'none', fontSize: '18px' }}
-            >
-              <i className={`fas ${sidebarOpen ? 'fa-times' : 'fa-bars'}`}></i>
-            </button>
-            <h4 className="mb-0">
-              <i className="fas fa-user-circle me-2"></i>
-              Client Dashboard
-            </h4>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        {/* Mobile menu toggle */}
+        <button 
+          onClick={() => setSidebarOpen && setSidebarOpen(!sidebarOpen)}
+          style={{ 
+            background: 'none',
+            border: 'none',
+            color: 'white',
+            fontSize: '18px',
+            marginRight: '20px',
+            cursor: 'pointer',
+            display: window.innerWidth < 768 ? 'block' : 'none'
+          }}
+        >
+          <i className={`fas ${sidebarOpen ? 'fa-times' : 'fa-bars'}`}></i>
+        </button>
+        
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <i className="fas fa-user-circle" style={{ fontSize: '24px', marginRight: '12px' }}></i>
+          <h4 style={{ margin: 0, fontWeight: '600' }}>Client Portal</h4>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+        {/* Client Profile Info */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '12px',
+          padding: '8px 16px',
+          background: 'rgba(255,255,255,0.1)',
+          borderRadius: '25px',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <div style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '12px',
+            fontWeight: '600',
+            color: 'white'
+          }}>
+            {getInitials(user?.first_name, user?.last_name)}
           </div>
-          <div>
-            <a href="/" className="btn btn-light btn-sm me-2">
-              <i className="fas fa-home me-1"></i>Home
-            </a>
-            <span className="me-3 d-none d-sm-inline">
-              {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : 'Client'}
-            </span>
-            <button onClick={logout} className="btn btn-outline-light btn-sm">
-              <i className="fas fa-sign-out-alt me-1"></i>
-              <span className="d-none d-sm-inline">Logout</span>
-            </button>
+          <div style={{ display: window.innerWidth < 640 ? 'none' : 'block' }}>
+            <div style={{ fontSize: '14px', fontWeight: '500' }}>{displayName}</div>
+            <div style={{ fontSize: '12px', opacity: 0.8 }}>{clientData?.user?.email || user?.email}</div>
           </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <a 
+            href="/" 
+            style={{
+              background: 'rgba(255,255,255,0.2)',
+              color: 'white',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              textDecoration: 'none',
+              fontSize: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
+            onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+          >
+            <i className="fas fa-home"></i>
+            <span style={{ display: window.innerWidth < 640 ? 'none' : 'inline' }}>Home</span>
+          </a>
+          
+          <button 
+            onClick={logout}
+            style={{
+              background: 'rgba(255,255,255,0.2)',
+              color: 'white',
+              border: 'none',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              fontSize: '14px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
+            onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+          >
+            <i className="fas fa-sign-out-alt"></i>
+            <span style={{ display: window.innerWidth < 640 ? 'none' : 'inline' }}>Logout</span>
+          </button>
         </div>
       </div>
     </div>

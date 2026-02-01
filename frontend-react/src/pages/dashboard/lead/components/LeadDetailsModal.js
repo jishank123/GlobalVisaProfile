@@ -1,287 +1,509 @@
-const LeadDetailsModal = ({ lead, isOpen, onClose, onContactLead, onQualifyLead, onConvertToProject }) => {
-  if (!isOpen || !lead) return null;
+import { useState, useEffect } from 'react';
+import { designSystem, componentStyles, hoverEffects } from '../../../../styles/designSystem';
+import { servicesAPI, usersAPI } from '../../../../services/api';
 
-  const formatStatus = (status) => {
-    const statusMap = {
-      'new': 'New Lead',
-      'contacted': 'Contacted',
-      'qualified': 'Qualified',
-      'assigned': 'New Lead',
-      'converted_to_project': 'Converted to Project',
-      'negotiation': 'In Negotiation',
-      'converted': 'Converted',
-      'lost': 'Lost'
-    };
-    return statusMap[status] || 'New Lead';
-  };
+const LeadDetailsModal = ({ show, onHide, lead, type, onContact, onQualify, onScheduleMeeting, onCreateProject }) => {
+  const [notes, setNotes] = useState('');
+  const [services, setServices] = useState([]);
+  const [crmManagers, setCrmManagers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [projectData, setProjectData] = useState({
+    service_id: '',
+    service_name: '',
+    description: '',
+    priority: 'medium',
+    estimated_duration: '',
+    budget: '',
+    assigned_to: '',
+    start_date: '',
+    due_date: ''
+  });
 
-  const formatPriority = (priority) => {
-    return priority?.charAt(0).toUpperCase() + priority?.slice(1) || 'Medium';
-  };
+  // Load services and CRM managers when modal opens
+  useEffect(() => {
+    if (show && type === 'create_project') {
+      loadServicesAndManagers();
+      
+      // Set default dates
+      const today = new Date();
+      const nextMonth = new Date();
+      nextMonth.setMonth(today.getMonth() + 1);
+      
+      setProjectData(prev => ({
+        ...prev,
+        start_date: today.toISOString().split('T')[0],
+        due_date: nextMonth.toISOString().split('T')[0]
+      }));
+    }
+    
+    // Reset project data when modal closes
+    if (!show) {
+      setProjectData({
+        service_id: '',
+        service_name: '',
+        description: '',
+        priority: 'medium',
+        estimated_duration: '',
+        budget: '',
+        assigned_to: '',
+        start_date: '',
+        due_date: ''
+      });
+    }
+  }, [show, type]);
 
-  const formatSource = (source) => {
-    const sourceMap = {
-      'website': 'Website',
-      'referral': 'Referral',
-      'social_media': 'Social Media',
-      'advertisement': 'Advertisement',
-      'event': 'Event'
-    };
-    return sourceMap[source] || source;
-  };
+  if (!show || !lead) return null;
 
-  const getStatusBadgeClass = (status) => {
-    const statusClasses = {
-      'new': 'bg-yellow-100 text-yellow-800',
-      'contacted': 'bg-blue-100 text-blue-800',
-      'qualified': 'bg-green-100 text-green-800',
-      'assigned': 'bg-yellow-100 text-yellow-800',
-      'converted_to_project': 'bg-purple-100 text-purple-800',
-      'negotiation': 'bg-indigo-100 text-indigo-800',
-      'converted': 'bg-green-100 text-green-800',
-      'lost': 'bg-red-100 text-red-800'
-    };
-    return statusClasses[status] || 'bg-gray-100 text-gray-800';
-  };
+  const loadServicesAndManagers = async () => {
+    try {
+      setLoading(true);
+      
+      const [servicesResponse, managersResponse] = await Promise.all([
+        servicesAPI.getAll(),
+        usersAPI.getAll({ role: 'crm_manager' })
+      ]);
 
-  const getPriorityClass = (priority) => {
-    const priorityClasses = {
-      'high': 'text-red-600 font-semibold',
-      'medium': 'text-yellow-600 font-semibold',
-      'low': 'text-green-600 font-semibold'
-    };
-    return priorityClasses[priority] || 'text-gray-600';
-  };
+      if (servicesResponse.success) {
+        const servicesData = servicesResponse.data || [];
+        setServices(servicesData);
+      }
 
-  const getSourceBadgeClass = (source) => {
-    const sourceClasses = {
-      'website': 'bg-blue-100 text-blue-800',
-      'referral': 'bg-green-100 text-green-800',
-      'social_media': 'bg-indigo-100 text-indigo-800',
-      'advertisement': 'bg-yellow-100 text-yellow-800',
-      'event': 'bg-purple-100 text-purple-800'
-    };
-    return sourceClasses[source] || 'bg-gray-100 text-gray-800';
-  };
-
-  const fullName = `${lead.firstName} ${lead.lastName}`;
-  const services = lead.interestedServices?.map(s => s.name).join(', ') || 'Not specified';
-  const lastContact = lead.lastContact ? new Date(lead.lastContact).toLocaleDateString() : 'Never';
-  const createdDate = new Date(lead.createdAt).toLocaleDateString();
-  const nextFollowUp = lead.nextFollowUp ? new Date(lead.nextFollowUp).toLocaleDateString() : 'Not scheduled';
-
-  const getActionButtons = () => {
-    switch (lead.status) {
-      case 'new':
-      case 'assigned':
-        return (
-          <div className="flex gap-2">
-            <button 
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-              onClick={() => onContactLead(lead._id)}
-            >
-              <i className="fas fa-phone mr-2"></i>Contact
-            </button>
-            <button 
-              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
-              onClick={() => onQualifyLead(lead._id)}
-            >
-              <i className="fas fa-star mr-2"></i>Qualify
-            </button>
-          </div>
-        );
-      case 'contacted':
-        return (
-          <div className="flex gap-2">
-            <button 
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-              onClick={() => onContactLead(lead._id)}
-            >
-              <i className="fas fa-comment mr-2"></i>Follow-up
-            </button>
-            <button 
-              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
-              onClick={() => onQualifyLead(lead._id)}
-            >
-              <i className="fas fa-star mr-2"></i>Qualify
-            </button>
-          </div>
-        );
-      case 'qualified':
-        return (
-          <button 
-            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
-            onClick={() => onConvertToProject(lead._id)}
-          >
-            <i className="fas fa-project-diagram mr-2"></i>Convert to Project
-          </button>
-        );
-      case 'converted_to_project':
-        return (
-          <button 
-            className="px-4 py-2 bg-purple-600 text-white rounded cursor-default"
-            title="This lead has been converted to a project"
-          >
-            <i className="fas fa-project-diagram mr-2"></i>Converted to Project
-          </button>
-        );
-      default:
-        return null;
+      if (managersResponse.success) {
+        const managersData = managersResponse.data || [];
+        setCrmManagers(managersData);
+      }
+    } catch (error) {
+      console.error('Error loading services and managers:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleServiceChange = (serviceId) => {
+    const selectedService = services.find(s => s._id === serviceId);
+    
+    let budgetValue = '';
+    if (selectedService && selectedService.pricing) {
+      if (selectedService.pricing.type === 'fixed') {
+        budgetValue = selectedService.pricing.minPrice;
+      } else if (selectedService.pricing.type === 'range') {
+        budgetValue = `${selectedService.pricing.minPrice} - ${selectedService.pricing.maxPrice}`;
+      } else {
+        budgetValue = selectedService.pricing.minPrice;
+      }
+    }
+    
+    const newProjectData = {
+      ...projectData,
+      service_id: serviceId,
+      service_name: selectedService ? selectedService.name : '',
+      budget: budgetValue
+    };
+    
+    setProjectData(newProjectData);
+  };
+
+  const getSourceDisplayName = (source) => {
+    const sourceMap = {
+      'profile_assessment': 'Assessment',
+      'contact_form': 'Contact Us',
+      'appointment': 'Appointment',
+      'website': 'Registration',
+      'referral': 'Referral',
+      'social_media': 'Social Media',
+      'advertisement': 'Advertisement',
+      'event': 'Event',
+      'cold_call': 'Cold Call',
+      'email_campaign': 'Email Campaign',
+      'other': 'Other'
+    };
+    return sourceMap[source] || source || 'Unknown';
+  };
+
+  const handleContactLead = () => {
+    onContact(lead._id);
+    onHide();
+  };
+
+  const handleQualifyLead = (qualified) => {
+    onQualify(lead._id, qualified);
+    onHide();
+  };
+
+  const handleScheduleMeeting = () => {
+    onScheduleMeeting(lead);
+    onHide();
+  };
+
+  const handleCreateProject = () => {
+    if (!projectData.service_id || !projectData.description || !projectData.assigned_to || !projectData.start_date || !projectData.due_date) {
+      alert('Please fill in all required fields: Service, Description, CRM Manager, Start Date, and Due Date');
+      return;
+    }
+    
+    // Validate that due date is after start date
+    if (new Date(projectData.due_date) <= new Date(projectData.start_date)) {
+      alert('Due date must be after start date');
+      return;
+    }
+    
+    onCreateProject(lead._id, projectData);
+    onHide();
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      'new': '#3b82f6',
+      'contacted': '#f59e0b',
+      'qualified': '#10b981',
+      'converted': '#8b5cf6',
+      'lost': '#ef4444'
+    };
+    return colors[status] || '#6b7280';
+  };
+
+  const getPriorityColor = (priority) => {
+    const colors = {
+      'low': '#10b981',
+      'medium': '#f59e0b',
+      'high': '#ef4444'
+    };
+    return colors[priority] || '#f59e0b';
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-screen overflow-y-auto">
-        <div className="bg-blue-600 text-white p-4 rounded-t-lg">
-          <h3 className="text-lg font-semibold">
-            <i className="fas fa-user mr-2"></i>
-            Lead Details - {fullName}
-          </h3>
-          <button 
-            onClick={onClose}
-            className="absolute top-4 right-4 text-white hover:text-gray-200"
-          >
-            <i className="fas fa-times"></i>
-          </button>
-        </div>
-
-        <div className="p-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Basic Information */}
-            <div>
-              <h4 className="text-lg font-semibold mb-4">
-                <i className="fas fa-info-circle mr-2"></i>Basic Information
-              </h4>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="font-semibold">Name:</span>
-                  <span>{fullName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold">Email:</span>
-                  <span>{lead.email}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold">Phone:</span>
-                  <span>{lead.phone || 'Not provided'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold">University:</span>
-                  <span>{lead.university || 'Not specified'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold">Country:</span>
-                  <span>{lead.country || 'Not specified'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold">Degree:</span>
-                  <span>{lead.degree || 'Not specified'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold">Field of Study:</span>
-                  <span>{lead.fieldOfStudy || 'Not specified'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Lead Status */}
-            <div>
-              <h4 className="text-lg font-semibold mb-4">
-                <i className="fas fa-chart-line mr-2"></i>Lead Status
-              </h4>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold">Status:</span>
-                  <span className={`px-2 py-1 rounded-full text-xs ${getStatusBadgeClass(lead.status)}`}>
-                    {formatStatus(lead.status)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold">Priority:</span>
-                  <span className={getPriorityClass(lead.priority)}>
-                    {formatPriority(lead.priority)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold">Source:</span>
-                  <span className={`px-2 py-1 rounded-full text-xs ${getSourceBadgeClass(lead.source)}`}>
-                    {formatSource(lead.source)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold">Estimated Value:</span>
-                  <span>${lead.estimatedValue || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold">Created:</span>
-                  <span>{createdDate}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold">Last Contact:</span>
-                  <span>{lastContact}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold">Next Follow-up:</span>
-                  <span>{nextFollowUp}</span>
-                </div>
-              </div>
-            </div>
+    <div className="modal d-block" style={componentStyles.modal}>
+      <div className="modal-dialog modal-lg">
+        <div className="modal-content" style={componentStyles.modalContent}>
+          <div className="modal-header" style={componentStyles.modalHeader}>
+            <h5 className="modal-title">
+              <i className="fas fa-user-tie me-2"></i>
+              Lead Details - {lead.firstName} {lead.lastName}
+            </h5>
+            <button 
+              type="button" 
+              className="btn-close btn-close-white" 
+              onClick={onHide}
+            ></button>
           </div>
-
-          {/* Interested Services */}
-          <div className="mt-6">
-            <h4 className="text-lg font-semibold mb-3">
-              <i className="fas fa-cogs mr-2"></i>Interested Services
-            </h4>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              {services}
-            </div>
-          </div>
-
-          {/* Notes */}
-          {lead.notes && (
-            <div className="mt-6">
-              <h4 className="text-lg font-semibold mb-3">
-                <i className="fas fa-sticky-note mr-2"></i>Notes
-              </h4>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                {lead.notes}
+          
+          <div className="modal-body" style={componentStyles.modalBody}>
+            {/* Lead Information */}
+            <div className="row mb-4">
+              <div className="col-md-6">
+                <div className="card border-0" style={{ background: designSystem.colors.light, padding: designSystem.spacing.md }}>
+                  <h6 className="text-primary mb-3">
+                    <i className="fas fa-info-circle me-2"></i>Basic Information
+                  </h6>
+                  <div className="mb-2">
+                    <strong>Lead ID:</strong>
+                    <span className="ms-2 badge" style={{
+                      background: designSystem.colors.primary,
+                      color: 'white',
+                      fontFamily: 'monospace'
+                    }}>
+                      #{lead._id.slice(-8).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="mb-2">
+                    <strong>Name:</strong> {lead.firstName} {lead.lastName}
+                  </div>
+                  <div className="mb-2">
+                    <strong>Email:</strong> {lead.email}
+                  </div>
+                  <div className="mb-2">
+                    <strong>Phone:</strong> {lead.phone || 'Not provided'}
+                  </div>
+                  <div className="mb-2">
+                    <strong>Country:</strong> {lead.country || 'Not specified'}
+                  </div>
+                  <div className="mb-2">
+                    <strong>University:</strong> {lead.university || 'Not specified'}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="col-md-6">
+                <div className="card border-0" style={{ background: designSystem.colors.light, padding: designSystem.spacing.md }}>
+                  <h6 className="text-primary mb-3">
+                    <i className="fas fa-chart-line me-2"></i>Lead Status
+                  </h6>
+                  <div className="mb-2">
+                    <strong>Status:</strong>
+                    <span className="ms-2 badge" style={{
+                      background: getStatusColor(lead.status),
+                      color: 'white',
+                      textTransform: 'uppercase'
+                    }}>
+                      {lead.status}
+                    </span>
+                  </div>
+                  <div className="mb-2">
+                    <strong>Priority:</strong>
+                    <span className="ms-2" style={{
+                      color: getPriorityColor(lead.priority),
+                      fontWeight: 'bold',
+                      textTransform: 'uppercase'
+                    }}>
+                      ● {lead.priority || 'Medium'}
+                    </span>
+                  </div>
+                  <div className="mb-2">
+                    <strong>Source:</strong> {getSourceDisplayName(lead.source)}
+                  </div>
+                  <div className="mb-2">
+                    <strong>Created:</strong> {new Date(lead.createdAt).toLocaleDateString()}
+                  </div>
+                  <div className="mb-2">
+                    <strong>Last Contact:</strong> {lead.lastContact ? new Date(lead.lastContact).toLocaleDateString() : 'Never'}
+                  </div>
+                </div>
               </div>
             </div>
-          )}
 
-          {/* Interaction History */}
-          {lead.interactions && lead.interactions.length > 0 && (
-            <div className="mt-6">
-              <h4 className="text-lg font-semibold mb-3">
-                <i className="fas fa-history mr-2"></i>Interaction History
-              </h4>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                {lead.interactions.map((interaction, index) => (
-                  <div key={index} className="border-b border-gray-200 pb-2 mb-2 last:border-b-0 last:mb-0">
-                    <div className="font-semibold">
-                      {interaction.type.toUpperCase()} - {new Date(interaction.date).toLocaleDateString()}
-                    </div>
-                    {interaction.note && (
-                      <div className="text-sm text-gray-600 mt-1">{interaction.note}</div>
+            {/* Lead Notes */}
+            {lead.notes && (
+              <div className="mb-4">
+                <h6 className="text-primary mb-3">
+                  <i className="fas fa-sticky-note me-2"></i>Notes
+                </h6>
+                <div className="card border-0" style={{ background: designSystem.colors.light, padding: designSystem.spacing.md }}>
+                  <p className="mb-0">{lead.notes}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Service Interest */}
+            {lead.serviceInterest && (
+              <div className="mb-4">
+                <h6 className="text-primary mb-3">
+                  <i className="fas fa-star me-2"></i>Service Interest
+                </h6>
+                <div className="card border-0" style={{ background: designSystem.colors.light, padding: designSystem.spacing.md }}>
+                  <p className="mb-0">{lead.serviceInterest}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Create Project Form (for qualified leads) */}
+            {type === 'create_project' && lead.status === 'qualified' && (
+              <div className="mb-4">
+                <h6 className="text-primary mb-3">
+                  <i className="fas fa-project-diagram me-2"></i>Create Project
+                </h6>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Service *</label>
+                    {loading ? (
+                      <div className="form-control d-flex align-items-center">
+                        <i className="fas fa-spinner fa-spin me-2"></i>
+                        Loading services...
+                      </div>
+                    ) : (
+                      <select
+                        className="form-control"
+                        style={componentStyles.formInput}
+                        value={projectData.service_id}
+                        onChange={(e) => handleServiceChange(e.target.value)}
+                        required
+                      >
+                        <option value="">Select a service</option>
+                        {services.map(service => {
+                          let priceDisplay = 'N/A';
+                          if (service.pricing) {
+                            if (service.pricing.type === 'fixed') {
+                              priceDisplay = `$${service.pricing.minPrice}`;
+                            } else if (service.pricing.type === 'range') {
+                              priceDisplay = `$${service.pricing.minPrice} - $${service.pricing.maxPrice}`;
+                            } else {
+                              priceDisplay = `$${service.pricing.minPrice}`;
+                            }
+                          }
+                          
+                          return (
+                            <option key={service._id} value={service._id}>
+                              {service.name} - {priceDisplay}
+                            </option>
+                          );
+                        })}
+                      </select>
                     )}
                   </div>
-                ))}
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Assign to CRM Manager *</label>
+                    {loading ? (
+                      <div className="form-control d-flex align-items-center">
+                        <i className="fas fa-spinner fa-spin me-2"></i>
+                        Loading managers...
+                      </div>
+                    ) : (
+                      <select
+                        className="form-control"
+                        style={componentStyles.formInput}
+                        value={projectData.assigned_to}
+                        onChange={(e) => setProjectData({...projectData, assigned_to: e.target.value})}
+                        required
+                      >
+                        <option value="">Select CRM Manager</option>
+                        {crmManagers.map(manager => (
+                          <option key={manager._id} value={manager._id}>
+                            {manager.first_name} {manager.last_name} ({manager.email})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Start Date *</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      style={componentStyles.formInput}
+                      value={projectData.start_date}
+                      onChange={(e) => setProjectData({...projectData, start_date: e.target.value})}
+                      min={new Date().toISOString().split('T')[0]}
+                      required
+                    />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Due Date *</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      style={componentStyles.formInput}
+                      value={projectData.due_date}
+                      onChange={(e) => setProjectData({...projectData, due_date: e.target.value})}
+                      min={projectData.start_date || new Date().toISOString().split('T')[0]}
+                      required
+                    />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Priority</label>
+                    <select
+                      className="form-control"
+                      style={componentStyles.formInput}
+                      value={projectData.priority}
+                      onChange={(e) => setProjectData({...projectData, priority: e.target.value})}
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Estimated Duration</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      style={componentStyles.formInput}
+                      value={projectData.estimated_duration}
+                      onChange={(e) => setProjectData({...projectData, estimated_duration: e.target.value})}
+                      placeholder="e.g., 2-3 weeks"
+                    />
+                  </div>
+                  <div className="col-12 mb-3">
+                    <label className="form-label">Budget</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      style={componentStyles.formInput}
+                      value={projectData.budget}
+                      onChange={(e) => setProjectData({...projectData, budget: e.target.value})}
+                      placeholder="Budget will be auto-filled from service price"
+                    />
+                    {projectData.service_id && projectData.budget && (
+                      <small className="text-success">
+                        <i className="fas fa-check-circle me-1"></i>
+                        Budget auto-filled from selected service: ${projectData.budget}
+                      </small>
+                    )}
+                    {projectData.service_id && !projectData.budget && (
+                      <small className="text-warning">
+                        <i className="fas fa-exclamation-triangle me-1"></i>
+                        No pricing information available for this service
+                      </small>
+                    )}
+                  </div>
+                  <div className="col-12 mb-3">
+                    <label className="form-label">Description *</label>
+                    <textarea
+                      className="form-control"
+                      style={componentStyles.formInput}
+                      rows="3"
+                      value={projectData.description}
+                      onChange={(e) => setProjectData({...projectData, description: e.target.value})}
+                      placeholder="Enter project description"
+                      required
+                    ></textarea>
+                  </div>
+                </div>
               </div>
+            )}
+          </div>
+          
+          <div className="modal-footer" style={componentStyles.modalFooter}>
+            <div className="d-flex gap-2 w-100 justify-content-between">
+              <div className="d-flex gap-2">
+                {lead.status === 'new' && (
+                  <button 
+                    className="btn btn-info"
+                    onClick={handleContactLead}
+                    {...hoverEffects.button}
+                  >
+                    <i className="fas fa-phone me-2"></i>Contact Lead
+                  </button>
+                )}
+                
+                {(lead.status === 'new' || lead.status === 'contacted') && (
+                  <button 
+                    className="btn btn-warning"
+                    onClick={handleScheduleMeeting}
+                    {...hoverEffects.button}
+                  >
+                    <i className="fas fa-calendar me-2"></i>Schedule Meeting
+                  </button>
+                )}
+                
+                {lead.status === 'contacted' && (
+                  <>
+                    <button 
+                      className="btn btn-success"
+                      onClick={() => handleQualifyLead(true)}
+                      {...hoverEffects.button}
+                    >
+                      <i className="fas fa-check me-2"></i>Qualify
+                    </button>
+                    <button 
+                      className="btn btn-danger"
+                      onClick={() => handleQualifyLead(false)}
+                      {...hoverEffects.button}
+                    >
+                      <i className="fas fa-times me-2"></i>Disqualify
+                    </button>
+                  </>
+                )}
+                
+                {type === 'create_project' && lead.status === 'qualified' && (
+                  <button 
+                    className="btn btn-primary"
+                    onClick={handleCreateProject}
+                    disabled={!projectData.service_id || !projectData.description || !projectData.assigned_to || !projectData.start_date || !projectData.due_date || loading}
+                    {...hoverEffects.button}
+                  >
+                    <i className="fas fa-plus me-2"></i>Create Project
+                  </button>
+                )}
+              </div>
+              
+              <button 
+                className="btn btn-secondary"
+                onClick={onHide}
+                {...hoverEffects.button}
+              >
+                Close
+              </button>
             </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="bg-gray-50 p-4 rounded-b-lg flex justify-between items-center">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
-          >
-            Close
-          </button>
-          {getActionButtons()}
+          </div>
         </div>
       </div>
     </div>

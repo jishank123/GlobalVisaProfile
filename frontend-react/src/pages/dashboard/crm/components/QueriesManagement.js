@@ -1,450 +1,632 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { queriesAPI } from '../../../../services/api';
+import { designSystem, componentStyles, hoverEffects } from '../../../../styles/designSystem';
 
-const QueriesManagement = ({ apiCall, clients }) => {
+const QueriesManagement = () => {
   const [queries, setQueries] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedQuery, setSelectedQuery] = useState(null);
-  const [showResponseModal, setShowResponseModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('all');
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState('');
+  const [modalData, setModalData] = useState(null);
 
-  const loadQueries = useCallback(async () => {
-    setLoading(true);
+  useEffect(() => {
+    loadQueries();
+  }, []);
+
+  const loadQueries = async () => {
     try {
-      const response = await apiCall('/queries/my-queries');
+      setLoading(true);
+      // Get queries assigned to current CRM manager
+      const response = await queriesAPI.getMyQueries();
+      
       if (response.success) {
         setQueries(response.data || []);
+      } else {
+        throw new Error(response.error?.message || 'Failed to load queries');
       }
+
     } catch (error) {
       console.error('Error loading queries:', error);
       setQueries([]);
     } finally {
       setLoading(false);
     }
-  }, [apiCall]);
-
-  useEffect(() => {
-    loadQueries();
-  }, [loadQueries]);
-
-  const handleRespondToQuery = (query) => {
-    setSelectedQuery(query);
-    setShowResponseModal(true);
   };
 
-  const handleViewQuery = (query) => {
-    setSelectedQuery(query);
-    setShowDetailsModal(true);
-  };
-
-  const submitQueryResponse = async (queryId, responseData) => {
-    try {
-      const response = await apiCall(`/queries/${queryId}/respond`, {
-        method: 'POST',
-        body: JSON.stringify(responseData)
-      });
-      
-      if (response.success) {
-        setShowResponseModal(false);
-        loadQueries();
-        alert('Response sent successfully!');
-      } else {
-        throw new Error(response.message || 'Failed to send response');
+  // Filter queries by status
+  const getFilteredQueries = (status) => {
+    if (status === 'all') return queries;
+    return queries.filter(query => {
+      switch (status) {
+        case 'open':
+          return query.status === 'open';
+        case 'in_progress':
+          return query.status === 'in_progress';
+        case 'waiting':
+          return query.status === 'waiting';
+        case 'resolved':
+          return query.status === 'resolved';
+        case 'closed':
+          return query.status === 'closed';
+        default:
+          return true;
       }
-    } catch (error) {
-      console.error('Error sending response:', error);
-      alert('Failed to send response: ' + error.message);
-    }
-  };
-
-  const getTimeAgo = (dateString) => {
-    if (!dateString) return 'Unknown time';
-    
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours} hours ago`;
-    
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays} days ago`;
-    
-    return date.toLocaleDateString();
-  };
-
-  const truncateText = (text, maxLength) => {
-    if (!text) return '';
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
-  };
-
-  const getPriorityColor = (priority) => {
-    const colors = {
-      'urgent': 'bg-red-100 text-red-800 border-red-200',
-      'high': 'bg-orange-100 text-orange-800 border-orange-200',
-      'normal': 'bg-blue-100 text-blue-800 border-blue-200',
-      'low': 'bg-gray-100 text-gray-800 border-gray-200'
-    };
-    return colors[priority] || colors.normal;
-  };
-
-  if (loading) {
-    return (
-      <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <p className="text-gray-600">Loading client queries...</p>
-      </div>
-    );
-  }
-
-  if (queries.length === 0) {
-    return (
-      <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-        <i className="fas fa-question-circle text-4xl text-gray-400 mb-4"></i>
-        <h5 className="text-lg font-semibold text-gray-700 mb-2">No Pending Queries</h5>
-        <p className="text-gray-600">All client queries have been resolved. Great work!</p>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <div className="bg-white rounded-lg shadow-sm">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">
-              <i className="fas fa-question-circle mr-2"></i>Client Queries
-            </h3>
-            <button 
-              onClick={loadQueries}
-              className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors"
-            >
-              <i className="fas fa-sync-alt mr-1"></i>Refresh
-            </button>
-          </div>
-        </div>
-        
-        <div className="p-6 space-y-4">
-          {queries.map(query => {
-            const client = typeof query.client === 'object' && query.client.name 
-              ? query.client 
-              : clients?.find(c => c._id === query.client) || { name: 'Unknown Client', _id: query.client };
-            const timeAgo = getTimeAgo(query.created_at || query.createdAt);
-            const priority = query.priority || 'normal';
-            const isUrgent = priority === 'urgent';
-            
-            return (
-              <div key={query._id} className={`border rounded-lg p-4 ${isUrgent ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <h4 className="font-semibold text-gray-900">
-                        {client.name} - {query.subject || 'General Query'}
-                      </h4>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(priority)}`}>
-                        {priority.toUpperCase()}
-                      </span>
-                    </div>
-                    <p className="text-gray-700 mb-2">
-                      {truncateText(query.message || query.description || 'No message content', 150)}
-                    </p>
-                    <div className="text-sm text-gray-500">
-                      Category: {query.category || 'General'} • {timeAgo}
-                    </div>
-                  </div>
-                  <div className="text-sm text-gray-500 ml-4">
-                    {timeAgo}
-                  </div>
-                </div>
-                
-                <div className="flex space-x-2">
-                  <button 
-                    onClick={() => handleRespondToQuery(query)}
-                    className="bg-green-100 text-green-700 px-3 py-2 rounded text-sm hover:bg-green-200 transition-colors"
-                  >
-                    <i className="fas fa-reply mr-1"></i>Respond
-                  </button>
-                  <button 
-                    onClick={() => handleViewQuery(query)}
-                    className="bg-blue-100 text-blue-700 px-3 py-2 rounded text-sm hover:bg-blue-200 transition-colors"
-                  >
-                    <i className="fas fa-eye mr-1"></i>View Full
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Query Response Modal */}
-      {showResponseModal && selectedQuery && (
-        <QueryResponseModal 
-          query={selectedQuery}
-          clients={clients}
-          onClose={() => setShowResponseModal(false)}
-          onSubmit={submitQueryResponse}
-        />
-      )}
-
-      {/* Query Details Modal */}
-      {showDetailsModal && selectedQuery && (
-        <QueryDetailsModal 
-          query={selectedQuery}
-          clients={clients}
-          onClose={() => setShowDetailsModal(false)}
-          onRespond={() => {
-            setShowDetailsModal(false);
-            setShowResponseModal(true);
-          }}
-        />
-      )}
-    </>
-  );
-};
-
-// Query Response Modal Component
-const QueryResponseModal = ({ query, clients, onClose, onSubmit }) => {
-  const [responseMessage, setResponseMessage] = useState('');
-  const [isInternal, setIsInternal] = useState(false);
-
-  const client = typeof query.client === 'object' && query.client.name 
-    ? query.client 
-    : clients?.find(c => c._id === query.client) || { name: 'Unknown Client', _id: query.client };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!responseMessage.trim()) {
-      alert('Please enter a response message.');
-      return;
-    }
-    
-    onSubmit(query._id, {
-      message: responseMessage.trim(),
-      isInternal: isInternal
     });
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 dashboard-modal">
-      <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Respond to Query</h3>
-            <button 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onClose();
-              }} 
-              className="text-gray-400 hover:text-gray-600 w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-all duration-200 cursor-pointer bg-transparent border-0 outline-none focus:outline-none modal-close-btn group"
-              aria-label="Close modal"
-              type="button"
-            >
-              <i className="fas fa-times text-sm group-hover:scale-110 transition-transform duration-200"></i>
-            </button>
-          </div>
-          
-          <div className="mb-4 p-3 bg-gray-50 rounded">
-            <div className="font-medium text-gray-900">{client.name}</div>
-            <div className="text-sm text-gray-600">{query.subject || 'General Query'}</div>
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Original Query:</label>
-            <div className="border p-3 bg-gray-50 rounded">
-              {query.message || query.description || 'No message content'}
-            </div>
-          </div>
-          
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Your Response:</label>
-              <textarea 
-                value={responseMessage}
-                onChange={(e) => setResponseMessage(e.target.value)}
-                rows="5"
-                placeholder="Type your response here..."
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
-            
-            <div className="mb-6">
-              <label className="flex items-center">
-                <input 
-                  type="checkbox" 
-                  checked={isInternal}
-                  onChange={(e) => setIsInternal(e.target.checked)}
-                  className="mr-2"
-                />
-                <span className="text-sm text-gray-700">Internal note (not visible to client)</span>
-              </label>
-            </div>
-            
-            <div className="flex justify-end space-x-3">
-              <button 
-                type="button" 
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onClose();
-                }}
-                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Send Response
-              </button>
-            </div>
-          </form>
+  // Get query counts for stats
+  const getQueryCounts = () => {
+    return {
+      total: queries.length,
+      open: queries.filter(query => query.status === 'open').length,
+      inProgress: queries.filter(query => query.status === 'in_progress').length,
+      waiting: queries.filter(query => query.status === 'waiting').length,
+      resolved: queries.filter(query => query.status === 'resolved').length,
+      closed: queries.filter(query => query.status === 'closed').length
+    };
+  };
+
+  const getStatusBadgeStyle = (status) => {
+    const statusStyles = {
+      'open': { background: '#ef4444', color: 'white' },
+      'in_progress': { background: '#3b82f6', color: 'white' },
+      'waiting': { background: '#f59e0b', color: 'white' },
+      'resolved': { background: '#10b981', color: 'white' },
+      'closed': { background: '#6b7280', color: 'white' }
+    };
+    return statusStyles[status] || { background: '#6b7280', color: 'white' };
+  };
+
+  const getPriorityStyle = (priority) => {
+    const priorityColors = {
+      'low': '#10b981',
+      'medium': '#f59e0b', 
+      'high': '#ef4444',
+      'urgent': '#dc2626'
+    };
+    return { color: priorityColors[priority] || '#6b7280' };
+  };
+
+  const getCategoryStyle = (category) => {
+    const categoryColors = {
+      'general': '#8b5cf6',
+      'technical': '#3b82f6',
+      'billing': '#f59e0b',
+      'project': '#10b981',
+      'complaint': '#ef4444'
+    };
+    return { background: categoryColors[category] || '#6b7280', color: 'white' };
+  };
+
+  const handleModalClose = () => {
+    setShowModal(false);
+    setModalData(null);
+    setModalType('');
+  };
+
+  const viewQueryDetails = (query) => {
+    setModalData(query);
+    setModalType('view');
+    setShowModal(true);
+  };
+
+  const respondToQuery = (query) => {
+    setModalData(query);
+    setModalType('respond');
+    setShowModal(true);
+  };
+
+  const handleUpdateQueryStatus = async (queryId, newStatus) => {
+    try {
+      const response = await queriesAPI.updateStatus(queryId, newStatus);
+      if (response.success) {
+        loadQueries(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error updating query status:', error);
+    }
+  };
+
+  const handleRespondToQuery = async (queryId, responseData) => {
+    try {
+      const response = await queriesAPI.addResponse(queryId, responseData);
+      if (response.success) {
+        loadQueries(); // Refresh the list
+        handleModalClose();
+      }
+    } catch (error) {
+      console.error('Error responding to query:', error);
+    }
+  };
+
+  const StatCard = ({ icon, number, label, borderColor, iconColor }) => (
+    <div 
+      style={{
+        ...componentStyles.contactsStatCard,
+        borderColor: borderColor,
+        cursor: 'pointer'
+      }}
+      {...hoverEffects.card}
+    >
+      <i className={`${icon} fa-2x mb-2`} style={{ color: iconColor }}></i>
+      <h4 style={{ 
+        color: iconColor,
+        fontWeight: designSystem.typography.fontWeight.bold,
+        marginBottom: '4px'
+      }}>
+        {number}
+      </h4>
+      <small style={{ color: designSystem.colors.gray[500] }}>
+        {label}
+      </small>
+    </div>
+  );
+
+  const renderQueryTable = (queryType) => {
+    const filteredQueries = getFilteredQueries(queryType);
+    
+    if (filteredQueries.length === 0) {
+      return (
+        <div style={componentStyles.emptyState}>
+          <i className="fas fa-question-circle fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
+          <p style={{ color: designSystem.colors.gray[500] }}>
+            No {queryType === 'all' ? '' : queryType} queries found
+          </p>
         </div>
+      );
+    }
+
+    return (
+      <div style={{ borderRadius: designSystem.borderRadius.button, overflow: 'hidden', boxShadow: designSystem.shadows.card }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead style={componentStyles.tableHeader}>
+            <tr>
+              <th style={componentStyles.tableHeaderCell}>Query</th>
+              <th style={componentStyles.tableHeaderCell}>Client</th>
+              <th style={componentStyles.tableHeaderCell}>Category</th>
+              <th style={componentStyles.tableHeaderCell}>Status</th>
+              <th style={componentStyles.tableHeaderCell}>Priority</th>
+              <th style={componentStyles.tableHeaderCell}>Created</th>
+              <th style={componentStyles.tableHeaderCell}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredQueries.map(query => {
+              const statusStyle = getStatusBadgeStyle(query.status);
+              const priorityStyle = getPriorityStyle(query.priority || 'medium');
+              const categoryStyle = getCategoryStyle(query.category || 'general');
+              
+              return (
+                <tr 
+                  key={query._id}
+                  style={componentStyles.tableRow}
+                  {...hoverEffects.tableRow}
+                >
+                  <td style={componentStyles.tableCell}>
+                    <div>
+                      <div style={{ 
+                        fontWeight: designSystem.typography.fontWeight.medium,
+                        marginBottom: '2px'
+                      }}>
+                        {query.subject || 'No Subject'}
+                      </div>
+                      <small style={{ color: designSystem.colors.gray[500] }}>
+                        {query.description ? query.description.substring(0, 60) + '...' : 'No description'}
+                      </small>
+                    </div>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <div>
+                      <div style={{ 
+                        fontWeight: designSystem.typography.fontWeight.medium,
+                        marginBottom: '2px'
+                      }}>
+                        {query.client?.name || 
+                         (query.client?.firstName && query.client?.lastName ? 
+                          `${query.client.firstName} ${query.client.lastName}` : 
+                          'Unknown Client')}
+                      </div>
+                      <small style={{ color: designSystem.colors.gray[500] }}>
+                        {query.client?.email || 'No email'}
+                      </small>
+                    </div>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <span style={{
+                      ...componentStyles.badge,
+                      background: categoryStyle.background,
+                      color: categoryStyle.color,
+                      textTransform: 'capitalize',
+                      fontSize: '11px',
+                      fontWeight: '600'
+                    }}>
+                      {query.category || 'General'}
+                    </span>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <span style={{
+                      ...componentStyles.badge,
+                      background: statusStyle.background,
+                      color: statusStyle.color,
+                      textTransform: 'uppercase',
+                      fontSize: '11px',
+                      fontWeight: '600'
+                    }}>
+                      {query.status.replace('_', ' ')}
+                    </span>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <span style={{
+                      ...priorityStyle,
+                      fontWeight: designSystem.typography.fontWeight.bold,
+                      textTransform: 'uppercase',
+                      fontSize: '12px'
+                    }}>
+                      {(query.priority || 'medium')}
+                    </span>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: '500' }}>
+                        {new Date(query.createdAt).toLocaleDateString()}
+                      </div>
+                      <small style={{ color: designSystem.colors.gray[500] }}>
+                        {new Date(query.createdAt).toLocaleTimeString()}
+                      </small>
+                    </div>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <div style={{ display: 'flex', gap: designSystem.spacing.xs }}>
+                      <button 
+                        className="btn btn-outline-primary btn-sm"
+                        onClick={() => viewQueryDetails(query)}
+                        title="View Query Details"
+                      >
+                        <i className="fas fa-eye"></i>
+                      </button>
+                      <button 
+                        className="btn btn-outline-success btn-sm"
+                        onClick={() => respondToQuery(query)}
+                        title="Respond to Query"
+                      >
+                        <i className="fas fa-reply"></i>
+                      </button>
+                      {query.status !== 'closed' && (
+                        <button 
+                          className="btn btn-outline-info btn-sm"
+                          onClick={() => handleUpdateQueryStatus(query._id, 'resolved')}
+                          title="Mark as Resolved"
+                        >
+                          <i className="fas fa-check"></i>
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
+    );
+  };
+
+  return (
+    <div style={componentStyles.managementCard}>
+      {/* Header with Refresh Button */}
+      <div style={componentStyles.header}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={componentStyles.headerIcon}>
+            <i className="fas fa-question-circle fa-lg"></i>
+          </div>
+          <div>
+            <h4 style={componentStyles.headerTitle}>Client Queries</h4>
+            <p style={componentStyles.headerSubtitle}>Manage and respond to client queries and support requests</p>
+          </div>
+        </div>
+        <button 
+          style={{
+            ...componentStyles.primaryButton,
+            background: designSystem.colors.success
+          }}
+          onClick={loadQueries}
+          {...hoverEffects.button}
+        >
+          <i className="fas fa-sync-alt me-2"></i>Refresh
+        </button>
+      </div>
+
+      {/* Overview Statistics */}
+      <div style={componentStyles.statsContainer}>
+        <StatCard
+          icon="fas fa-question-circle"
+          number={getQueryCounts().total}
+          label="Total Queries"
+          borderColor="#8b5cf6"
+          iconColor="#8b5cf6"
+        />
+        <StatCard
+          icon="fas fa-exclamation-circle"
+          number={getQueryCounts().open}
+          label="Open Queries"
+          borderColor="#ef4444"
+          iconColor="#ef4444"
+        />
+        <StatCard
+          icon="fas fa-play-circle"
+          number={getQueryCounts().inProgress}
+          label="In Progress"
+          borderColor="#3b82f6"
+          iconColor="#3b82f6"
+        />
+        <StatCard
+          icon="fas fa-clock"
+          number={getQueryCounts().waiting}
+          label="Waiting"
+          borderColor="#f59e0b"
+          iconColor="#f59e0b"
+        />
+        <StatCard
+          icon="fas fa-check-circle"
+          number={getQueryCounts().resolved}
+          label="Resolved"
+          borderColor="#10b981"
+          iconColor="#10b981"
+        />
+      </div>
+
+      {/* Loading State */}
+      {loading && (
+        <div style={componentStyles.loading}>
+          <i className="fas fa-spinner fa-spin fa-2x" style={{ color: designSystem.colors.primary }}></i>
+          <p style={{ marginTop: designSystem.spacing.md, color: designSystem.colors.gray[500] }}>Loading queries...</p>
+        </div>
+      )}
+
+      {/* Query Type Tabs */}
+      {!loading && (
+        <>
+          <div style={{ marginBottom: designSystem.spacing.lg }}>
+            <div style={{ display: 'flex', gap: designSystem.spacing.xs, flexWrap: 'wrap' }}>
+              <button 
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: activeTab === 'all' ? designSystem.colors.primary : designSystem.colors.gray[100],
+                  color: activeTab === 'all' ? 'white' : designSystem.colors.gray[600],
+                  boxShadow: activeTab === 'all' ? designSystem.shadows.button : 'none'
+                }}
+                onClick={() => setActiveTab('all')}
+                {...hoverEffects.button}
+              >
+                All Queries ({getQueryCounts().total})
+              </button>
+              <button 
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: activeTab === 'open' ? '#ef4444' : designSystem.colors.gray[100],
+                  color: activeTab === 'open' ? 'white' : designSystem.colors.gray[600],
+                  boxShadow: activeTab === 'open' ? designSystem.shadows.button : 'none'
+                }}
+                onClick={() => setActiveTab('open')}
+                {...hoverEffects.button}
+              >
+                Open ({getQueryCounts().open})
+              </button>
+              <button 
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: activeTab === 'in_progress' ? '#3b82f6' : designSystem.colors.gray[100],
+                  color: activeTab === 'in_progress' ? 'white' : designSystem.colors.gray[600],
+                  boxShadow: activeTab === 'in_progress' ? designSystem.shadows.button : 'none'
+                }}
+                onClick={() => setActiveTab('in_progress')}
+                {...hoverEffects.button}
+              >
+                In Progress ({getQueryCounts().inProgress})
+              </button>
+              <button 
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: activeTab === 'waiting' ? '#f59e0b' : designSystem.colors.gray[100],
+                  color: activeTab === 'waiting' ? 'white' : designSystem.colors.gray[600],
+                  boxShadow: activeTab === 'waiting' ? designSystem.shadows.button : 'none'
+                }}
+                onClick={() => setActiveTab('waiting')}
+                {...hoverEffects.button}
+              >
+                Waiting ({getQueryCounts().waiting})
+              </button>
+              <button 
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: activeTab === 'resolved' ? '#10b981' : designSystem.colors.gray[100],
+                  color: activeTab === 'resolved' ? 'white' : designSystem.colors.gray[600],
+                  boxShadow: activeTab === 'resolved' ? designSystem.shadows.button : 'none'
+                }}
+                onClick={() => setActiveTab('resolved')}
+                {...hoverEffects.button}
+              >
+                Resolved ({getQueryCounts().resolved})
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          <div>
+            {renderQueryTable(activeTab)}
+          </div>
+        </>
+      )}
+
+      {/* No Queries Message */}
+      {!loading && queries.length === 0 && (
+        <div style={componentStyles.emptyState}>
+          <i className="fas fa-question-circle fa-4x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.lg }}></i>
+          <h6 style={{ color: designSystem.colors.gray[500], marginBottom: designSystem.spacing.md }}>No queries assigned to you</h6>
+          <p style={{ color: designSystem.colors.gray[500], marginBottom: designSystem.spacing.lg }}>Client queries assigned to you will appear here</p>
+        </div>
+      )}
+
+      {/* Query Modal */}
+      {showModal && (
+        <QueryModal
+          show={showModal}
+          onHide={handleModalClose}
+          type={modalType}
+          data={modalData}
+          onRespondToQuery={handleRespondToQuery}
+        />
+      )}
     </div>
   );
 };
 
-// Query Details Modal Component
-const QueryDetailsModal = ({ query, clients, onClose, onRespond }) => {
-  const client = typeof query.client === 'object' && query.client.name 
-    ? query.client 
-    : clients?.find(c => c._id === query.client) || { name: 'Unknown Client', _id: query.client };
+// Query Modal Component
+const QueryModal = ({ show, onHide, type, data, onRespondToQuery }) => {
+  const [responseText, setResponseText] = useState('');
+  const [isInternal, setIsInternal] = useState(false);
 
-  const getTimeAgo = (dateString) => {
-    if (!dateString) return 'Unknown time';
-    
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours} hours ago`;
-    
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays} days ago`;
-    
-    return date.toLocaleDateString();
-  };
+  if (!show || !data) return null;
 
-  const formatStatus = (status) => {
-    const statusMap = {
-      'new': 'New',
-      'pending': 'Pending',
-      'in_progress': 'In Progress',
-      'resolved': 'Resolved',
-      'closed': 'Closed'
-    };
-    return statusMap[status] || status;
-  };
+  const handleSubmitResponse = (e) => {
+    e.preventDefault();
+    
+    if (!responseText.trim()) {
+      alert('Please enter a response.');
+      return;
+    }
 
-  const getStatusColor = (status) => {
-    const colors = {
-      'new': 'bg-blue-100 text-blue-800',
-      'pending': 'bg-yellow-100 text-yellow-800',
-      'in_progress': 'bg-purple-100 text-purple-800',
-      'resolved': 'bg-green-100 text-green-800',
-      'closed': 'bg-gray-100 text-gray-800'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    onRespondToQuery(data._id, {
+      message: responseText.trim(),
+      is_internal: isInternal
+    });
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 dashboard-modal">
-      <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Query Details</h3>
-            <button 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onClose();
-              }} 
-              className="text-gray-400 hover:text-gray-600 w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-all duration-200 cursor-pointer bg-transparent border-0 outline-none focus:outline-none modal-close-btn group"
-              aria-label="Close modal"
-              type="button"
-            >
-              <i className="fas fa-times text-sm group-hover:scale-110 transition-transform duration-200"></i>
-            </button>
+    <div className="modal" style={componentStyles.modal}>
+      <div className="modal-dialog modal-lg">
+        <div className="modal-content" style={componentStyles.modalContent}>
+          <div className="modal-header" style={componentStyles.modalHeader}>
+            <h5 className="modal-title">
+              <i className="fas fa-question-circle me-2"></i>
+              {type === 'respond' ? 'Respond to Query' : 'Query Details'}
+            </h5>
+            <button type="button" className="btn-close btn-close-white" onClick={onHide}></button>
           </div>
           
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <div className="text-sm font-medium text-gray-700">Client:</div>
-              <div className="text-gray-900">{client.name}</div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-700">Subject:</div>
-              <div className="text-gray-900">{query.subject || 'General Query'}</div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-700">Priority:</div>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                query.priority === 'urgent' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
-              }`}>
-                {(query.priority || 'normal').toUpperCase()}
-              </span>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-700">Status:</div>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(query.status || 'pending')}`}>
-                {formatStatus(query.status || 'pending')}
-              </span>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-700">Created:</div>
-              <div className="text-gray-900">{getTimeAgo(query.created_at || query.createdAt)}</div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-700">Category:</div>
-              <div className="text-gray-900">{query.category || 'General'}</div>
-            </div>
-          </div>
-          
-          <div className="mb-4">
-            <div className="text-sm font-medium text-gray-700 mb-2">Message:</div>
-            <div className="border p-3 bg-gray-50 rounded">
-              {query.message || query.description || 'No message content'}
-            </div>
-          </div>
-          
-          {query.responses && query.responses.length > 0 && (
-            <div className="mb-4">
-              <div className="text-sm font-medium text-gray-700 mb-2">Responses:</div>
-              <div className="space-y-2">
-                {query.responses.map((response, index) => (
-                  <div key={index} className="border p-2 bg-gray-50 rounded">
-                    <div className="text-xs text-gray-500 mb-1">
-                      {response.user?.first_name || 'Unknown'} - {getTimeAgo(response.timestamp)}
-                    </div>
-                    <div className="text-gray-900">{response.message}</div>
-                  </div>
-                ))}
+          <div className="modal-body" style={componentStyles.modalBody}>
+            <div className="row">
+              <div className="col-md-6">
+                <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                  Query Information
+                </h6>
+                <p><strong>Subject:</strong> {data.subject || 'No Subject'}</p>
+                <p><strong>Category:</strong> {data.category || 'General'}</p>
+                <p><strong>Priority:</strong> {data.priority || 'Medium'}</p>
+                <p><strong>Status:</strong> {data.status || 'Open'}</p>
+              </div>
+              <div className="col-md-6">
+                <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                  Client Information
+                </h6>
+                <p><strong>Name:</strong> {data.client?.name || `${data.client?.firstName || ''} ${data.client?.lastName || ''}`.trim() || 'N/A'}</p>
+                <p><strong>Email:</strong> {data.client?.email || 'N/A'}</p>
+                <p><strong>Created:</strong> {new Date(data.createdAt).toLocaleString()}</p>
               </div>
             </div>
-          )}
+            
+            <div className="mb-4">
+              <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                Query Description
+              </h6>
+              <div style={{
+                background: designSystem.colors.gray[50],
+                padding: designSystem.spacing.md,
+                borderRadius: designSystem.borderRadius.button,
+                border: `1px solid ${designSystem.colors.gray[200]}`
+              }}>
+                {data.description || 'No description provided'}
+              </div>
+            </div>
+
+            {/* Previous Responses */}
+            {data.responses && data.responses.length > 0 && (
+              <div className="mb-4">
+                <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                  Previous Responses
+                </h6>
+                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                  {data.responses.map((response, index) => (
+                    <div 
+                      key={index}
+                      style={{
+                        background: response.is_internal ? '#fef3c7' : '#f0f9ff',
+                        padding: designSystem.spacing.sm,
+                        borderRadius: designSystem.borderRadius.button,
+                        marginBottom: designSystem.spacing.sm,
+                        border: `1px solid ${response.is_internal ? '#fbbf24' : '#0ea5e9'}`
+                      }}
+                    >
+                      <div style={{ 
+                        fontSize: '12px', 
+                        color: designSystem.colors.gray[600],
+                        marginBottom: '4px'
+                      }}>
+                        {response.is_internal ? 'Internal Note' : 'Response'} - {new Date(response.created_at).toLocaleString()}
+                      </div>
+                      <div>{response.message}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Response Form */}
+            {type === 'respond' && (
+              <div>
+                <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                  Add Response
+                </h6>
+                <form onSubmit={handleSubmitResponse}>
+                  <div className="mb-3">
+                    <textarea 
+                      className="form-control"
+                      rows="4"
+                      value={responseText}
+                      onChange={(e) => setResponseText(e.target.value)}
+                      placeholder="Enter your response..."
+                      required
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <div className="form-check">
+                      <input 
+                        className="form-check-input"
+                        type="checkbox"
+                        id="internalNote"
+                        checked={isInternal}
+                        onChange={(e) => setIsInternal(e.target.checked)}
+                      />
+                      <label className="form-check-label" htmlFor="internalNote">
+                        Internal note (not visible to client)
+                      </label>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
           
-          <div className="flex justify-end space-x-3">
-            <button 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onClose();
-              }}
-              className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
-            >
+          <div className="modal-footer" style={componentStyles.modalFooter}>
+            <button type="button" className="btn btn-secondary" onClick={onHide}>
               Close
             </button>
-            <button 
-              onClick={onRespond}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Respond
-            </button>
+            {type === 'respond' && (
+              <button type="button" className="btn btn-primary" onClick={handleSubmitResponse}>
+                Send Response
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -5,6 +5,11 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api
 const API_TIMEOUT = parseInt(process.env.REACT_APP_API_TIMEOUT) || 30000;
 const DEBUG_MODE = process.env.REACT_APP_DEBUG === 'true';
 
+console.log('🔧 API Configuration loaded:');
+console.log('🔧   REACT_APP_API_URL from env:', process.env.REACT_APP_API_URL);
+console.log('🔧   Final API_BASE_URL:', API_BASE_URL);
+console.log('🔧   DEBUG_MODE:', DEBUG_MODE);
+
 // Create axios instance
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
@@ -19,49 +24,56 @@ apiClient.interceptors.request.use((config) => {
     const token = localStorage.getItem('token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+
+        // Debug token in development
+        if (DEBUG_MODE) {
+            console.log('🔑 Token found and added to request:', token.substring(0, 20) + '...');
+        }
+    } else {
+        if (DEBUG_MODE) {
+            console.warn('⚠️ No token found in localStorage');
+        }
     }
 
-    // Debug logging in development
-    if (DEBUG_MODE) {
-        console.log('🌐 API Request:', {
-            method: config.method?.toUpperCase(),
-            url: config.url,
-            baseURL: config.baseURL,
-            headers: config.headers,
-            data: config.data
-        });
-    }
+    // Debug logging in development - ALWAYS log API calls for debugging
+    console.log('🌐 API Request:', {
+        method: config.method?.toUpperCase(),
+        url: config.url,
+        fullURL: config.baseURL + config.url,
+        hasToken: !!token
+    });
 
     return config;
 }, (error) => {
-    if (DEBUG_MODE) {
-        console.error('🌐 API Request Error:', error);
-    }
+    console.error('🌐 API Request Error:', error);
     return Promise.reject(error);
 });
 
 // Response interceptor to handle errors
-apiClient.interceptors.response.use((response) => { // Debug logging in development
-    if (DEBUG_MODE) {
-        console.log('🌐 API Response:', {
-            status: response.status,
-            url: response.config.url,
-            data: response.data
-        });
-    }
+apiClient.interceptors.response.use((response) => {
+    // Debug logging in development - ALWAYS log API responses for debugging
+    console.log('🌐 API Response:', {
+        status: response.status,
+        url: response.config.url,
+        fullURL: response.config.baseURL + response.config.url,
+        data: response.data,
+        success: response.data?.success
+    });
 
     return response.data;
-}, (error) => { // Debug logging in development
-    if (DEBUG_MODE) {
-        console.error('🌐 API Response Error:', {
-            status: error.response?.status,
-            url: error.config?.url,
-            message: error.message,
-            data: error.response?.data
-        });
-    }
+}, (error) => {
+    // Debug logging in development - ALWAYS log API errors for debugging
+    console.error('🌐 API Response Error:', {
+        status: error.response?.status,
+        url: error.config?.url,
+        fullURL: error.config?.baseURL + error.config?.url,
+        message: error.message,
+        data: error.response?.data,
+        error: error.response?.data?.error
+    });
 
-    if (error.response?.status === 401) { // Token expired or invalid
+    if (error.response?.status === 401) {
+        // Token expired or invalid
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         const basePath = process.env.REACT_APP_BASE_PATH || '/CRM';
@@ -97,6 +109,9 @@ export const usersAPI = {
     create: (data) => apiClient.post('/users', data),
     update: (id, data) => apiClient.patch(`/users/${id}`, data),
     delete: (id) => apiClient.delete(`/users/${id}`),
+    permanentDelete: (id) => apiClient.delete(`/users/${id}/permanent`),
+    getDeleted: () => apiClient.get('/users/deleted'),
+    restore: (id) => apiClient.patch(`/users/${id}/restore`),
     getStats: () => apiClient.get('/users/stats')
 };
 
@@ -115,6 +130,9 @@ export const servicesAPI = {
     create: (data) => apiClient.post('/services', data),
     update: (id, data) => apiClient.patch(`/services/${id}`, data),
     delete: (id) => apiClient.delete(`/services/${id}`),
+    permanentDelete: (id) => apiClient.delete(`/services/${id}/permanent`),
+    getDeleted: () => apiClient.get('/services/deleted'),
+    restore: (id) => apiClient.patch(`/services/${id}/restore`),
     getStats: () => apiClient.get('/services/stats')
 };
 
@@ -126,6 +144,9 @@ export const leadsAPI = {
     update: (id, data) => apiClient.patch(`/leads/${id}`, data),
     patch: (endpoint, data) => apiClient.patch(`/leads/${endpoint}`, data),
     delete: (id) => apiClient.delete(`/leads/${id}`),
+    permanentDelete: (id) => apiClient.delete(`/leads/${id}/permanent`),
+    getDeleted: () => apiClient.get('/leads/deleted'),
+    restore: (id) => apiClient.patch(`/leads/${id}/restore`),
     convertToClient: (id) => apiClient.post(`/leads/${id}/convert`),
     bulkAssign: (data) => apiClient.post('/leads/bulk/assign', data),
     bulkAssignToCRM: (data) => apiClient.post('/leads/bulk/assign-to-crm', data),
@@ -140,11 +161,15 @@ export const projectsAPI = {
     create: (data) => apiClient.post('/projects', data),
     update: (id, data) => apiClient.patch(`/projects/${id}`, data),
     delete: (id) => apiClient.delete(`/projects/${id}`),
+    permanentDelete: (id) => apiClient.delete(`/projects/${id}/permanent`),
+    getDeleted: () => apiClient.get('/projects/deleted'),
+    restore: (id) => apiClient.patch(`/projects/${id}/restore`),
     updateProgress: (id, progress) => apiClient.patch(`/projects/${id}`, {progress}),
     handover: (id, data) => apiClient.patch(`/projects/${id}/handover`, data),
     addMilestone: (id, milestoneData) => apiClient.post(`/projects/${id}/milestones`, milestoneData),
     updateMilestone: (id, milestoneId, data) => apiClient.patch(`/projects/${id}/milestones/${milestoneId}`, data),
-    getStats: () => apiClient.get('/projects/stats/summary')
+    getStats: () => apiClient.get('/projects/stats/summary'),
+    getMyCreatedProjects: (params) => apiClient.get('/projects/my-created-projects', {params})
 };
 
 // Payments API
@@ -154,7 +179,11 @@ export const paymentsAPI = {
     create: (data) => apiClient.post('/payments', data),
     update: (id, data) => apiClient.patch(`/payments/${id}`, data),
     delete: (id) => apiClient.delete(`/payments/${id}`),
+    permanentDelete: (id) => apiClient.delete(`/payments/${id}/permanent`),
+    getDeleted: () => apiClient.get('/payments/deleted'),
+    restore: (id) => apiClient.patch(`/payments/${id}/restore`),
     verify: (id, data) => apiClient.patch(`/payments/${id}/verify`, data),
+    generateInvoice: (id) => apiClient.post(`/payments/${id}/invoice`),
     getStats: () => apiClient.get('/payments/stats/summary')
 };
 
@@ -165,6 +194,9 @@ export const clientsAPI = {
     create: (data) => apiClient.post('/clients', data),
     update: (id, data) => apiClient.patch(`/clients/${id}`, data),
     delete: (id) => apiClient.delete(`/clients/${id}`),
+    permanentDelete: (id) => apiClient.delete(`/clients/${id}/permanent`),
+    getDeleted: () => apiClient.get('/clients/deleted'),
+    restore: (id) => apiClient.patch(`/clients/${id}/restore`),
     assign: (id, managerId) => apiClient.patch(`/clients/${id}/assign`, {managerId}),
     getStats: () => apiClient.get('/clients/stats/summary')
 };
@@ -176,6 +208,9 @@ export const queriesAPI = {
     create: (data) => apiClient.post('/queries', data),
     update: (id, data) => apiClient.patch(`/queries/${id}`, data),
     delete: (id) => apiClient.delete(`/queries/${id}`),
+    permanentDelete: (id) => apiClient.delete(`/queries/${id}/permanent`),
+    getDeleted: () => apiClient.get('/queries/deleted'),
+    restore: (id) => apiClient.patch(`/queries/${id}/restore`),
     addResponse: (id, message, isInternal = false) => apiClient.post(`/queries/${id}/responses`, {message, isInternal})
 };
 
@@ -196,7 +231,8 @@ export const appointmentsAPI = {
     getById: (id) => apiClient.get(`/appointments/${id}`),
     updateStatus: (id, data) => apiClient.put(`/appointments/${id}/status`, data),
     schedule: (id, scheduleData) => apiClient.put(`/appointments/${id}/schedule`, scheduleData),
-    addCommunication: (id, communicationData) => apiClient.post(`/appointments/${id}/communications`, communicationData)
+    addCommunication: (id, communicationData) => apiClient.post(`/appointments/${id}/communications`, communicationData),
+    getMyCreatedAppointments: (params) => apiClient.get('/appointments/my-created-appointments', {params})
 };
 
 // Contact API
@@ -226,14 +262,14 @@ export const clientAccountsAPI = {
 
 // Tasks API
 export const tasksAPI = {
-  getAll: (params) => apiClient.get('/tasks', {params}),
-  getById: (id) => apiClient.get(`/tasks/${id}`),
-  create: (data) => apiClient.post('/tasks', data),
-  update: (id, data) => apiClient.patch(`/tasks/${id}`, data),
-  delete: (id) => apiClient.delete(`/tasks/${id}`),
-  updateStatus: (id, status) => apiClient.patch(`/tasks/${id}/status`, {status}),
-  assign: (id, assignedTo) => apiClient.patch(`/tasks/${id}/assign`, {assignedTo}),
-  getStats: () => apiClient.get('/tasks/stats')
+    getAll: (params) => apiClient.get('/tasks', {params}),
+    getById: (id) => apiClient.get(`/tasks/${id}`),
+    create: (data) => apiClient.post('/tasks', data),
+    update: (id, data) => apiClient.patch(`/tasks/${id}`, data),
+    delete: (id) => apiClient.delete(`/tasks/${id}`),
+    updateStatus: (id, status) => apiClient.patch(`/tasks/${id}/status`, {status}),
+    assign: (id, assignedTo) => apiClient.patch(`/tasks/${id}/assign`, {assignedTo}),
+    getStats: () => apiClient.get('/tasks/stats')
 };
 
 // Analytics API
@@ -325,3 +361,62 @@ export const getPriorityClass = (priority) => {
 
     return priorityClasses[priority] || 'priority-medium';
 };
+
+// CRM Manager specific API endpoints
+export const crmAPI = {
+    // Dashboard stats for CRM managers
+    getStats: () => apiClient.get('/dashboard/crm-stats'),
+    getActivity: () => apiClient.get('/dashboard/crm-activity'),
+    
+    // Projects assigned to CRM manager
+    getMyProjects: (params) => apiClient.get('/projects/my-projects', {params}),
+    updateProjectStatus: (id, status) => apiClient.patch(`/projects/${id}`, {status}), // Fixed: use general update endpoint
+    updateProjectProgress: (id, progress) => apiClient.patch(`/projects/${id}/progress`, {progress}),
+    
+    // Tasks for CRM manager
+    getMyTasks: (params) => apiClient.get('/tasks/my-tasks', {params}),
+    createTask: (data) => apiClient.post('/tasks', data),
+    updateTask: (id, data) => apiClient.patch(`/tasks/${id}`, data),
+    updateTaskStatus: (id, status) => apiClient.patch(`/tasks/${id}/status`, {status}),
+    
+    // Queries assigned to CRM manager
+    getMyQueries: (params) => apiClient.get('/queries/my-queries', {params}),
+    respondToQuery: (id, responseData) => apiClient.post(`/queries/${id}/respond`, responseData),
+    updateQueryStatus: (id, status) => apiClient.patch(`/queries/${id}/status`, {status}),
+    
+    // Appointments for CRM manager
+    getMyAppointments: (params) => apiClient.get('/appointments/my-appointments', {params}),
+    createAppointment: (data) => apiClient.post('/appointments', data),
+    scheduleAppointment: (id, scheduleData) => apiClient.patch(`/appointments/${id}/schedule`, scheduleData),
+    updateAppointmentStatus: (id, status) => apiClient.patch(`/appointments/${id}/status`, {status}),
+    
+    // Payments for CRM manager's projects
+    getMyPayments: (params) => apiClient.get('/payments/my-payments', {params}),
+    createPayment: (data) => apiClient.post('/payments', data),
+    uploadReceipt: (id, receiptData) => apiClient.post(`/payments/${id}/receipt`, receiptData)
+};
+
+// Update existing API objects to include CRM-specific methods
+projectsAPI.getMyProjects = crmAPI.getMyProjects;
+projectsAPI.updateStatus = crmAPI.updateProjectStatus;
+projectsAPI.updateProgress = crmAPI.updateProjectProgress;
+
+queriesAPI.getMyQueries = crmAPI.getMyQueries;
+queriesAPI.addResponse = crmAPI.respondToQuery;
+queriesAPI.updateStatus = crmAPI.updateQueryStatus;
+
+appointmentsAPI.getMyAppointments = crmAPI.getMyAppointments;
+appointmentsAPI.create = crmAPI.createAppointment;
+appointmentsAPI.schedule = crmAPI.scheduleAppointment;
+appointmentsAPI.updateStatus = crmAPI.updateAppointmentStatus;
+
+paymentsAPI.getMyPayments = crmAPI.getMyPayments;
+paymentsAPI.create = crmAPI.createPayment;
+
+tasksAPI.getMyTasks = crmAPI.getMyTasks;
+tasksAPI.create = crmAPI.createTask;
+tasksAPI.update = crmAPI.updateTask;
+tasksAPI.updateStatus = crmAPI.updateTaskStatus;
+
+dashboardAPI.getCrmStats = crmAPI.getStats;
+dashboardAPI.getCrmActivity = crmAPI.getActivity;

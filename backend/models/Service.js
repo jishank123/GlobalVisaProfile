@@ -45,6 +45,14 @@ const serviceSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
+  deletedAt: {
+    type: Date,
+    default: null
+  },
   popularity: {
     type: Number,
     default: 0

@@ -1,16 +1,21 @@
 import { useState, useEffect } from 'react';
+import { designSystem, componentStyles, hoverEffects, getStatusBadgeStyle } from '../../../../styles/designSystem';
 
-const ClientAppointments = ({ apiCall }) => {
+const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
   const [appointments, setAppointments] = useState([]);
+  const [activeTab, setActiveTab] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [appointmentStats, setAppointmentStats] = useState({
-    pending: 0,
-    confirmed: 0,
-    completed: 0,
-    cancelled: 0
-  });
+  const [showModal, setShowModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [appointmentData, setAppointmentData] = useState({
+    preferred_date: '',
+    preferred_time: '',
+    consultation_type: 'video',
+    visa_category: 'other',
+    details: '',
+    timezone: 'EST'
+  });
 
   useEffect(() => {
     loadAppointments();
@@ -19,460 +24,810 @@ const ClientAppointments = ({ apiCall }) => {
   const loadAppointments = async () => {
     setLoading(true);
     try {
-      // Get client email from localStorage or current user context
-      const clientEmail = localStorage.getItem('clientEmail') || localStorage.getItem('userEmail');
-      
-      if (!clientEmail) {
-        console.error('Client email not found');
-        setAppointments([]);
-        return;
-      }
-
-      const response = await apiCall(`/appointments/client/${encodeURIComponent(clientEmail)}`);
-      
-      if (response.success && response.data) {
-        let clientAppointments = [];
-        
-        // Handle different response structures
-        if (Array.isArray(response.data)) {
-          clientAppointments = response.data;
-        } else if (response.data.appointments && Array.isArray(response.data.appointments)) {
-          clientAppointments = response.data.appointments;
-        }
-        
-        setAppointments(clientAppointments);
-        updateAppointmentStats(clientAppointments);
-      } else {
-        setAppointments([]);
-        resetAppointmentStats();
+      const response = await apiCall('/appointments/client/' + clientData?.email);
+      if (response.success) {
+        setAppointments(response.data || []);
       }
     } catch (error) {
       console.error('Error loading appointments:', error);
-      setAppointments([]);
-      resetAppointmentStats();
     } finally {
       setLoading(false);
     }
   };
 
-  const updateAppointmentStats = (appointmentsData) => {
-    const stats = {
-      pending: 0,
-      confirmed: 0,
-      completed: 0,
-      cancelled: 0
-    };
-
-    appointmentsData.forEach(appointment => {
-      if (stats.hasOwnProperty(appointment.status)) {
-        stats[appointment.status]++;
+  const getFilteredAppointments = () => {
+    const now = new Date();
+    if (activeTab === 'all') return appointments;
+    return appointments.filter(appointment => {
+      switch (activeTab) {
+        case 'upcoming':
+          return new Date(appointment.scheduled_date) > now && appointment.status !== 'completed' && appointment.status !== 'cancelled';
+        case 'completed':
+          return appointment.status === 'completed';
+        case 'cancelled':
+          return appointment.status === 'cancelled';
+        default:
+          return true;
       }
     });
-
-    setAppointmentStats(stats);
   };
 
-  const resetAppointmentStats = () => {
-    setAppointmentStats({
-      pending: 0,
-      confirmed: 0,
-      completed: 0,
-      cancelled: 0
-    });
+  const getAppointmentCounts = () => {
+    const now = new Date();
+    return {
+      total: appointments.length,
+      upcoming: appointments.filter(a => new Date(a.scheduled_date) > now && a.status !== 'completed' && a.status !== 'cancelled').length,
+      completed: appointments.filter(a => a.status === 'completed').length,
+      cancelled: appointments.filter(a => a.status === 'cancelled').length
+    };
   };
 
-  const handleViewAppointment = (appointment) => {
-    setSelectedAppointment(appointment);
-    setShowDetailsModal(true);
+  const getAppointmentStatusStyle = (status) => {
+    const statusStyles = {
+      'scheduled': { background: '#3b82f6', color: 'white' },
+      'confirmed': { background: '#10b981', color: 'white' },
+      'completed': { background: '#10b981', color: 'white' },
+      'cancelled': { background: '#ef4444', color: 'white' },
+      'rescheduled': { background: '#f59e0b', color: 'white' },
+      'pending': { background: '#f59e0b', color: 'white' }
+    };
+    return statusStyles[status] || { background: '#6b7280', color: 'white' };
   };
 
-  const handleJoinMeeting = (meetingLink) => {
-    if (meetingLink) {
-      window.open(meetingLink, '_blank');
+  const handleScheduleAppointment = async () => {
+    try {
+      const response = await apiCall('/appointments', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: `${clientData.first_name} ${clientData.last_name}`,
+          email: clientData.email,
+          phone: clientData.phone || '',
+          visa_category: appointmentData.visa_category,
+          timezone: appointmentData.timezone,
+          preferred_date: appointmentData.preferred_date,
+          preferred_time: appointmentData.preferred_time,
+          consultation_type: appointmentData.consultation_type,
+          details: appointmentData.details,
+          status: 'scheduled',
+          priority: 'medium',
+          created_by: clientData._id
+        })
+      });
+
+      if (response.success) {
+        alert('Appointment scheduled successfully! You will receive a confirmation email shortly.');
+        setShowScheduleModal(false);
+        setAppointmentData({
+          preferred_date: '',
+          preferred_time: '',
+          consultation_type: 'video',
+          visa_category: 'other',
+          details: '',
+          timezone: 'EST'
+        });
+        loadAppointments();
+      } else {
+        throw new Error(response.message || 'Failed to schedule appointment');
+      }
+    } catch (error) {
+      console.error('Error scheduling appointment:', error);
+      alert(`Failed to schedule appointment: ${error.message}`);
     }
   };
 
-  const handleRescheduleRequest = (appointmentId) => {
-    // In a real implementation, this would open a reschedule modal
-    alert('Reschedule request functionality would be implemented here. Please contact support for now.');
-  };
-
-  const getStatusColor = (status) => {
-    const colors = {
-      'pending': 'bg-yellow-100 text-yellow-800',
-      'confirmed': 'bg-green-100 text-green-800',
-      'completed': 'bg-blue-100 text-blue-800',
-      'cancelled': 'bg-red-100 text-red-800',
-      'rescheduled': 'bg-purple-100 text-purple-800'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-  };
-
-  const formatDateTime = (dateString, timeString) => {
-    if (!dateString) return 'Not scheduled';
+  const AppointmentCard = ({ appointment }) => {
+    const appointmentDate = new Date(appointment.scheduled_date);
+    const isUpcoming = appointmentDate > new Date() && appointment.status !== 'completed' && appointment.status !== 'cancelled';
     
-    const date = new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-    
-    return timeString ? `${date} at ${timeString}` : date;
+    return (
+      <div
+        style={{
+          ...componentStyles.managementCard,
+          margin: 0,
+          cursor: 'pointer',
+          transition: 'all 0.3s ease',
+          borderLeft: `4px solid ${isUpcoming ? '#3b82f6' : '#6b7280'}`
+        }}
+        {...hoverEffects.card}
+        onClick={() => {
+          setSelectedAppointment(appointment);
+          setShowModal(true);
+        }}
+      >
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: designSystem.spacing.md
+        }}>
+          <div style={{ flex: 1 }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              marginBottom: designSystem.spacing.sm
+            }}>
+              <span style={{
+                ...componentStyles.badge,
+                ...getAppointmentStatusStyle(appointment.status),
+                textTransform: 'uppercase',
+                fontSize: '11px',
+                fontWeight: '600',
+                marginRight: designSystem.spacing.sm
+              }}>
+                {appointment.status}
+              </span>
+              <span style={{
+                ...componentStyles.badge,
+                background: designSystem.colors.primary,
+                color: 'white',
+                fontSize: '11px'
+              }}>
+                {appointment.consultation_type?.toUpperCase() || 'VIDEO'}
+              </span>
+            </div>
+            
+            <h5 style={{
+              color: designSystem.colors.dark,
+              fontWeight: designSystem.typography.fontWeight.semibold,
+              marginBottom: designSystem.spacing.sm
+            }}>
+              {appointment.visa_category === 'other' ? 'General Consultation' : appointment.visa_category} Consultation
+            </h5>
+            
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              color: designSystem.colors.gray[600],
+              fontSize: designSystem.typography.fontSize.sm,
+              marginBottom: designSystem.spacing.sm
+            }}>
+              <i className="fas fa-calendar me-2"></i>
+              {appointmentDate.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              color: designSystem.colors.gray[600],
+              fontSize: designSystem.typography.fontSize.sm,
+              marginBottom: designSystem.spacing.md
+            }}>
+              <i className="fas fa-clock me-2"></i>
+              {appointmentDate.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
+              })} ({appointment.timezone || 'EST'})
+            </div>
+          </div>
+          
+          <div style={{
+            textAlign: 'right',
+            marginLeft: designSystem.spacing.md
+          }}>
+            <div style={{
+              fontSize: designSystem.typography.fontSize.sm,
+              fontWeight: designSystem.typography.fontWeight.medium,
+              color: isUpcoming ? '#3b82f6' : designSystem.colors.gray[500],
+              marginBottom: '4px'
+            }}>
+              {isUpcoming ? 'Upcoming' : 'Past'}
+            </div>
+            <div style={{
+              fontSize: designSystem.typography.fontSize.xs,
+              color: designSystem.colors.gray[500]
+            }}>
+              {appointment.priority?.toUpperCase() || 'MEDIUM'} Priority
+            </div>
+          </div>
+        </div>
+
+        {appointment.details && (
+          <div style={{
+            background: designSystem.colors.light,
+            padding: designSystem.spacing.sm,
+            borderRadius: designSystem.borderRadius.small,
+            marginBottom: designSystem.spacing.md
+          }}>
+            <div style={{
+              fontSize: designSystem.typography.fontSize.xs,
+              color: designSystem.colors.gray[500],
+              marginBottom: '2px'
+            }}>
+              Details
+            </div>
+            <div style={{
+              fontSize: designSystem.typography.fontSize.sm,
+              color: designSystem.colors.dark
+            }}>
+              {appointment.details}
+            </div>
+          </div>
+        )}
+
+        {/* Assigned Staff */}
+        {appointment.assigned_to && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            marginBottom: designSystem.spacing.md
+          }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: designSystem.colors.primary,
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '12px',
+              fontWeight: designSystem.typography.fontWeight.bold,
+              marginRight: designSystem.spacing.sm
+            }}>
+              {appointment.assigned_to.first_name?.charAt(0)}{appointment.assigned_to.last_name?.charAt(0)}
+            </div>
+            <div>
+              <div style={{
+                fontSize: designSystem.typography.fontSize.sm,
+                fontWeight: designSystem.typography.fontWeight.medium,
+                color: designSystem.colors.dark
+              }}>
+                {appointment.assigned_to.first_name} {appointment.assigned_to.last_name}
+              </div>
+              <div style={{
+                fontSize: designSystem.typography.fontSize.xs,
+                color: designSystem.colors.gray[500]
+              }}>
+                {appointment.assigned_to.role?.replace('_', ' ').toUpperCase() || 'CONSULTANT'}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div style={{
+          display: 'flex',
+          gap: designSystem.spacing.sm,
+          paddingTop: designSystem.spacing.md,
+          borderTop: `1px solid ${designSystem.colors.gray[200]}`
+        }}>
+          <button
+            style={{
+              ...componentStyles.primaryButton,
+              flex: 1,
+              background: designSystem.colors.primary,
+              fontSize: designSystem.typography.fontSize.sm
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedAppointment(appointment);
+              setShowModal(true);
+            }}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-eye me-2"></i>View Details
+          </button>
+          {isUpcoming && (
+            <button
+              style={{
+                ...componentStyles.secondaryButton,
+                fontSize: designSystem.typography.fontSize.sm
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                // Reschedule functionality
+              }}
+              {...hoverEffects.button}
+            >
+              <i className="fas fa-calendar-alt me-2"></i>Reschedule
+            </button>
+          )}
+        </div>
+      </div>
+    );
   };
 
-  const capitalizeFirst = (str) => {
-    if (!str) return '';
-    return str.charAt(0).toUpperCase() + str.slice(1).replace(/_/g, ' ');
-  };
+  const AppointmentModal = () => (
+    <div className="modal d-block" style={componentStyles.modal}>
+      <div className="modal-dialog modal-lg">
+        <div className="modal-content" style={componentStyles.modalContent}>
+          <div className="modal-header" style={componentStyles.modalHeader}>
+            <h5 className="modal-title">
+              <i className="fas fa-calendar-alt me-2"></i>
+              Appointment Details
+            </h5>
+            <button 
+              type="button" 
+              className="btn-close btn-close-white" 
+              onClick={() => setShowModal(false)}
+            ></button>
+          </div>
+          
+          <div className="modal-body" style={componentStyles.modalBody}>
+            {selectedAppointment && (
+              <div>
+                <div className="row mb-4">
+                  <div className="col-md-6">
+                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                      Appointment Information
+                    </h6>
+                    <p><strong>Type:</strong> {selectedAppointment.visa_category === 'other' ? 'General Consultation' : selectedAppointment.visa_category}</p>
+                    <p><strong>Status:</strong> 
+                      <span style={{
+                        ...componentStyles.badge,
+                        ...getAppointmentStatusStyle(selectedAppointment.status),
+                        marginLeft: '8px'
+                      }}>
+                        {selectedAppointment.status.toUpperCase()}
+                      </span>
+                    </p>
+                    <p><strong>Consultation Type:</strong> {selectedAppointment.consultation_type?.toUpperCase() || 'VIDEO'}</p>
+                    <p><strong>Priority:</strong> {selectedAppointment.priority?.toUpperCase() || 'MEDIUM'}</p>
+                  </div>
+                  <div className="col-md-6">
+                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                      Schedule
+                    </h6>
+                    <p><strong>Date:</strong> {new Date(selectedAppointment.scheduled_date).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}</p>
+                    <p><strong>Time:</strong> {new Date(selectedAppointment.scheduled_date).toLocaleTimeString('en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}</p>
+                    <p><strong>Timezone:</strong> {selectedAppointment.timezone || 'EST'}</p>
+                    <p><strong>Duration:</strong> 60 minutes (estimated)</p>
+                  </div>
+                </div>
+
+                {selectedAppointment.assigned_to && (
+                  <div className="mb-4">
+                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                      Assigned Consultant
+                    </h6>
+                    <div style={{
+                      background: designSystem.colors.light,
+                      padding: designSystem.spacing.md,
+                      borderRadius: designSystem.borderRadius.button,
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}>
+                      <div style={{
+                        width: '50px',
+                        height: '50px',
+                        borderRadius: '50%',
+                        background: designSystem.colors.primary,
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '18px',
+                        fontWeight: designSystem.typography.fontWeight.bold,
+                        marginRight: designSystem.spacing.md
+                      }}>
+                        {selectedAppointment.assigned_to.first_name?.charAt(0)}{selectedAppointment.assigned_to.last_name?.charAt(0)}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: designSystem.typography.fontWeight.medium }}>
+                          {selectedAppointment.assigned_to.first_name} {selectedAppointment.assigned_to.last_name}
+                        </div>
+                        <div style={{ 
+                          fontSize: designSystem.typography.fontSize.sm,
+                          color: designSystem.colors.gray[600]
+                        }}>
+                          {selectedAppointment.assigned_to.role?.replace('_', ' ').toUpperCase() || 'CONSULTANT'}
+                        </div>
+                        {selectedAppointment.assigned_to.email && (
+                          <div style={{ 
+                            fontSize: designSystem.typography.fontSize.sm,
+                            color: designSystem.colors.gray[500]
+                          }}>
+                            {selectedAppointment.assigned_to.email}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedAppointment.details && (
+                  <div className="mb-4">
+                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                      Details & Notes
+                    </h6>
+                    <div style={{
+                      background: designSystem.colors.light,
+                      padding: designSystem.spacing.md,
+                      borderRadius: designSystem.borderRadius.button
+                    }}>
+                      {selectedAppointment.details}
+                    </div>
+                  </div>
+                )}
+
+                {selectedAppointment.meeting_link && (
+                  <div className="mb-4">
+                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                      Meeting Link
+                    </h6>
+                    <div style={{
+                      background: designSystem.colors.light,
+                      padding: designSystem.spacing.md,
+                      borderRadius: designSystem.borderRadius.button
+                    }}>
+                      <a 
+                        href={selectedAppointment.meeting_link} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ color: designSystem.colors.primary.split('(')[0] }}
+                      >
+                        <i className="fas fa-video me-2"></i>
+                        Join Meeting
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="modal-footer" style={componentStyles.modalFooter}>
+            <button 
+              type="button" 
+              className="btn btn-secondary" 
+              onClick={() => setShowModal(false)}
+            >
+              Close
+            </button>
+            {selectedAppointment && new Date(selectedAppointment.scheduled_date) > new Date() && selectedAppointment.status !== 'completed' && selectedAppointment.status !== 'cancelled' && (
+              <button 
+                type="button" 
+                className="btn btn-warning"
+                onClick={() => {
+                  // Reschedule functionality
+                }}
+              >
+                <i className="fas fa-calendar-alt me-2"></i>Reschedule
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const ScheduleModal = () => (
+    <div className="modal d-block" style={componentStyles.modal}>
+      <div className="modal-dialog modal-lg">
+        <div className="modal-content" style={componentStyles.modalContent}>
+          <div className="modal-header" style={componentStyles.modalHeader}>
+            <h5 className="modal-title">
+              <i className="fas fa-plus me-2"></i>
+              Schedule New Appointment
+            </h5>
+            <button 
+              type="button" 
+              className="btn-close btn-close-white" 
+              onClick={() => setShowScheduleModal(false)}
+            ></button>
+          </div>
+          
+          <div className="modal-body" style={componentStyles.modalBody}>
+            <div className="row">
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Preferred Date</label>
+                <input
+                  type="date"
+                  className="form-control"
+                  value={appointmentData.preferred_date}
+                  onChange={(e) => setAppointmentData({...appointmentData, preferred_date: e.target.value})}
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Preferred Time</label>
+                <input
+                  type="time"
+                  className="form-control"
+                  value={appointmentData.preferred_time}
+                  onChange={(e) => setAppointmentData({...appointmentData, preferred_time: e.target.value})}
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Consultation Type</label>
+                <select
+                  className="form-control"
+                  value={appointmentData.consultation_type}
+                  onChange={(e) => setAppointmentData({...appointmentData, consultation_type: e.target.value})}
+                >
+                  <option value="video">Video Call</option>
+                  <option value="phone">Phone Call</option>
+                  <option value="in-person">In-Person</option>
+                </select>
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Visa Category</label>
+                <select
+                  className="form-control"
+                  value={appointmentData.visa_category}
+                  onChange={(e) => setAppointmentData({...appointmentData, visa_category: e.target.value})}
+                >
+                  <option value="other">General Consultation</option>
+                  <option value="eb1a">EB-1A</option>
+                  <option value="eb2-niw">EB-2 NIW</option>
+                  <option value="o1">O-1 Visa</option>
+                  <option value="h1b">H-1B</option>
+                  <option value="l1">L-1</option>
+                </select>
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Timezone</label>
+                <select
+                  className="form-control"
+                  value={appointmentData.timezone}
+                  onChange={(e) => setAppointmentData({...appointmentData, timezone: e.target.value})}
+                >
+                  <option value="EST">Eastern Time (EST)</option>
+                  <option value="CST">Central Time (CST)</option>
+                  <option value="MST">Mountain Time (MST)</option>
+                  <option value="PST">Pacific Time (PST)</option>
+                </select>
+              </div>
+              <div className="col-12 mb-3">
+                <label className="form-label">Details & Questions</label>
+                <textarea
+                  className="form-control"
+                  rows="4"
+                  value={appointmentData.details}
+                  onChange={(e) => setAppointmentData({...appointmentData, details: e.target.value})}
+                  placeholder="Please describe what you'd like to discuss during the consultation..."
+                ></textarea>
+              </div>
+            </div>
+
+            <div style={{
+              background: designSystem.colors.light,
+              padding: designSystem.spacing.md,
+              borderRadius: designSystem.borderRadius.button,
+              marginTop: designSystem.spacing.md
+            }}>
+              <p style={{ 
+                margin: 0,
+                fontSize: designSystem.typography.fontSize.sm,
+                color: designSystem.colors.gray[600]
+              }}>
+                <i className="fas fa-info-circle me-2"></i>
+                Your appointment request will be reviewed and confirmed by our team. You'll receive an email with meeting details once approved.
+              </p>
+            </div>
+          </div>
+          
+          <div className="modal-footer" style={componentStyles.modalFooter}>
+            <button 
+              type="button" 
+              className="btn btn-secondary" 
+              onClick={() => setShowScheduleModal(false)}
+            >
+              Cancel
+            </button>
+            <button 
+              type="button" 
+              className="btn btn-primary" 
+              onClick={handleScheduleAppointment}
+              disabled={!appointmentData.preferred_date || !appointmentData.preferred_time}
+            >
+              <i className="fas fa-calendar-plus me-2"></i>
+              Schedule Appointment
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const StatCard = ({ icon, number, label, borderColor, iconColor }) => (
+    <div 
+      style={{
+        ...componentStyles.contactsStatCard,
+        borderColor: borderColor,
+        cursor: 'pointer'
+      }}
+      {...hoverEffects.card}
+    >
+      <i className={`${icon} fa-2x mb-2`} style={{ color: iconColor }}></i>
+      <h4 style={{ 
+        color: iconColor,
+        fontWeight: designSystem.typography.fontWeight.bold,
+        marginBottom: '4px'
+      }}>
+        {number}
+      </h4>
+      <small style={{ color: designSystem.colors.gray[500] }}>
+        {label}
+      </small>
+    </div>
+  );
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <p className="text-gray-600">Loading appointments...</p>
+      <div style={componentStyles.loading}>
+        <i className="fas fa-spinner fa-spin fa-2x" style={{ color: designSystem.colors.primary }}></i>
+        <p style={{ marginTop: designSystem.spacing.md, color: designSystem.colors.gray[500] }}>
+          Loading your appointments...
+        </p>
       </div>
     );
   }
 
   return (
-    <>
-      <div className="space-y-6">
-        {/* Appointment Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-yellow-100 p-3 rounded-lg">
-                <i className="fas fa-clock text-2xl text-yellow-600"></i>
-              </div>
-            </div>
-            <div className="text-3xl font-bold text-yellow-600 mb-1">
-              {appointmentStats.pending}
-            </div>
-            <div className="text-gray-600 text-sm">Pending</div>
+    <div>
+      {/* Header with Actions */}
+      <div style={componentStyles.header}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={componentStyles.headerIcon}>
+            <i className="fas fa-calendar-alt fa-lg"></i>
           </div>
-
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-green-100 p-3 rounded-lg">
-                <i className="fas fa-check-circle text-2xl text-green-600"></i>
-              </div>
-            </div>
-            <div className="text-3xl font-bold text-green-600 mb-1">
-              {appointmentStats.confirmed}
-            </div>
-            <div className="text-gray-600 text-sm">Confirmed</div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-blue-100 p-3 rounded-lg">
-                <i className="fas fa-calendar-check text-2xl text-blue-600"></i>
-              </div>
-            </div>
-            <div className="text-3xl font-bold text-blue-600 mb-1">
-              {appointmentStats.completed}
-            </div>
-            <div className="text-gray-600 text-sm">Completed</div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-red-100 p-3 rounded-lg">
-                <i className="fas fa-calendar-times text-2xl text-red-600"></i>
-              </div>
-            </div>
-            <div className="text-3xl font-bold text-red-600 mb-1">
-              {appointmentStats.cancelled}
-            </div>
-            <div className="text-gray-600 text-sm">Cancelled</div>
+          <div>
+            <h4 style={componentStyles.headerTitle}>My Appointments</h4>
+            <p style={componentStyles.headerSubtitle}>Schedule and manage your consultation appointments</p>
           </div>
         </div>
-
-        {/* Appointments Table */}
-        {appointments.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-            <i className="fas fa-calendar-check text-4xl text-gray-400 mb-4"></i>
-            <h5 className="text-lg font-semibold text-gray-700 mb-2">No Appointments Found</h5>
-            <p className="text-gray-600 mb-4">You don't have any appointments scheduled yet. Book a consultation to get started!</p>
-            <button 
-              onClick={() => window.open('/CRM/schedule', '_blank')}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
-            >
-              <i className="fas fa-calendar-plus mr-2"></i>Book Appointment
-            </button>
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow-sm">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  <i className="fas fa-calendar-check mr-2"></i>My Appointments
-                </h3>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={loadAppointments}
-                    className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors"
-                  >
-                    <i className="fas fa-sync-alt mr-1"></i>Refresh
-                  </button>
-                  <button 
-                    onClick={() => window.open('/CRM/schedule', '_blank')}
-                    className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
-                  >
-                    <i className="fas fa-plus mr-1"></i>Book New
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visa Category</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {appointments.map(appointment => (
-                    <tr key={appointment._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div>
-                          <div className="font-medium text-gray-900">
-                            {formatDateTime(appointment.scheduled_date, appointment.scheduled_time)}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            Timezone: {appointment.timezone || 'Not specified'}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                          {appointment.visa_category_display || appointment.visa_category}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-medium">
-                          {capitalizeFirst(appointment.consultation_type)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
-                          {capitalizeFirst(appointment.status)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-gray-900">
-                          {appointment.assigned_to ? 
-                            `${appointment.assigned_to.first_name} ${appointment.assigned_to.last_name}` : 
-                            'Not assigned'
-                          }
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-gray-900">{appointment.duration_minutes || 60} min</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex gap-1">
-                          <button 
-                            onClick={() => handleViewAppointment(appointment)}
-                            className="text-blue-600 hover:text-blue-900"
-                            title="View Details"
-                          >
-                            <i className="fas fa-eye"></i>
-                          </button>
-                          {appointment.meeting_link && (
-                            <button 
-                              onClick={() => handleJoinMeeting(appointment.meeting_link)}
-                              className="text-green-600 hover:text-green-900 ml-2"
-                              title="Join Meeting"
-                            >
-                              <i className="fas fa-video"></i>
-                            </button>
-                          )}
-                          {appointment.status === 'pending' && (
-                            <button 
-                              onClick={() => handleRescheduleRequest(appointment._id)}
-                              className="text-yellow-600 hover:text-yellow-900 ml-2"
-                              title="Request Reschedule"
-                            >
-                              <i className="fas fa-calendar-alt"></i>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: designSystem.spacing.sm }}>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: designSystem.colors.success
+            }}
+            onClick={() => setShowScheduleModal(true)}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-plus me-2"></i>Schedule Appointment
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: designSystem.colors.info
+            }}
+            onClick={() => {
+              loadAppointments();
+              onRefresh?.();
+            }}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-sync-alt me-2"></i>Refresh
+          </button>
+        </div>
       </div>
+
+      {/* Appointment Statistics */}
+      <div style={componentStyles.statsContainer}>
+        <StatCard
+          icon="fas fa-calendar-alt"
+          number={getAppointmentCounts().total}
+          label="Total Appointments"
+          borderColor="#8b5cf6"
+          iconColor="#8b5cf6"
+        />
+        <StatCard
+          icon="fas fa-clock"
+          number={getAppointmentCounts().upcoming}
+          label="Upcoming"
+          borderColor="#3b82f6"
+          iconColor="#3b82f6"
+        />
+        <StatCard
+          icon="fas fa-check-circle"
+          number={getAppointmentCounts().completed}
+          label="Completed"
+          borderColor="#10b981"
+          iconColor="#10b981"
+        />
+        <StatCard
+          icon="fas fa-times-circle"
+          number={getAppointmentCounts().cancelled}
+          label="Cancelled"
+          borderColor="#ef4444"
+          iconColor="#ef4444"
+        />
+      </div>
+
+      {/* Appointment Tabs */}
+      <div style={{ marginBottom: designSystem.spacing.lg }}>
+        <div style={{ display: 'flex', gap: designSystem.spacing.xs, flexWrap: 'wrap' }}>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeTab === 'all' ? designSystem.colors.primary : designSystem.colors.gray[100],
+              color: activeTab === 'all' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveTab('all')}
+            {...hoverEffects.button}
+          >
+            All Appointments ({getAppointmentCounts().total})
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeTab === 'upcoming' ? '#3b82f6' : designSystem.colors.gray[100],
+              color: activeTab === 'upcoming' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveTab('upcoming')}
+            {...hoverEffects.button}
+          >
+            Upcoming ({getAppointmentCounts().upcoming})
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeTab === 'completed' ? '#10b981' : designSystem.colors.gray[100],
+              color: activeTab === 'completed' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveTab('completed')}
+            {...hoverEffects.button}
+          >
+            Completed ({getAppointmentCounts().completed})
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeTab === 'cancelled' ? '#ef4444' : designSystem.colors.gray[100],
+              color: activeTab === 'cancelled' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveTab('cancelled')}
+            {...hoverEffects.button}
+          >
+            Cancelled ({getAppointmentCounts().cancelled})
+          </button>
+        </div>
+      </div>
+
+      {/* Appointments Grid */}
+      {getFilteredAppointments().length === 0 ? (
+        <div style={componentStyles.emptyState}>
+          <i className="fas fa-calendar-alt fa-4x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.lg }}></i>
+          <h6 style={{ color: designSystem.colors.gray[500], marginBottom: designSystem.spacing.md }}>
+            No {activeTab === 'all' ? '' : activeTab} appointments found
+          </h6>
+          <p style={{ color: designSystem.colors.gray[500], marginBottom: designSystem.spacing.lg }}>
+            {activeTab === 'all' 
+              ? 'You haven\'t scheduled any appointments yet. Book your first consultation!'
+              : `You don't have any ${activeTab} appointments at the moment.`}
+          </p>
+          {activeTab === 'all' && (
+            <button
+              style={componentStyles.primaryButton}
+              onClick={() => setShowScheduleModal(true)}
+              {...hoverEffects.button}
+            >
+              <i className="fas fa-calendar-plus me-2"></i>Schedule Your First Appointment
+            </button>
+          )}
+        </div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+          gap: designSystem.spacing.lg
+        }}>
+          {getFilteredAppointments().map(appointment => (
+            <AppointmentCard key={appointment._id} appointment={appointment} />
+          ))}
+        </div>
+      )}
 
       {/* Appointment Details Modal */}
-      {showDetailsModal && selectedAppointment && (
-        <AppointmentDetailsModal 
-          appointment={selectedAppointment}
-          onClose={() => setShowDetailsModal(false)}
-          onJoinMeeting={handleJoinMeeting}
-        />
-      )}
-    </>
-  );
-};
+      {showModal && <AppointmentModal />}
 
-// Appointment Details Modal Component
-const AppointmentDetailsModal = ({ appointment, onClose, onJoinMeeting }) => {
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Not scheduled';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  const getStatusColor = (status) => {
-    const colors = {
-      'pending': 'bg-yellow-100 text-yellow-800',
-      'confirmed': 'bg-green-100 text-green-800',
-      'completed': 'bg-blue-100 text-blue-800',
-      'cancelled': 'bg-red-100 text-red-800',
-      'rescheduled': 'bg-purple-100 text-purple-800'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-  };
-
-  const capitalizeFirst = (str) => {
-    if (!str) return '';
-    return str.charAt(0).toUpperCase() + str.slice(1).replace(/_/g, ' ');
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-screen overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">
-              <i className="fas fa-calendar-check mr-2"></i>Appointment Details
-            </h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-              <i className="fas fa-times"></i>
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-6 mb-6">
-            <div>
-              <h6 className="font-semibold mb-3">Appointment Information</h6>
-              <div className="space-y-2">
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Status:</span>
-                  <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
-                    {capitalizeFirst(appointment.status)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Visa Category:</span>
-                  <span className="ml-2">{appointment.visa_category_display || appointment.visa_category}</span>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Consultation Type:</span>
-                  <span className="ml-2">{capitalizeFirst(appointment.consultation_type)}</span>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Duration:</span>
-                  <span className="ml-2">{appointment.duration_minutes || 60} minutes</span>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Timezone:</span>
-                  <span className="ml-2">{appointment.timezone}</span>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Priority:</span>
-                  <span className="ml-2">{capitalizeFirst(appointment.priority || 'normal')}</span>
-                </div>
-              </div>
-            </div>
-            
-            <div>
-              <h6 className="font-semibold mb-3">Schedule Details</h6>
-              <div className="space-y-2">
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Scheduled Date:</span>
-                  <span className="ml-2">{formatDate(appointment.scheduled_date)}</span>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Scheduled Time:</span>
-                  <span className="ml-2">{appointment.scheduled_time || 'Not set'}</span>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Requested Date:</span>
-                  <span className="ml-2">{appointment.preferred_date || 'Flexible'}</span>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Requested Time:</span>
-                  <span className="ml-2">{appointment.preferred_time || 'Flexible'}</span>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Assigned To:</span>
-                  <span className="ml-2">
-                    {appointment.assigned_to ? 
-                      `${appointment.assigned_to.first_name} ${appointment.assigned_to.last_name}` : 
-                      'Not assigned'
-                    }
-                  </span>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Submitted:</span>
-                  <span className="ml-2">{formatDate(appointment.createdAt)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {appointment.details && (
-            <div className="mb-6">
-              <h6 className="font-semibold mb-2">Additional Details</h6>
-              <div className="bg-gray-50 p-3 rounded">
-                {appointment.details}
-              </div>
-            </div>
-          )}
-          
-          {appointment.consultation_notes && (
-            <div className="mb-6">
-              <h6 className="font-semibold mb-2">Consultation Notes</h6>
-              <div className="bg-gray-50 p-3 rounded">
-                {appointment.consultation_notes}
-              </div>
-            </div>
-          )}
-          
-          <div className="flex justify-between">
-            {appointment.meeting_link && (
-              <button 
-                onClick={() => onJoinMeeting(appointment.meeting_link)}
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
-              >
-                <i className="fas fa-video mr-2"></i>Join Meeting
-              </button>
-            )}
-            <button 
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors ml-auto"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Schedule Appointment Modal */}
+      {showScheduleModal && <ScheduleModal />}
     </div>
   );
 };

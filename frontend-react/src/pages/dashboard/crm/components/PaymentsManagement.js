@@ -1,561 +1,899 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { paymentsAPI, servicesAPI } from '../../../../services/api';
+import { designSystem, componentStyles, hoverEffects } from '../../../../styles/designSystem';
 
-const PaymentsManagement = ({ apiCall, clients }) => {
+const PaymentsManagement = () => {
   const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedPayment, setSelectedPayment] = useState(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('all');
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState('');
+  const [modalData, setModalData] = useState(null);
 
   useEffect(() => {
     loadPayments();
-  }, [clients, loadPayments]);
+    loadServices();
+  }, []);
 
-  const loadPayments = useCallback(async () => {
-    setLoading(true);
+  const loadPayments = async () => {
     try {
-      if (!clients || clients.length === 0) {
-        setPayments([]);
-        setLoading(false);
-        return;
+      setLoading(true);
+      // Get payments for projects assigned to current CRM manager
+      const response = await paymentsAPI.getMyPayments();
+      
+      if (response.success) {
+        setPayments(response.data || []);
+      } else {
+        throw new Error(response.error?.message || 'Failed to load payments');
       }
 
-      let foundPayments = [];
-      
-      // Get payment stats to identify all payments for this CRM manager
-      try {
-        const statsResponse = await apiCall('/payments/stats/summary');
-        
-        if (statsResponse && statsResponse.success && statsResponse.data) {
-          const stats = statsResponse.data;
-          
-          // Check for payments with different statuses
-          const totalPayments = stats.byStatus?.reduce((sum, status) => sum + status.count, 0) || 0;
-          
-          if (totalPayments > 0) {
-            // Try to load known payments with different statuses
-            const knownPaymentIds = [
-              '697af51126bb0273601bae20' // The payment we know exists
-            ];
-            
-            // Also try to find other payments by checking each assigned client
-            for (const client of clients) {
-              // Try to find payments for each client
-              try {
-                // Try different approaches to find client payments
-                const clientPaymentEndpoints = [
-                  `/payments?client=${client._id}`,
-                  `/payments/client/${client._id}`
-                ];
-                
-                for (const endpoint of clientPaymentEndpoints) {
-                  try {
-                    const clientResponse = await apiCall(endpoint);
-                    if (clientResponse && clientResponse.success && clientResponse.data) {
-                      const payments = Array.isArray(clientResponse.data) ? clientResponse.data : [clientResponse.data];
-                      payments.forEach(payment => {
-                        if (payment._id && !knownPaymentIds.includes(payment._id)) {
-                          knownPaymentIds.push(payment._id);
-                        }
-                      });
-                    }
-                  } catch (endpointError) {
-                    // Silently continue to next endpoint
-                  }
-                }
-              } catch (clientError) {
-                // Continue to next client
-              }
-            }
-            
-            // Fetch each known payment individually
-            for (const paymentId of knownPaymentIds) {
-              try {
-                const paymentResponse = await apiCall(`/payments/${paymentId}`);
-                
-                if (paymentResponse && paymentResponse.success && paymentResponse.data) {
-                  const payment = paymentResponse.data;
-                  
-                  // Check if this payment is for one of our assigned clients
-                  const isAssignedClient = clients.some(c => c._id === payment.client._id);
-                  
-                  if (isAssignedClient) {
-                    // Add payment regardless of status (pending, verified, rejected, etc.)
-                    const exists = foundPayments.some(p => p._id === payment._id);
-                    if (!exists) {
-                      foundPayments.push(payment);
-                    }
-                  }
-                }
-              } catch (paymentError) {
-                console.log(`Could not fetch payment ${paymentId}`);
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error in payment loading:', error);
-      }
-      
-      setPayments(foundPayments);
     } catch (error) {
       console.error('Error loading payments:', error);
       setPayments([]);
     } finally {
       setLoading(false);
     }
-  }, [apiCall, clients]);
-
-  const handleViewPayment = (payment) => {
-    setSelectedPayment(payment);
-    setShowDetailsModal(true);
   };
 
-  const handleVerifyPayment = (payment) => {
-    setSelectedPayment(payment);
-    setShowVerificationModal(true);
-  };
-
-  const submitPaymentVerification = async (paymentId, verificationData) => {
+  const loadServices = async () => {
     try {
-      const response = await apiCall(`/payments/${paymentId}/verify`, {
-        method: 'PATCH',
-        body: JSON.stringify(verificationData)
-      });
-      
+      const response = await servicesAPI.getAll();
       if (response.success) {
-        setShowVerificationModal(false);
-        loadPayments(); // Refresh payments
-        alert(`Payment ${verificationData.verification_status} successfully!`);
-      } else {
-        throw new Error(response.message || response.error?.message || 'Failed to verify payment');
+        setServices(response.data || []);
       }
     } catch (error) {
-      console.error('Error verifying payment:', error);
-      alert('Failed to verify payment: ' + error.message);
+      console.error('Error loading services:', error);
+      setServices([]);
     }
   };
 
-  const loadKnownPayment = async () => {
+  // Filter payments by status
+  const getFilteredPayments = (status) => {
+    if (status === 'all') return payments;
+    return payments.filter(payment => {
+      switch (status) {
+        case 'pending':
+          return payment.status === 'pending' || payment.status === 'pending_verification';
+        case 'completed':
+          return payment.status === 'completed';
+        case 'failed':
+          return payment.status === 'failed';
+        case 'refunded':
+          return payment.status === 'refunded';
+        case 'waiting_approval':
+          return payment.status === 'pending_verification';
+        default:
+          return true;
+      }
+    });
+  };
+
+  // Get payment counts for stats
+  const getPaymentCounts = () => {
+    return {
+      total: payments.length,
+      pending: payments.filter(payment => payment.status === 'pending' || payment.status === 'pending_verification').length,
+      completed: payments.filter(payment => payment.status === 'completed').length,
+      failed: payments.filter(payment => payment.status === 'failed').length,
+      waitingApproval: payments.filter(payment => payment.status === 'pending_verification').length,
+      totalAmount: payments.filter(payment => payment.status === 'completed').reduce((sum, payment) => sum + (payment.amount || 0), 0)
+    };
+  };
+
+  const getStatusBadgeStyle = (status) => {
+    const statusStyles = {
+      'pending': { background: '#f59e0b', color: 'white' },
+      'pending_verification': { background: '#8b5cf6', color: 'white' },
+      'completed': { background: '#10b981', color: 'white' },
+      'failed': { background: '#ef4444', color: 'white' },
+      'refunded': { background: '#6b7280', color: 'white' }
+    };
+    return statusStyles[status] || { background: '#6b7280', color: 'white' };
+  };
+
+  const getPaymentMethodStyle = (method) => {
+    const methodColors = {
+      'credit_card': '#3b82f6',
+      'bank_transfer': '#10b981',
+      'paypal': '#f59e0b',
+      'stripe': '#8b5cf6',
+      'cash': '#ef4444',
+      'check': '#6b7280',
+      'upi': '#06b6d4',
+      'online': '#3b82f6'
+    };
+    return { background: methodColors[method] || '#6b7280', color: 'white' };
+  };
+
+  const handleModalClose = () => {
+    setShowModal(false);
+    setModalData(null);
+    setModalType('');
+  };
+
+  const viewPaymentDetails = (payment) => {
+    setModalData(payment);
+    setModalType('view');
+    setShowModal(true);
+  };
+
+  const proceedToPay = (service) => {
+    setModalData(service);
+    setModalType('pay');
+    setShowModal(true);
+  };
+
+  const viewServices = () => {
+    setModalData(null);
+    setModalType('services');
+    setShowModal(true);
+  };
+
+  const handleSubmitPayment = async (paymentData) => {
     try {
-      const response = await apiCall('/payments/697af51126bb0273601bae20');
-      
-      if (response.success && response.data) {
-        const payment = response.data;
-        
-        // Verify this payment is for an assigned client
-        const isAssignedClient = clients.some(c => c._id === payment.client._id);
-        
-        if (isAssignedClient) {
-          // Add to payments data regardless of status
-          const existingIndex = payments.findIndex(p => p._id === payment._id);
-          if (existingIndex !== -1) {
-            // Update existing payment
-            const updatedPayments = [...payments];
-            updatedPayments[existingIndex] = payment;
-            setPayments(updatedPayments);
-          } else {
-            // Add new payment
-            setPayments(prev => [...prev, payment]);
-          }
-          
-          // Show success message
-          const statusText = payment.verification_status === 'verified' ? 'Verified' : 
-                           payment.verification_status === 'rejected' ? 'Rejected' : 
-                           payment.verification_status === 'pending' ? 'Pending Verification' : 
-                           payment.status || 'Unknown';
-          
-          const successMsg = `✅ Payment loaded successfully!\n\nClient: ${payment.client.name}\nService: ${payment.service_name}\nAmount: ${payment.amount.toLocaleString()}\nStatus: ${statusText}`;
-          alert(successMsg);
-        } else {
-          alert('Payment found but client is not assigned to you.');
-        }
-      } else {
-        alert('Failed to load the known payment.\n\nThis could indicate an authentication or access issue.');
+      const response = await paymentsAPI.create(paymentData);
+      if (response.success) {
+        loadPayments(); // Refresh the list
+        handleModalClose();
+        alert('Payment submitted successfully! Please wait for admin approval.');
       }
     } catch (error) {
-      console.error('Error loading known payment:', error);
-      alert('Error loading known payment: ' + error.message);
+      console.error('Error submitting payment:', error);
+      alert('Failed to submit payment. Please try again.');
     }
   };
 
-  const getStatusColor = (payment) => {
-    const status = payment.verification_status || payment.status || 'unknown';
-    const colors = {
-      'pending': 'bg-yellow-100 text-yellow-800',
-      'pending_verification': 'bg-yellow-100 text-yellow-800',
-      'verified': 'bg-green-100 text-green-800',
-      'completed': 'bg-green-100 text-green-800',
-      'rejected': 'bg-red-100 text-red-800',
-      'failed': 'bg-red-100 text-red-800'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-  };
-
-  const getDisplayStatus = (payment) => {
-    const status = payment.verification_status || payment.status || 'unknown';
-    const statusMap = {
-      'pending': 'Pending Verification',
-      'pending_verification': 'Pending Verification',
-      'verified': 'Verified',
-      'completed': 'Completed',
-      'rejected': 'Rejected',
-      'failed': 'Failed'
-    };
-    return statusMap[status] || status;
-  };
-
-  const isAssignedClient = (payment) => {
-    return clients?.some(c => 
-      (typeof payment.client === 'object' ? payment.client._id : payment.client) === c._id
-    );
-  };
-
-  const canVerifyPayment = (payment) => {
-    const status = payment.verification_status || payment.status;
-    return isAssignedClient(payment) && (status === 'pending' || status === 'pending_verification');
-  };
-
-  if (loading) {
-    return (
-      <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <p className="text-gray-600">Loading payment information...</p>
-      </div>
-    );
-  }
-
-  if (payments.length === 0) {
-    return (
-      <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-        <i className="fas fa-credit-card text-4xl text-gray-400 mb-4"></i>
-        <h5 className="text-lg font-semibold text-gray-700 mb-2">No Payment Information</h5>
-        <p className="text-gray-600 mb-4">Payment data will appear here when available.</p>
-        <button 
-          onClick={loadKnownPayment}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
-          title="Load the known pending payment"
-        >
-          <i className="fas fa-magic mr-2"></i>Load Known Payment
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <div className="bg-white rounded-lg shadow-sm">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">
-              <i className="fas fa-credit-card mr-2"></i>Payment Status
-            </h3>
-            <button 
-              onClick={loadPayments}
-              className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors"
-            >
-              <i className="fas fa-sync-alt mr-1"></i>Refresh
-            </button>
-          </div>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {payments.map(payment => {
-                const client = typeof payment.client === 'object' ? payment.client : { name: 'Unknown Client' };
-                const amount = payment.amount ? payment.amount.toLocaleString() : 'N/A';
-                const assignedClient = isAssignedClient(payment);
-                
-                return (
-                  <tr key={payment._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="font-medium text-gray-900">{client.name}</div>
-                        {assignedClient && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-1">
-                            Assigned Client
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-gray-900">{payment.service_name || 'Unknown Service'}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="font-medium text-gray-900">{amount}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(payment)}`}>
-                          {getDisplayStatus(payment)}
-                        </span>
-                        {payment.paymentMethod && (
-                          <div className="text-xs text-gray-500 mt-1">{payment.paymentMethod.toUpperCase()}</div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <button 
-                          onClick={() => handleViewPayment(payment)}
-                          className="text-blue-600 hover:text-blue-900"
-                          title="View Details"
-                        >
-                          <i className="fas fa-eye"></i>
-                        </button>
-                        {canVerifyPayment(payment) && (
-                          <button 
-                            onClick={() => handleVerifyPayment(payment)}
-                            className="text-green-600 hover:text-green-900"
-                            title="Verify Payment"
-                          >
-                            <i className="fas fa-check"></i>
-                          </button>
-                        )}
-                        {(payment.verification_status === 'verified' || payment.status === 'completed') && (
-                          <span className="text-green-600" title="Payment Verified">
-                            <i className="fas fa-check-circle"></i>
-                          </span>
-                        )}
-                        {(payment.verification_status === 'rejected' || payment.status === 'failed') && (
-                          <span className="text-red-600" title="Payment Rejected">
-                            <i className="fas fa-times-circle"></i>
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Payment Details Modal */}
-      {showDetailsModal && selectedPayment && (
-        <PaymentDetailsModal 
-          payment={selectedPayment}
-          onClose={() => setShowDetailsModal(false)}
-          onVerify={() => {
-            setShowDetailsModal(false);
-            setShowVerificationModal(true);
-          }}
-          canVerify={canVerifyPayment(selectedPayment)}
-        />
-      )}
-
-      {/* Payment Verification Modal */}
-      {showVerificationModal && selectedPayment && (
-        <PaymentVerificationModal 
-          payment={selectedPayment}
-          onClose={() => setShowVerificationModal(false)}
-          onSubmit={submitPaymentVerification}
-        />
-      )}
-    </>
+  const StatCard = ({ icon, number, label, borderColor, iconColor, onClick }) => (
+    <div 
+      style={{
+        ...componentStyles.contactsStatCard,
+        borderColor: borderColor,
+        cursor: 'pointer'
+      }}
+      {...hoverEffects.card}
+      onClick={onClick}
+    >
+      <i className={`${icon} fa-2x mb-2`} style={{ color: iconColor }}></i>
+      <h4 style={{ 
+        color: iconColor,
+        fontWeight: designSystem.typography.fontWeight.bold,
+        marginBottom: '4px'
+      }}>
+        {typeof number === 'number' && number > 1000 ? `$${number.toLocaleString()}` : number}
+      </h4>
+      <small style={{ color: designSystem.colors.gray[500] }}>
+        {label}
+      </small>
+    </div>
   );
-};
 
-// Payment Details Modal Component
-const PaymentDetailsModal = ({ payment, onClose, onVerify, canVerify }) => {
-  const client = typeof payment.client === 'object' ? payment.client : { name: 'Unknown Client' };
-  const amount = payment.amount ? payment.amount.toLocaleString() : 'N/A';
+  const renderPaymentTable = (paymentType) => {
+    const filteredPayments = getFilteredPayments(paymentType);
+    
+    if (filteredPayments.length === 0) {
+      return (
+        <div style={componentStyles.emptyState}>
+          <i className="fas fa-credit-card fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
+          <p style={{ color: designSystem.colors.gray[500] }}>
+            No {paymentType === 'all' ? '' : paymentType} payments found
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ borderRadius: designSystem.borderRadius.button, overflow: 'hidden', boxShadow: designSystem.shadows.card }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead style={componentStyles.tableHeader}>
+            <tr>
+              <th style={componentStyles.tableHeaderCell}>Transaction ID</th>
+              <th style={componentStyles.tableHeaderCell}>Project/Service</th>
+              <th style={componentStyles.tableHeaderCell}>Amount</th>
+              <th style={componentStyles.tableHeaderCell}>Method</th>
+              <th style={componentStyles.tableHeaderCell}>Status</th>
+              <th style={componentStyles.tableHeaderCell}>Date</th>
+              <th style={componentStyles.tableHeaderCell}>Admin Approval</th>
+              <th style={componentStyles.tableHeaderCell}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredPayments.map(payment => {
+              const statusStyle = getStatusBadgeStyle(payment.status);
+              const methodStyle = getPaymentMethodStyle(payment.paymentMethod || 'other');
+              
+              return (
+                <tr 
+                  key={payment._id}
+                  style={componentStyles.tableRow}
+                  {...hoverEffects.tableRow}
+                >
+                  <td style={componentStyles.tableCell}>
+                    <span 
+                      style={{
+                        ...componentStyles.badge,
+                        background: designSystem.colors.primary,
+                        color: 'white',
+                        fontFamily: 'monospace',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        padding: '4px 8px'
+                      }}
+                    >
+                      {payment.transactionId || `#${payment._id.slice(-8).toUpperCase()}`}
+                    </span>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <div>
+                      <div style={{ 
+                        fontWeight: designSystem.typography.fontWeight.medium,
+                        marginBottom: '2px'
+                      }}>
+                        {payment.project?.project_id || payment.service?.name || 'Unknown'}
+                      </div>
+                      <small style={{ color: designSystem.colors.gray[500] }}>
+                        {payment.project ? 'Project Payment' : 'Service Payment'}
+                      </small>
+                    </div>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <div style={{ 
+                      fontWeight: designSystem.typography.fontWeight.bold,
+                      fontSize: '16px',
+                      color: '#10b981'
+                    }}>
+                      ${payment.amount?.toLocaleString() || '0'}
+                    </div>
+                    <small style={{ color: designSystem.colors.gray[500] }}>
+                      {payment.currency || 'USD'}
+                    </small>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <span style={{
+                      ...componentStyles.badge,
+                      background: methodStyle.background,
+                      color: methodStyle.color,
+                      textTransform: 'capitalize',
+                      fontSize: '11px',
+                      fontWeight: '600'
+                    }}>
+                      {payment.paymentMethod?.replace('_', ' ') || 'Unknown'}
+                    </span>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <span style={{
+                      ...componentStyles.badge,
+                      background: statusStyle.background,
+                      color: statusStyle.color,
+                      textTransform: 'uppercase',
+                      fontSize: '11px',
+                      fontWeight: '600'
+                    }}>
+                      {payment.status?.replace('_', ' ') || 'Unknown'}
+                    </span>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: '500' }}>
+                        {payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : 
+                         new Date(payment.createdAt).toLocaleDateString()}
+                      </div>
+                      <small style={{ color: designSystem.colors.gray[500] }}>
+                        {payment.paymentDate ? new Date(payment.paymentDate).toLocaleTimeString() : 
+                         new Date(payment.createdAt).toLocaleTimeString()}
+                      </small>
+                    </div>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    {payment.status === 'pending_verification' ? (
+                      <div>
+                        <span style={{
+                          ...componentStyles.badge,
+                          background: '#f59e0b',
+                          color: 'white',
+                          fontSize: '10px'
+                        }}>
+                          WAITING
+                        </span>
+                        <div style={{ marginTop: '4px' }}>
+                          <small style={{ color: designSystem.colors.gray[500] }}>
+                            Admin Review
+                          </small>
+                        </div>
+                      </div>
+                    ) : payment.status === 'completed' ? (
+                      <div>
+                        <span style={{
+                          ...componentStyles.badge,
+                          background: '#10b981',
+                          color: 'white',
+                          fontSize: '10px'
+                        }}>
+                          APPROVED
+                        </span>
+                        <div style={{ marginTop: '4px' }}>
+                          <small style={{ color: designSystem.colors.gray[500] }}>
+                            {payment.verified_by ? 'By Admin' : 'Verified'}
+                          </small>
+                        </div>
+                      </div>
+                    ) : payment.status === 'failed' ? (
+                      <div>
+                        <span style={{
+                          ...componentStyles.badge,
+                          background: '#ef4444',
+                          color: 'white',
+                          fontSize: '10px'
+                        }}>
+                          REJECTED
+                        </span>
+                        <div style={{ marginTop: '4px' }}>
+                          <small style={{ color: designSystem.colors.gray[500] }}>
+                            By Admin
+                          </small>
+                        </div>
+                      </div>
+                    ) : (
+                      <span style={{ color: designSystem.colors.gray[500], fontStyle: 'italic' }}>
+                        N/A
+                      </span>
+                    )}
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <div style={{ display: 'flex', gap: designSystem.spacing.xs }}>
+                      <button 
+                        className="btn btn-outline-primary btn-sm"
+                        onClick={() => viewPaymentDetails(payment)}
+                        title="View Payment Details"
+                      >
+                        <i className="fas fa-eye"></i>
+                      </button>
+                      {payment.receipt_screenshot && (
+                        <button 
+                          className="btn btn-outline-info btn-sm"
+                          onClick={() => window.open(payment.receipt_screenshot, '_blank')}
+                          title="View Receipt"
+                        >
+                          <i className="fas fa-receipt"></i>
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Payment Details</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-              <i className="fas fa-times"></i>
-            </button>
+    <div style={componentStyles.managementCard}>
+      {/* Header with View Services and Refresh Buttons */}
+      <div style={componentStyles.header}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={componentStyles.headerIcon}>
+            <i className="fas fa-credit-card fa-lg"></i>
           </div>
-          
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <div className="text-sm font-medium text-gray-700">Client:</div>
-              <div className="text-gray-900">{client.name}</div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-700">Service:</div>
-              <div className="text-gray-900">{payment.service_name || 'Unknown Service'}</div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-700">Amount:</div>
-              <div className="text-gray-900 font-medium">{amount}</div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-700">Status:</div>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                payment.verification_status === 'pending' || payment.status === 'pending_verification' 
-                  ? 'bg-yellow-100 text-yellow-800'
-                  : payment.verification_status === 'verified' || payment.status === 'completed'
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-red-100 text-red-800'
-              }`}>
-                {payment.verification_status === 'pending' || payment.status === 'pending_verification' 
-                  ? 'Pending Verification'
-                  : payment.verification_status === 'verified' || payment.status === 'completed'
-                  ? 'Verified'
-                  : 'Rejected'}
-              </span>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-700">Payment Method:</div>
-              <div className="text-gray-900">{payment.paymentMethod || 'N/A'}</div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-700">Transaction ID:</div>
-              <div className="text-gray-900">{payment.transactionId || 'N/A'}</div>
-            </div>
-          </div>
-          
-          {(payment.verification_status === 'pending' || payment.status === 'pending_verification') && (
-            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-              <div className="flex items-center">
-                <i className="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>
-                <span className="text-yellow-800">This payment requires verification</span>
-              </div>
-            </div>
-          )}
-          
-          {payment.receipt_screenshot && (
-            <div className="mb-4">
-              <div className="text-sm font-medium text-gray-700 mb-2">Payment Receipt:</div>
-              <div className="border rounded p-2">
-                <img 
-                  src={`/uploads/payment-receipts/${payment.receipt_screenshot}`} 
-                  alt="Payment Receipt"
-                  className="max-w-full h-auto max-h-64 mx-auto"
-                />
-              </div>
-            </div>
-          )}
-          
-          {payment.notes && (
-            <div className="mb-4">
-              <div className="text-sm font-medium text-gray-700 mb-2">Notes:</div>
-              <div className="border p-3 bg-gray-50 rounded">
-                {payment.notes}
-              </div>
-            </div>
-          )}
-          
-          {payment.admin_notes && (
-            <div className="mb-4">
-              <div className="text-sm font-medium text-gray-700 mb-2">Admin Notes:</div>
-              <div className="border p-3 bg-gray-50 rounded">
-                {payment.admin_notes}
-              </div>
-            </div>
-          )}
-          
-          <div className="flex justify-end space-x-3">
-            <button 
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
-            >
-              Close
-            </button>
-            {canVerify && (
-              <button 
-                onClick={onVerify}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-              >
-                Verify Payment
-              </button>
-            )}
+          <div>
+            <h4 style={componentStyles.headerTitle}>Payment Status</h4>
+            <p style={componentStyles.headerSubtitle}>View payment status for assigned projects and services</p>
           </div>
         </div>
+        <div style={{ display: 'flex', gap: designSystem.spacing.sm }}>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: '#10b981'
+            }}
+            onClick={viewServices}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-shopping-cart me-2"></i>View Services
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: designSystem.colors.success
+            }}
+            onClick={loadPayments}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-sync-alt me-2"></i>Refresh
+          </button>
+        </div>
       </div>
+
+      {/* Overview Statistics */}
+      <div style={componentStyles.statsContainer}>
+        <StatCard
+          icon="fas fa-credit-card"
+          number={getPaymentCounts().total}
+          label="Total Payments"
+          borderColor="#8b5cf6"
+          iconColor="#8b5cf6"
+        />
+        <StatCard
+          icon="fas fa-clock"
+          number={getPaymentCounts().pending}
+          label="Pending Payments"
+          borderColor="#f59e0b"
+          iconColor="#f59e0b"
+        />
+        <StatCard
+          icon="fas fa-check-circle"
+          number={getPaymentCounts().completed}
+          label="Completed"
+          borderColor="#10b981"
+          iconColor="#10b981"
+        />
+        <StatCard
+          icon="fas fa-hourglass-half"
+          number={getPaymentCounts().waitingApproval}
+          label="Waiting Approval"
+          borderColor="#8b5cf6"
+          iconColor="#8b5cf6"
+        />
+        <StatCard
+          icon="fas fa-dollar-sign"
+          number={getPaymentCounts().totalAmount}
+          label="Total Received"
+          borderColor="#06b6d4"
+          iconColor="#06b6d4"
+        />
+      </div>
+
+      {/* Loading State */}
+      {loading && (
+        <div style={componentStyles.loading}>
+          <i className="fas fa-spinner fa-spin fa-2x" style={{ color: designSystem.colors.primary }}></i>
+          <p style={{ marginTop: designSystem.spacing.md, color: designSystem.colors.gray[500] }}>Loading payments...</p>
+        </div>
+      )}
+
+      {/* Payment Type Tabs */}
+      {!loading && (
+        <>
+          <div style={{ marginBottom: designSystem.spacing.lg }}>
+            <div style={{ display: 'flex', gap: designSystem.spacing.xs, flexWrap: 'wrap' }}>
+              <button 
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: activeTab === 'all' ? designSystem.colors.primary : designSystem.colors.gray[100],
+                  color: activeTab === 'all' ? 'white' : designSystem.colors.gray[600],
+                  boxShadow: activeTab === 'all' ? designSystem.shadows.button : 'none'
+                }}
+                onClick={() => setActiveTab('all')}
+                {...hoverEffects.button}
+              >
+                All Payments ({getPaymentCounts().total})
+              </button>
+              <button 
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: activeTab === 'pending' ? '#f59e0b' : designSystem.colors.gray[100],
+                  color: activeTab === 'pending' ? 'white' : designSystem.colors.gray[600],
+                  boxShadow: activeTab === 'pending' ? designSystem.shadows.button : 'none'
+                }}
+                onClick={() => setActiveTab('pending')}
+                {...hoverEffects.button}
+              >
+                Pending ({getPaymentCounts().pending})
+              </button>
+              <button 
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: activeTab === 'completed' ? '#10b981' : designSystem.colors.gray[100],
+                  color: activeTab === 'completed' ? 'white' : designSystem.colors.gray[600],
+                  boxShadow: activeTab === 'completed' ? designSystem.shadows.button : 'none'
+                }}
+                onClick={() => setActiveTab('completed')}
+                {...hoverEffects.button}
+              >
+                Completed ({getPaymentCounts().completed})
+              </button>
+              <button 
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: activeTab === 'waiting_approval' ? '#8b5cf6' : designSystem.colors.gray[100],
+                  color: activeTab === 'waiting_approval' ? 'white' : designSystem.colors.gray[600],
+                  boxShadow: activeTab === 'waiting_approval' ? designSystem.shadows.button : 'none'
+                }}
+                onClick={() => setActiveTab('waiting_approval')}
+                {...hoverEffects.button}
+              >
+                Waiting Approval ({getPaymentCounts().waitingApproval})
+              </button>
+              <button 
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: activeTab === 'failed' ? '#ef4444' : designSystem.colors.gray[100],
+                  color: activeTab === 'failed' ? 'white' : designSystem.colors.gray[600],
+                  boxShadow: activeTab === 'failed' ? designSystem.shadows.button : 'none'
+                }}
+                onClick={() => setActiveTab('failed')}
+                {...hoverEffects.button}
+              >
+                Failed/Rejected
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          <div>
+            {renderPaymentTable(activeTab)}
+          </div>
+        </>
+      )}
+
+      {/* No Payments Message */}
+      {!loading && payments.length === 0 && (
+        <div style={componentStyles.emptyState}>
+          <i className="fas fa-credit-card fa-4x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.lg }}></i>
+          <h6 style={{ color: designSystem.colors.gray[500], marginBottom: designSystem.spacing.md }}>No payments found</h6>
+          <p style={{ color: designSystem.colors.gray[500], marginBottom: designSystem.spacing.lg }}>Payment records for your projects will appear here</p>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: '#10b981'
+            }}
+            onClick={viewServices}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-shopping-cart me-2"></i>View Available Services
+          </button>
+        </div>
+      )}
+
+      {/* Payment Modal */}
+      {showModal && (
+        <PaymentModal
+          show={showModal}
+          onHide={handleModalClose}
+          type={modalType}
+          data={modalData}
+          services={services}
+          onSubmitPayment={handleSubmitPayment}
+          onProceedToPay={proceedToPay}
+        />
+      )}
     </div>
   );
 };
 
-// Payment Verification Modal Component
-const PaymentVerificationModal = ({ payment, onClose, onSubmit }) => {
-  const [verificationStatus, setVerificationStatus] = useState('verified');
-  const [adminNotes, setAdminNotes] = useState('');
+// Payment Modal Component
+const PaymentModal = ({ show, onHide, type, data, services, onSubmitPayment, onProceedToPay }) => {
+  const [formData, setFormData] = useState({
+    service_id: data?._id || '',
+    amount: data?.minPrice || '',
+    paymentMethod: 'bank_transfer',
+    transactionId: '',
+    receipt_screenshot: null,
+    notes: ''
+  });
 
-  const client = typeof payment.client === 'object' ? payment.client : { name: 'Unknown Client' };
+  if (!show) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(payment._id, {
-      verification_status: verificationStatus,
-      admin_notes: adminNotes.trim()
-    });
+    
+    if (type === 'pay') {
+      if (!formData.amount || !formData.paymentMethod) {
+        alert('Please fill in all required fields.');
+        return;
+      }
+      
+      if (formData.paymentMethod === 'cash' && !formData.receipt_screenshot) {
+        alert('Please upload a receipt screenshot for cash payments.');
+        return;
+      }
+
+      const paymentData = {
+        ...formData,
+        service_id: data._id,
+        status: formData.paymentMethod === 'cash' ? 'pending_verification' : 'pending'
+      };
+
+      onSubmitPayment(paymentData);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // In a real app, you would upload this to a server
+      // For now, we'll just store the file reference
+      setFormData(prev => ({
+        ...prev,
+        receipt_screenshot: file
+      }));
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg max-w-md w-full mx-4">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Confirm Payment</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-              <i className="fas fa-times"></i>
+    <div className="modal" style={componentStyles.modal}>
+      <div className="modal-dialog modal-lg">
+        <div className="modal-content" style={componentStyles.modalContent}>
+          <div className="modal-header" style={componentStyles.modalHeader}>
+            <h5 className="modal-title">
+              <i className={`fas ${type === 'services' ? 'fa-shopping-cart' : type === 'pay' ? 'fa-credit-card' : 'fa-eye'} me-2`}></i>
+              {type === 'services' ? 'Available Services' : type === 'pay' ? 'Proceed to Payment' : 'Payment Details'}
+            </h5>
+            <button type="button" className="btn-close btn-close-white" onClick={onHide}></button>
+          </div>
+          
+          <div className="modal-body" style={componentStyles.modalBody}>
+            {type === 'services' ? (
+              <div>
+                <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                  Services Created by Admin
+                </h6>
+                {services.length === 0 ? (
+                  <div style={componentStyles.emptyState}>
+                    <i className="fas fa-shopping-cart fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
+                    <p style={{ color: designSystem.colors.gray[500] }}>No services available</p>
+                  </div>
+                ) : (
+                  <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                    {services.map(service => (
+                      <div 
+                        key={service._id}
+                        style={{
+                          border: `1px solid ${designSystem.colors.gray[200]}`,
+                          borderRadius: designSystem.borderRadius.button,
+                          padding: designSystem.spacing.md,
+                          marginBottom: designSystem.spacing.md,
+                          background: 'white'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                          <div style={{ flex: 1 }}>
+                            <h6 style={{ color: designSystem.colors.dark, marginBottom: '8px' }}>
+                              {service.name}
+                            </h6>
+                            <p style={{ 
+                              color: designSystem.colors.gray[600], 
+                              fontSize: '14px',
+                              marginBottom: '12px'
+                            }}>
+                              {service.description}
+                            </p>
+                            <div style={{ display: 'flex', gap: designSystem.spacing.md, alignItems: 'center' }}>
+                              <span style={{
+                                background: '#8b5cf6',
+                                color: 'white',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                fontWeight: '600'
+                              }}>
+                                {service.category}
+                              </span>
+                              <span style={{ 
+                                fontWeight: '600',
+                                color: '#10b981',
+                                fontSize: '16px'
+                              }}>
+                                ${service.minPrice} - ${service.maxPrice}
+                              </span>
+                            </div>
+                          </div>
+                          <button 
+                            className="btn btn-primary btn-sm"
+                            onClick={() => onProceedToPay(service)}
+                            style={{ marginLeft: designSystem.spacing.md }}
+                          >
+                            <i className="fas fa-credit-card me-1"></i>
+                            Pay Now
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : type === 'pay' ? (
+              <div>
+                <div className="mb-4">
+                  <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                    Service Details
+                  </h6>
+                  <div style={{
+                    background: designSystem.colors.gray[50],
+                    padding: designSystem.spacing.md,
+                    borderRadius: designSystem.borderRadius.button,
+                    border: `1px solid ${designSystem.colors.gray[200]}`
+                  }}>
+                    <h6>{data.name}</h6>
+                    <p style={{ color: designSystem.colors.gray[600], marginBottom: '8px' }}>
+                      {data.description}
+                    </p>
+                    <div style={{ display: 'flex', gap: designSystem.spacing.md, alignItems: 'center' }}>
+                      <span style={{
+                        background: '#8b5cf6',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: '600'
+                      }}>
+                        {data.category}
+                      </span>
+                      <span style={{ 
+                        fontWeight: '600',
+                        color: '#10b981',
+                        fontSize: '16px'
+                      }}>
+                        Price Range: ${data.minPrice} - ${data.maxPrice}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSubmit}>
+                  <div className="row">
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label"><strong>Payment Amount *</strong></label>
+                        <input 
+                          type="number"
+                          className="form-control"
+                          value={formData.amount}
+                          onChange={(e) => handleInputChange('amount', e.target.value)}
+                          placeholder="Enter payment amount"
+                          min={data.minPrice}
+                          max={data.maxPrice}
+                          required
+                        />
+                        <small className="form-text text-muted">
+                          Amount should be between ${data.minPrice} - ${data.maxPrice}
+                        </small>
+                      </div>
+                      
+                      <div className="mb-3">
+                        <label className="form-label"><strong>Payment Method *</strong></label>
+                        <select 
+                          className="form-select"
+                          value={formData.paymentMethod}
+                          onChange={(e) => handleInputChange('paymentMethod', e.target.value)}
+                          required
+                        >
+                          <option value="bank_transfer">Bank Transfer</option>
+                          <option value="credit_card">Credit Card</option>
+                          <option value="paypal">PayPal</option>
+                          <option value="stripe">Stripe</option>
+                          <option value="cash">Cash</option>
+                          <option value="check">Check</option>
+                          <option value="upi">UPI</option>
+                          <option value="online">Online Payment</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label"><strong>Transaction ID</strong></label>
+                        <input 
+                          type="text"
+                          className="form-control"
+                          value={formData.transactionId}
+                          onChange={(e) => handleInputChange('transactionId', e.target.value)}
+                          placeholder="Enter transaction ID (if available)"
+                        />
+                      </div>
+                      
+                      {formData.paymentMethod === 'cash' && (
+                        <div className="mb-3">
+                          <label className="form-label"><strong>Receipt Screenshot *</strong></label>
+                          <input 
+                            type="file"
+                            className="form-control"
+                            accept="image/*"
+                            onChange={handleFileUpload}
+                            required
+                          />
+                          <small className="form-text text-muted">
+                            Upload a screenshot of your payment receipt for verification
+                          </small>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="mb-3">
+                    <label className="form-label"><strong>Notes</strong></label>
+                    <textarea 
+                      className="form-control"
+                      rows="3"
+                      value={formData.notes}
+                      onChange={(e) => handleInputChange('notes', e.target.value)}
+                      placeholder="Enter any additional notes..."
+                    />
+                  </div>
+
+                  <div className="alert alert-info">
+                    <i className="fas fa-info-circle me-2"></i>
+                    <strong>Note:</strong> Your payment will be submitted for admin approval. 
+                    {formData.paymentMethod === 'cash' && ' Cash payments require receipt verification.'}
+                  </div>
+                </form>
+              </div>
+            ) : (
+              <div>
+                <div className="row">
+                  <div className="col-md-6">
+                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                      Payment Information
+                    </h6>
+                    <p><strong>Transaction ID:</strong> {data.transactionId || `#${data._id.slice(-8).toUpperCase()}`}</p>
+                    <p><strong>Amount:</strong> ${data.amount?.toLocaleString() || '0'} {data.currency || 'USD'}</p>
+                    <p><strong>Method:</strong> {data.paymentMethod?.replace('_', ' ') || 'Unknown'}</p>
+                    <p><strong>Status:</strong> {data.status?.replace('_', ' ') || 'Unknown'}</p>
+                  </div>
+                  <div className="col-md-6">
+                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                      Project/Service Details
+                    </h6>
+                    <p><strong>Type:</strong> {data.project ? 'Project Payment' : 'Service Payment'}</p>
+                    <p><strong>Name:</strong> {data.project?.project_id || data.service?.name || 'Unknown'}</p>
+                    <p><strong>Date:</strong> {data.paymentDate ? new Date(data.paymentDate).toLocaleString() : new Date(data.createdAt).toLocaleString()}</p>
+                  </div>
+                </div>
+                
+                {data.notes && (
+                  <div className="mb-3">
+                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                      Notes
+                    </h6>
+                    <div style={{
+                      background: designSystem.colors.gray[50],
+                      padding: designSystem.spacing.md,
+                      borderRadius: designSystem.borderRadius.button,
+                      border: `1px solid ${designSystem.colors.gray[200]}`
+                    }}>
+                      {data.notes}
+                    </div>
+                  </div>
+                )}
+
+                {data.admin_notes && (
+                  <div className="mb-3">
+                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                      Admin Notes
+                    </h6>
+                    <div style={{
+                      background: '#fef3c7',
+                      padding: designSystem.spacing.md,
+                      borderRadius: designSystem.borderRadius.button,
+                      border: '1px solid #fbbf24'
+                    }}>
+                      {data.admin_notes}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="modal-footer" style={componentStyles.modalFooter}>
+            <button type="button" className="btn btn-secondary" onClick={onHide}>
+              Close
             </button>
-          </div>
-          
-          <div className="mb-4 p-3 bg-gray-50 rounded">
-            <div className="font-medium text-gray-900">{client.name}</div>
-            <div className="text-sm text-gray-600">{payment.service_name}</div>
-            <div className="text-sm text-gray-600">Amount: {payment.amount?.toLocaleString()}</div>
-          </div>
-          
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Verification Status:</label>
-              <select 
-                value={verificationStatus} 
-                onChange={(e) => setVerificationStatus(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="verified">Verified - Payment Confirmed</option>
-                <option value="rejected">Rejected - Payment Invalid</option>
-              </select>
-            </div>
-            
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Admin Notes:</label>
-              <textarea 
-                value={adminNotes}
-                onChange={(e) => setAdminNotes(e.target.value)}
-                rows="3"
-                placeholder="Add verification notes..."
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div className="flex justify-end space-x-3">
-              <button 
-                type="button" 
-                onClick={onClose}
-                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
-              >
-                Cancel
+            {type === 'pay' && (
+              <button type="submit" className="btn btn-primary" onClick={handleSubmit}>
+                <i className="fas fa-credit-card me-2"></i>
+                Submit Payment
               </button>
-              <button 
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Submit Verification
-              </button>
-            </div>
-          </form>
+            )}
+          </div>
         </div>
       </div>
     </div>

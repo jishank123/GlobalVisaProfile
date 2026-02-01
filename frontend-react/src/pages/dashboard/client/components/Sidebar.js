@@ -1,13 +1,15 @@
+import { designSystem } from '../../../../styles/designSystem';
+
 const Sidebar = ({ activeSection, setActiveSection, sidebarOpen, setSidebarOpen }) => {
   const sidebarItems = [
     { id: 'overview', icon: 'fas fa-tachometer-alt', label: 'Dashboard Overview' },
+    { id: 'services', icon: 'fas fa-concierge-bell', label: 'Browse Services' },
     { id: 'projects', icon: 'fas fa-project-diagram', label: 'My Projects' },
-    { id: 'payments', icon: 'fas fa-credit-card', label: 'Payments' },
-    { id: 'services', icon: 'fas fa-concierge-bell', label: 'Services' },
+    { id: 'payments', icon: 'fas fa-credit-card', label: 'Payments & Billing' },
     { id: 'appointments', icon: 'fas fa-calendar-alt', label: 'Appointments' },
-    { id: 'timeline', icon: 'fas fa-history', label: 'Timeline' },
-    { id: 'queries', icon: 'fas fa-question-circle', label: 'Support' },
-    { id: 'settings', icon: 'fas fa-cog', label: 'Settings' }
+    { id: 'queries', icon: 'fas fa-question-circle', label: 'Support & Queries' },
+    { id: 'timeline', icon: 'fas fa-history', label: 'Activity Timeline' },
+    { id: 'settings', icon: 'fas fa-user-cog', label: 'Profile Settings' }
   ];
 
   const getSidebarStyle = () => {
@@ -57,30 +59,47 @@ const Sidebar = ({ activeSection, setActiveSection, sidebarOpen, setSidebarOpen 
 
   return (
     <div style={getSidebarStyle()}>
-      {sidebarItems.map(item => (
-        <div
-          key={item.id}
-          style={itemStyle(activeSection === item.id)}
-          onClick={() => handleItemClick(item.id)}
-          onMouseEnter={(e) => {
-            if (activeSection !== item.id) {
-              e.target.style.background = '#f3f4f6';
-              e.target.style.color = '#1e3a8a';
-              e.target.style.borderLeftColor = '#1e3a8a';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (activeSection !== item.id) {
-              e.target.style.background = 'transparent';
-              e.target.style.color = '#4b5563';
-              e.target.style.borderLeftColor = 'transparent';
-            }
-          }}
-        >
-          <i className={`${item.icon} me-2`}></i>
-          {item.label}
-        </div>
-      ))}
+      {/* Sidebar Header */}
+      <div style={{
+        padding: '20px',
+        borderBottom: '1px solid #e5e7eb',
+        marginBottom: '10px'
+      }}>
+        <h6 style={{
+          color: designSystem.colors.dark,
+          fontWeight: '600',
+          fontSize: '14px',
+          margin: 0,
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px'
+        }}>
+          Client Portal
+        </h6>
+      </div>
+
+      {/* Navigation Items */}
+      <nav>
+        {sidebarItems.map((item) => (
+          <div
+            key={item.id}
+            style={itemStyle(activeSection === item.id)}
+            onClick={() => handleItemClick(item.id)}
+            onMouseEnter={(e) => {
+              if (activeSection !== item.id) {
+                e.target.style.background = '#f9fafb';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeSection !== item.id) {
+                e.target.style.background = 'transparent';
+              }
+            }}
+          >
+            <i className={item.icon} style={{ marginRight: '12px', width: '16px' }}></i>
+            {item.label}
+          </div>
+        ))}
+      </nav>
     </div>
   );
 };

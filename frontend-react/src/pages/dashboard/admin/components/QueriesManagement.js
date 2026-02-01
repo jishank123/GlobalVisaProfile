@@ -1,145 +1,60 @@
 import { useState, useEffect } from 'react';
-import { queriesAPI, clientsAPI } from '../../../../services/api';
-import { designSystem, componentStyles, hoverEffects, getStatusBadgeStyle } from '../../../../styles/designSystem';
+import { queriesAPI } from '../../../../services/api';
+import { designSystem, componentStyles, hoverEffects } from '../../../../styles/designSystem';
 
 const QueriesManagement = () => {
   const [queries, setQueries] = useState([]);
-  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showResponseModal, setShowResponseModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [selectedQuery, setSelectedQuery] = useState(null);
-  const [filters, setFilters] = useState({
-    status: '',
-    priority: '',
-    category: ''
-  });
-  const [formData, setFormData] = useState({
-    client: '',
-    subject: '',
-    description: '',
-    category: 'General',
-    priority: 'medium'
-  });
-  const [responseData, setResponseData] = useState({
-    message: '',
-    isInternal: false
-  });
 
   useEffect(() => {
     loadQueriesData();
-    loadClients();
-  }, [filters]);
+  }, []);
 
   const loadQueriesData = async () => {
     try {
       setLoading(true);
-      const response = await queriesAPI.getAll(filters);
+      const response = await queriesAPI.getAll();
       if (response.success) {
         setQueries(response.data || []);
       }
     } catch (error) {
       console.error('Error loading queries:', error);
+      setQueries([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadClients = async () => {
-    try {
-      const response = await clientsAPI.getAll();
-      if (response.success) {
-        setClients(response.data || []);
-      }
-    } catch (error) {
-      console.error('Error loading clients:', error);
-    }
+  const viewQueryDetails = (query) => {
+    setSelectedQuery(query);
+    setShowViewModal(true);
   };
 
-  const handleAddQuery = async (e) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      const response = await queriesAPI.create(formData);
-      if (response.success) {
-        await loadQueriesData();
-        setShowAddModal(false);
-        setFormData({
-          client: '',
-          subject: '',
-          description: '',
-          category: 'General',
-          priority: 'medium'
-        });
-      }
-    } catch (error) {
-      console.error('Error adding query:', error);
-      alert('Failed to add query');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddResponse = async (e) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      const response = await queriesAPI.addResponse(
-        selectedQuery._id, 
-        responseData.message, 
-        responseData.isInternal
-      );
-      if (response.success) {
-        await loadQueriesData();
-        setShowResponseModal(false);
-        setSelectedQuery(null);
-        setResponseData({ message: '', isInternal: false });
-      }
-    } catch (error) {
-      console.error('Error adding response:', error);
-      alert('Failed to add response');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleUpdateStatus = async (queryId, newStatus) => {
-    try {
-      setLoading(true);
-      const response = await queriesAPI.update(queryId, { status: newStatus });
-      if (response.success) {
-        await loadQueriesData();
-      }
-    } catch (error) {
-      console.error('Error updating query status:', error);
-      alert('Failed to update query status');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getStatusBadgeClass = (status) => {
-    const statusClasses = {
-      'open': 'bg-warning',
-      'in_progress': 'bg-info',
-      'waiting': 'bg-secondary',
-      'resolved': 'bg-success',
-      'closed': 'bg-dark'
+  const getStatusBadgeStyle = (status) => {
+    const statusStyles = {
+      'open': { background: '#f59e0b', color: 'white' },
+      'in_progress': { background: '#3b82f6', color: 'white' },
+      'waiting': { background: '#8b5cf6', color: 'white' },
+      'resolved': { background: '#10b981', color: 'white' },
+      'closed': { background: '#6b7280', color: 'white' }
     };
-    return statusClasses[status] || 'bg-secondary';
+    return statusStyles[status] || { background: '#6b7280', color: 'white' };
   };
 
-  const getPriorityBadgeClass = (priority) => {
-    const priorityClasses = {
-      'low': 'bg-success',
-      'medium': 'bg-warning',
-      'high': 'bg-danger',
-      'urgent': 'bg-danger'
+  const getPriorityStyle = (priority) => {
+    const priorityColors = {
+      'low': '#10b981',
+      'medium': '#f59e0b',
+      'high': '#ef4444',
+      'urgent': '#dc2626'
     };
-    return priorityClasses[priority] || 'bg-secondary';
+    return { color: priorityColors[priority] || '#6b7280' };
   };
 
   const queryStats = {
+    total: queries.length,
     open: queries.filter(q => q.status === 'open').length,
     in_progress: queries.filter(q => q.status === 'in_progress').length,
     resolved: queries.filter(q => q.status === 'resolved').length,
@@ -171,32 +86,38 @@ const QueriesManagement = () => {
 
   return (
     <div style={componentStyles.managementCard}>
-      {/* Unified Header */}
+      {/* Header with Refresh Button */}
       <div style={componentStyles.header}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <div style={componentStyles.headerIcon}>
             <i className="fas fa-question-circle fa-lg"></i>
           </div>
           <div>
-            <h4 style={componentStyles.headerTitle}>Queries Management</h4>
-            <p style={componentStyles.headerSubtitle}>Manage customer support queries and responses</p>
+            <h4 style={componentStyles.headerTitle}>Queries Monitoring</h4>
+            <p style={componentStyles.headerSubtitle}>Monitor communication between CRM managers and clients</p>
           </div>
         </div>
         <button 
           style={{
             ...componentStyles.primaryButton,
-            background: designSystem.colors.primary
+            background: designSystem.colors.success
           }}
-          onClick={() => setShowAddModal(true)}
+          onClick={loadQueriesData}
           {...hoverEffects.button}
         >
-          <i className="fas fa-plus me-2"></i>
-          Add New Query
+          <i className="fas fa-sync-alt me-2"></i>Refresh
         </button>
       </div>
 
-      {/* Query Stats */}
+      {/* Query Statistics */}
       <div style={componentStyles.statsContainer}>
+        <StatCard
+          icon="fas fa-question-circle"
+          number={queryStats.total}
+          label="Total Queries"
+          borderColor="#8b5cf6"
+          iconColor="#8b5cf6"
+        />
         <StatCard
           icon="fas fa-exclamation-circle"
           number={queryStats.open}
@@ -208,417 +129,425 @@ const QueriesManagement = () => {
           icon="fas fa-spinner"
           number={queryStats.in_progress}
           label="In Progress"
-          borderColor="#8b5cf6"
-          iconColor="#8b5cf6"
+          borderColor="#3b82f6"
+          iconColor="#3b82f6"
         />
         <StatCard
-          icon="fas fa-check"
+          icon="fas fa-check-circle"
           number={queryStats.resolved}
           label="Resolved"
           borderColor="#10b981"
           iconColor="#10b981"
         />
-        <StatCard
-          icon="fas fa-archive"
-          number={queryStats.closed}
-          label="Closed"
-          borderColor="#6b7280"
-          iconColor="#6b7280"
-        />
       </div>
 
-      {/* Filters */}
-      <div className="card mb-4">
-        <div className="card-body">
-          <div className="row">
-            <div className="col-md-3">
-              <label className="form-label">Status</label>
-              <select
-                className="form-select"
-                value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-              >
-                <option value="">All Statuses</option>
-                <option value="open">Open</option>
-                <option value="in_progress">In Progress</option>
-                <option value="waiting">Waiting</option>
-                <option value="resolved">Resolved</option>
-                <option value="closed">Closed</option>
-              </select>
-            </div>
-            <div className="col-md-3">
-              <label className="form-label">Priority</label>
-              <select
-                className="form-select"
-                value={filters.priority}
-                onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
-              >
-                <option value="">All Priorities</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
-              </select>
-            </div>
-            <div className="col-md-3">
-              <label className="form-label">Category</label>
-              <select
-                className="form-select"
-                value={filters.category}
-                onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-              >
-                <option value="">All Categories</option>
-                <option value="General">General</option>
-                <option value="Technical">Technical</option>
-                <option value="Billing">Billing</option>
-                <option value="Support">Support</option>
-              </select>
-            </div>
-            <div className="col-md-3 d-flex align-items-end">
-              <button
-                className="btn btn-outline-secondary w-100"
-                onClick={() => setFilters({ status: '', priority: '', category: '' })}
-              >
-                Clear Filters
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Queries Table */}
-      <div className="card">
-        <div className="card-header">
-          <h5 className="mb-0">All Queries ({queries.length})</h5>
-        </div>
-        <div className="card-body">
-          {loading ? (
-            <div className="text-center py-4">
-              <div className="spinner-border" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </div>
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <table className="table table-hover">
-                <thead>
-                  <tr>
-                    <th>Subject</th>
-                    <th>Client</th>
-                    <th>Category</th>
-                    <th>Priority</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                    <th>Responses</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {queries.length === 0 ? (
-                    <tr>
-                      <td colSpan="8" className="text-center py-4">
-                        <i className="fas fa-question-circle fa-3x text-muted mb-3"></i>
-                        <p className="text-muted">No queries found</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    queries.map((query) => (
-                      <tr key={query._id}>
-                        <td>
-                          <strong>{query.subject}</strong>
-                          <small className="d-block text-muted">
-                            {query.description?.substring(0, 50)}...
-                          </small>
-                        </td>
-                        <td>
-                          <div>
-                            <strong>{query.client?.name}</strong>
-                            <small className="d-block text-muted">{query.client?.email}</small>
-                          </div>
-                        </td>
-                        <td>
-                          <span className="badge bg-light text-dark">{query.category}</span>
-                        </td>
-                        <td>
-                          <span className={`badge ${getPriorityBadgeClass(query.priority)}`}>
-                            {query.priority}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`badge ${getStatusBadgeClass(query.status)}`}>
-                            {query.status?.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td>
-                          {new Date(query.createdAt).toLocaleDateString()}
-                        </td>
-                        <td>
-                          <span className="badge bg-info">
-                            {query.responses?.length || 0}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="btn-group btn-group-sm">
-                            <button
-                              className="btn btn-outline-primary"
-                              onClick={() => {
-                                setSelectedQuery(query);
-                                setShowResponseModal(true);
-                              }}
-                              title="Add Response"
-                            >
-                              <i className="fas fa-reply"></i>
-                            </button>
-                            <div className="dropdown">
-                              <button
-                                className="btn btn-outline-secondary dropdown-toggle"
-                                type="button"
-                                data-bs-toggle="dropdown"
-                                title="Update Status"
-                              >
-                                <i className="fas fa-edit"></i>
-                              </button>
-                              <ul className="dropdown-menu">
-                                <li>
-                                  <button
-                                    className="dropdown-item"
-                                    onClick={() => handleUpdateStatus(query._id, 'open')}
-                                  >
-                                    Open
-                                  </button>
-                                </li>
-                                <li>
-                                  <button
-                                    className="dropdown-item"
-                                    onClick={() => handleUpdateStatus(query._id, 'in_progress')}
-                                  >
-                                    In Progress
-                                  </button>
-                                </li>
-                                <li>
-                                  <button
-                                    className="dropdown-item"
-                                    onClick={() => handleUpdateStatus(query._id, 'waiting')}
-                                  >
-                                    Waiting
-                                  </button>
-                                </li>
-                                <li>
-                                  <button
-                                    className="dropdown-item"
-                                    onClick={() => handleUpdateStatus(query._id, 'resolved')}
-                                  >
-                                    Resolved
-                                  </button>
-                                </li>
-                                <li>
-                                  <button
-                                    className="dropdown-item"
-                                    onClick={() => handleUpdateStatus(query._id, 'closed')}
-                                  >
-                                    Closed
-                                  </button>
-                                </li>
-                              </ul>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Add Query Modal */}
-      {showAddModal && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Add New Query</h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setShowAddModal(false)}
-                ></button>
-              </div>
-              <form onSubmit={handleAddQuery}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Client *</label>
-                    <select
-                      className="form-select"
-                      value={formData.client}
-                      onChange={(e) => setFormData({ ...formData, client: e.target.value })}
-                      required
-                    >
-                      <option value="">Select Client</option>
-                      {clients.map(client => (
-                        <option key={client._id} value={client._id}>
-                          {client.name} ({client.email})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Subject *</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={formData.subject}
-                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Description *</label>
-                    <textarea
-                      className="form-control"
-                      rows="4"
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      required
-                    ></textarea>
-                  </div>
-                  <div className="row">
-                    <div className="col-md-6">
-                      <label className="form-label">Category</label>
-                      <select
-                        className="form-select"
-                        value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      >
-                        <option value="General">General</option>
-                        <option value="Technical">Technical</option>
-                        <option value="Billing">Billing</option>
-                        <option value="Support">Support</option>
-                      </select>
-                    </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Priority</label>
-                      <select
-                        className="form-select"
-                        value={formData.priority}
-                        onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                      >
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                        <option value="urgent">Urgent</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setShowAddModal(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary" disabled={loading}>
-                    {loading ? 'Adding...' : 'Add Query'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+      {/* Loading State */}
+      {loading && (
+        <div style={componentStyles.loading}>
+          <i className="fas fa-spinner fa-spin fa-2x" style={{ color: designSystem.colors.primary }}></i>
+          <p style={{ marginTop: designSystem.spacing.md, color: designSystem.colors.gray[500] }}>Loading queries...</p>
         </div>
       )}
 
-      {/* Response Modal */}
-      {showResponseModal && selectedQuery && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-lg">
+      {/* Queries Table */}
+      {!loading && (
+        <div style={{ borderRadius: designSystem.borderRadius.button, overflow: 'hidden', boxShadow: designSystem.shadows.card }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead style={componentStyles.tableHeader}>
+              <tr>
+                <th style={componentStyles.tableHeaderCell}>Query ID</th>
+                <th style={componentStyles.tableHeaderCell}>Subject</th>
+                <th style={componentStyles.tableHeaderCell}>Client</th>
+                <th style={componentStyles.tableHeaderCell}>Category</th>
+                <th style={componentStyles.tableHeaderCell}>Priority</th>
+                <th style={componentStyles.tableHeaderCell}>Status</th>
+                <th style={componentStyles.tableHeaderCell}>Created</th>
+                <th style={componentStyles.tableHeaderCell}>Responses</th>
+                <th style={componentStyles.tableHeaderCell}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {queries.length === 0 ? (
+                <tr>
+                  <td colSpan="9" style={componentStyles.emptyState}>
+                    <i className="fas fa-question-circle fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
+                    <p style={{ color: designSystem.colors.gray[500] }}>No queries found in the system</p>
+                  </td>
+                </tr>
+              ) : (
+                queries.map((query) => {
+                  const statusStyle = getStatusBadgeStyle(query.status);
+                  const priorityStyle = getPriorityStyle(query.priority);
+                  
+                  return (
+                    <tr 
+                      key={query._id}
+                      style={componentStyles.tableRow}
+                      {...hoverEffects.tableRow}
+                    >
+                      <td style={componentStyles.tableCell}>
+                        <span 
+                          style={{
+                            ...componentStyles.badge,
+                            background: designSystem.colors.primary,
+                            color: 'white',
+                            fontFamily: 'monospace',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            padding: '6px 12px'
+                          }}
+                        >
+                          {query.query_id || `#${query._id.slice(-8).toUpperCase()}`}
+                        </span>
+                      </td>
+                      <td style={componentStyles.tableCell}>
+                        <div>
+                          <div style={{ 
+                            fontWeight: designSystem.typography.fontWeight.medium,
+                            marginBottom: '2px'
+                          }}>
+                            {query.subject}
+                          </div>
+                          <small style={{ color: designSystem.colors.gray[500] }}>
+                            {query.description?.substring(0, 50)}...
+                          </small>
+                        </div>
+                      </td>
+                      <td style={componentStyles.tableCell}>
+                        <div>
+                          <div style={{ 
+                            fontWeight: designSystem.typography.fontWeight.medium,
+                            marginBottom: '2px'
+                          }}>
+                            {query.client?.name || 
+                             (query.client?.firstName && query.client?.lastName ? 
+                              `${query.client.firstName} ${query.client.lastName}` : 
+                              'Unknown Client')}
+                          </div>
+                          <small style={{ color: designSystem.colors.gray[500] }}>
+                            {query.client?.email || 'No email'}
+                          </small>
+                        </div>
+                      </td>
+                      <td style={componentStyles.tableCell}>
+                        <span style={{
+                          background: '#8b5cf6',
+                          color: 'white',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: '600'
+                        }}>
+                          {query.category || 'General'}
+                        </span>
+                      </td>
+                      <td style={componentStyles.tableCell}>
+                        <span style={{
+                          ...priorityStyle,
+                          fontWeight: designSystem.typography.fontWeight.bold,
+                          textTransform: 'uppercase',
+                          fontSize: '12px'
+                        }}>
+                          ● {query.priority || 'Medium'}
+                        </span>
+                      </td>
+                      <td style={componentStyles.tableCell}>
+                        <span style={{
+                          ...componentStyles.badge,
+                          background: statusStyle.background,
+                          color: statusStyle.color,
+                          textTransform: 'uppercase',
+                          fontSize: '11px',
+                          fontWeight: '600'
+                        }}>
+                          {query.status?.replace('_', ' ') || 'Open'}
+                        </span>
+                      </td>
+                      <td style={componentStyles.tableCell}>
+                        <div>
+                          <div style={{ fontWeight: designSystem.typography.fontWeight.medium }}>
+                            {new Date(query.createdAt).toLocaleDateString()}
+                          </div>
+                          <small style={{ color: designSystem.colors.gray[500] }}>
+                            {new Date(query.createdAt).toLocaleDateString('en-US', { weekday: 'short' })}
+                          </small>
+                        </div>
+                      </td>
+                      <td style={componentStyles.tableCell}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: designSystem.spacing.xs }}>
+                          <span style={{
+                            background: '#3b82f6',
+                            color: 'white',
+                            padding: '4px 8px',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            fontWeight: '600'
+                          }}>
+                            {query.responses?.length || 0}
+                          </span>
+                          {query.responses?.length > 0 && (
+                            <small style={{ color: designSystem.colors.gray[500] }}>
+                              responses
+                            </small>
+                          )}
+                        </div>
+                      </td>
+                      <td style={componentStyles.tableCell}>
+                        <button 
+                          className="btn btn-outline-primary btn-sm"
+                          onClick={() => viewQueryDetails(query)}
+                          title="View Query Details"
+                        >
+                          <i className="fas fa-eye"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* No Queries Message */}
+      {!loading && queries.length === 0 && (
+        <div style={componentStyles.emptyState}>
+          <i className="fas fa-question-circle fa-4x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.lg }}></i>
+          <h6 style={{ color: designSystem.colors.gray[500], marginBottom: designSystem.spacing.md }}>No queries found in the system</h6>
+          <p style={{ color: designSystem.colors.gray[500], marginBottom: designSystem.spacing.lg }}>Client queries and communications will appear here</p>
+        </div>
+      )}
+
+      {/* Query Details Modal */}
+      {showViewModal && selectedQuery && (
+        <div 
+          className="modal fade show" 
+          style={{ 
+            display: 'block', 
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            zIndex: 1050
+          }}
+          onClick={() => setShowViewModal(false)}
+        >
+          <div 
+            className="modal-dialog modal-lg"
+            style={{ 
+              position: 'relative',
+              width: 'auto',
+              margin: '1.75rem auto',
+              maxWidth: '800px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Respond to Query: {selectedQuery.subject}</h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => {
-                    setShowResponseModal(false);
-                    setSelectedQuery(null);
-                  }}
+              <div className="modal-header" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white' }}>
+                <h5 className="modal-title">
+                  <i className="fas fa-question-circle me-2"></i>
+                  Query Details
+                </h5>
+                <button 
+                  type="button" 
+                  className="btn-close btn-close-white" 
+                  onClick={() => setShowViewModal(false)}
                 ></button>
               </div>
-              <form onSubmit={handleAddResponse}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Query Details</label>
-                    <div className="card bg-light">
-                      <div className="card-body">
-                        <p><strong>Client:</strong> {selectedQuery.client?.name}</p>
-                        <p><strong>Subject:</strong> {selectedQuery.subject}</p>
-                        <p><strong>Description:</strong> {selectedQuery.description}</p>
-                      </div>
+              <div className="modal-body">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: designSystem.spacing.md }}>
+                  <div>
+                    <label style={{ 
+                      display: 'block',
+                      fontSize: designSystem.typography.fontSize.sm,
+                      color: designSystem.colors.gray[500],
+                      marginBottom: designSystem.spacing.xs
+                    }}>Query ID</label>
+                    <div style={{ 
+                      fontWeight: designSystem.typography.fontWeight.semibold,
+                      fontFamily: 'monospace',
+                      fontSize: designSystem.typography.fontSize.lg,
+                      color: designSystem.colors.primary
+                    }}>
+                      {selectedQuery.query_id || `#${selectedQuery._id.slice(-8).toUpperCase()}`}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ 
+                      display: 'block',
+                      fontSize: designSystem.typography.fontSize.sm,
+                      color: designSystem.colors.gray[500],
+                      marginBottom: designSystem.spacing.xs
+                    }}>Subject</label>
+                    <div style={{ fontWeight: designSystem.typography.fontWeight.semibold }}>
+                      {selectedQuery.subject}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ 
+                      display: 'block',
+                      fontSize: designSystem.typography.fontSize.sm,
+                      color: designSystem.colors.gray[500],
+                      marginBottom: designSystem.spacing.xs
+                    }}>Client Information</label>
+                    <div style={{ fontWeight: designSystem.typography.fontWeight.semibold }}>
+                      <div>{selectedQuery.client?.name || 
+                       (selectedQuery.client?.firstName && selectedQuery.client?.lastName ? 
+                        `${selectedQuery.client.firstName} ${selectedQuery.client.lastName}` : 
+                        'Unknown Client')}</div>
+                      <small style={{ color: designSystem.colors.gray[500], fontWeight: 'normal' }}>
+                        {selectedQuery.client?.email || 'No email'}
+                      </small>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ 
+                      display: 'block',
+                      fontSize: designSystem.typography.fontSize.sm,
+                      color: designSystem.colors.gray[500],
+                      marginBottom: designSystem.spacing.xs
+                    }}>Category & Priority</label>
+                    <div style={{ display: 'flex', gap: designSystem.spacing.sm, alignItems: 'center' }}>
+                      <span style={{
+                        background: '#8b5cf6',
+                        color: 'white',
+                        padding: '4px 12px',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        fontWeight: '600'
+                      }}>
+                        {selectedQuery.category || 'General'}
+                      </span>
+                      <span style={{
+                        color: getPriorityStyle(selectedQuery.priority).color,
+                        fontWeight: '700',
+                        textTransform: 'uppercase',
+                        fontSize: '14px'
+                      }}>
+                        ● {selectedQuery.priority || 'Medium'}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ 
+                      display: 'block',
+                      fontSize: designSystem.typography.fontSize.sm,
+                      color: designSystem.colors.gray[500],
+                      marginBottom: designSystem.spacing.xs
+                    }}>Status</label>
+                    <div style={{ fontWeight: designSystem.typography.fontWeight.semibold }}>
+                      <span style={{
+                        background: getStatusBadgeStyle(selectedQuery.status).background,
+                        color: 'white',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        textTransform: 'uppercase',
+                        fontWeight: '600'
+                      }}>
+                        {selectedQuery.status?.replace('_', ' ') || 'Open'}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ 
+                      display: 'block',
+                      fontSize: designSystem.typography.fontSize.sm,
+                      color: designSystem.colors.gray[500],
+                      marginBottom: designSystem.spacing.xs
+                    }}>Created Date</label>
+                    <div style={{ fontWeight: designSystem.typography.fontWeight.semibold }}>
+                      <div>{new Date(selectedQuery.createdAt).toLocaleDateString()}</div>
+                      <small style={{ color: designSystem.colors.gray[500], fontWeight: 'normal' }}>
+                        {new Date(selectedQuery.createdAt).toLocaleDateString('en-US', { weekday: 'long' })}
+                      </small>
+                    </div>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ 
+                      display: 'block',
+                      fontSize: designSystem.typography.fontSize.sm,
+                      color: designSystem.colors.gray[500],
+                      marginBottom: designSystem.spacing.xs
+                    }}>Query Description</label>
+                    <div style={{ 
+                      fontWeight: designSystem.typography.fontWeight.semibold,
+                      background: designSystem.colors.gray[50],
+                      padding: designSystem.spacing.md,
+                      borderRadius: '8px',
+                      minHeight: '80px',
+                      border: `1px solid ${designSystem.colors.gray[200]}`
+                    }}>
+                      {selectedQuery.description || 'No description available'}
                     </div>
                   </div>
                   
+                  {/* Responses Section */}
                   {selectedQuery.responses && selectedQuery.responses.length > 0 && (
-                    <div className="mb-3">
-                      <label className="form-label">Previous Responses</label>
-                      <div className="card">
-                        <div className="card-body" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                          {selectedQuery.responses.map((response, index) => (
-                            <div key={index} className="mb-2 p-2 border-bottom">
-                              <small className="text-muted">
-                                {response.user?.first_name} {response.user?.last_name} - {new Date(response.timestamp).toLocaleString()}
-                                {response.isInternal && <span className="badge bg-warning ms-2">Internal</span>}
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ 
+                        display: 'block',
+                        fontSize: designSystem.typography.fontSize.sm,
+                        color: designSystem.colors.gray[500],
+                        marginBottom: designSystem.spacing.xs
+                      }}>Communication History ({selectedQuery.responses.length} responses)</label>
+                      <div style={{ 
+                        maxHeight: '300px', 
+                        overflowY: 'auto',
+                        border: `1px solid ${designSystem.colors.gray[200]}`,
+                        borderRadius: '8px'
+                      }}>
+                        {selectedQuery.responses.map((response, index) => (
+                          <div key={index} style={{
+                            padding: designSystem.spacing.md,
+                            borderBottom: index < selectedQuery.responses.length - 1 ? `1px solid ${designSystem.colors.gray[200]}` : 'none',
+                            background: response.isInternal ? '#fff7ed' : 'white'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: designSystem.spacing.xs }}>
+                              <div>
+                                <span style={{ fontWeight: '600', color: designSystem.colors.dark }}>
+                                  {response.user?.first_name} {response.user?.last_name}
+                                </span>
+                                {response.isInternal && (
+                                  <span style={{
+                                    background: '#f97316',
+                                    color: 'white',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    fontSize: '10px',
+                                    fontWeight: '600',
+                                    marginLeft: designSystem.spacing.xs
+                                  }}>
+                                    INTERNAL
+                                  </span>
+                                )}
+                              </div>
+                              <small style={{ color: designSystem.colors.gray[500] }}>
+                                {new Date(response.timestamp).toLocaleString()}
                               </small>
-                              <p className="mb-0">{response.message}</p>
                             </div>
-                          ))}
-                        </div>
+                            <p style={{ margin: 0, color: designSystem.colors.dark }}>
+                              {response.message}
+                            </p>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
-
-                  <div className="mb-3">
-                    <label className="form-label">Response Message *</label>
-                    <textarea
-                      className="form-control"
-                      rows="4"
-                      value={responseData.message}
-                      onChange={(e) => setResponseData({ ...responseData, message: e.target.value })}
-                      required
-                    ></textarea>
-                  </div>
-                  <div className="mb-3">
-                    <div className="form-check">
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        checked={responseData.isInternal}
-                        onChange={(e) => setResponseData({ ...responseData, isInternal: e.target.checked })}
-                      />
-                      <label className="form-check-label">
-                        Internal Note (not visible to client)
-                      </label>
-                    </div>
-                  </div>
                 </div>
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      setShowResponseModal(false);
-                      setSelectedQuery(null);
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary" disabled={loading}>
-                    {loading ? 'Adding Response...' : 'Add Response'}
-                  </button>
-                </div>
-              </form>
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-primary" 
+                  onClick={() => setShowViewModal(false)}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

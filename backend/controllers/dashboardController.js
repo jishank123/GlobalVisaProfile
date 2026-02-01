@@ -500,3 +500,241 @@ exports.getClientDashboard = async (req, res) => {
     });
   }
 };
+/**
+ * Get CRM Manager Dashboard Statistics
+ * @route GET /api/dashboard/crm-stats
+ * @access Private (CRM Manager only)
+ */
+exports.getCrmStats = async (req, res) => {
+  console.log('\n📊 === CRM DASHBOARD STATS REQUEST ===');
+  console.log('📊 CRM Manager requesting dashboard statistics');
+  
+  try {
+    const crmManagerId = req.user.user_id || req.user.id;
+    console.log('📊 CRM Manager ID:', crmManagerId);
+    console.log('📊 CRM Manager ID type:', typeof crmManagerId);
+    console.log('📊 CRM Manager ID toString():', crmManagerId.toString());
+    
+    // Get projects assigned to this CRM manager using improved query
+    const assignedProjects = await Project.countDocuments({ 
+      $or: [
+        { assigned_to: crmManagerId },
+        { assigned_to: crmManagerId.toString() }
+      ],
+      status: { $ne: 'deleted' }
+    });
+    console.log('📋 Assigned Projects:', assignedProjects);
+    
+    // Get pending queries assigned to this CRM manager
+    const Query = require('../models/Query');
+    const pendingQueries = await Query.countDocuments({
+      $or: [
+        { assignedTo: crmManagerId },
+        { assignedTo: crmManagerId.toString() }
+      ],
+      status: { $in: ['open', 'in_progress'] }
+    });
+    console.log('❓ Pending Queries:', pendingQueries);
+    
+    // Get upcoming meetings
+    const AppointmentRequest = require('../models/AppointmentRequest');
+    const upcomingMeetings = await AppointmentRequest.countDocuments({
+      $or: [
+        { assigned_to: crmManagerId },
+        { assigned_to: crmManagerId.toString() }
+      ],
+      status: 'confirmed',
+      scheduled_date: { $gte: new Date() }
+    });
+    console.log('📅 Upcoming Meetings:', upcomingMeetings);
+    
+    // Get pending payments for assigned projects
+    const projects = await Project.find({ 
+      $or: [
+        { assigned_to: crmManagerId },
+        { assigned_to: crmManagerId.toString() }
+      ],
+      status: { $ne: 'deleted' }
+    }).lean();
+    
+    const pendingPayments = await Payment.countDocuments({
+      project: { $in: projects.map(p => p._id) },
+      status: { $in: ['pending', 'pending_verification'] }
+    });
+    console.log('💳 Pending Payments:', pendingPayments);
+    
+    // Get completed projects
+    const completedProjects = await Project.countDocuments({
+      $or: [
+        { assigned_to: crmManagerId },
+        { assigned_to: crmManagerId.toString() }
+      ],
+      status: 'completed'
+    });
+    console.log('✅ Completed Projects:', completedProjects);
+    
+    const stats = {
+      assignedProjects,
+      pendingQueries,
+      upcomingMeetings,
+      pendingPayments,
+      completedProjects
+    };
+    
+    console.log('📊 CRM Manager statistics:', stats);
+    
+    res.json({
+      success: true,
+      data: stats
+    });
+    
+  } catch (error) {
+    console.error('❌ Error in getCrmStats:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'CRM_STATS_ERROR',
+        message: 'Failed to fetch CRM dashboard statistics'
+      }
+    });
+  }
+};
+
+/**
+ * Get CRM Manager Recent Activity
+ * @route GET /api/dashboard/crm-activity
+ * @access Private (CRM Manager only)
+ */
+exports.getCrmActivity = async (req, res) => {
+  console.log('\n📊 === CRM ACTIVITY REQUEST ===');
+  console.log('📊 CRM Manager requesting recent activity');
+  
+  try {
+    const crmManagerId = req.user.user_id || req.user.id;
+    console.log('📊 CRM Manager ID:', crmManagerId);
+    
+    const activities = [];
+    
+    // Get recent project updates
+    const recentProjects = await Project.find({
+      $or: [
+        { assigned_to: crmManagerId },
+        { assigned_to: crmManagerId.toString() }
+      ],
+      updatedAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
+    }).populate('client', 'name firstName lastName')
+      .sort({ updatedAt: -1 })
+      .limit(5)
+      .lean();
+    
+    recentProjects.forEach(project => {
+      const clientName = project.client?.name || 
+        `${project.client?.firstName || ''} ${project.client?.lastName || ''}`.trim() || 
+        'Unknown Client';
+      
+      activities.push({
+        id: `project-${project._id}`,
+        message: `Project ${project.project_id} for ${clientName} was updated`,
+        timestamp: project.updatedAt,
+        icon: 'fas fa-project-diagram',
+        color: '#3b82f6'
+      });
+    });
+    
+    // Get recent queries
+    const Query = require('../models/Query');
+    const recentQueries = await Query.find({
+      $or: [
+        { assignedTo: crmManagerId },
+        { assignedTo: crmManagerId.toString() }
+      ],
+      createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+    }).populate('client', 'name firstName lastName')
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .lean();
+    
+    recentQueries.forEach(query => {
+      const clientName = query.client?.name || 
+        `${query.client?.firstName || ''} ${query.client?.lastName || ''}`.trim() || 
+        'Unknown Client';
+      
+      activities.push({
+        id: `query-${query._id}`,
+        message: `New query "${query.subject}" from ${clientName}`,
+        timestamp: query.createdAt,
+        icon: 'fas fa-question-circle',
+        color: '#f59e0b'
+      });
+    });
+    
+    // Get recent appointments
+    const recentAppointments = await AppointmentRequest.find({
+      $or: [
+        { assigned_to: crmManagerId },
+        { assigned_to: crmManagerId.toString() }
+      ],
+      createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+    }).sort({ createdAt: -1 })
+      .limit(3)
+      .lean();
+    
+    recentAppointments.forEach(appointment => {
+      activities.push({
+        id: `appointment-${appointment._id}`,
+        message: `New appointment scheduled with ${appointment.name}`,
+        timestamp: appointment.createdAt,
+        icon: 'fas fa-calendar-alt',
+        color: '#8b5cf6'
+      });
+    });
+    
+    // Get recent payments
+    const projectIds = await Project.find({ 
+      $or: [
+        { assigned_to: crmManagerId },
+        { assigned_to: crmManagerId.toString() }
+      ]
+    }).distinct('_id');
+    const recentPayments = await Payment.find({
+      project: { $in: projectIds },
+      createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+    }).populate('project', 'project_id')
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .lean();
+    
+    recentPayments.forEach(payment => {
+      activities.push({
+        id: `payment-${payment._id}`,
+        message: `Payment of $${payment.amount} received for project ${payment.project?.project_id}`,
+        timestamp: payment.createdAt,
+        icon: 'fas fa-credit-card',
+        color: '#10b981'
+      });
+    });
+    
+    // Sort all activities by timestamp
+    activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    // Limit to 10 most recent activities
+    const limitedActivities = activities.slice(0, 10);
+    
+    console.log('📊 Recent activities found:', limitedActivities.length);
+    
+    res.json({
+      success: true,
+      data: limitedActivities
+    });
+    
+  } catch (error) {
+    console.error('❌ Error in getCrmActivity:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'CRM_ACTIVITY_ERROR',
+        message: 'Failed to fetch CRM recent activity'
+      }
+    });
+  }
+};

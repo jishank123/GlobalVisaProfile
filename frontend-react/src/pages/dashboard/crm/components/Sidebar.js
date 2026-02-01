@@ -1,11 +1,10 @@
-const Sidebar = ({ activeSection, setActiveSection, sidebarOpen, setSidebarOpen, stats }) => {
+const Sidebar = ({ activeSection, setActiveSection, sidebarOpen, setSidebarOpen }) => {
   const sidebarItems = [
     { id: 'dashboard', icon: 'fas fa-tachometer-alt', label: 'Dashboard Overview' },
-    { id: 'clients', icon: 'fas fa-users', label: 'My Clients', count: stats?.clientsCount },
-    { id: 'projects', icon: 'fas fa-briefcase', label: 'Active Projects', count: stats?.projectsCount },
-    { id: 'tasks', icon: 'fas fa-tasks', label: 'My Tasks', count: stats?.tasksCount },
-    { id: 'queries', icon: 'fas fa-question-circle', label: 'Client Queries', count: stats?.queriesCount },
-    { id: 'appointments', icon: 'fas fa-calendar-alt', label: 'Appointments', count: stats?.appointmentsCount },
+    { id: 'projects', icon: 'fas fa-project-diagram', label: 'Assigned Projects' },
+    { id: 'tasks', icon: 'fas fa-tasks', label: 'Project Tasks' },
+    { id: 'queries', icon: 'fas fa-question-circle', label: 'Client Queries' },
+    { id: 'appointments', icon: 'fas fa-calendar-alt', label: 'My Meetings' },
     { id: 'payments', icon: 'fas fa-credit-card', label: 'Payment Status' }
   ];
 
@@ -47,9 +46,7 @@ const Sidebar = ({ activeSection, setActiveSection, sidebarOpen, setSidebarOpen,
     padding: '15px 20px',
     color: isActive ? '#1e3a8a' : '#4b5563',
     textDecoration: 'none',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    display: 'block',
     transition: 'all 0.3s',
     borderLeft: `3px solid ${isActive ? '#1e3a8a' : 'transparent'}`,
     background: isActive ? '#f3f4f6' : 'transparent',
@@ -78,15 +75,8 @@ const Sidebar = ({ activeSection, setActiveSection, sidebarOpen, setSidebarOpen,
             }
           }}
         >
-          <div>
-            <i className={`${item.icon} me-2`}></i>
-            {item.label}
-          </div>
-          {item.count !== undefined && item.count > 0 && (
-            <span className="badge bg-danger rounded-pill" style={{ fontSize: '10px' }}>
-              {item.count}
-            </span>
-          )}
+          <i className={`${item.icon} me-2`}></i>
+          {item.label}
         </div>
       ))}
     </div>

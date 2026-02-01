@@ -1,6 +1,5 @@
 // CRM Manager Dashboard Components
 export { default as CrmStats } from './CrmStats';
-export { default as ClientsManagement } from './ClientsManagement';
 export { default as ProjectsManagement } from './ProjectsManagement';
 export { default as TasksManagement } from './TasksManagement';
 export { default as QueriesManagement } from './QueriesManagement';

@@ -74,6 +74,12 @@ const appointmentRequestSchema = new mongoose.Schema({
     ref: 'User'
   },
   
+  // Created by (Lead Manager who created this appointment)
+  created_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  
   // Linked User and Client
   user_id: {
     type: mongoose.Schema.Types.ObjectId,
@@ -163,7 +169,7 @@ const appointmentRequestSchema = new mongoose.Schema({
   },
   source: {
     type: String,
-    enum: ['website', 'referral', 'social_media', 'direct', 'other'],
+    enum: ['website', 'referral', 'social_media', 'direct', 'staff', 'other'],
     default: 'website'
   },
   

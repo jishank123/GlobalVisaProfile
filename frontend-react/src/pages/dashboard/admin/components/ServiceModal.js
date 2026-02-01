@@ -83,13 +83,13 @@ const ServiceModal = ({
                 }}>Status</label>
                 <div style={{ fontWeight: designSystem.typography.fontWeight.semibold }}>
                   <span style={{
-                    background: data?.is_active !== false ? '#28a745' : '#ffc107',
-                    color: data?.is_active !== false ? 'white' : '#000',
+                    background: data?.isActive !== false ? '#28a745' : '#ffc107',
+                    color: data?.isActive !== false ? 'white' : '#000',
                     padding: '4px 8px',
                     borderRadius: '4px',
                     fontSize: '12px'
                   }}>
-                    {data?.is_active !== false ? 'ACTIVE' : 'INACTIVE'}
+                    {data?.isActive !== false ? 'ACTIVE' : 'INACTIVE'}
                   </span>
                 </div>
               </div>
@@ -169,24 +169,36 @@ const ServiceModal = ({
           icon: type === 'add' ? 'fas fa-plus' : 'fas fa-edit',
           color: type === 'add' ? designSystem.colors.primary : designSystem.colors.warning,
           content: (
-            <div>
-              <div style={{ marginBottom: designSystem.spacing.md }}>
-                <h6 style={{ color: designSystem.colors.primary, marginBottom: designSystem.spacing.sm }}>
+            <div style={{ padding: designSystem.spacing.md }}>
+              <div style={{ marginBottom: designSystem.spacing.lg }}>
+                <h6 style={{ 
+                  color: designSystem.colors.primary, 
+                  marginBottom: designSystem.spacing.sm,
+                  display: 'flex',
+                  alignItems: 'center',
+                  fontSize: designSystem.typography.fontSize.lg,
+                  fontWeight: designSystem.typography.fontWeight.bold
+                }}>
                   <i className="fas fa-info-circle me-2"></i>Service Information
                 </h6>
-                <p style={{ fontSize: designSystem.typography.fontSize.sm, color: designSystem.colors.gray[500] }}>
+                <p style={{ 
+                  fontSize: designSystem.typography.fontSize.sm, 
+                  color: designSystem.colors.gray[600],
+                  margin: 0,
+                  lineHeight: '1.5'
+                }}>
                   {type === 'add' ? 'Create a new service with pricing and details.' : 'Update service information and settings.'}
                 </p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: designSystem.spacing.lg }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: designSystem.spacing.lg, marginBottom: designSystem.spacing.lg }}>
                 <div>
                   <label style={{ 
                     display: 'block', 
                     marginBottom: designSystem.spacing.xs,
-                    color: designSystem.colors.gray[600],
+                    color: designSystem.colors.gray[700],
                     fontSize: designSystem.typography.fontSize.sm,
-                    fontWeight: designSystem.typography.fontWeight.bold
+                    fontWeight: designSystem.typography.fontWeight.semibold
                   }}>
                     Service Name <span style={{ color: '#dc3545' }}>*</span>
                   </label>
@@ -195,15 +207,21 @@ const ServiceModal = ({
                     name="name"
                     value={formData.name}
                     onChange={onInputChange}
-                    placeholder="Service Name"
+                    placeholder="Enter service name"
                     style={{
                       ...componentStyles.formInput,
-                      borderColor: formErrors.name ? '#dc3545' : componentStyles.formInput.borderColor
+                      borderColor: formErrors.name ? '#dc3545' : componentStyles.formInput.borderColor,
+                      width: '100%'
                     }}
                     required 
                   />
                   {formErrors.name && (
-                    <small style={{ color: '#dc3545', fontSize: designSystem.typography.fontSize.xs }}>
+                    <small style={{ 
+                      color: '#dc3545', 
+                      fontSize: designSystem.typography.fontSize.xs,
+                      display: 'block',
+                      marginTop: '4px'
+                    }}>
                       {formErrors.name}
                     </small>
                   )}
@@ -212,9 +230,9 @@ const ServiceModal = ({
                   <label style={{ 
                     display: 'block', 
                     marginBottom: designSystem.spacing.xs,
-                    color: designSystem.colors.gray[600],
+                    color: designSystem.colors.gray[700],
                     fontSize: designSystem.typography.fontSize.sm,
-                    fontWeight: designSystem.typography.fontWeight.bold
+                    fontWeight: designSystem.typography.fontWeight.semibold
                   }}>
                     Category <span style={{ color: '#dc3545' }}>*</span>
                   </label>
@@ -224,32 +242,38 @@ const ServiceModal = ({
                     onChange={onInputChange}
                     style={{
                       ...componentStyles.formInput,
-                      borderColor: formErrors.category ? '#dc3545' : componentStyles.formInput.borderColor
+                      borderColor: formErrors.category ? '#dc3545' : componentStyles.formInput.borderColor,
+                      width: '100%'
                     }}
                     required
                   >
                     <option value="">Select Category</option>
-                    <option value="Immigration">Immigration</option>
-                    <option value="Consultation">Consultation</option>
-                    <option value="Assessment">Assessment</option>
-                    <option value="Documentation">Documentation</option>
+                    <option value="Research">Research</option>
+                    <option value="Writing">Writing</option>
+                    <option value="Editing">Editing</option>
+                    <option value="Consulting">Consulting</option>
                     <option value="Other">Other</option>
                   </select>
                   {formErrors.category && (
-                    <small style={{ color: '#dc3545', fontSize: designSystem.typography.fontSize.xs }}>
+                    <small style={{ 
+                      color: '#dc3545', 
+                      fontSize: designSystem.typography.fontSize.xs,
+                      display: 'block',
+                      marginTop: '4px'
+                    }}>
                       {formErrors.category}
                     </small>
                   )}
                 </div>
               </div>
 
-              <div style={{ marginTop: designSystem.spacing.lg }}>
+              <div style={{ marginBottom: designSystem.spacing.lg }}>
                 <label style={{ 
                   display: 'block', 
                   marginBottom: designSystem.spacing.xs,
-                  color: designSystem.colors.gray[600],
+                  color: designSystem.colors.gray[700],
                   fontSize: designSystem.typography.fontSize.sm,
-                  fontWeight: designSystem.typography.fontWeight.bold
+                  fontWeight: designSystem.typography.fontWeight.semibold
                 }}>
                   Description <span style={{ color: '#dc3545' }}>*</span>
                 </label>
@@ -257,30 +281,45 @@ const ServiceModal = ({
                   name="description"
                   value={formData.description}
                   onChange={onInputChange}
-                  placeholder="Service Description"
+                  placeholder="Enter service description"
                   rows="3"
                   style={{
                     ...componentStyles.formInput,
                     borderColor: formErrors.description ? '#dc3545' : componentStyles.formInput.borderColor,
-                    resize: 'vertical'
+                    resize: 'vertical',
+                    width: '100%'
                   }}
                   required
                 />
                 {formErrors.description && (
-                  <small style={{ color: '#dc3545', fontSize: designSystem.typography.fontSize.xs }}>
+                  <small style={{ 
+                    color: '#dc3545', 
+                    fontSize: designSystem.typography.fontSize.xs,
+                    display: 'block',
+                    marginTop: '4px'
+                  }}>
                     {formErrors.description}
                   </small>
                 )}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: designSystem.spacing.lg, marginTop: designSystem.spacing.lg }}>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '1fr 1fr 1fr', 
+                gap: designSystem.spacing.lg, 
+                marginBottom: designSystem.spacing.lg,
+                padding: designSystem.spacing.md,
+                background: designSystem.colors.gray[50],
+                borderRadius: designSystem.borderRadius.button,
+                border: `1px solid ${designSystem.colors.gray[200]}`
+              }}>
                 <div>
                   <label style={{ 
                     display: 'block', 
                     marginBottom: designSystem.spacing.xs,
-                    color: designSystem.colors.gray[600],
+                    color: designSystem.colors.gray[700],
                     fontSize: designSystem.typography.fontSize.sm,
-                    fontWeight: designSystem.typography.fontWeight.bold
+                    fontWeight: designSystem.typography.fontWeight.semibold
                   }}>
                     Pricing Type <span style={{ color: '#dc3545' }}>*</span>
                   </label>
@@ -290,7 +329,8 @@ const ServiceModal = ({
                     onChange={onInputChange}
                     style={{
                       ...componentStyles.formInput,
-                      borderColor: formErrors.pricing_type ? '#dc3545' : componentStyles.formInput.borderColor
+                      borderColor: formErrors.pricing_type ? '#dc3545' : componentStyles.formInput.borderColor,
+                      width: '100%'
                     }}
                     required
                   >
@@ -299,7 +339,12 @@ const ServiceModal = ({
                     <option value="range">Price Range</option>
                   </select>
                   {formErrors.pricing_type && (
-                    <small style={{ color: '#dc3545', fontSize: designSystem.typography.fontSize.xs }}>
+                    <small style={{ 
+                      color: '#dc3545', 
+                      fontSize: designSystem.typography.fontSize.xs,
+                      display: 'block',
+                      marginTop: '4px'
+                    }}>
                       {formErrors.pricing_type}
                     </small>
                   )}
@@ -308,9 +353,9 @@ const ServiceModal = ({
                   <label style={{ 
                     display: 'block', 
                     marginBottom: designSystem.spacing.xs,
-                    color: designSystem.colors.gray[600],
+                    color: designSystem.colors.gray[700],
                     fontSize: designSystem.typography.fontSize.sm,
-                    fontWeight: designSystem.typography.fontWeight.bold
+                    fontWeight: designSystem.typography.fontWeight.semibold
                   }}>
                     Min Price ($) <span style={{ color: '#dc3545' }}>*</span>
                   </label>
@@ -324,12 +369,18 @@ const ServiceModal = ({
                     step="0.01"
                     style={{
                       ...componentStyles.formInput,
-                      borderColor: formErrors.min_price ? '#dc3545' : componentStyles.formInput.borderColor
+                      borderColor: formErrors.min_price ? '#dc3545' : componentStyles.formInput.borderColor,
+                      width: '100%'
                     }}
                     required 
                   />
                   {formErrors.min_price && (
-                    <small style={{ color: '#dc3545', fontSize: designSystem.typography.fontSize.xs }}>
+                    <small style={{ 
+                      color: '#dc3545', 
+                      fontSize: designSystem.typography.fontSize.xs,
+                      display: 'block',
+                      marginTop: '4px'
+                    }}>
                       {formErrors.min_price}
                     </small>
                   )}
@@ -338,9 +389,9 @@ const ServiceModal = ({
                   <label style={{ 
                     display: 'block', 
                     marginBottom: designSystem.spacing.xs,
-                    color: designSystem.colors.gray[600],
+                    color: designSystem.colors.gray[700],
                     fontSize: designSystem.typography.fontSize.sm,
-                    fontWeight: designSystem.typography.fontWeight.bold
+                    fontWeight: designSystem.typography.fontWeight.semibold
                   }}>
                     Max Price ($) <span style={{ color: '#dc3545' }}>*</span>
                   </label>
@@ -354,26 +405,32 @@ const ServiceModal = ({
                     step="0.01"
                     style={{
                       ...componentStyles.formInput,
-                      borderColor: formErrors.max_price ? '#dc3545' : componentStyles.formInput.borderColor
+                      borderColor: formErrors.max_price ? '#dc3545' : componentStyles.formInput.borderColor,
+                      width: '100%'
                     }}
                     required 
                   />
                   {formErrors.max_price && (
-                    <small style={{ color: '#dc3545', fontSize: designSystem.typography.fontSize.xs }}>
+                    <small style={{ 
+                      color: '#dc3545', 
+                      fontSize: designSystem.typography.fontSize.xs,
+                      display: 'block',
+                      marginTop: '4px'
+                    }}>
                       {formErrors.max_price}
                     </small>
                   )}
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: designSystem.spacing.lg, marginTop: designSystem.spacing.lg }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: designSystem.spacing.lg, marginBottom: designSystem.spacing.lg }}>
                 <div>
                   <label style={{ 
                     display: 'block', 
                     marginBottom: designSystem.spacing.xs,
-                    color: designSystem.colors.gray[600],
+                    color: designSystem.colors.gray[700],
                     fontSize: designSystem.typography.fontSize.sm,
-                    fontWeight: designSystem.typography.fontWeight.bold
+                    fontWeight: designSystem.typography.fontWeight.semibold
                   }}>
                     Duration
                   </label>
@@ -383,24 +440,30 @@ const ServiceModal = ({
                     value={formData.duration}
                     onChange={onInputChange}
                     placeholder="e.g., 2-4 weeks"
-                    style={componentStyles.formInput}
+                    style={{
+                      ...componentStyles.formInput,
+                      width: '100%'
+                    }}
                   />
                 </div>
                 <div>
                   <label style={{ 
                     display: 'block', 
                     marginBottom: designSystem.spacing.xs,
-                    color: designSystem.colors.gray[600],
+                    color: designSystem.colors.gray[700],
                     fontSize: designSystem.typography.fontSize.sm,
-                    fontWeight: designSystem.typography.fontWeight.bold
+                    fontWeight: designSystem.typography.fontWeight.semibold
                   }}>
                     Status
                   </label>
                   <select 
-                    name="is_active"
-                    value={formData.is_active}
+                    name="isActive"
+                    value={formData.isActive}
                     onChange={onInputChange}
-                    style={componentStyles.formInput}
+                    style={{
+                      ...componentStyles.formInput,
+                      width: '100%'
+                    }}
                   >
                     <option value={true}>Active</option>
                     <option value={false}>Inactive</option>
@@ -408,13 +471,13 @@ const ServiceModal = ({
                 </div>
               </div>
 
-              <div style={{ marginTop: designSystem.spacing.lg }}>
+              <div>
                 <label style={{ 
                   display: 'block', 
                   marginBottom: designSystem.spacing.xs,
-                  color: designSystem.colors.gray[600],
+                  color: designSystem.colors.gray[700],
                   fontSize: designSystem.typography.fontSize.sm,
-                  fontWeight: designSystem.typography.fontWeight.bold
+                  fontWeight: designSystem.typography.fontWeight.semibold
                 }}>
                   Features
                 </label>
@@ -426,10 +489,16 @@ const ServiceModal = ({
                   rows="4"
                   style={{
                     ...componentStyles.formInput,
-                    resize: 'vertical'
+                    resize: 'vertical',
+                    width: '100%'
                   }}
                 />
-                <small style={{ color: designSystem.colors.gray[500], fontSize: designSystem.typography.fontSize.xs }}>
+                <small style={{ 
+                  color: designSystem.colors.gray[500], 
+                  fontSize: designSystem.typography.fontSize.xs,
+                  display: 'block',
+                  marginTop: '4px'
+                }}>
                   Each line will be treated as a separate feature
                 </small>
               </div>
@@ -446,7 +515,7 @@ const ServiceModal = ({
               <div style={{ marginBottom: designSystem.spacing.md }}>
                 <h6 className="text-danger">Confirm Service Deletion</h6>
                 <p className="small text-muted">
-                  This will move the service to the deleted section where it can be restored if needed.
+                  This will move the service to the deleted records section where it can be managed separately.
                 </p>
               </div>
 
@@ -471,7 +540,7 @@ const ServiceModal = ({
 
               <div className="alert alert-warning">
                 <i className="fas fa-info-circle me-2"></i>
-                <strong>Note:</strong> The service will be moved to the deleted section and can be restored later if needed.
+                <strong>Note:</strong> The service will be moved to the deleted records section and can be managed from there.
               </div>
             </div>
           )
@@ -499,12 +568,12 @@ const ServiceModal = ({
       onClick={onHide}
     >
       <div 
-        className="modal-dialog modal-lg"
+        className="modal-dialog modal-xl"
         style={{ 
           position: 'relative',
           width: 'auto',
           margin: '1.75rem auto',
-          maxWidth: '800px'
+          maxWidth: '900px'
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -526,13 +595,7 @@ const ServiceModal = ({
           <div className="modal-footer">
             {type === 'add' ? (
               <>
-                <button 
-                  type="button" 
-                  className="btn btn-secondary" 
-                  onClick={onHide}
-                >
-                  Cancel
-                </button>
+                
                 <button 
                   type="button" 
                   className="btn btn-primary" 

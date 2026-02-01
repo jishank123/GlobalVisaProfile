@@ -19,7 +19,7 @@ const ServicesManagement = () => {
     min_price: '',
     max_price: '',
     duration: '',
-    is_active: true,
+    isActive: true,
     features: ''
   });
   const [formErrors, setFormErrors] = useState({});
@@ -32,9 +32,13 @@ const ServicesManagement = () => {
     try {
       setLoading(true);
       
-      const response = await servicesAPI.getAll();
+      // Request all services (both active and inactive) for admin management
+      const response = await servicesAPI.getAll({ status: 'all' });
       
       if (response.success) {
+        console.log('📋 Loaded services:', response.data?.length || 0);
+        console.log('📋 Active services:', response.data?.filter(s => s.isActive !== false).length || 0);
+        console.log('📋 Inactive services:', response.data?.filter(s => s.isActive === false).length || 0);
         setServices(response.data || []);
       } else {
         throw new Error(response.error?.message || 'Failed to load services');
@@ -50,22 +54,35 @@ const ServicesManagement = () => {
 
   // Filter services by status
   const getFilteredServices = (status) => {
-    return services.filter(service => {
+    const filtered = services.filter(service => {
       if (status === 'active') {
-        return service.is_active !== false;
-      } else {
-        return service.is_active === false;
+        return service.isActive !== false && service.isDeleted !== true;
+      } else if (status === 'inactive') {
+        return service.isActive === false && service.isDeleted !== true;
       }
+      return false;
     });
+    
+    console.log(`📋 Filtering for ${status} services:`, {
+      totalServices: services.length,
+      filteredCount: filtered.length,
+      sampleService: services[0] ? {
+        name: services[0].name,
+        isActive: services[0].isActive,
+        isDeleted: services[0].isDeleted
+      } : 'No services'
+    });
+    
+    return filtered;
   };
 
   // Get service counts for stats
   const getServiceCounts = () => {
     return {
-      total: services.length,
-      active: services.filter(service => service.is_active !== false).length,
-      inactive: services.filter(service => service.is_active === false).length,
-      categories: [...new Set(services.map(service => service.category))].length
+      total: services.filter(service => service.isDeleted !== true).length,
+      active: services.filter(service => service.isActive !== false && service.isDeleted !== true).length,
+      inactive: services.filter(service => service.isActive === false && service.isDeleted !== true).length,
+      categories: [...new Set(services.filter(service => service.isDeleted !== true).map(service => service.category))].length
     };
   };
 
@@ -76,9 +93,18 @@ const ServicesManagement = () => {
     if (!formData.category) errors.category = 'Category is required';
     if (!formData.description.trim()) errors.description = 'Description is required';
     if (!formData.pricing_type) errors.pricing_type = 'Pricing type is required';
-    if (!formData.min_price || formData.min_price <= 0) errors.min_price = 'Valid minimum price is required';
-    if (!formData.max_price || formData.max_price <= 0) errors.max_price = 'Valid maximum price is required';
-    if (parseFloat(formData.min_price) > parseFloat(formData.max_price)) {
+    
+    // Validate pricing fields
+    const minPrice = parseFloat(formData.min_price);
+    const maxPrice = parseFloat(formData.max_price);
+    
+    if (!formData.min_price || isNaN(minPrice) || minPrice <= 0) {
+      errors.min_price = 'Valid minimum price is required';
+    }
+    if (!formData.max_price || isNaN(maxPrice) || maxPrice <= 0) {
+      errors.max_price = 'Valid maximum price is required';
+    }
+    if (!isNaN(minPrice) && !isNaN(maxPrice) && minPrice > maxPrice) {
       errors.max_price = 'Maximum price must be greater than minimum price';
     }
 
@@ -113,7 +139,7 @@ const ServicesManagement = () => {
       min_price: '',
       max_price: '',
       duration: '',
-      is_active: true,
+      isActive: true,
       features: ''
     });
     setFormErrors({});
@@ -147,7 +173,7 @@ const ServicesManagement = () => {
       min_price: service.min_price || service.pricing?.minPrice || '',
       max_price: service.max_price || service.pricing?.maxPrice || '',
       duration: service.duration || '',
-      is_active: service.is_active !== false,
+      isActive: service.isActive !== false,
       features: Array.isArray(service.features) ? service.features.join('\n') : (service.features || '')
     });
     setShowAddModal(true);
@@ -164,12 +190,21 @@ const ServicesManagement = () => {
 
     try {
       const serviceData = {
-        ...formData,
-        min_price: parseFloat(formData.min_price),
-        max_price: parseFloat(formData.max_price),
-        features: formData.features.split('\n').filter(f => f.trim())
+        name: formData.name,
+        description: formData.description,
+        category: formData.category,
+        pricing: {
+          type: formData.pricing_type,
+          minPrice: parseFloat(formData.min_price),
+          maxPrice: parseFloat(formData.max_price),
+          currency: 'USD'
+        },
+        duration: formData.duration,
+        features: formData.features.split('\n').filter(f => f.trim()),
+        isActive: formData.isActive
       };
 
+      console.log('Admin creating new service', serviceData);
       const response = await servicesAPI.create(serviceData);
       
       if (response.success) {
@@ -181,7 +216,13 @@ const ServicesManagement = () => {
       }
     } catch (error) {
       console.error('Error creating service:', error);
-      alert(`❌ Error creating service: ${error.message}`);
+      
+      // Handle validation errors specifically
+      if (error.message.includes('Validation failed') || error.message.includes('Invalid input data')) {
+        alert(`❌ Validation Error: Please check all required fields and ensure:\n• Category is selected from the dropdown\n• Min and Max prices are valid numbers\n• All required fields are filled`);
+      } else {
+        alert(`❌ Error creating service: ${error.message}`);
+      }
     }
   };
 
@@ -190,10 +231,18 @@ const ServicesManagement = () => {
 
     try {
       const serviceData = {
-        ...formData,
-        min_price: parseFloat(formData.min_price),
-        max_price: parseFloat(formData.max_price),
-        features: formData.features.split('\n').filter(f => f.trim())
+        name: formData.name,
+        description: formData.description,
+        category: formData.category,
+        pricing: {
+          type: formData.pricing_type,
+          minPrice: parseFloat(formData.min_price),
+          maxPrice: parseFloat(formData.max_price),
+          currency: 'USD'
+        },
+        duration: formData.duration,
+        features: formData.features.split('\n').filter(f => f.trim()),
+        isActive: formData.isActive
       };
 
       const response = await servicesAPI.update(modalData._id, serviceData);
@@ -207,7 +256,13 @@ const ServicesManagement = () => {
       }
     } catch (error) {
       console.error('Error updating service:', error);
-      alert(`❌ Error updating service: ${error.message}`);
+      
+      // Handle validation errors specifically
+      if (error.message.includes('Validation failed') || error.message.includes('Invalid input data')) {
+        alert(`❌ Validation Error: Please check all required fields and ensure:\n• Category is selected from the dropdown\n• Min and Max prices are valid numbers\n• All required fields are filled`);
+      } else {
+        alert(`❌ Error updating service: ${error.message}`);
+      }
     }
   };
 
@@ -351,10 +406,10 @@ const ServicesManagement = () => {
                   <td style={componentStyles.tableCell}>
                     <span style={{
                       ...componentStyles.badge,
-                      background: service.is_active !== false ? '#28a745' : '#ffc107',
-                      color: service.is_active !== false ? 'white' : '#000'
+                      background: service.isActive !== false ? '#28a745' : '#ffc107',
+                      color: service.isActive !== false ? 'white' : '#000'
                     }}>
-                      {service.is_active !== false ? 'ACTIVE' : 'INACTIVE'}
+                      {service.isActive !== false ? 'ACTIVE' : 'INACTIVE'}
                     </span>
                   </td>
                   <td style={componentStyles.tableCell}>
@@ -469,7 +524,10 @@ const ServicesManagement = () => {
                     color: activeTab === 'active' ? 'white' : designSystem.colors.gray[600],
                     boxShadow: activeTab === 'active' ? designSystem.shadows.button : 'none'
                   }}
-                  onClick={() => setActiveTab('active')}
+                  onClick={() => {
+                    console.log('📋 Switching to active tab');
+                    setActiveTab('active');
+                  }}
                   {...hoverEffects.button}
                 >
                   Active Services ({getServiceCounts().active})
@@ -481,7 +539,10 @@ const ServicesManagement = () => {
                     color: activeTab === 'inactive' ? 'white' : designSystem.colors.gray[600],
                     boxShadow: activeTab === 'inactive' ? designSystem.shadows.button : 'none'
                   }}
-                  onClick={() => setActiveTab('inactive')}
+                  onClick={() => {
+                    console.log('📋 Switching to inactive tab');
+                    setActiveTab('inactive');
+                  }}
                   {...hoverEffects.button}
                 >
                   Inactive Services ({getServiceCounts().inactive})

@@ -20,6 +20,7 @@ const paymentRoutes = require('./routes/payments');
 const queryRoutes = require('./routes/queries');
 const serviceRoutes = require('./routes/services');
 const invoiceRoutes = require('./routes/invoices');
+const tasksRoutes = require('./routes/tasks');
 // const documentRoutes = require('./routes/documents');
 const analyticsRoutes = require('./routes/analytics');
 const activityRoutes = require('./routes/activity');
@@ -132,6 +133,10 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/queries', queryRoutes);
+app.use('/api/tasks', (req, res, next) => {
+    console.log(`🛣️ Tasks route hit: ${req.method} ${req.path}`);
+    next();
+}, tasksRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/services', (req, res, next) => {
     console.log(`🛣️ Services route hit: ${

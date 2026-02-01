@@ -27,13 +27,19 @@ const LeadsTable = ({
 
   const formatSource = (source) => {
     const sourceMap = {
-      'website': 'Website',
+      'profile_assessment': 'Assessment',
+      'contact_form': 'Contact Us',
+      'appointment': 'Appointment',
+      'website': 'Registration',
       'referral': 'Referral',
       'social_media': 'Social Media',
       'advertisement': 'Advertisement',
-      'event': 'Event'
+      'event': 'Event',
+      'cold_call': 'Cold Call',
+      'email_campaign': 'Email Campaign',
+      'other': 'Other'
     };
-    return sourceMap[source] || source;
+    return sourceMap[source] || source || 'Unknown';
   };
 
   const getStatusBadgeClass = (status) => {
@@ -61,11 +67,17 @@ const LeadsTable = ({
 
   const getSourceBadgeClass = (source) => {
     const sourceClasses = {
-      'website': 'bg-blue-100 text-blue-800',
-      'referral': 'bg-green-100 text-green-800',
+      'profile_assessment': 'bg-purple-100 text-purple-800',
+      'contact_form': 'bg-blue-100 text-blue-800',
+      'appointment': 'bg-green-100 text-green-800',
+      'website': 'bg-yellow-100 text-yellow-800',
+      'referral': 'bg-red-100 text-red-800',
       'social_media': 'bg-indigo-100 text-indigo-800',
-      'advertisement': 'bg-yellow-100 text-yellow-800',
-      'event': 'bg-purple-100 text-purple-800'
+      'advertisement': 'bg-orange-100 text-orange-800',
+      'event': 'bg-lime-100 text-lime-800',
+      'cold_call': 'bg-violet-100 text-violet-800',
+      'email_campaign': 'bg-pink-100 text-pink-800',
+      'other': 'bg-gray-100 text-gray-800'
     };
     return sourceClasses[source] || 'bg-gray-100 text-gray-800';
   };

@@ -416,3 +416,7 @@ router.get('/stats/summary', auth(['admin', 'crm_manager']), paymentController.g
 router.post('/:id/upload-receipt', auth(['admin', 'crm_manager', 'client']), upload.single('receipt'), paymentController.uploadPaymentReceipt);
 
 module.exports = router;
+// @route   GET /api/payments/my-payments
+// @desc    Get payments for projects assigned to current CRM manager
+// @access  Private (CRM Manager only)
+router.get('/my-payments', auth(['crm_manager']), paymentController.getMyPayments);

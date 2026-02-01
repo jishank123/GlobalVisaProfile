@@ -48,11 +48,17 @@ const LeadFilters = ({ filters, onFiltersChange, onApplyFilters }) => {
             onChange={(e) => handleInputChange('source', e.target.value)}
           >
             <option value="">All Sources</option>
-            <option value="website">Website</option>
+            <option value="profile_assessment">Assessment</option>
+            <option value="contact_form">Contact Us</option>
+            <option value="appointment">Appointment</option>
+            <option value="website">Registration</option>
             <option value="referral">Referral</option>
             <option value="social_media">Social Media</option>
             <option value="advertisement">Advertisement</option>
             <option value="event">Event</option>
+            <option value="cold_call">Cold Call</option>
+            <option value="email_campaign">Email Campaign</option>
+            <option value="other">Other</option>
           </select>
         </div>
         

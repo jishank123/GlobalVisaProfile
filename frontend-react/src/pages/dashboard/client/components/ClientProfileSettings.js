@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../../contexts/AuthContext';
-import { authAPI } from '../../../../services/api';
+import { useState, useEffect, useRef } from 'react';
+import { designSystem, componentStyles, hoverEffects } from '../../../../styles/designSystem';
 
-const ClientProfileSettings = () => {
-  const { user, updateUser } = useAuth();
-  
+const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => {
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const fileInputRef = useRef(null);
   
   // Profile form data
   const [profileData, setProfileData] = useState({
@@ -16,8 +14,13 @@ const ClientProfileSettings = () => {
     phone: '',
     company: '',
     country: '',
-    profile_picture: '',
-    linkedin_url: ''
+    university: '',
+    linkedin_url: '',
+    portfolio_url: '',
+    website_url: '',
+    bio: '',
+    profile_picture: null,
+    current_profile_picture: ''
   });
   
   // Password form data
@@ -28,18 +31,23 @@ const ClientProfileSettings = () => {
   });
 
   useEffect(() => {
-    if (user) {
+    if (clientData) {
       setProfileData({
-        first_name: user.first_name || '',
-        last_name: user.last_name || '',
-        phone: user.phone || '',
-        company: user.company || '',
-        country: user.country || '',
-        profile_picture: user.profile_picture || '',
-        linkedin_url: user.linkedin_url || ''
+        first_name: clientData.first_name || '',
+        last_name: clientData.last_name || '',
+        phone: clientData.phone || '',
+        company: clientData.company || '',
+        country: clientData.country || '',
+        university: clientData.university || '',
+        linkedin_url: clientData.linkedin_url || '',
+        portfolio_url: clientData.portfolio_url || '',
+        website_url: clientData.website_url || '',
+        bio: clientData.bio || '',
+        profile_picture: null,
+        current_profile_picture: clientData.profile_picture || ''
       });
     }
-  }, [user]);
+  }, [clientData]);
 
   const handleProfileChange = (e) => {
     setProfileData({
@@ -57,6 +65,29 @@ const ClientProfileSettings = () => {
     setMessage({ type: '', text: '' });
   };
 
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setMessage({ type: 'error', text: 'Please select a valid image file' });
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setMessage({ type: 'error', text: 'Image size must be less than 5MB' });
+        return;
+      }
+
+      setProfileData({
+        ...profileData,
+        profile_picture: file
+      });
+      setMessage({ type: '', text: '' });
+    }
+  };
+
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
     
@@ -69,19 +100,54 @@ const ClientProfileSettings = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      const response = await authAPI.updateProfile(profileData);
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('first_name', profileData.first_name);
+      formData.append('last_name', profileData.last_name);
+      formData.append('phone', profileData.phone);
+      formData.append('company', profileData.company);
+      formData.append('country', profileData.country);
+      formData.append('university', profileData.university);
+      formData.append('linkedin_url', profileData.linkedin_url);
+      formData.append('portfolio_url', profileData.portfolio_url);
+      formData.append('website_url', profileData.website_url);
+      formData.append('bio', profileData.bio);
+      
+      if (profileData.profile_picture) {
+        formData.append('profile_picture', profileData.profile_picture);
+      }
+
+      const response = await apiCall('/client-accounts/profile', {
+        method: 'PUT',
+        body: formData,
+        headers: {
+          // Remove Content-Type to let browser set it with boundary for FormData
+          'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('client_token')}`
+        }
+      });
 
       if (response.success) {
         setMessage({ type: 'success', text: 'Profile updated successfully!' });
-        // Update user context
-        if (updateUser) {
-          updateUser(response.data.user);
+        // Reset file input
+        setProfileData({
+          ...profileData,
+          profile_picture: null,
+          current_profile_picture: response.data.profile_picture || profileData.current_profile_picture
+        });
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
         }
+        // Refresh parent data
+        onUpdate?.();
+        onRefresh?.();
+      } else {
+        throw new Error(response.message || 'Failed to update profile');
       }
     } catch (error) {
+      console.error('Profile update error:', error);
       setMessage({ 
         type: 'error', 
-        text: error.response?.data?.error?.message || 'Failed to update profile' 
+        text: error.message || 'Failed to update profile' 
       });
     } finally {
       setLoading(false);
@@ -101,13 +167,12 @@ const ClientProfileSettings = () => {
       return;
     }
 
-    if (passwordData.new_password.length < 6) {
-      setMessage({ type: 'error', text: 'Password must be at least 6 characters long' });
+    if (passwordData.new_password.length < 8) {
+      setMessage({ type: 'error', text: 'Password must be at least 8 characters long' });
       return;
     }
 
-    // Skip current password check if user has temp password
-    if (!user?.is_temp_password && !passwordData.current_password) {
+    if (!passwordData.current_password) {
       setMessage({ type: 'error', text: 'Current password is required' });
       return;
     }
@@ -116,10 +181,13 @@ const ClientProfileSettings = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      const response = await authAPI.changePassword({
-        current_password: passwordData.current_password,
-        new_password: passwordData.new_password,
-        confirm_password: passwordData.confirm_password
+      const response = await apiCall('/client-accounts/change-password', {
+        method: 'PUT',
+        body: JSON.stringify({
+          current_password: passwordData.current_password,
+          new_password: passwordData.new_password,
+          confirm_password: passwordData.confirm_password
+        })
       });
 
       if (response.success) {
@@ -129,253 +197,585 @@ const ClientProfileSettings = () => {
           new_password: '',
           confirm_password: ''
         });
+      } else {
+        throw new Error(response.message || 'Failed to change password');
       }
     } catch (error) {
+      console.error('Password change error:', error);
       setMessage({ 
         type: 'error', 
-        text: error.response?.data?.error?.message || 'Failed to change password' 
+        text: error.message || 'Failed to change password' 
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const tabs = [
-    { id: 'profile', name: 'Profile Information', icon: '👤' },
-    { id: 'password', name: 'Change Password', icon: '🔒' }
-  ];
+  const getInitials = (firstName, lastName) => {
+    return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
+  };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="bg-white shadow rounded-lg">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">Account Settings</h2>
-          <p className="mt-1 text-sm text-gray-600">
-            Manage your profile information and account security
-          </p>
-        </div>
-
-        {/* Message */}
-        {message.text && (
-          <div className={`mx-6 mt-4 p-4 rounded-md ${
-            message.type === 'success' 
-              ? 'bg-green-50 border border-green-200 text-green-700' 
-              : 'bg-red-50 border border-red-200 text-red-700'
-          }`}>
-            {message.text}
+    <div>
+      {/* Header */}
+      <div style={componentStyles.header}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={componentStyles.headerIcon}>
+            <i className="fas fa-user-cog fa-lg"></i>
           </div>
-        )}
-
-        {/* Tabs */}
-        <div className="border-b border-gray-200">
-          <nav className="px-6 -mb-px flex space-x-8">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <span className="mr-2">{tab.icon}</span>
-                {tab.name}
-              </button>
-            ))}
-          </nav>
+          <div>
+            <h4 style={componentStyles.headerTitle}>Profile Settings</h4>
+            <p style={componentStyles.headerSubtitle}>Manage your personal information and account security</p>
+          </div>
         </div>
+      </div>
 
-        {/* Tab Content */}
-        <div className="p-6">
-          {activeTab === 'profile' && (
-            <form onSubmit={handleProfileSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Message */}
+      {message.text && (
+        <div style={{
+          padding: designSystem.spacing.md,
+          borderRadius: designSystem.borderRadius.button,
+          marginBottom: designSystem.spacing.lg,
+          background: message.type === 'success' 
+            ? `${designSystem.colors.success}20` 
+            : `${designSystem.colors.danger}20`,
+          border: `1px solid ${message.type === 'success' 
+            ? designSystem.colors.success.split('(')[0] 
+            : designSystem.colors.danger.split('(')[0]}`,
+          color: message.type === 'success' 
+            ? designSystem.colors.success.split('(')[0] 
+            : designSystem.colors.danger.split('(')[0]
+        }}>
+          <i className={`fas ${message.type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle'} me-2`}></i>
+          {message.text}
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div style={{ marginBottom: designSystem.spacing.lg }}>
+        <div style={{ display: 'flex', gap: designSystem.spacing.xs, flexWrap: 'wrap' }}>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeTab === 'profile' ? designSystem.colors.primary : designSystem.colors.gray[100],
+              color: activeTab === 'profile' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveTab('profile')}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-user me-2"></i>Profile Information
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeTab === 'password' ? designSystem.colors.primary : designSystem.colors.gray[100],
+              color: activeTab === 'password' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveTab('password')}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-lock me-2"></i>Change Password
+          </button>
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      <div style={{
+        background: 'white',
+        borderRadius: designSystem.borderRadius.card,
+        padding: designSystem.spacing.xl,
+        border: `1px solid ${designSystem.colors.gray[200]}`
+      }}>
+        {activeTab === 'profile' && (
+          <form onSubmit={handleProfileSubmit}>
+            {/* Profile Picture Section */}
+            <div style={{ marginBottom: designSystem.spacing.xl }}>
+              <h6 style={{
+                color: designSystem.colors.dark,
+                fontWeight: designSystem.typography.fontWeight.semibold,
+                marginBottom: designSystem.spacing.md
+              }}>
+                Profile Picture
+              </h6>
+              
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: designSystem.spacing.lg
+              }}>
+                {/* Current Profile Picture */}
+                <div style={{
+                  width: '120px',
+                  height: '120px',
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  border: `3px solid ${designSystem.colors.primary.split('(')[0]}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: profileData.current_profile_picture 
+                    ? `url(${profileData.current_profile_picture}) center/cover` 
+                    : designSystem.colors.primary,
+                  color: 'white',
+                  fontSize: '48px',
+                  fontWeight: designSystem.typography.fontWeight.bold
+                }}>
+                  {!profileData.current_profile_picture && getInitials(profileData.first_name, profileData.last_name)}
+                </div>
+
+                {/* Upload Controls */}
+                <div style={{ flex: 1 }}>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    style={{ display: 'none' }}
+                  />
+                  
+                  <div style={{ marginBottom: designSystem.spacing.sm }}>
+                    <button
+                      type="button"
+                      style={{
+                        ...componentStyles.primaryButton,
+                        background: designSystem.colors.primary,
+                        marginRight: designSystem.spacing.sm
+                      }}
+                      onClick={() => fileInputRef.current?.click()}
+                      {...hoverEffects.button}
+                    >
+                      <i className="fas fa-upload me-2"></i>
+                      {profileData.profile_picture ? 'Change Photo' : 'Upload Photo'}
+                    </button>
+                    
+                    {profileData.current_profile_picture && (
+                      <button
+                        type="button"
+                        style={{
+                          ...componentStyles.secondaryButton,
+                          color: designSystem.colors.danger.split('(')[0]
+                        }}
+                        onClick={() => {
+                          setProfileData({
+                            ...profileData,
+                            profile_picture: null,
+                            current_profile_picture: ''
+                          });
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = '';
+                          }
+                        }}
+                        {...hoverEffects.button}
+                      >
+                        <i className="fas fa-trash me-2"></i>Remove
+                      </button>
+                    )}
+                  </div>
+                  
+                  {profileData.profile_picture && (
+                    <div style={{
+                      fontSize: designSystem.typography.fontSize.sm,
+                      color: designSystem.colors.success.split('(')[0],
+                      marginBottom: designSystem.spacing.sm
+                    }}>
+                      <i className="fas fa-check me-2"></i>
+                      New photo selected: {profileData.profile_picture.name}
+                    </div>
+                  )}
+                  
+                  <div style={{
+                    fontSize: designSystem.typography.fontSize.xs,
+                    color: designSystem.colors.gray[500]
+                  }}>
+                    Supported formats: JPG, PNG, GIF (max 5MB)
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Basic Information */}
+            <div style={{ marginBottom: designSystem.spacing.xl }}>
+              <h6 style={{
+                color: designSystem.colors.dark,
+                fontWeight: designSystem.typography.fontWeight.semibold,
+                marginBottom: designSystem.spacing.md
+              }}>
+                Basic Information
+              </h6>
+              
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                gap: designSystem.spacing.md
+              }}>
                 <div>
-                  <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">
+                  <label style={{
+                    display: 'block',
+                    fontSize: designSystem.typography.fontSize.sm,
+                    fontWeight: designSystem.typography.fontWeight.medium,
+                    color: designSystem.colors.dark,
+                    marginBottom: designSystem.spacing.xs
+                  }}>
                     First Name *
                   </label>
                   <input
                     type="text"
-                    id="first_name"
                     name="first_name"
                     required
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    style={componentStyles.formInput}
                     value={profileData.first_name}
                     onChange={handleProfileChange}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">
+                  <label style={{
+                    display: 'block',
+                    fontSize: designSystem.typography.fontSize.sm,
+                    fontWeight: designSystem.typography.fontWeight.medium,
+                    color: designSystem.colors.dark,
+                    marginBottom: designSystem.spacing.xs
+                  }}>
                     Last Name *
                   </label>
                   <input
                     type="text"
-                    id="last_name"
                     name="last_name"
                     required
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    style={componentStyles.formInput}
                     value={profileData.last_name}
                     onChange={handleProfileChange}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                  <label style={{
+                    display: 'block',
+                    fontSize: designSystem.typography.fontSize.sm,
+                    fontWeight: designSystem.typography.fontWeight.medium,
+                    color: designSystem.colors.dark,
+                    marginBottom: designSystem.spacing.xs
+                  }}>
                     Phone Number
                   </label>
                   <input
                     type="tel"
-                    id="phone"
                     name="phone"
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    style={componentStyles.formInput}
                     value={profileData.phone}
                     onChange={handleProfileChange}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="company" className="block text-sm font-medium text-gray-700">
-                    Company/University
+                  <label style={{
+                    display: 'block',
+                    fontSize: designSystem.typography.fontSize.sm,
+                    fontWeight: designSystem.typography.fontWeight.medium,
+                    color: designSystem.colors.dark,
+                    marginBottom: designSystem.spacing.xs
+                  }}>
+                    Country
                   </label>
                   <input
                     type="text"
-                    id="company"
+                    name="country"
+                    style={componentStyles.formInput}
+                    value={profileData.country}
+                    onChange={handleProfileChange}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Professional Information */}
+            <div style={{ marginBottom: designSystem.spacing.xl }}>
+              <h6 style={{
+                color: designSystem.colors.dark,
+                fontWeight: designSystem.typography.fontWeight.semibold,
+                marginBottom: designSystem.spacing.md
+              }}>
+                Professional Information
+              </h6>
+              
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                gap: designSystem.spacing.md
+              }}>
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: designSystem.typography.fontSize.sm,
+                    fontWeight: designSystem.typography.fontWeight.medium,
+                    color: designSystem.colors.dark,
+                    marginBottom: designSystem.spacing.xs
+                  }}>
+                    Company/Organization
+                  </label>
+                  <input
+                    type="text"
                     name="company"
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    style={componentStyles.formInput}
                     value={profileData.company}
                     onChange={handleProfileChange}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="country" className="block text-sm font-medium text-gray-700">
-                    Country
+                  <label style={{
+                    display: 'block',
+                    fontSize: designSystem.typography.fontSize.sm,
+                    fontWeight: designSystem.typography.fontWeight.medium,
+                    color: designSystem.colors.dark,
+                    marginBottom: designSystem.spacing.xs
+                  }}>
+                    University/Institution
                   </label>
                   <input
                     type="text"
-                    id="country"
-                    name="country"
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    value={profileData.country}
+                    name="university"
+                    style={componentStyles.formInput}
+                    value={profileData.university}
                     onChange={handleProfileChange}
                   />
                 </div>
+              </div>
+            </div>
 
+            {/* External Links */}
+            <div style={{ marginBottom: designSystem.spacing.xl }}>
+              <h6 style={{
+                color: designSystem.colors.dark,
+                fontWeight: designSystem.typography.fontWeight.semibold,
+                marginBottom: designSystem.spacing.md
+              }}>
+                External Links
+              </h6>
+              
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                gap: designSystem.spacing.md
+              }}>
                 <div>
-                  <label htmlFor="linkedin_url" className="block text-sm font-medium text-gray-700">
-                    LinkedIn URL
+                  <label style={{
+                    display: 'block',
+                    fontSize: designSystem.typography.fontSize.sm,
+                    fontWeight: designSystem.typography.fontWeight.medium,
+                    color: designSystem.colors.dark,
+                    marginBottom: designSystem.spacing.xs
+                  }}>
+                    <i className="fab fa-linkedin me-2"></i>LinkedIn Profile
                   </label>
                   <input
                     type="url"
-                    id="linkedin_url"
                     name="linkedin_url"
-                    placeholder="https://linkedin.com/in/yourprofile"
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    style={componentStyles.formInput}
                     value={profileData.linkedin_url}
                     onChange={handleProfileChange}
+                    placeholder="https://linkedin.com/in/yourprofile"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label htmlFor="profile_picture" className="block text-sm font-medium text-gray-700">
-                  Profile Picture URL
-                </label>
-                <input
-                  type="url"
-                  id="profile_picture"
-                  name="profile_picture"
-                  placeholder="https://example.com/your-photo.jpg"
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  value={profileData.profile_picture}
-                  onChange={handleProfileChange}
-                />
-                <p className="mt-1 text-sm text-gray-500">
-                  Enter a URL to your profile picture (optional)
-                </p>
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? 'Updating...' : 'Update Profile'}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {activeTab === 'password' && (
-            <form onSubmit={handlePasswordSubmit} className="space-y-6 max-w-md">
-              {!user?.is_temp_password && (
                 <div>
-                  <label htmlFor="current_password" className="block text-sm font-medium text-gray-700">
-                    Current Password *
+                  <label style={{
+                    display: 'block',
+                    fontSize: designSystem.typography.fontSize.sm,
+                    fontWeight: designSystem.typography.fontWeight.medium,
+                    color: designSystem.colors.dark,
+                    marginBottom: designSystem.spacing.xs
+                  }}>
+                    <i className="fas fa-briefcase me-2"></i>Portfolio URL
                   </label>
                   <input
-                    type="password"
-                    id="current_password"
-                    name="current_password"
-                    required={!user?.is_temp_password}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    value={passwordData.current_password}
-                    onChange={handlePasswordChange}
+                    type="url"
+                    name="portfolio_url"
+                    style={componentStyles.formInput}
+                    value={profileData.portfolio_url}
+                    onChange={handleProfileChange}
+                    placeholder="https://yourportfolio.com"
                   />
                 </div>
-              )}
 
-              <div>
-                <label htmlFor="new_password" className="block text-sm font-medium text-gray-700">
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: designSystem.typography.fontSize.sm,
+                    fontWeight: designSystem.typography.fontWeight.medium,
+                    color: designSystem.colors.dark,
+                    marginBottom: designSystem.spacing.xs
+                  }}>
+                    <i className="fas fa-globe me-2"></i>Website URL
+                  </label>
+                  <input
+                    type="url"
+                    name="website_url"
+                    style={componentStyles.formInput}
+                    value={profileData.website_url}
+                    onChange={handleProfileChange}
+                    placeholder="https://yourwebsite.com"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Bio */}
+            <div style={{ marginBottom: designSystem.spacing.xl }}>
+              <label style={{
+                display: 'block',
+                fontSize: designSystem.typography.fontSize.sm,
+                fontWeight: designSystem.typography.fontWeight.medium,
+                color: designSystem.colors.dark,
+                marginBottom: designSystem.spacing.xs
+              }}>
+                Bio/About Me
+              </label>
+              <textarea
+                name="bio"
+                rows="4"
+                style={{
+                  ...componentStyles.formInput,
+                  resize: 'vertical',
+                  minHeight: '100px'
+                }}
+                value={profileData.bio}
+                onChange={handleProfileChange}
+                placeholder="Tell us about yourself, your background, and your goals..."
+              />
+            </div>
+
+            {/* Submit Button */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: loading ? designSystem.colors.gray[400] : designSystem.colors.success,
+                  cursor: loading ? 'not-allowed' : 'pointer'
+                }}
+                {...(!loading ? hoverEffects.button : {})}
+              >
+                {loading ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin me-2"></i>Updating...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-save me-2"></i>Update Profile
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {activeTab === 'password' && (
+          <form onSubmit={handlePasswordSubmit}>
+            <div style={{ maxWidth: '400px' }}>
+              <h6 style={{
+                color: designSystem.colors.dark,
+                fontWeight: designSystem.typography.fontWeight.semibold,
+                marginBottom: designSystem.spacing.md
+              }}>
+                Change Password
+              </h6>
+
+              <div style={{ marginBottom: designSystem.spacing.md }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: designSystem.typography.fontSize.sm,
+                  fontWeight: designSystem.typography.fontWeight.medium,
+                  color: designSystem.colors.dark,
+                  marginBottom: designSystem.spacing.xs
+                }}>
+                  Current Password *
+                </label>
+                <input
+                  type="password"
+                  name="current_password"
+                  required
+                  style={componentStyles.formInput}
+                  value={passwordData.current_password}
+                  onChange={handlePasswordChange}
+                />
+              </div>
+
+              <div style={{ marginBottom: designSystem.spacing.md }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: designSystem.typography.fontSize.sm,
+                  fontWeight: designSystem.typography.fontWeight.medium,
+                  color: designSystem.colors.dark,
+                  marginBottom: designSystem.spacing.xs
+                }}>
                   New Password *
                 </label>
                 <input
                   type="password"
-                  id="new_password"
                   name="new_password"
                   required
-                  minLength={6}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  minLength={8}
+                  style={componentStyles.formInput}
                   value={passwordData.new_password}
                   onChange={handlePasswordChange}
                 />
-                <p className="mt-1 text-sm text-gray-500">
-                  Must be at least 6 characters long
-                </p>
+                <div style={{
+                  fontSize: designSystem.typography.fontSize.xs,
+                  color: designSystem.colors.gray[500],
+                  marginTop: designSystem.spacing.xs
+                }}>
+                  Must be at least 8 characters long
+                </div>
               </div>
 
-              <div>
-                <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700">
+              <div style={{ marginBottom: designSystem.spacing.xl }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: designSystem.typography.fontSize.sm,
+                  fontWeight: designSystem.typography.fontWeight.medium,
+                  color: designSystem.colors.dark,
+                  marginBottom: designSystem.spacing.xs
+                }}>
                   Confirm New Password *
                 </label>
                 <input
                   type="password"
-                  id="confirm_password"
                   name="confirm_password"
                   required
-                  minLength={6}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  minLength={8}
+                  style={componentStyles.formInput}
                   value={passwordData.confirm_password}
                   onChange={handlePasswordChange}
                 />
               </div>
 
-              <div className="flex justify-end">
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    ...componentStyles.primaryButton,
+                    background: loading ? designSystem.colors.gray[400] : designSystem.colors.warning,
+                    cursor: loading ? 'not-allowed' : 'pointer'
+                  }}
+                  {...(!loading ? hoverEffects.button : {})}
                 >
-                  {loading ? 'Changing...' : 'Change Password'}
+                  {loading ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin me-2"></i>Changing...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-key me-2"></i>Change Password
+                    </>
+                  )}
                 </button>
               </div>
-            </form>
-          )}
-        </div>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

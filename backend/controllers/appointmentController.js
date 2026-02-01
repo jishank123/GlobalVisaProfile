@@ -13,15 +13,21 @@ const { validationResult } = require('express-validator');
 // @access  Public (with rate limiting and validation)
 const submitAppointmentRequest = async (req, res) => {
   try {
+    console.log('📅 === APPOINTMENT SUBMISSION REQUEST ===');
+    console.log('📅 User:', req.user?.email || 'Anonymous', 'Role:', req.user?.role || 'Public');
+    console.log('📅 Request body:', JSON.stringify(req.body, null, 2));
+
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Invalid input data',
-          details: errors.array()
+          details: errors.array(),
+          validationErrors: errors.array().map(err => `${err.param}: ${err.msg}`)
         }
       });
     }
@@ -35,23 +41,48 @@ const submitAppointmentRequest = async (req, res) => {
       preferred_date,
       preferred_time,
       consultation_type,
-      details
+      details,
+      status,
+      priority,
+      assigned_to,
+      created_by,
+      scheduled_date,
+      scheduled_time,
+      duration_minutes,
+      meeting_link,
+      consultation_notes
     } = req.body;
 
-    // Check for duplicate recent submissions (prevent spam)
-    const recentSubmission = await AppointmentRequest.findOne({
-      email: email.toLowerCase(),
-      createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours
+    // Determine if this is created by an authenticated user (lead manager)
+    const isCreatedByLeadManager = req.user && req.user.role === 'lead_manager';
+    const isCreatedByCrmManager = req.user && req.user.role === 'crm_manager';
+    const isCreatedByStaff = isCreatedByLeadManager || isCreatedByCrmManager || (req.user && req.user.role === 'admin');
+
+    console.log('🔍 Appointment creation context:', {
+      hasUser: !!req.user,
+      userRole: req.user?.role,
+      userEmail: req.user?.email,
+      isCreatedByLeadManager,
+      isCreatedByStaff
     });
 
-    if (recentSubmission) {
-      return res.status(429).json({
-        success: false,
-        error: {
-          code: 'DUPLICATE_SUBMISSION',
-          message: 'You have already submitted an appointment request in the last 24 hours. Please check your email or contact us directly.'
-        }
+    // Check for duplicate recent submissions (prevent spam) - only for public submissions
+    if (!isCreatedByStaff) {
+      const recentSubmission = await AppointmentRequest.findOne({
+        email: email.toLowerCase(),
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours
       });
+
+      if (recentSubmission) {
+        console.log('❌ Duplicate submission detected for:', email);
+        return res.status(429).json({
+          success: false,
+          error: {
+            code: 'DUPLICATE_SUBMISSION',
+            message: 'You have already submitted an appointment request in the last 24 hours. Please check your email or contact us directly.'
+          }
+        });
+      }
     }
 
     // Create appointment request
@@ -65,50 +96,73 @@ const submitAppointmentRequest = async (req, res) => {
       preferred_time: preferred_time?.trim(),
       consultation_type: consultation_type || 'video',
       details: details?.trim(),
+      status: status || 'pending',
+      priority: priority || 'medium',
+      assigned_to: assigned_to || null,
+      created_by: isCreatedByStaff ? (created_by || req.user._id) : null, // Only set for staff-created appointments
+      scheduled_date: scheduled_date ? new Date(scheduled_date) : null,
+      scheduled_time: scheduled_time || null,
+      duration_minutes: duration_minutes || 30,
+      meeting_link: meeting_link || null,
+      consultation_notes: consultation_notes || null,
       ip_address: req.ip,
       user_agent: req.get('User-Agent'),
-      source: 'website'
+      source: isCreatedByStaff ? 'staff' : 'website' // Distinguish between staff and public submissions
+    });
+
+    console.log('🔍 Appointment data before save:', {
+      name: appointment.name,
+      email: appointment.email,
+      created_by: appointment.created_by,
+      source: appointment.source,
+      status: appointment.status,
+      isCreatedByStaff
     });
 
     await appointment.save();
+    console.log('✅ Appointment saved successfully with ID:', appointment._id);
 
-    // Auto-register client account
-    console.log('🔄 Auto-registering client account...');
-    try {
-      const { user, client, isNewUser } = await clientService.createOrGetClient({
-        name,
-        email,
-        phone,
-        company: '',
-        current_location: ''
-      }, 'appointment_request');
+    // Auto-register client account - only for public submissions
+    if (!isCreatedByStaff) {
+      console.log('🔄 Auto-registering client account...');
+      try {
+        const { user, client, isNewUser } = await clientService.createOrGetClient({
+          name,
+          email,
+          phone,
+          company: '',
+          current_location: ''
+        }, 'appointment_request');
 
-      console.log(`✅ Client ${isNewUser ? 'created' : 'found'}:`, user.email);
-      
-      // Link appointment to user
-      appointment.user_id = user._id;
-      appointment.client_id = client._id;
-      await appointment.save();
-      
-    } catch (autoRegError) {
-      console.error('⚠️ Auto-registration failed (non-critical):', autoRegError.message);
-      // Continue with appointment submission even if auto-registration fails
+        console.log(`✅ Client ${isNewUser ? 'created' : 'found'}:`, user.email);
+        
+        // Link appointment to user
+        appointment.user_id = user._id;
+        appointment.client_id = client._id;
+        await appointment.save();
+        
+      } catch (autoRegError) {
+        console.error('⚠️ Auto-registration failed (non-critical):', autoRegError.message);
+        // Continue with appointment submission even if auto-registration fails
+      }
     }
 
     // Log activity for security audit
     await ActivityLog.create({
-      user: null, // Anonymous submission
+      user: req.user?._id || null, // Use authenticated user ID if available
       action: 'create',
       resourceType: 'AppointmentRequest',
       resourceId: appointment._id,
-      description: `Appointment request submitted by ${email}`,
+      description: `Appointment request ${isCreatedByStaff ? 'created by staff' : 'submitted'} for ${email}`,
       metadata: {
         email,
         visa_category,
         consultation_type,
         timezone,
         preferred_date,
-        preferred_time
+        preferred_time,
+        created_by_staff: isCreatedByStaff,
+        staff_role: req.user?.role
       },
       ipAddress: req.ip,
       userAgent: req.get('User-Agent')
@@ -117,7 +171,9 @@ const submitAppointmentRequest = async (req, res) => {
     // Return success response (excluding sensitive data)
     res.status(201).json({
       success: true,
-      message: 'Appointment request submitted successfully. We will contact you within 24 hours to confirm your consultation.',
+      message: isCreatedByStaff 
+        ? 'Appointment created successfully by staff member.' 
+        : 'Appointment request submitted successfully. We will contact you within 24 hours to confirm your consultation.',
       data: {
         appointment_id: appointment._id,
         name: appointment.name,
@@ -125,31 +181,44 @@ const submitAppointmentRequest = async (req, res) => {
         visa_category: appointment.visa_category_display,
         status: appointment.status_display,
         submission_date: appointment.createdAt,
-        reference_number: `APT-${appointment._id.toString().slice(-8).toUpperCase()}`
+        reference_number: `APT-${appointment._id.toString().slice(-8).toUpperCase()}`,
+        created_by_staff: isCreatedByStaff,
+        created_by: appointment.created_by,
+        source: appointment.source
       }
     });
 
   } catch (error) {
-    console.error('Appointment Request Submission Error:', error);
+    console.error('❌ Appointment Request Submission Error:', error);
+    console.error('❌ Error stack:', error.stack);
     
     // Log error for monitoring
     if (req.body?.email) {
       await ActivityLog.create({
-        user: null,
+        user: req.user?._id || null,
         action: 'other',
         resourceType: 'System',
         description: `Appointment request submission failed for ${req.body.email}`,
-        metadata: { error: error.message },
+        metadata: { 
+          error: error.message,
+          errorStack: error.stack,
+          created_by_staff: !!(req.user && ['lead_manager', 'crm_manager', 'admin'].includes(req.user.role)),
+          requestBody: req.body
+        },
         ipAddress: req.ip,
         userAgent: req.get('User-Agent')
       }).catch(() => {}); // Silent fail for logging
     }
 
+    // Return detailed error for debugging
     res.status(500).json({
       success: false,
       error: {
         code: 'SUBMISSION_ERROR',
-        message: 'Failed to submit appointment request. Please try again or contact us directly.'
+        message: process.env.NODE_ENV === 'development' 
+          ? `Appointment submission failed: ${error.message}` 
+          : 'Failed to submit appointment request. Please try again or contact us directly.',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       }
     });
   }
@@ -217,6 +286,12 @@ const getAllAppointmentRequests = async (req, res) => {
     if (req.query.visa_category) filter.visa_category = req.query.visa_category;
     if (req.query.priority) filter.priority = req.query.priority;
     if (req.query.assigned_to) filter.assigned_to = req.query.assigned_to;
+
+    // Role-based filtering for lead managers
+    if (req.user.role === 'lead_manager') {
+      // Lead managers can only see appointments they created
+      filter.created_by = req.user._id;
+    }
 
     // Date range filter
     if (req.query.start_date || req.query.end_date) {
@@ -502,13 +577,14 @@ const deleteAppointmentRequest = async (req, res) => {
   }
 };
 
-// @desc    Get appointments assigned to current CRM manager
+// @desc    Get appointments created by current CRM manager
 // @route   GET /api/appointments/my-appointments
 // @access  Private (CRM Manager only)
 const getMyAppointments = async (req, res) => {
   try {
     console.log('📅 === GET MY APPOINTMENTS REQUEST ===');
     console.log('📅 User:', req.user?.email, 'Role:', req.user?.role);
+    console.log('📅 User ID:', req.user?._id);
     
     if (req.user.role !== 'crm_manager') {
       return res.status(403).json({
@@ -522,21 +598,33 @@ const getMyAppointments = async (req, res) => {
     
     const { status, page = 1, limit = 20 } = req.query;
     
-    // Build query for appointments assigned to this CRM manager
+    // Build query for appointments created by this CRM manager
     let query = {
-      assigned_to: req.user.user_id
+      created_by: req.user._id  // Get appointments created by this CRM manager
     };
     
     if (status) query.status = status;
     
+    console.log('📅 Query for CRM appointments:', query);
+    
     const appointments = await AppointmentRequest.find(query)
-      .sort({ preferred_date: 1, createdAt: -1 })
+      .populate('assigned_to', 'first_name last_name email')
+      .sort({ scheduled_date: -1, createdAt: -1 })
       .limit(limit * 1)
-      .skip((page - 1) * limit);
+      .skip((page - 1) * limit)
+      .select('-ip_address -user_agent'); // Exclude sensitive data
     
     const count = await AppointmentRequest.countDocuments(query);
     
-    console.log('📅 Found CRM appointments:', appointments.length, 'Total:', count);
+    console.log('📅 Found CRM created appointments:', appointments.length, 'Total:', count);
+    console.log('📅 Sample appointment:', appointments.length > 0 ? {
+      id: appointments[0]._id,
+      name: appointments[0].name,
+      email: appointments[0].email,
+      status: appointments[0].status,
+      created_by: appointments[0].created_by,
+      scheduled_date: appointments[0].scheduled_date
+    } : 'No appointments found');
     
     res.json({
       success: true,
@@ -647,6 +735,64 @@ const getClientAppointments = async (req, res) => {
   }
 };
 
+// @desc    Get appointments created by current lead manager
+// @route   GET /api/appointments/my-created-appointments
+// @access  Private (Lead Manager only)
+const getMyCreatedAppointments = async (req, res) => {
+  try {
+    console.log('📅 === GET MY CREATED APPOINTMENTS REQUEST ===');
+    console.log('📅 User:', req.user?.email, 'Role:', req.user?.role);
+    
+    if (req.user.role !== 'lead_manager') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only lead managers can access this endpoint'
+        }
+      });
+    }
+    
+    const { status, page = 1, limit = 20 } = req.query;
+    
+    // Build query for appointments created by this lead manager
+    let query = {
+      created_by: req.user._id
+    };
+    
+    if (status) query.status = status;
+    
+    const appointments = await AppointmentRequest.find(query)
+      .populate('assigned_to', 'first_name last_name email')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .select('-ip_address -user_agent'); // Exclude sensitive data
+    
+    const count = await AppointmentRequest.countDocuments(query);
+    
+    console.log('📅 Found lead manager created appointments:', appointments.length, 'Total:', count);
+    
+    res.json({
+      success: true,
+      count: appointments.length,
+      total: count,
+      page: parseInt(page),
+      totalPages: Math.ceil(count / limit),
+      data: appointments
+    });
+  } catch (error) {
+    console.error('❌ Get lead manager created appointments error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'FETCH_LEAD_MANAGER_APPOINTMENTS_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
 module.exports = {
   submitAppointmentRequest,
   getAppointmentRequest,
@@ -656,5 +802,6 @@ module.exports = {
   addCommunication,
   deleteAppointmentRequest,
   getMyAppointments,
-  getClientAppointments
+  getClientAppointments,
+  getMyCreatedAppointments
 };

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { designSystem, componentStyles, hoverEffects } from '../../../../styles/designSystem';
 
 const ClientsManagement = ({ apiCall, onViewClient, onMessageClient }) => {
   const [clients, setClients] = useState([]);
@@ -39,81 +40,208 @@ const ClientsManagement = ({ apiCall, onViewClient, onMessageClient }) => {
     }
   };
 
+  // Statistics calculations
+  const getClientStats = () => {
+    return {
+      total: clients.length,
+      leads: clients.filter(client => client.isLead).length,
+      activeClients: clients.filter(client => !client.isLead).length,
+      newThisWeek: clients.filter(client => {
+        const createdDate = new Date(client.createdAt || client.originalLead?.createdAt);
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return createdDate > weekAgo;
+      }).length
+    };
+  };
+
+  const StatCard = ({ icon, number, label, borderColor, iconColor }) => (
+    <div 
+      style={{
+        ...componentStyles.contactsStatCard,
+        borderColor: borderColor,
+        cursor: 'pointer'
+      }}
+      {...hoverEffects.card}
+    >
+      <i className={`${icon} fa-2x mb-2`} style={{ color: iconColor }}></i>
+      <h4 style={{ 
+        color: iconColor,
+        fontWeight: designSystem.typography.fontWeight.bold,
+        marginBottom: '4px'
+      }}>
+        {number}
+      </h4>
+      <small style={{ color: designSystem.colors.gray[500] }}>
+        {label}
+      </small>
+    </div>
+  );
+
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <p className="text-gray-600">Loading assigned clients...</p>
-      </div>
-    );
-  }
-
-  if (clients.length === 0) {
-    return (
-      <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-        <i className="fas fa-users text-4xl text-gray-400 mb-4"></i>
-        <h5 className="text-lg font-semibold text-gray-700 mb-2">No Clients Assigned</h5>
-        <p className="text-gray-600">You don't have any clients assigned yet. Contact your admin to get started.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white rounded-lg shadow-sm">
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-gray-900">
-            <i className="fas fa-users mr-2"></i>My Assigned Clients
-          </h3>
-          <button 
-            onClick={loadClients}
-            className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors"
-          >
-            <i className="fas fa-sync-alt mr-1"></i>Refresh
-          </button>
+      <div style={componentStyles.managementCard}>
+        <div style={componentStyles.loading}>
+          <i className="fas fa-spinner fa-spin fa-2x" style={{ color: designSystem.colors.primary }}></i>
+          <p style={{ marginTop: designSystem.spacing.md, color: designSystem.colors.gray[500] }}>Loading assigned clients...</p>
         </div>
       </div>
-      
-      <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    );
+  }
+
+  const clientStats = getClientStats();
+
+  return (
+    <div style={componentStyles.managementCard}>
+      {/* Header with Refresh Button */}
+      <div style={componentStyles.header}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={componentStyles.headerIcon}>
+            <i className="fas fa-users fa-lg"></i>
+          </div>
+          <div>
+            <h4 style={componentStyles.headerTitle}>My Assigned Clients</h4>
+            <p style={componentStyles.headerSubtitle}>Manage your assigned clients and leads</p>
+          </div>
+        </div>
+        <button 
+          style={{
+            ...componentStyles.primaryButton,
+            background: designSystem.colors.success
+          }}
+          onClick={loadClients}
+          {...hoverEffects.button}
+        >
+          <i className="fas fa-sync-alt me-2"></i>Refresh
+        </button>
+      </div>
+
+      {/* Client Statistics */}
+      <div style={componentStyles.statsContainer}>
+        <StatCard
+          icon="fas fa-users"
+          number={clientStats.total}
+          label="Total Assigned"
+          borderColor="#8b5cf6"
+          iconColor="#8b5cf6"
+        />
+        <StatCard
+          icon="fas fa-user-plus"
+          number={clientStats.leads}
+          label="New Leads"
+          borderColor="#f59e0b"
+          iconColor="#f59e0b"
+        />
+        <StatCard
+          icon="fas fa-user-check"
+          number={clientStats.activeClients}
+          label="Active Clients"
+          borderColor="#10b981"
+          iconColor="#10b981"
+        />
+        <StatCard
+          icon="fas fa-calendar-week"
+          number={clientStats.newThisWeek}
+          label="New This Week"
+          borderColor="#3b82f6"
+          iconColor="#3b82f6"
+        />
+      </div>
+
+      {/* No Clients Message */}
+      {clients.length === 0 && (
+        <div style={componentStyles.emptyState}>
+          <i className="fas fa-users fa-4x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.lg }}></i>
+          <h6 style={{ color: designSystem.colors.gray[500], marginBottom: designSystem.spacing.md }}>No Clients Assigned</h6>
+          <p style={{ color: designSystem.colors.gray[500] }}>You don't have any clients assigned yet. Contact your admin to get started.</p>
+        </div>
+      )}
+
+      {/* Clients Grid */}
+      {clients.length > 0 && (
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+          gap: designSystem.spacing.md 
+        }}>
           {clients.map(client => (
-            <div key={client._id} className={`border rounded-lg p-4 hover:shadow-md transition-all ${client.isLead ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200'}`}>
-              <div className="flex justify-between items-start mb-3">
-                <h4 className="font-semibold text-gray-900">{client.name}</h4>
-                {client.isLead ? (
-                  <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
-                    New Lead
-                  </span>
-                ) : (
-                  <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
-                    Client
-                  </span>
-                )}
+            <div 
+              key={client._id} 
+              style={{
+                border: `2px solid ${client.isLead ? '#f59e0b' : designSystem.colors.gray[200]}`,
+                borderRadius: designSystem.borderRadius.card,
+                padding: designSystem.spacing.lg,
+                background: client.isLead ? '#fffbeb' : 'white',
+                boxShadow: designSystem.shadows.card,
+                transition: 'all 0.3s ease'
+              }}
+              {...hoverEffects.card}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: designSystem.spacing.md }}>
+                <h5 style={{ 
+                  fontWeight: designSystem.typography.fontWeight.semibold,
+                  color: designSystem.colors.dark,
+                  marginBottom: '4px'
+                }}>
+                  {client.name}
+                </h5>
+                <span style={{
+                  ...componentStyles.badge,
+                  background: client.isLead ? '#f59e0b' : '#10b981',
+                  color: 'white',
+                  fontSize: '11px',
+                  fontWeight: '600'
+                }}>
+                  {client.isLead ? 'NEW LEAD' : 'CLIENT'}
+                </span>
               </div>
               
-              <div className="text-sm text-gray-600 mb-3">
-                <div className="mb-1">{client.email}</div>
-                <div>{client.university || client.phone || 'No additional info'}</div>
+              <div style={{ marginBottom: designSystem.spacing.md }}>
+                <div style={{ 
+                  color: designSystem.colors.gray[600],
+                  fontSize: designSystem.typography.fontSize.sm,
+                  marginBottom: '4px'
+                }}>
+                  <i className="fas fa-envelope me-2"></i>{client.email}
+                </div>
+                <div style={{ 
+                  color: designSystem.colors.gray[600],
+                  fontSize: designSystem.typography.fontSize.sm
+                }}>
+                  <i className="fas fa-university me-2"></i>{client.university || client.phone || 'No additional info'}
+                </div>
               </div>
               
-              <div className="flex gap-2">
+              <div style={{ display: 'flex', gap: designSystem.spacing.xs }}>
                 <button 
+                  style={{
+                    ...componentStyles.primaryButton,
+                    flex: 1,
+                    background: '#3b82f6',
+                    fontSize: designSystem.typography.fontSize.sm
+                  }}
                   onClick={() => onViewClient(client)}
-                  className="flex-1 bg-blue-100 text-blue-700 px-3 py-2 rounded text-sm hover:bg-blue-200 transition-colors"
+                  {...hoverEffects.button}
                 >
-                  <i className="fas fa-eye mr-1"></i>View
+                  <i className="fas fa-eye me-1"></i>View
                 </button>
                 <button 
+                  style={{
+                    ...componentStyles.primaryButton,
+                    flex: 1,
+                    background: '#10b981',
+                    fontSize: designSystem.typography.fontSize.sm
+                  }}
                   onClick={() => onMessageClient(client)}
-                  className="flex-1 bg-green-100 text-green-700 px-3 py-2 rounded text-sm hover:bg-green-200 transition-colors"
+                  {...hoverEffects.button}
                 >
-                  <i className="fas fa-envelope mr-1"></i>Message
+                  <i className="fas fa-envelope me-1"></i>Message
                 </button>
               </div>
             </div>
           ))}
         </div>
-      </div>
+      )}
     </div>
   );
 };

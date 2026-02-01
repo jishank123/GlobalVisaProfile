@@ -1,159 +1,292 @@
-const CrmStats = ({ stats, recentActivity }) => {
-  const getTimeAgo = (dateString) => {
-    if (!dateString) return 'Unknown time';
-    
-    const date = new Date(dateString);
+import { useState, useEffect } from 'react';
+import { projectsAPI, dashboardAPI } from '../../../../services/api';
+import { designSystem, componentStyles, hoverEffects } from '../../../../styles/designSystem';
+
+const CrmStats = () => {
+  const [stats, setStats] = useState({
+    assignedProjects: 0,
+    pendingQueries: 0,
+    upcomingMeetings: 0,
+    pendingPayments: 0,
+    completedProjects: 0
+  });
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [activityLoading, setActivityLoading] = useState(false);
+
+  useEffect(() => {
+    loadCrmStats();
+    loadRecentActivity();
+  }, []);
+
+  const loadCrmStats = async () => {
+    try {
+      setLoading(true);
+      console.log('🔄 Loading CRM manager stats...');
+      
+      // Get CRM manager specific stats
+      const response = await dashboardAPI.getCrmStats();
+      
+      console.log('📊 CRM Stats API Response:', response);
+      
+      if (response.success) {
+        console.log('✅ CRM stats loaded successfully:', response.data);
+        setStats({
+          assignedProjects: response.data.assignedProjects || 0,
+          pendingQueries: response.data.pendingQueries || 0,
+          upcomingMeetings: response.data.upcomingMeetings || 0,
+          pendingPayments: response.data.pendingPayments || 0,
+          completedProjects: response.data.completedProjects || 0
+        });
+      } else {
+        console.error('❌ Failed to load CRM stats:', response.error);
+        // Keep zeros as fallback
+      }
+    } catch (error) {
+      console.error('❌ Error loading CRM stats:', error);
+      // Keep zeros as fallback
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadRecentActivity = async () => {
+    try {
+      setActivityLoading(true);
+      const response = await dashboardAPI.getCrmActivity();
+      
+      if (response.success) {
+        setRecentActivity(response.data || []);
+      } else {
+        console.error('Failed to load recent activity:', response.error);
+        setRecentActivity([]);
+      }
+    } catch (error) {
+      console.error('Error loading recent activity:', error);
+      setRecentActivity([]);
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
+  const formatTimeAgo = (timestamp) => {
     const now = new Date();
-    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
+    const time = new Date(timestamp);
+    const diffInMinutes = Math.floor((now - time) / (1000 * 60));
     
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
     
     const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays} days ago`;
-    
-    return date.toLocaleDateString();
+    return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
   };
 
-  const getActivityIcon = (action) => {
-    const icons = {
-      'create': 'fas fa-plus',
-      'update': 'fas fa-edit',
-      'delete': 'fas fa-trash',
-      'view': 'fas fa-eye',
-      'respond': 'fas fa-reply'
-    };
-    return icons[action] || 'fas fa-circle';
-  };
-
-  const getActivityColor = (action) => {
-    const colors = {
-      'create': '#28a745',
-      'update': '#ffc107',
-      'delete': '#dc3545',
-      'view': '#17a2b8',
-      'respond': '#6f42c1'
-    };
-    return colors[action] || '#6c757d';
-  };
+  const StatCard = ({ icon, number, label, borderColor, iconColor, onClick }) => (
+    <div 
+      style={{
+        ...componentStyles.contactsStatCard,
+        borderColor: borderColor,
+        cursor: 'pointer'
+      }}
+      {...hoverEffects.card}
+      onClick={onClick}
+    >
+      <i className={`${icon} fa-2x mb-2`} style={{ color: iconColor }}></i>
+      <h4 style={{ 
+        color: iconColor,
+        fontWeight: designSystem.typography.fontWeight.bold,
+        marginBottom: '4px'
+      }}>
+        {loading ? '...' : number}
+      </h4>
+      <small style={{ color: designSystem.colors.gray[500] }}>
+        {label}
+      </small>
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Assigned Clients */}
-        <div className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-blue-100 p-3 rounded-lg">
-              <i className="fas fa-users text-2xl text-blue-600"></i>
-            </div>
+    <div>
+      {/* Header */}
+      <div style={componentStyles.header}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={componentStyles.headerIcon}>
+            <i className="fas fa-users-cog fa-lg"></i>
           </div>
-          <div className="text-3xl font-bold text-blue-600 mb-1">
-            {stats?.totalClients || 0}
-          </div>
-          <div className="text-gray-600 text-sm mb-2">Assigned Clients</div>
-          <div className="text-sm text-green-600">
-            <i className="fas fa-arrow-up mr-1"></i>
-            {stats?.clientsChange || 'Loading...'}
+          <div>
+            <h4 style={componentStyles.headerTitle}>CRM Manager Dashboard</h4>
+            <p style={componentStyles.headerSubtitle}>Manage your assigned projects, tasks, and client relationships</p>
           </div>
         </div>
+        <button 
+          style={{
+            ...componentStyles.primaryButton,
+            background: designSystem.colors.success
+          }}
+          onClick={() => {
+            loadCrmStats();
+            loadRecentActivity();
+          }}
+          {...hoverEffects.button}
+        >
+          <i className="fas fa-sync-alt me-2"></i>Refresh
+        </button>
+      </div>
 
-        {/* Active Projects */}
-        <div className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-yellow-100 p-3 rounded-lg">
-              <i className="fas fa-briefcase text-2xl text-yellow-600"></i>
-            </div>
-          </div>
-          <div className="text-3xl font-bold text-yellow-600 mb-1">
-            {stats?.activeProjects || 0}
-          </div>
-          <div className="text-gray-600 text-sm mb-2">Active Projects</div>
-          <div className="text-sm text-green-600">
-            <i className="fas fa-arrow-up mr-1"></i>
-            {stats?.projectsChange || 'Loading...'}
-          </div>
-        </div>
+      {/* Overview Stats */}
+      <div style={componentStyles.statsContainer}>
+        <StatCard 
+          icon="fas fa-project-diagram" 
+          number={stats.assignedProjects} 
+          label="Assigned Projects" 
+          borderColor="#3b82f6"
+          iconColor="#3b82f6"
+        />
 
-        {/* Pending Queries */}
-        <div className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-red-100 p-3 rounded-lg">
-              <i className="fas fa-question-circle text-2xl text-red-600"></i>
-            </div>
-          </div>
-          <div className="text-3xl font-bold text-red-600 mb-1">
-            {stats?.pendingQueries || 0}
-          </div>
-          <div className="text-gray-600 text-sm mb-2">Pending Queries</div>
-          <div className="text-sm text-red-600">
-            <i className="fas fa-arrow-down mr-1"></i>
-            {stats?.queriesChange || 'Loading...'}
-          </div>
-        </div>
+        <StatCard 
+          icon="fas fa-question-circle" 
+          number={stats.pendingQueries} 
+          label="Pending Queries" 
+          borderColor="#f59e0b"
+          iconColor="#f59e0b"
+        />
 
-        {/* Average Progress */}
-        <div className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-green-100 p-3 rounded-lg">
-              <i className="fas fa-percentage text-2xl text-green-600"></i>
-            </div>
-          </div>
-          <div className="text-3xl font-bold text-green-600 mb-1">
-            {stats?.avgProgress || 0}%
-          </div>
-          <div className="text-gray-600 text-sm mb-2">Avg Progress</div>
-          <div className="text-sm text-green-600">
-            <i className="fas fa-arrow-up mr-1"></i>
-            {stats?.progressChange || 'Loading...'}
-          </div>
-        </div>
+        <StatCard 
+          icon="fas fa-calendar-alt" 
+          number={stats.upcomingMeetings} 
+          label="Upcoming Meetings" 
+          borderColor="#8b5cf6"
+          iconColor="#8b5cf6"
+        />
+
+        <StatCard 
+          icon="fas fa-credit-card" 
+          number={stats.pendingPayments} 
+          label="Pending Payments" 
+          borderColor="#ef4444"
+          iconColor="#ef4444"
+        />
+
+        <StatCard 
+          icon="fas fa-check-circle" 
+          number={stats.completedProjects} 
+          label="Completed Projects" 
+          borderColor="#06b6d4"
+          iconColor="#06b6d4"
+        />
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white rounded-xl p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">
-            <i className="fas fa-clock mr-2"></i>Recent Activity
-          </h3>
+      <div style={{
+        background: 'white',
+        borderRadius: designSystem.borderRadius.card,
+        boxShadow: designSystem.shadows.card,
+        padding: designSystem.spacing.lg
+      }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: designSystem.spacing.lg
+        }}>
+          <h5 style={{ 
+            margin: 0,
+            color: designSystem.colors.dark,
+            fontWeight: designSystem.typography.fontWeight.semibold
+          }}>
+            <i className="fas fa-clock me-2" style={{ color: '#3b82f6' }}></i>
+            Recent Activity
+          </h5>
+          <button 
+            onClick={loadRecentActivity}
+            style={{
+              ...componentStyles.secondaryButton,
+              padding: `${designSystem.spacing.xs} ${designSystem.spacing.md}`,
+              fontSize: designSystem.typography.fontSize.sm
+            }}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-sync-alt me-1"></i>
+            Refresh
+          </button>
         </div>
-        
-        <div className="space-y-4">
-          {recentActivity && recentActivity.length > 0 ? (
-            recentActivity.slice(0, 5).map((activity, index) => {
-              const timeAgo = getTimeAgo(activity.createdAt);
-              const icon = getActivityIcon(activity.action);
-              const color = getActivityColor(activity.action);
-              
-              return (
-                <div key={index} className="flex items-start space-x-3 pb-3 border-b border-gray-100 last:border-b-0">
-                  <div className="flex-shrink-0">
-                    <div 
-                      className="rounded-full flex items-center justify-center w-8 h-8"
-                      style={{ backgroundColor: `${color}20`, color: color }}
-                    >
-                      <i className={`${icon} text-sm`}></i>
-                    </div>
+
+        {activityLoading ? (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: designSystem.spacing.xl
+          }}>
+            <i className="fas fa-spinner fa-spin fa-2x" style={{ color: designSystem.colors.primary }}></i>
+            <span style={{ marginLeft: designSystem.spacing.md }}>Loading recent activity...</span>
+          </div>
+        ) : (
+          <div style={{ 
+            border: `1px solid ${designSystem.colors.gray[200]}`,
+            borderRadius: designSystem.borderRadius.button,
+            maxHeight: '400px',
+            overflowY: 'auto'
+          }}>
+            {recentActivity.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: designSystem.spacing.xl,
+                color: designSystem.colors.gray[500]
+              }}>
+                <i className="fas fa-clock fa-3x" style={{ marginBottom: designSystem.spacing.md }}></i>
+                <p>No recent activity found</p>
+              </div>
+            ) : (
+              recentActivity.map((activity, index) => (
+                <div 
+                  key={activity.id || index}
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    padding: designSystem.spacing.md,
+                    borderBottom: index < recentActivity.length - 1 ? `1px solid ${designSystem.colors.gray[100]}` : 'none',
+                    transition: 'background-color 0.2s ease'
+                  }}
+                  {...hoverEffects.tableRow}
+                >
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    background: activity.color || '#3b82f6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: designSystem.spacing.md,
+                    flexShrink: 0
+                  }}>
+                    <i className={activity.icon || 'fas fa-info'} style={{ color: 'white', fontSize: '16px' }}></i>
                   </div>
-                  <div className="flex-grow-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 mb-1">
-                      {activity.description}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ 
+                      margin: 0, 
+                      fontWeight: designSystem.typography.fontWeight.medium,
+                      color: designSystem.colors.dark,
+                      lineHeight: '1.4'
+                    }}>
+                      {activity.message}
                     </p>
-                    <p className="text-xs text-gray-500">
-                      {activity.resourceType} • {timeAgo}
-                    </p>
+                    <small style={{ 
+                      color: designSystem.colors.gray[500],
+                      fontSize: designSystem.typography.fontSize.sm
+                    }}>
+                      {formatTimeAgo(activity.timestamp)}
+                    </small>
                   </div>
                 </div>
-              );
-            })
-          ) : (
-            <div className="text-center py-8">
-              <i className="fas fa-clock text-4xl text-gray-400 mb-3"></i>
-              <h6 className="text-gray-700 font-medium mb-2">No Recent Activity</h6>
-              <p className="text-gray-500 text-sm">Your recent activities will appear here</p>
-            </div>
-          )}
-        </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

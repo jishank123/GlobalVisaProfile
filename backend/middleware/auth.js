@@ -143,13 +143,15 @@ const authenticateClient = async (req, res, next) => {
  * User Authentication Middleware (for regular users, not clients)
  * Returns a function that can be called with role requirements
  */
-const auth = (requiredRoles = []) => {
+const auth = (requiredRoles = [], options = {}) => {
   return async (req, res, next) => {
     console.log('\n🔐 === USER AUTHENTICATION MIDDLEWARE ===');
     console.log('🔐 Request URL:', req.originalUrl);
     console.log('🔐 Request method:', req.method);
+    console.log('🔐 Request headers:', JSON.stringify(req.headers, null, 2));
     console.log('🔐 Middleware called: auth (for users, not clients)');
     console.log('🔐 Required roles:', requiredRoles);
+    console.log('🔐 Options:', options);
     
     try {
       let token;
@@ -164,6 +166,10 @@ const auth = (requiredRoles = []) => {
       }
 
       if (!token) {
+        if (options.optional) {
+          console.log('🔐 No token provided, but optional auth - continuing');
+          return next();
+        }
         return res.status(401).json({
           success: false,
           error: {
@@ -183,6 +189,10 @@ const auth = (requiredRoles = []) => {
       
       if (!user) {
         console.log('❌ User not found with ID:', userId);
+        if (options.optional) {
+          console.log('🔐 User not found, but optional auth - continuing');
+          return next();
+        }
         return res.status(401).json({
           success: false,
           error: {
@@ -196,6 +206,10 @@ const auth = (requiredRoles = []) => {
 
       // Check role requirements
       if (requiredRoles.length > 0 && !requiredRoles.includes(user.role)) {
+        if (options.optional) {
+          console.log('🔐 Role not matching, but optional auth - continuing without user');
+          return next();
+        }
         return res.status(403).json({
           success: false,
           error: {
@@ -209,14 +223,29 @@ const auth = (requiredRoles = []) => {
       req.user = {
         user_id: user._id,
         _id: user._id, // Some controllers might expect _id
+        id: user._id,  // Some controllers might expect id
         email: user.email,
         role: user.role,
         account: user
       };
 
+      console.log('✅ User object set in req.user:');
+      console.log('✅   user_id:', req.user.user_id);
+      console.log('✅   _id:', req.user._id);
+      console.log('✅   id:', req.user.id);
+      console.log('✅   email:', req.user.email);
+      console.log('✅   role:', req.user.role);
+      console.log('✅   Sample project assigned_to for comparison: "697ec40613b779c47c5cd4cd"');
+      console.log('✅   Does user ID match sample project?', user._id.toString() === "697ec40613b779c47c5cd4cd");
+
       next();
 
     } catch (error) {
+      if (options.optional) {
+        console.log('🔐 Auth error, but optional auth - continuing:', error.message);
+        return next();
+      }
+
       if (error.name === 'JsonWebTokenError') {
         return res.status(401).json({
           success: false,

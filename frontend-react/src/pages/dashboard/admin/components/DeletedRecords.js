@@ -27,37 +27,137 @@ const DeletedRecords = () => {
 
   useEffect(() => {
     loadDeletedRecords();
+    
+    // Debug: Log to console to help identify if soft deletes are working
+    console.log('DeletedRecords component loaded - checking for soft delete support');
   }, []);
 
   const loadDeletedRecords = async () => {
     try {
       setLoading(true);
+      console.log('Loading deleted records...');
       
-      // Load deleted records from each API
-      // Note: This assumes the APIs support a 'deleted=true' filter
-      // You may need to modify the backend to support this functionality
-      
-      const [clients, leads, projects, users, services, payments, queries] = await Promise.allSettled([
-        clientsAPI.getAll({ deleted: true }),
-        leadsAPI.getAll({ deleted: true }),
-        projectsAPI.getAll({ deleted: true }),
-        usersAPI.getAll({ deleted: true }),
-        servicesAPI.getAll({ deleted: true }),
-        paymentsAPI.getAll({ deleted: true }),
-        queriesAPI.getAll({ deleted: true })
+      // Load deleted records using the correct filtering logic for each entity type
+      const loadDeletedForEntity = async (apiService, entityName) => {
+        try {
+          let result;
+          
+          // Different entities use different deletion patterns based on backend implementation
+          switch (entityName) {
+            case 'Services':
+              // Services use status=deleted parameter in backend
+              result = await apiService.getAll({ status: 'deleted' });
+              break;
+              
+            case 'Users':
+              // Users use status=deleted in enum
+              result = await apiService.getAll();
+              if (result.success && result.data) {
+                const deletedRecords = result.data.filter(record => record.status === 'deleted');
+                console.log(`${entityName}: Found ${deletedRecords.length} deleted records (status=deleted)`);
+                return deletedRecords;
+              }
+              break;
+              
+            case 'Leads':
+              // Leads use status=deleted in enum
+              result = await apiService.getAll();
+              if (result.success && result.data) {
+                const deletedRecords = result.data.filter(record => record.status === 'deleted');
+                console.log(`${entityName}: Found ${deletedRecords.length} deleted records (status=deleted)`);
+                return deletedRecords;
+              }
+              break;
+              
+            case 'Clients':
+              // Clients use status=deleted (soft delete via status change)
+              result = await apiService.getAll();
+              if (result.success && result.data) {
+                const deletedRecords = result.data.filter(record => 
+                  record.status === 'deleted' || 
+                  (record.deleted_at !== null && record.deleted_at !== undefined)
+                );
+                console.log(`${entityName}: Found ${deletedRecords.length} deleted records (status=deleted or deleted_at)`);
+                return deletedRecords;
+              }
+              break;
+              
+            default:
+              // For other entities (Projects, Payments, Queries), try common patterns
+              result = await apiService.getAll();
+              if (result.success && result.data) {
+                const deletedRecords = result.data.filter(record => 
+                  record.status === 'deleted' ||
+                  record.isDeleted === true ||
+                  (record.deletedAt !== null && record.deletedAt !== undefined) ||
+                  (record.deleted_at !== null && record.deleted_at !== undefined)
+                );
+                console.log(`${entityName}: Found ${deletedRecords.length} deleted records (multiple patterns)`);
+                return deletedRecords;
+              }
+              break;
+          }
+          
+          // Handle Services response (which uses backend filtering)
+          if (result && result.success && result.data) {
+            console.log(`${entityName}: Found ${result.data.length} deleted records via backend filtering`);
+            return result.data;
+          }
+          
+        } catch (error) {
+          console.error(`${entityName}: Error loading deleted records:`, error);
+        }
+        
+        return [];
+      };
+
+      // Load deleted records for each entity
+      const [clients, leads, projects, users, services, payments, queries] = await Promise.all([
+        loadDeletedForEntity(clientsAPI, 'Clients'),
+        loadDeletedForEntity(leadsAPI, 'Leads'),
+        loadDeletedForEntity(projectsAPI, 'Projects'),
+        loadDeletedForEntity(usersAPI, 'Users'),
+        loadDeletedForEntity(servicesAPI, 'Services'),
+        loadDeletedForEntity(paymentsAPI, 'Payments'),
+        loadDeletedForEntity(queriesAPI, 'Queries')
       ]);
 
       setDeletedRecords({
-        clients: clients.status === 'fulfilled' && clients.value.success ? clients.value.data : [],
-        leads: leads.status === 'fulfilled' && leads.value.success ? leads.value.data : [],
-        projects: projects.status === 'fulfilled' && projects.value.success ? projects.value.data : [],
-        users: users.status === 'fulfilled' && users.value.success ? users.value.data : [],
-        services: services.status === 'fulfilled' && services.value.success ? services.value.data : [],
-        payments: payments.status === 'fulfilled' && payments.value.success ? payments.value.data : [],
-        queries: queries.status === 'fulfilled' && queries.value.success ? queries.value.data : []
+        clients,
+        leads,
+        projects,
+        users,
+        services,
+        payments,
+        queries
       });
+
+      const totalDeleted = clients.length + leads.length + projects.length + 
+                          users.length + services.length + payments.length + queries.length;
+
+      console.log(`Total deleted records loaded: ${totalDeleted}`);
+      console.log('Breakdown:', {
+        clients: clients.length,
+        leads: leads.length,
+        projects: projects.length,
+        users: users.length,
+        services: services.length,
+        payments: payments.length,
+        queries: queries.length
+      });
+      
     } catch (error) {
       console.error('Error loading deleted records:', error);
+      // Set empty arrays as fallback
+      setDeletedRecords({
+        clients: [],
+        leads: [],
+        projects: [],
+        users: [],
+        services: [],
+        payments: [],
+        queries: []
+      });
     } finally {
       setLoading(false);
     }
@@ -70,25 +170,25 @@ const DeletedRecords = () => {
       let response;
       switch (recordType) {
         case 'clients':
-          response = await clientsAPI.update(recordId, { deleted: false });
+          response = await clientsAPI.restore(recordId);
           break;
         case 'leads':
-          response = await leadsAPI.update(recordId, { deleted: false });
+          response = await leadsAPI.restore(recordId);
           break;
         case 'projects':
-          response = await projectsAPI.update(recordId, { deleted: false });
+          response = await projectsAPI.restore(recordId);
           break;
         case 'users':
-          response = await usersAPI.update(recordId, { deleted: false });
+          response = await usersAPI.restore(recordId);
           break;
         case 'services':
-          response = await servicesAPI.update(recordId, { deleted: false });
+          response = await servicesAPI.restore(recordId);
           break;
         case 'payments':
-          response = await paymentsAPI.update(recordId, { deleted: false });
+          response = await paymentsAPI.restore(recordId);
           break;
         case 'queries':
-          response = await queriesAPI.update(recordId, { deleted: false });
+          response = await queriesAPI.restore(recordId);
           break;
         default:
           throw new Error('Invalid record type');
@@ -98,18 +198,20 @@ const DeletedRecords = () => {
         await loadDeletedRecords();
         setShowRestoreModal(false);
         setSelectedRecord(null);
-        alert('Record restored successfully');
+        alert('✅ Record restored successfully!');
+      } else {
+        throw new Error(response.error?.message || 'Failed to restore record');
       }
     } catch (error) {
       console.error('Error restoring record:', error);
-      alert('Failed to restore record');
+      alert(`❌ Failed to restore record: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   const handlePermanentDelete = async (recordType, recordId) => {
-    if (!window.confirm('Are you sure you want to permanently delete this record? This action cannot be undone.')) {
+    if (!window.confirm('⚠️ Are you sure you want to permanently delete this record? This action cannot be undone.')) {
       return;
     }
 
@@ -119,25 +221,25 @@ const DeletedRecords = () => {
       let response;
       switch (recordType) {
         case 'clients':
-          response = await clientsAPI.delete(recordId);
+          response = await clientsAPI.permanentDelete(recordId);
           break;
         case 'leads':
-          response = await leadsAPI.delete(recordId);
+          response = await leadsAPI.permanentDelete(recordId);
           break;
         case 'projects':
-          response = await projectsAPI.delete(recordId);
+          response = await projectsAPI.permanentDelete(recordId);
           break;
         case 'users':
-          response = await usersAPI.delete(recordId);
+          response = await usersAPI.permanentDelete(recordId);
           break;
         case 'services':
-          response = await servicesAPI.delete(recordId);
+          response = await servicesAPI.permanentDelete(recordId);
           break;
         case 'payments':
-          response = await paymentsAPI.delete(recordId);
+          response = await paymentsAPI.permanentDelete(recordId);
           break;
         case 'queries':
-          response = await queriesAPI.delete(recordId);
+          response = await queriesAPI.permanentDelete(recordId);
           break;
         default:
           throw new Error('Invalid record type');
@@ -145,11 +247,13 @@ const DeletedRecords = () => {
 
       if (response.success) {
         await loadDeletedRecords();
-        alert('Record permanently deleted');
+        alert('✅ Record permanently deleted successfully!');
+      } else {
+        throw new Error(response.error?.message || 'Failed to permanently delete record');
       }
     } catch (error) {
       console.error('Error permanently deleting record:', error);
-      alert('Failed to permanently delete record');
+      alert(`❌ Failed to permanently delete record: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -159,155 +263,182 @@ const DeletedRecords = () => {
     return deletedRecords[type]?.length || 0;
   };
 
-  const getTotalDeletedCount = () => {
-    return Object.values(deletedRecords).reduce((total, records) => total + (records?.length || 0), 0);
-  };
-
   const renderRecordsTable = (records, type) => {
     if (!records || records.length === 0) {
       return (
-        <div className="text-center py-4">
-          <i className="fas fa-trash-alt fa-3x text-muted mb-3"></i>
-          <p className="text-muted">No deleted {type} found</p>
+        <div className="text-center py-5">
+          <div style={{
+            background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+            borderRadius: '20px',
+            padding: '40px',
+            border: '2px dashed #cbd5e1'
+          }}>
+            <i className="fas fa-trash-alt fa-4x text-muted mb-3" style={{ color: '#94a3b8' }}></i>
+            <h5 style={{ color: '#64748b', marginBottom: '12px' }}>No Deleted {type.charAt(0).toUpperCase() + type.slice(1)} Found</h5>
+            <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
+              {type === 'clients' && "No deleted clients in the system. Deleted clients will appear here for restoration."}
+              {type === 'leads' && "No deleted leads in the system. Deleted leads will appear here for restoration."}
+              {type === 'projects' && "No deleted projects in the system. Deleted projects will appear here for restoration."}
+              {type === 'users' && "No deleted users in the system. Deleted users will appear here for restoration."}
+              {type === 'services' && "No deleted services in the system. Deleted services will appear here for restoration."}
+              {type === 'payments' && "No deleted payments in the system. Deleted payments will appear here for restoration."}
+              {type === 'queries' && "No deleted queries in the system. Deleted queries will appear here for restoration."}
+            </p>
+          </div>
         </div>
       );
     }
 
     return (
-      <div className="table-responsive">
-        <table className="table table-hover" style={{ borderRadius: '12px', overflow: 'hidden' }}>
-          <thead style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white' }}>
+      <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+        <table className="table table-hover mb-0" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+          <thead style={{ 
+            background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', 
+            color: 'white'
+          }}>
             <tr>
               {type === 'clients' && (
                 <>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>University</th>
-                  <th>Deleted Date</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Name</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Email</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>University</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Deleted Date</th>
                 </>
               )}
               {type === 'leads' && (
                 <>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Status</th>
-                  <th>Deleted Date</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Name</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Email</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Status</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Deleted Date</th>
                 </>
               )}
               {type === 'projects' && (
                 <>
-                  <th>Service Name</th>
-                  <th>Client</th>
-                  <th>Status</th>
-                  <th>Deleted Date</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Service Name</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Client</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Status</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Deleted Date</th>
                 </>
               )}
               {type === 'users' && (
                 <>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Deleted Date</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Name</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Email</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Role</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Deleted Date</th>
                 </>
               )}
               {type === 'services' && (
                 <>
-                  <th>Service Name</th>
-                  <th>Category</th>
-                  <th>Price</th>
-                  <th>Deleted Date</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Service Name</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Category</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Price</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Deleted Date</th>
                 </>
               )}
               {type === 'payments' && (
                 <>
-                  <th>Client</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Deleted Date</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Client</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Amount</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Status</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Deleted Date</th>
                 </>
               )}
               {type === 'queries' && (
                 <>
-                  <th>Subject</th>
-                  <th>Client</th>
-                  <th>Status</th>
-                  <th>Deleted Date</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Subject</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Client</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Status</th>
+                  <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Deleted Date</th>
                 </>
               )}
-              <th>Actions</th>
+              <th style={{ padding: '16px', fontWeight: '600', fontSize: '0.9rem', borderBottom: 'none' }}>Actions</th>
             </tr>
           </thead>
-          <tbody>
-            {records.map((record) => (
-              <tr key={record._id}>
+          <tbody style={{ background: 'white' }}>
+            {records.map((record, index) => (
+              <tr 
+                key={record._id}
+                style={{
+                  borderBottom: index === records.length - 1 ? 'none' : '1px solid #f1f5f9',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f8fafc';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                }}
+              >
                 {type === 'clients' && (
                   <>
-                    <td>{record.name}</td>
-                    <td>{record.email}</td>
-                    <td>{record.university}</td>
-                    <td>{record.deletedAt ? new Date(record.deletedAt).toLocaleDateString() : 'N/A'}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.name}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.email}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.university}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.deletedAt ? new Date(record.deletedAt).toLocaleDateString() : 'N/A'}</td>
                   </>
                 )}
                 {type === 'leads' && (
                   <>
-                    <td>{record.name}</td>
-                    <td>{record.email}</td>
-                    <td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.name}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.email}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>
                       <span className="badge bg-secondary">{record.status}</span>
                     </td>
-                    <td>{record.deletedAt ? new Date(record.deletedAt).toLocaleDateString() : 'N/A'}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.deletedAt ? new Date(record.deletedAt).toLocaleDateString() : 'N/A'}</td>
                   </>
                 )}
                 {type === 'projects' && (
                   <>
-                    <td>{record.service_name}</td>
-                    <td>{record.client?.name}</td>
-                    <td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.service_name}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.client?.name}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>
                       <span className="badge bg-secondary">{record.status}</span>
                     </td>
-                    <td>{record.deletedAt ? new Date(record.deletedAt).toLocaleDateString() : 'N/A'}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.deletedAt ? new Date(record.deletedAt).toLocaleDateString() : 'N/A'}</td>
                   </>
                 )}
                 {type === 'users' && (
                   <>
-                    <td>{record.first_name} {record.last_name}</td>
-                    <td>{record.email}</td>
-                    <td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.first_name} {record.last_name}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.email}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>
                       <span className="badge bg-info">{record.role}</span>
                     </td>
-                    <td>{record.deletedAt ? new Date(record.deletedAt).toLocaleDateString() : 'N/A'}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.deletedAt ? new Date(record.deletedAt).toLocaleDateString() : 'N/A'}</td>
                   </>
                 )}
                 {type === 'services' && (
                   <>
-                    <td>{record.name}</td>
-                    <td>{record.category}</td>
-                    <td>${record.price}</td>
-                    <td>{record.deletedAt ? new Date(record.deletedAt).toLocaleDateString() : 'N/A'}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.name}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.category}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>${record.price}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.deletedAt ? new Date(record.deletedAt).toLocaleDateString() : 'N/A'}</td>
                   </>
                 )}
                 {type === 'payments' && (
                   <>
-                    <td>{record.client?.name}</td>
-                    <td>${record.amount}</td>
-                    <td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.client?.name}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>${record.amount}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>
                       <span className="badge bg-secondary">{record.status}</span>
                     </td>
-                    <td>{record.deletedAt ? new Date(record.deletedAt).toLocaleDateString() : 'N/A'}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.deletedAt ? new Date(record.deletedAt).toLocaleDateString() : 'N/A'}</td>
                   </>
                 )}
                 {type === 'queries' && (
                   <>
-                    <td>{record.subject}</td>
-                    <td>{record.client?.name}</td>
-                    <td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.subject}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.client?.name}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>
                       <span className="badge bg-secondary">{record.status}</span>
                     </td>
-                    <td>{record.deletedAt ? new Date(record.deletedAt).toLocaleDateString() : 'N/A'}</td>
+                    <td style={{ padding: '16px', borderBottom: 'none' }}>{record.deletedAt ? new Date(record.deletedAt).toLocaleDateString() : 'N/A'}</td>
                   </>
                 )}
-                <td>
-                  <div className="btn-group btn-group-sm">
+                <td style={{ padding: '16px', borderBottom: 'none' }}>
+                  <div className="btn-group btn-group-sm" role="group">
                     <button
                       className="btn btn-outline-success"
                       onClick={() => {
@@ -315,15 +446,29 @@ const DeletedRecords = () => {
                         setShowRestoreModal(true);
                       }}
                       title="Restore Record"
+                      disabled={loading}
+                      style={{
+                        borderRadius: '8px 0 0 8px',
+                        fontWeight: '500',
+                        transition: 'all 0.3s ease'
+                      }}
                     >
-                      <i className="fas fa-undo"></i>
+                      <i className="fas fa-undo me-1"></i>
+                      Restore
                     </button>
                     <button
                       className="btn btn-outline-danger"
                       onClick={() => handlePermanentDelete(type, record._id)}
                       title="Permanently Delete"
+                      disabled={loading}
+                      style={{
+                        borderRadius: '0 8px 8px 0',
+                        fontWeight: '500',
+                        transition: 'all 0.3s ease'
+                      }}
                     >
-                      <i className="fas fa-trash"></i>
+                      <i className="fas fa-trash me-1"></i>
+                      Delete
                     </button>
                   </div>
                 </td>
@@ -358,28 +503,23 @@ const DeletedRecords = () => {
             <p className="text-muted mb-0">Manage and restore deleted records</p>
           </div>
         </div>
-        <div className="d-flex gap-2">
-          <span className="badge bg-danger fs-6">
-            Total Deleted: {getTotalDeletedCount()}
-          </span>
-          <button 
-            className="btn btn-lg px-4 py-2"
-            onClick={loadDeletedRecords}
-            disabled={loading}
-            style={{
-              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-              border: 'none',
-              borderRadius: '12px',
-              color: 'white',
-              fontWeight: '500',
-              boxShadow: '0 4px 15px rgba(79, 172, 254, 0.3)',
-              transition: 'all 0.3s ease'
-            }}
-          >
-            <i className="fas fa-sync me-2"></i>
-            Refresh
-          </button>
-        </div>
+        <button 
+          className="btn btn-lg px-4 py-2"
+          onClick={loadDeletedRecords}
+          disabled={loading}
+          style={{
+            background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+            border: 'none',
+            borderRadius: '12px',
+            color: 'white',
+            fontWeight: '500',
+            boxShadow: '0 4px 15px rgba(79, 172, 254, 0.3)',
+            transition: 'all 0.3s ease'
+          }}
+        >
+          <i className="fas fa-sync me-2"></i>
+          Refresh
+        </button>
       </div>
 
       {/* Statistics Cards - ContactsManagement Style */}

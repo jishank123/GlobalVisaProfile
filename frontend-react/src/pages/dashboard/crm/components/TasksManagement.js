@@ -1,319 +1,754 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { projectsAPI } from '../../../../services/api';
+import { designSystem, componentStyles, hoverEffects } from '../../../../styles/designSystem';
 
-const TasksManagement = ({ apiCall, projects, clients }) => {
+const TasksManagement = () => {
   const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('all');
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState('');
+  const [modalData, setModalData] = useState(null);
 
-  const loadTasks = useCallback(() => {
-    setLoading(true);
+  useEffect(() => {
+    loadTasks();
+    loadProjects();
+  }, []);
+
+  const loadTasks = async () => {
     try {
-      // Extract tasks from all projects
-      const allTasks = [];
+      setLoading(true);
+      // Get all tasks from assigned projects
+      const response = await projectsAPI.getMyTasks();
       
-      if (projects && projects.length > 0) {
-        projects.forEach(project => {
-          if (project.milestones && project.milestones.length > 0) {
-            project.milestones.forEach(milestone => {
-              const client = typeof project.client === 'object' && project.client.name 
-                ? project.client 
-                : clients?.find(c => c._id === project.client) || { name: 'Unknown Client', _id: project.client };
-              
-              allTasks.push({
-                ...milestone,
-                project: project,
-                client: client
-              });
-            });
-          }
-        });
+      if (response.success) {
+        setTasks(response.data || []);
+      } else {
+        throw new Error(response.error?.message || 'Failed to load tasks');
       }
-      
-      setTasks(allTasks);
+
     } catch (error) {
       console.error('Error loading tasks:', error);
       setTasks([]);
     } finally {
       setLoading(false);
     }
-  }, [projects, clients]);
-
-  useEffect(() => {
-    loadTasks();
-  }, [projects, loadTasks]);
-
-  const handleUpdateTaskStatus = (task) => {
-    setSelectedTask(task);
-    setShowUpdateModal(true);
   };
 
-  const submitTaskStatusUpdate = async (projectId, taskId, updateData) => {
+  const loadProjects = async () => {
     try {
-      // Try to update the specific milestone first
-      let response = await apiCall(`/projects/${projectId}/milestones/${taskId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(updateData)
-      });
-      
-      // If milestone-specific endpoint doesn't exist, fall back to project update
-      if (!response.success && response.status === 404) {
-        response = await apiCall(`/projects/${projectId}`, {
-          method: 'PATCH',
-          body: JSON.stringify({
-            milestone_update: {
-              milestone_id: taskId,
-              ...updateData
-            }
-          })
-        });
-      }
-      
+      const response = await projectsAPI.getMyProjects();
       if (response.success) {
-        setShowUpdateModal(false);
-        // Refresh tasks by reloading from projects
-        loadTasks();
-        alert('Task status updated successfully!');
-      } else {
-        throw new Error(response.message || 'Failed to update task status');
+        setProjects(response.data || []);
       }
     } catch (error) {
-      console.error('Error updating task status:', error);
-      alert('Failed to update task status: ' + error.message);
+      console.error('Error loading projects:', error);
+      setProjects([]);
     }
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      'pending': 'bg-yellow-100 text-yellow-800',
-      'in_progress': 'bg-blue-100 text-blue-800',
-      'completed': 'bg-green-100 text-green-800'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-  };
-
-  const isOverdue = (targetDate, status) => {
-    if (!targetDate || status === 'completed') return false;
-    return new Date(targetDate) < new Date();
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'No deadline';
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  if (loading) {
-    return (
-      <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <p className="text-gray-600">Loading tasks...</p>
-      </div>
-    );
-  }
-
-  if (tasks.length === 0) {
-    return (
-      <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-        <i className="fas fa-tasks text-4xl text-gray-400 mb-4"></i>
-        <h5 className="text-lg font-semibold text-gray-700 mb-2">No Tasks Found</h5>
-        <p className="text-gray-600">Tasks and milestones from your projects will appear here.</p>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <div className="bg-white rounded-lg shadow-sm">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">
-              <i className="fas fa-tasks mr-2"></i>My Tasks & Milestones
-            </h3>
-            <button 
-              onClick={loadTasks}
-              className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors"
-            >
-              <i className="fas fa-sync-alt mr-1"></i>Refresh
-            </button>
-          </div>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {tasks.map(task => {
-                const overdue = isOverdue(task.target_date, task.status);
-                
-                return (
-                  <tr key={`${task.project._id}-${task._id}`} className={`hover:bg-gray-50 ${overdue ? 'bg-red-50' : ''}`}>
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="font-medium text-gray-900">{task.title}</div>
-                        {task.notes && (
-                          <div className="text-sm text-gray-500 mt-1">{task.notes}</div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          #{task.project.project_id || task.project._id?.slice(-6)}
-                        </span>
-                        <div className="text-sm text-gray-500 mt-1">
-                          {task.project.service_name || 'Unknown Service'}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-gray-900">{task.client.name}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
-                          {task.status?.replace('_', ' ') || 'Pending'}
-                        </span>
-                        {overdue && (
-                          <div className="text-xs text-red-600 mt-1">Overdue</div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-gray-900">{formatDate(task.target_date)}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <button 
-                          onClick={() => handleUpdateTaskStatus(task)}
-                          className="text-yellow-600 hover:text-yellow-900"
-                          title="Update Status"
-                        >
-                          <i className="fas fa-edit"></i>
-                        </button>
-                        <button 
-                          onClick={() => {/* View project details */}}
-                          className="text-blue-600 hover:text-blue-900"
-                          title="View Project"
-                        >
-                          <i className="fas fa-eye"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Update Task Status Modal */}
-      {showUpdateModal && selectedTask && (
-        <UpdateTaskStatusModal 
-          task={selectedTask}
-          onClose={() => setShowUpdateModal(false)}
-          onSubmit={submitTaskStatusUpdate}
-        />
-      )}
-    </>
-  );
-};
-
-// Update Task Status Modal Component
-const UpdateTaskStatusModal = ({ task, onClose, onSubmit }) => {
-  const [status, setStatus] = useState(task.status || 'pending');
-  const [notes, setNotes] = useState('');
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(task.project._id, task._id, {
-      status,
-      completion_date: status === 'completed' ? new Date().toISOString() : null,
-      notes: notes.trim()
+  // Filter tasks by status
+  const getFilteredTasks = (status) => {
+    if (status === 'all') return tasks;
+    return tasks.filter(task => {
+      switch (status) {
+        case 'pending':
+          return task.status === 'pending';
+        case 'in_progress':
+          return task.status === 'in_progress';
+        case 'completed':
+          return task.status === 'completed';
+        case 'overdue':
+          return task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';
+        default:
+          return true;
+      }
     });
   };
 
+  // Get task counts for stats
+  const getTaskCounts = () => {
+    const overdueTasks = tasks.filter(task => 
+      task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed'
+    );
+    
+    return {
+      total: tasks.length,
+      pending: tasks.filter(task => task.status === 'pending').length,
+      inProgress: tasks.filter(task => task.status === 'in_progress').length,
+      completed: tasks.filter(task => task.status === 'completed').length,
+      overdue: overdueTasks.length
+    };
+  };
+
+  const getStatusBadgeStyle = (status) => {
+    const statusStyles = {
+      'pending': { background: '#f59e0b', color: 'white' },
+      'in_progress': { background: '#3b82f6', color: 'white' },
+      'completed': { background: '#10b981', color: 'white' },
+      'cancelled': { background: '#6b7280', color: 'white' }
+    };
+    return statusStyles[status] || { background: '#6b7280', color: 'white' };
+  };
+
+  const getPriorityStyle = (priority) => {
+    const priorityColors = {
+      'low': '#10b981',
+      'medium': '#f59e0b', 
+      'high': '#ef4444'
+    };
+    return { color: priorityColors[priority] || '#6b7280' };
+  };
+
+  const handleModalClose = () => {
+    setShowModal(false);
+    setModalData(null);
+    setModalType('');
+  };
+
+  const createNewTask = () => {
+    setModalData(null);
+    setModalType('create');
+    setShowModal(true);
+  };
+
+  const editTask = (task) => {
+    setModalData(task);
+    setModalType('edit');
+    setShowModal(true);
+  };
+
+  const viewTaskDetails = (task) => {
+    setModalData(task);
+    setModalType('view');
+    setShowModal(true);
+  };
+
+  const handleCreateTask = async (taskData) => {
+    try {
+      const response = await projectsAPI.createTask(taskData);
+      if (response.success) {
+        loadTasks(); // Refresh the list
+        handleModalClose();
+      }
+    } catch (error) {
+      console.error('Error creating task:', error);
+    }
+  };
+
+  const handleUpdateTask = async (taskId, taskData) => {
+    try {
+      const response = await projectsAPI.updateTask(taskId, taskData);
+      if (response.success) {
+        loadTasks(); // Refresh the list
+        handleModalClose();
+      }
+    } catch (error) {
+      console.error('Error updating task:', error);
+    }
+  };
+
+  const handleUpdateTaskStatus = async (taskId, newStatus) => {
+    try {
+      const response = await projectsAPI.updateTaskStatus(taskId, newStatus);
+      if (response.success) {
+        loadTasks(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error updating task status:', error);
+    }
+  };
+
+  const StatCard = ({ icon, number, label, borderColor, iconColor }) => (
+    <div 
+      style={{
+        ...componentStyles.contactsStatCard,
+        borderColor: borderColor,
+        cursor: 'pointer'
+      }}
+      {...hoverEffects.card}
+    >
+      <i className={`${icon} fa-2x mb-2`} style={{ color: iconColor }}></i>
+      <h4 style={{ 
+        color: iconColor,
+        fontWeight: designSystem.typography.fontWeight.bold,
+        marginBottom: '4px'
+      }}>
+        {number}
+      </h4>
+      <small style={{ color: designSystem.colors.gray[500] }}>
+        {label}
+      </small>
+    </div>
+  );
+
+  const renderTaskTable = (taskType) => {
+    const filteredTasks = getFilteredTasks(taskType);
+    
+    if (filteredTasks.length === 0) {
+      return (
+        <div style={componentStyles.emptyState}>
+          <i className="fas fa-tasks fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
+          <p style={{ color: designSystem.colors.gray[500] }}>
+            No {taskType === 'all' ? '' : taskType} tasks found
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ borderRadius: designSystem.borderRadius.button, overflow: 'hidden', boxShadow: designSystem.shadows.card }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead style={componentStyles.tableHeader}>
+            <tr>
+              <th style={componentStyles.tableHeaderCell}>Task</th>
+              <th style={componentStyles.tableHeaderCell}>Project</th>
+              <th style={componentStyles.tableHeaderCell}>Status</th>
+              <th style={componentStyles.tableHeaderCell}>Priority</th>
+              <th style={componentStyles.tableHeaderCell}>Due Date</th>
+              <th style={componentStyles.tableHeaderCell}>Progress</th>
+              <th style={componentStyles.tableHeaderCell}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredTasks.map(task => {
+              const statusStyle = getStatusBadgeStyle(task.status);
+              const priorityStyle = getPriorityStyle(task.priority || 'medium');
+              const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';
+              
+              return (
+                <tr 
+                  key={task._id}
+                  style={{
+                    ...componentStyles.tableRow,
+                    backgroundColor: isOverdue ? '#fef2f2' : 'transparent'
+                  }}
+                  {...hoverEffects.tableRow}
+                >
+                  <td style={componentStyles.tableCell}>
+                    <div>
+                      <div style={{ 
+                        fontWeight: designSystem.typography.fontWeight.medium,
+                        marginBottom: '2px'
+                      }}>
+                        {task.title || task.name || 'Untitled Task'}
+                      </div>
+                      <small style={{ color: designSystem.colors.gray[500] }}>
+                        {task.description ? task.description.substring(0, 50) + '...' : 'No description'}
+                      </small>
+                    </div>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <div>
+                      <div style={{ 
+                        fontWeight: designSystem.typography.fontWeight.medium,
+                        marginBottom: '2px'
+                      }}>
+                        {task.project?.project_id || `#${task.project?._id?.slice(-8).toUpperCase()}` || 'Unknown Project'}
+                      </div>
+                      <small style={{ color: designSystem.colors.gray[500] }}>
+                        {task.project?.service_name || 'Unknown Service'}
+                      </small>
+                    </div>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <span style={{
+                      ...componentStyles.badge,
+                      background: statusStyle.background,
+                      color: statusStyle.color,
+                      textTransform: 'uppercase',
+                      fontSize: '11px',
+                      fontWeight: '600'
+                    }}>
+                      {task.status.replace('_', ' ')}
+                    </span>
+                    {isOverdue && (
+                      <div style={{ marginTop: '4px' }}>
+                        <span style={{
+                          ...componentStyles.badge,
+                          background: '#ef4444',
+                          color: 'white',
+                          fontSize: '10px'
+                        }}>
+                          OVERDUE
+                        </span>
+                      </div>
+                    )}
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <span style={{
+                      ...priorityStyle,
+                      fontWeight: designSystem.typography.fontWeight.bold,
+                      textTransform: 'uppercase',
+                      fontSize: '12px'
+                    }}>
+                      {(task.priority || 'medium')}
+                    </span>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    {task.due_date ? (
+                      <div>
+                        <div style={{ 
+                          fontSize: '13px', 
+                          fontWeight: '500',
+                          color: isOverdue ? '#ef4444' : 'inherit'
+                        }}>
+                          {new Date(task.due_date).toLocaleDateString()}
+                        </div>
+                        <small style={{ color: designSystem.colors.gray[500] }}>
+                          {isOverdue ? 'Overdue' : 'Upcoming'}
+                        </small>
+                      </div>
+                    ) : (
+                      <span style={{ color: designSystem.colors.gray[500], fontStyle: 'italic' }}>
+                        No due date
+                      </span>
+                    )}
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: designSystem.spacing.xs }}>
+                      <div style={{ 
+                        width: '60px', 
+                        height: '8px',
+                        background: designSystem.colors.gray[200],
+                        borderRadius: '4px',
+                        overflow: 'hidden'
+                      }}>
+                        <div 
+                          style={{
+                            width: `${task.progress || 0}%`,
+                            height: '100%',
+                            background: task.status === 'completed' ? '#10b981' : '#3b82f6',
+                            transition: 'width 0.3s ease'
+                          }}
+                        ></div>
+                      </div>
+                      <small style={{ 
+                        fontSize: designSystem.typography.fontSize.xs,
+                        fontWeight: '600'
+                      }}>
+                        {task.progress || 0}%
+                      </small>
+                    </div>
+                  </td>
+                  <td style={componentStyles.tableCell}>
+                    <div style={{ display: 'flex', gap: designSystem.spacing.xs }}>
+                      <button 
+                        className="btn btn-outline-primary btn-sm"
+                        onClick={() => viewTaskDetails(task)}
+                        title="View Task Details"
+                      >
+                        <i className="fas fa-eye"></i>
+                      </button>
+                      <button 
+                        className="btn btn-outline-success btn-sm"
+                        onClick={() => editTask(task)}
+                        title="Edit Task"
+                      >
+                        <i className="fas fa-edit"></i>
+                      </button>
+                      {task.status !== 'completed' && (
+                        <button 
+                          className="btn btn-outline-info btn-sm"
+                          onClick={() => handleUpdateTaskStatus(task._id, 'completed')}
+                          title="Mark as Completed"
+                        >
+                          <i className="fas fa-check"></i>
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 dashboard-modal">
-      <div className="bg-white rounded-lg max-w-md w-full mx-4">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Update Task Status</h3>
-            <button 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onClose();
-              }} 
-              className="text-gray-400 hover:text-gray-600 w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-all duration-200 cursor-pointer bg-transparent border-0 outline-none focus:outline-none modal-close-btn group"
-              aria-label="Close modal"
-              type="button"
-            >
-              <i className="fas fa-times text-sm group-hover:scale-110 transition-transform duration-200"></i>
-            </button>
+    <div style={componentStyles.managementCard}>
+      {/* Header with Create and Refresh Buttons */}
+      <div style={componentStyles.header}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={componentStyles.headerIcon}>
+            <i className="fas fa-tasks fa-lg"></i>
           </div>
-          
-          <div className="mb-4 p-3 bg-gray-50 rounded">
-            <div className="font-medium text-gray-900">{task.title}</div>
-            <div className="text-sm text-gray-600">
-              Project: #{task.project.project_id} - {task.project.service_name}
-            </div>
+          <div>
+            <h4 style={componentStyles.headerTitle}>Project Tasks</h4>
+            <p style={componentStyles.headerSubtitle}>Create and manage tasks within your assigned projects</p>
           </div>
-          
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-              <select 
-                value={status} 
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="pending">Pending</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-              </select>
-            </div>
-            
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-              <textarea 
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows="3"
-                placeholder="Add status update notes..."
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div className="flex justify-end space-x-3">
+        </div>
+        <div style={{ display: 'flex', gap: designSystem.spacing.sm }}>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: '#10b981'
+            }}
+            onClick={createNewTask}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-plus me-2"></i>Create Task
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: designSystem.colors.success
+            }}
+            onClick={loadTasks}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-sync-alt me-2"></i>Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Overview Statistics */}
+      <div style={componentStyles.statsContainer}>
+        <StatCard
+          icon="fas fa-tasks"
+          number={getTaskCounts().total}
+          label="Total Tasks"
+          borderColor="#8b5cf6"
+          iconColor="#8b5cf6"
+        />
+        <StatCard
+          icon="fas fa-clock"
+          number={getTaskCounts().pending}
+          label="Pending Tasks"
+          borderColor="#f59e0b"
+          iconColor="#f59e0b"
+        />
+        <StatCard
+          icon="fas fa-play-circle"
+          number={getTaskCounts().inProgress}
+          label="In Progress"
+          borderColor="#3b82f6"
+          iconColor="#3b82f6"
+        />
+        <StatCard
+          icon="fas fa-check-circle"
+          number={getTaskCounts().completed}
+          label="Completed"
+          borderColor="#10b981"
+          iconColor="#10b981"
+        />
+        <StatCard
+          icon="fas fa-exclamation-triangle"
+          number={getTaskCounts().overdue}
+          label="Overdue"
+          borderColor="#ef4444"
+          iconColor="#ef4444"
+        />
+      </div>
+
+      {/* Loading State */}
+      {loading && (
+        <div style={componentStyles.loading}>
+          <i className="fas fa-spinner fa-spin fa-2x" style={{ color: designSystem.colors.primary }}></i>
+          <p style={{ marginTop: designSystem.spacing.md, color: designSystem.colors.gray[500] }}>Loading tasks...</p>
+        </div>
+      )}
+
+      {/* Task Type Tabs */}
+      {!loading && (
+        <>
+          <div style={{ marginBottom: designSystem.spacing.lg }}>
+            <div style={{ display: 'flex', gap: designSystem.spacing.xs, flexWrap: 'wrap' }}>
               <button 
-                type="button" 
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onClose();
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: activeTab === 'all' ? designSystem.colors.primary : designSystem.colors.gray[100],
+                  color: activeTab === 'all' ? 'white' : designSystem.colors.gray[600],
+                  boxShadow: activeTab === 'all' ? designSystem.shadows.button : 'none'
                 }}
-                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
+                onClick={() => setActiveTab('all')}
+                {...hoverEffects.button}
               >
-                Cancel
+                All Tasks ({getTaskCounts().total})
               </button>
               <button 
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: activeTab === 'pending' ? '#f59e0b' : designSystem.colors.gray[100],
+                  color: activeTab === 'pending' ? 'white' : designSystem.colors.gray[600],
+                  boxShadow: activeTab === 'pending' ? designSystem.shadows.button : 'none'
+                }}
+                onClick={() => setActiveTab('pending')}
+                {...hoverEffects.button}
               >
-                Update Status
+                Pending ({getTaskCounts().pending})
+              </button>
+              <button 
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: activeTab === 'in_progress' ? '#3b82f6' : designSystem.colors.gray[100],
+                  color: activeTab === 'in_progress' ? 'white' : designSystem.colors.gray[600],
+                  boxShadow: activeTab === 'in_progress' ? designSystem.shadows.button : 'none'
+                }}
+                onClick={() => setActiveTab('in_progress')}
+                {...hoverEffects.button}
+              >
+                In Progress ({getTaskCounts().inProgress})
+              </button>
+              <button 
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: activeTab === 'completed' ? '#10b981' : designSystem.colors.gray[100],
+                  color: activeTab === 'completed' ? 'white' : designSystem.colors.gray[600],
+                  boxShadow: activeTab === 'completed' ? designSystem.shadows.button : 'none'
+                }}
+                onClick={() => setActiveTab('completed')}
+                {...hoverEffects.button}
+              >
+                Completed ({getTaskCounts().completed})
+              </button>
+              <button 
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: activeTab === 'overdue' ? '#ef4444' : designSystem.colors.gray[100],
+                  color: activeTab === 'overdue' ? 'white' : designSystem.colors.gray[600],
+                  boxShadow: activeTab === 'overdue' ? designSystem.shadows.button : 'none'
+                }}
+                onClick={() => setActiveTab('overdue')}
+                {...hoverEffects.button}
+              >
+                Overdue ({getTaskCounts().overdue})
               </button>
             </div>
-          </form>
+          </div>
+
+          {/* Tab Content */}
+          <div>
+            {renderTaskTable(activeTab)}
+          </div>
+        </>
+      )}
+
+      {/* No Tasks Message */}
+      {!loading && tasks.length === 0 && (
+        <div style={componentStyles.emptyState}>
+          <i className="fas fa-tasks fa-4x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.lg }}></i>
+          <h6 style={{ color: designSystem.colors.gray[500], marginBottom: designSystem.spacing.md }}>No tasks found</h6>
+          <p style={{ color: designSystem.colors.gray[500], marginBottom: designSystem.spacing.lg }}>Create your first task to get started</p>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: '#10b981'
+            }}
+            onClick={createNewTask}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-plus me-2"></i>Create First Task
+          </button>
+        </div>
+      )}
+
+      {/* Task Modal */}
+      {showModal && (
+        <TaskModal
+          show={showModal}
+          onHide={handleModalClose}
+          type={modalType}
+          data={modalData}
+          projects={projects}
+          onCreateTask={handleCreateTask}
+          onUpdateTask={handleUpdateTask}
+        />
+      )}
+    </div>
+  );
+};
+
+// Task Modal Component
+const TaskModal = ({ show, onHide, type, data, projects, onCreateTask, onUpdateTask }) => {
+  const [formData, setFormData] = useState({
+    title: data?.title || '',
+    description: data?.description || '',
+    project_id: data?.project_id || data?.project?._id || '',
+    status: data?.status || 'pending',
+    priority: data?.priority || 'medium',
+    due_date: data?.due_date ? new Date(data.due_date).toISOString().split('T')[0] : '',
+    progress: data?.progress || 0
+  });
+
+  if (!show) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    if (!formData.title.trim()) {
+      alert('Please enter a task title.');
+      return;
+    }
+    
+    if (!formData.project_id) {
+      alert('Please select a project.');
+      return;
+    }
+
+    if (type === 'create') {
+      onCreateTask(formData);
+    } else if (type === 'edit') {
+      onUpdateTask(data._id, formData);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  return (
+    <div className="modal" style={componentStyles.modal}>
+      <div className="modal-dialog modal-lg">
+        <div className="modal-content" style={componentStyles.modalContent}>
+          <div className="modal-header" style={componentStyles.modalHeader}>
+            <h5 className="modal-title">
+              <i className="fas fa-tasks me-2"></i>
+              {type === 'create' ? 'Create New Task' : type === 'edit' ? 'Edit Task' : 'Task Details'}
+            </h5>
+            <button type="button" className="btn-close btn-close-white" onClick={onHide}></button>
+          </div>
+          
+          <div className="modal-body" style={componentStyles.modalBody}>
+            {type === 'view' ? (
+              <div>
+                <div className="row">
+                  <div className="col-md-6">
+                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                      Task Information
+                    </h6>
+                    <p><strong>Title:</strong> {data.title || 'N/A'}</p>
+                    <p><strong>Description:</strong> {data.description || 'No description'}</p>
+                    <p><strong>Project:</strong> {data.project?.project_id || 'Unknown Project'}</p>
+                    <p><strong>Status:</strong> {data.status || 'N/A'}</p>
+                  </div>
+                  <div className="col-md-6">
+                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                      Progress & Timeline
+                    </h6>
+                    <p><strong>Priority:</strong> {data.priority || 'Medium'}</p>
+                    <p><strong>Progress:</strong> {data.progress || 0}%</p>
+                    <p><strong>Due Date:</strong> {data.due_date ? new Date(data.due_date).toLocaleDateString() : 'Not set'}</p>
+                    <p><strong>Created:</strong> {data.createdAt ? new Date(data.createdAt).toLocaleDateString() : 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit}>
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="form-label"><strong>Task Title *</strong></label>
+                      <input 
+                        type="text"
+                        className="form-control"
+                        value={formData.title}
+                        onChange={(e) => handleInputChange('title', e.target.value)}
+                        placeholder="Enter task title"
+                        required
+                      />
+                    </div>
+                    
+                    <div className="mb-3">
+                      <label className="form-label"><strong>Project *</strong></label>
+                      <select 
+                        className="form-select"
+                        value={formData.project_id}
+                        onChange={(e) => handleInputChange('project_id', e.target.value)}
+                        required
+                      >
+                        <option value="">Select a project</option>
+                        {projects.map(project => (
+                          <option key={project._id} value={project._id}>
+                            {project.project_id || `#${project._id.slice(-8).toUpperCase()}`} - {project.service_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <label className="form-label"><strong>Status</strong></label>
+                      <select 
+                        className="form-select"
+                        value={formData.status}
+                        onChange={(e) => handleInputChange('status', e.target.value)}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="form-label"><strong>Priority</strong></label>
+                      <select 
+                        className="form-select"
+                        value={formData.priority}
+                        onChange={(e) => handleInputChange('priority', e.target.value)}
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                      </select>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <label className="form-label"><strong>Due Date</strong></label>
+                      <input 
+                        type="date"
+                        className="form-control"
+                        value={formData.due_date}
+                        onChange={(e) => handleInputChange('due_date', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="mb-3">
+                      <label className="form-label"><strong>Progress: {formData.progress}%</strong></label>
+                      <input 
+                        type="range"
+                        className="form-range"
+                        min="0"
+                        max="100"
+                        value={formData.progress}
+                        onChange={(e) => handleInputChange('progress', parseInt(e.target.value))}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mb-3">
+                  <label className="form-label"><strong>Description</strong></label>
+                  <textarea 
+                    className="form-control"
+                    rows="4"
+                    value={formData.description}
+                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    placeholder="Enter task description..."
+                  />
+                </div>
+              </form>
+            )}
+          </div>
+          
+          <div className="modal-footer" style={componentStyles.modalFooter}>
+            <button type="button" className="btn btn-secondary" onClick={onHide}>
+              Close
+            </button>
+            {type !== 'view' && (
+              <button type="submit" className="btn btn-primary" onClick={handleSubmit}>
+                {type === 'create' ? 'Create Task' : 'Update Task'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

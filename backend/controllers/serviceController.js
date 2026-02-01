@@ -35,17 +35,18 @@ exports.getServices = async (req, res) => {
   try {
     const { search, category, status, page = 1, limit = 20 } = req.query;
     
-    // Build query - by default only show active services
-    let query = { isActive: true };
+    // Build query - by default only show active, non-deleted services
+    let query = { isActive: true, isDeleted: false };
     
-    // For non-admin users, only show active services
+    // For non-admin users, only show active, non-deleted services
     if (req.user.role !== 'admin') {
-      query.isActive = true;
+      query = { isActive: true, isDeleted: false };
     } else {
       // Admin can see all services based on status filter
-      if (status === 'active') query.isActive = true;
-      if (status === 'inactive') query.isActive = false;
-      if (status === 'all') delete query.isActive; // Show all services
+      if (status === 'active') query = { isActive: true, isDeleted: false };
+      if (status === 'inactive') query = { isActive: false, isDeleted: false };
+      if (status === 'deleted') query = { isDeleted: true };
+      if (status === 'all') query = {}; // Show all services including deleted
     }
     
     // Apply filters
@@ -329,11 +330,12 @@ exports.deleteService = async (req, res) => {
       });
     }
     
-    // Soft delete - set as inactive instead of actual deletion
-    service.isActive = false;
+    // Soft delete - mark as deleted instead of actual deletion
+    service.isDeleted = true;
+    service.deletedAt = new Date();
     await service.save();
     
-    console.log('✅ Service soft deleted (set to inactive)');
+    console.log('✅ Service marked as deleted');
     
     // Log activity
     await logActivity(
@@ -421,6 +423,141 @@ exports.toggleServiceStatus = async (req, res) => {
   console.log('📋 === TOGGLE SERVICE STATUS REQUEST COMPLETED ===\n');
 };
 
+// @desc    Restore deleted service
+// @route   PATCH /api/services/:id/restore
+// @access  Private (Admin only)
+exports.restoreService = async (req, res) => {
+  console.log('\n📋 === RESTORE SERVICE REQUEST ===');
+  console.log('📋 Admin restoring service:', req.params.id);
+  
+  try {
+    const service = await Service.findById(req.params.id);
+    
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'SERVICE_NOT_FOUND',
+          message: 'Service not found'
+        }
+      });
+    }
+    
+    if (!service.isDeleted) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'SERVICE_NOT_DELETED',
+          message: 'Service is not deleted'
+        }
+      });
+    }
+    
+    // Restore service
+    service.isDeleted = false;
+    service.deletedAt = null;
+    service.isActive = true; // Restore as active
+    await service.save();
+    
+    console.log('✅ Service restored successfully');
+    
+    // Log activity
+    await logActivity(
+      req.user.user_id,
+      'restore',
+      'Service',
+      `Restored service: ${service.name}`,
+      req.ip,
+      service._id
+    );
+    
+    res.json({
+      success: true,
+      message: 'Service restored successfully',
+      data: service
+    });
+    
+  } catch (error) {
+    console.error('💥 Restore service error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'RESTORE_SERVICE_FAILED',
+        message: error.message
+      }
+    });
+  }
+  
+  console.log('📋 === RESTORE SERVICE REQUEST COMPLETED ===\n');
+};
+
+// @desc    Permanently delete service (hard delete)
+// @route   DELETE /api/services/:id/permanent
+// @access  Private (Admin only)
+exports.permanentDeleteService = async (req, res) => {
+  console.log('\n📋 === PERMANENT DELETE SERVICE REQUEST ===');
+  console.log('📋 Admin permanently deleting service:', req.params.id);
+  
+  try {
+    const service = await Service.findById(req.params.id);
+    
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'SERVICE_NOT_FOUND',
+          message: 'Service not found'
+        }
+      });
+    }
+    
+    // Check if service is already soft deleted
+    if (!service.isDeleted) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'SERVICE_NOT_DELETED',
+          message: 'Service must be soft deleted before permanent deletion'
+        }
+      });
+    }
+    
+    const serviceName = service.name;
+    
+    // Permanently delete the service from database
+    await Service.findByIdAndDelete(req.params.id);
+    
+    console.log('✅ Service permanently deleted from database');
+    
+    // Log activity
+    await logActivity(
+      req.user.user_id,
+      'permanent_delete',
+      'Service',
+      `Permanently deleted service: ${serviceName}`,
+      req.ip,
+      req.params.id
+    );
+    
+    res.json({
+      success: true,
+      message: 'Service permanently deleted successfully'
+    });
+    
+  } catch (error) {
+    console.error('💥 Permanent delete service error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'PERMANENT_DELETE_SERVICE_FAILED',
+        message: error.message
+      }
+    });
+  }
+  
+  console.log('📋 === PERMANENT DELETE SERVICE REQUEST COMPLETED ===\n');
+};
+
 // @desc    Get service statistics
 // @route   GET /api/services/stats
 // @access  Private (Admin only)
@@ -428,11 +565,15 @@ exports.getServiceStats = async (req, res) => {
   try {
     console.log('📋 Getting service statistics...');
     
-    const totalServices = await Service.countDocuments();
-    const activeServices = await Service.countDocuments({ isActive: true });
-    const inactiveServices = await Service.countDocuments({ isActive: false });
+    const totalServices = await Service.countDocuments({ isDeleted: false });
+    const activeServices = await Service.countDocuments({ isActive: true, isDeleted: false });
+    const inactiveServices = await Service.countDocuments({ isActive: false, isDeleted: false });
+    const deletedServices = await Service.countDocuments({ isDeleted: true });
     
     const servicesByCategory = await Service.aggregate([
+      {
+        $match: { isDeleted: false }
+      },
       {
         $group: {
           _id: '$category',
@@ -441,7 +582,7 @@ exports.getServiceStats = async (req, res) => {
       }
     ]);
     
-    const popularServices = await Service.find({ isActive: true })
+    const popularServices = await Service.find({ isActive: true, isDeleted: false })
       .sort({ popularity: -1 })
       .limit(5)
       .select('name popularity pricing');
@@ -450,6 +591,7 @@ exports.getServiceStats = async (req, res) => {
       totalServices,
       activeServices,
       inactiveServices,
+      deletedServices,
       servicesByCategory,
       popularServices
     };

@@ -1,27 +1,31 @@
 import { useState, useEffect } from 'react';
+import { designSystem, componentStyles, hoverEffects, getStatusBadgeStyle } from '../../../../styles/designSystem';
 
-const ClientPayments = ({ clientData, apiCall }) => {
+const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
   const [payments, setPayments] = useState([]);
+  const [activeTab, setActiveTab] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalPaid: 0,
-    pendingAmount: 0,
-    nextPaymentDue: null
-  });
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentData, setPaymentData] = useState({
+    amount: '',
+    method: 'bank_transfer',
+    reference: '',
+    notes: '',
+    receipt: null
+  });
 
   useEffect(() => {
     loadPayments();
-    loadPaymentStats();
   }, []);
 
   const loadPayments = async () => {
     setLoading(true);
     try {
-      const response = await apiCall('/client/payments');
+      const response = await apiCall('/payments?client=' + clientData?.email);
       if (response.success) {
-        setPayments(response.data);
+        setPayments(response.data || []);
       }
     } catch (error) {
       console.error('Error loading payments:', error);
@@ -30,315 +34,676 @@ const ClientPayments = ({ clientData, apiCall }) => {
     }
   };
 
-  const loadPaymentStats = async () => {
+  const getFilteredPayments = () => {
+    if (activeTab === 'all') return payments;
+    return payments.filter(payment => {
+      switch (activeTab) {
+        case 'pending':
+          return payment.status === 'pending';
+        case 'approved':
+          return payment.status === 'approved' || payment.status === 'verified' || payment.status === 'completed';
+        case 'rejected':
+          return payment.status === 'rejected' || payment.status === 'failed';
+        default:
+          return true;
+      }
+    });
+  };
+
+  const getPaymentCounts = () => {
+    return {
+      total: payments.length,
+      pending: payments.filter(p => p.status === 'pending').length,
+      approved: payments.filter(p => p.status === 'approved' || p.status === 'verified' || p.status === 'completed').length,
+      rejected: payments.filter(p => p.status === 'rejected' || p.status === 'failed').length,
+      totalAmount: payments.reduce((sum, p) => sum + (p.amount || 0), 0),
+      paidAmount: payments.filter(p => p.status === 'approved' || p.status === 'verified' || p.status === 'completed').reduce((sum, p) => sum + (p.amount || 0), 0)
+    };
+  };
+
+  const getPaymentStatusStyle = (status) => {
+    const statusStyles = {
+      'pending': { background: '#f59e0b', color: 'white' },
+      'approved': { background: '#10b981', color: 'white' },
+      'verified': { background: '#10b981', color: 'white' },
+      'completed': { background: '#10b981', color: 'white' },
+      'rejected': { background: '#ef4444', color: 'white' },
+      'failed': { background: '#ef4444', color: 'white' }
+    };
+    return statusStyles[status] || { background: '#6b7280', color: 'white' };
+  };
+
+  const handleMakePayment = async () => {
     try {
-      const response = await apiCall('/client/payment-stats');
+      const formData = new FormData();
+      formData.append('amount', paymentData.amount);
+      formData.append('method', paymentData.method);
+      formData.append('reference', paymentData.reference);
+      formData.append('notes', paymentData.notes);
+      formData.append('client', clientData._id);
+      if (paymentData.receipt) {
+        formData.append('receipt', paymentData.receipt);
+      }
+
+      const response = await apiCall('/payments', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          // Remove Content-Type to let browser set it with boundary for FormData
+          'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('client_token')}`
+        }
+      });
+
       if (response.success) {
-        setStats(response.data);
+        alert('Payment submitted successfully! It will be reviewed by our team.');
+        setShowPaymentModal(false);
+        setPaymentData({
+          amount: '',
+          method: 'bank_transfer',
+          reference: '',
+          notes: '',
+          receipt: null
+        });
+        loadPayments();
+      } else {
+        throw new Error(response.message || 'Payment submission failed');
       }
     } catch (error) {
-      console.error('Error loading payment stats:', error);
+      console.error('Error submitting payment:', error);
+      alert(`Payment submission failed: ${error.message}`);
     }
   };
 
-  const getStatusBadge = (status) => {
-    const statusMap = {
-      'completed': 'bg-success',
-      'pending': 'bg-warning',
-      'failed': 'bg-danger',
-      'refunded': 'bg-info'
-    };
-    return statusMap[status] || 'bg-secondary';
-  };
+  const PaymentCard = ({ payment }) => (
+    <div
+      style={{
+        ...componentStyles.managementCard,
+        margin: 0,
+        cursor: 'pointer',
+        transition: 'all 0.3s ease'
+      }}
+      {...hoverEffects.card}
+      onClick={() => {
+        setSelectedPayment(payment);
+        setShowModal(true);
+      }}
+    >
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: designSystem.spacing.md
+      }}>
+        <div style={{ flex: 1 }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            marginBottom: designSystem.spacing.sm
+          }}>
+            <span style={{
+              ...componentStyles.badge,
+              background: designSystem.colors.primary,
+              color: 'white',
+              fontFamily: 'monospace',
+              fontSize: '12px',
+              fontWeight: '600',
+              marginRight: designSystem.spacing.sm
+            }}>
+              #{payment._id.slice(-8).toUpperCase()}
+            </span>
+            <span style={{
+              ...componentStyles.badge,
+              ...getPaymentStatusStyle(payment.status),
+              textTransform: 'uppercase',
+              fontSize: '11px',
+              fontWeight: '600'
+            }}>
+              {payment.status}
+            </span>
+          </div>
+          
+          <div style={{
+            fontSize: designSystem.typography.fontSize.sm,
+            color: designSystem.colors.gray[600],
+            marginBottom: designSystem.spacing.sm
+          }}>
+            Payment Method: {payment.method?.replace('_', ' ').toUpperCase() || 'Not Specified'}
+          </div>
+          
+          {payment.reference && (
+            <div style={{
+              fontSize: designSystem.typography.fontSize.sm,
+              color: designSystem.colors.gray[600],
+              marginBottom: designSystem.spacing.sm
+            }}>
+              Reference: {payment.reference}
+            </div>
+          )}
+        </div>
+        
+        <div style={{
+          textAlign: 'right',
+          marginLeft: designSystem.spacing.md
+        }}>
+          <div style={{
+            fontSize: designSystem.typography.fontSize.xl,
+            fontWeight: designSystem.typography.fontWeight.bold,
+            color: designSystem.colors.success.split('(')[0],
+            marginBottom: '4px'
+          }}>
+            ${payment.amount?.toLocaleString() || '0'}
+          </div>
+          <div style={{
+            fontSize: designSystem.typography.fontSize.xs,
+            color: designSystem.colors.gray[500]
+          }}>
+            {new Date(payment.createdAt || payment.created_at).toLocaleDateString()}
+          </div>
+        </div>
+      </div>
 
-  const handleViewReceipt = (payment) => {
-    setSelectedPayment(payment);
-    setShowPaymentModal(true);
-  };
+      {payment.project && (
+        <div style={{
+          background: designSystem.colors.light,
+          padding: designSystem.spacing.sm,
+          borderRadius: designSystem.borderRadius.small,
+          marginBottom: designSystem.spacing.md
+        }}>
+          <div style={{
+            fontSize: designSystem.typography.fontSize.xs,
+            color: designSystem.colors.gray[500],
+            marginBottom: '2px'
+          }}>
+            Related Project
+          </div>
+          <div style={{
+            fontSize: designSystem.typography.fontSize.sm,
+            fontWeight: designSystem.typography.fontWeight.medium,
+            color: designSystem.colors.dark
+          }}>
+            {payment.project.service?.name || payment.project.service_name || 'Immigration Service'}
+          </div>
+        </div>
+      )}
 
-  const handleMakePayment = () => {
-    // This would typically redirect to a payment processor
-    alert('Payment functionality would be integrated with a payment processor like Stripe or PayPal');
-  };
+      {payment.notes && (
+        <div style={{
+          fontSize: designSystem.typography.fontSize.sm,
+          color: designSystem.colors.gray[600],
+          fontStyle: 'italic',
+          marginBottom: designSystem.spacing.md
+        }}>
+          "{payment.notes}"
+        </div>
+      )}
+
+      <div style={{
+        display: 'flex',
+        gap: designSystem.spacing.sm,
+        paddingTop: designSystem.spacing.md,
+        borderTop: `1px solid ${designSystem.colors.gray[200]}`
+      }}>
+        <button
+          style={{
+            ...componentStyles.primaryButton,
+            flex: 1,
+            background: designSystem.colors.primary,
+            fontSize: designSystem.typography.fontSize.sm
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedPayment(payment);
+            setShowModal(true);
+          }}
+          {...hoverEffects.button}
+        >
+          <i className="fas fa-eye me-2"></i>View Details
+        </button>
+        {payment.receipt_url && (
+          <button
+            style={{
+              ...componentStyles.secondaryButton,
+              fontSize: designSystem.typography.fontSize.sm
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(payment.receipt_url, '_blank');
+            }}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-download me-2"></i>Receipt
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  const PaymentModal = () => (
+    <div className="modal d-block" style={componentStyles.modal}>
+      <div className="modal-dialog modal-lg">
+        <div className="modal-content" style={componentStyles.modalContent}>
+          <div className="modal-header" style={componentStyles.modalHeader}>
+            <h5 className="modal-title">
+              <i className="fas fa-credit-card me-2"></i>
+              Payment Details - #{selectedPayment?._id.slice(-8).toUpperCase()}
+            </h5>
+            <button 
+              type="button" 
+              className="btn-close btn-close-white" 
+              onClick={() => setShowModal(false)}
+            ></button>
+          </div>
+          
+          <div className="modal-body" style={componentStyles.modalBody}>
+            {selectedPayment && (
+              <div>
+                <div className="row mb-4">
+                  <div className="col-md-6">
+                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                      Payment Information
+                    </h6>
+                    <p><strong>Amount:</strong> ${selectedPayment.amount?.toLocaleString()}</p>
+                    <p><strong>Status:</strong> 
+                      <span style={{
+                        ...componentStyles.badge,
+                        ...getPaymentStatusStyle(selectedPayment.status),
+                        marginLeft: '8px'
+                      }}>
+                        {selectedPayment.status.toUpperCase()}
+                      </span>
+                    </p>
+                    <p><strong>Method:</strong> {selectedPayment.method?.replace('_', ' ').toUpperCase()}</p>
+                    <p><strong>Reference:</strong> {selectedPayment.reference || 'N/A'}</p>
+                  </div>
+                  <div className="col-md-6">
+                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                      Timeline
+                    </h6>
+                    <p><strong>Submitted:</strong> {new Date(selectedPayment.createdAt || selectedPayment.created_at).toLocaleString()}</p>
+                    {selectedPayment.verified_at && (
+                      <p><strong>Verified:</strong> {new Date(selectedPayment.verified_at).toLocaleString()}</p>
+                    )}
+                    {selectedPayment.updated_at && (
+                      <p><strong>Last Updated:</strong> {new Date(selectedPayment.updated_at).toLocaleString()}</p>
+                    )}
+                  </div>
+                </div>
+
+                {selectedPayment.project && (
+                  <div className="mb-4">
+                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                      Related Project
+                    </h6>
+                    <div style={{
+                      background: designSystem.colors.light,
+                      padding: designSystem.spacing.md,
+                      borderRadius: designSystem.borderRadius.button
+                    }}>
+                      <p><strong>Service:</strong> {selectedPayment.project.service?.name || selectedPayment.project.service_name}</p>
+                      <p><strong>Project ID:</strong> {selectedPayment.project.project_id || `#${selectedPayment.project._id.slice(-8).toUpperCase()}`}</p>
+                      <p><strong>Status:</strong> {selectedPayment.project.status}</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedPayment.notes && (
+                  <div className="mb-4">
+                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                      Notes
+                    </h6>
+                    <div style={{
+                      background: designSystem.colors.light,
+                      padding: designSystem.spacing.md,
+                      borderRadius: designSystem.borderRadius.button,
+                      fontStyle: 'italic'
+                    }}>
+                      {selectedPayment.notes}
+                    </div>
+                  </div>
+                )}
+
+                {selectedPayment.receipt_url && (
+                  <div className="mb-4">
+                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                      Receipt
+                    </h6>
+                    <button
+                      className="btn btn-outline-primary"
+                      onClick={() => window.open(selectedPayment.receipt_url, '_blank')}
+                    >
+                      <i className="fas fa-download me-2"></i>Download Receipt
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="modal-footer" style={componentStyles.modalFooter}>
+            <button 
+              type="button" 
+              className="btn btn-secondary" 
+              onClick={() => setShowModal(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const MakePaymentModal = () => (
+    <div className="modal d-block" style={componentStyles.modal}>
+      <div className="modal-dialog modal-lg">
+        <div className="modal-content" style={componentStyles.modalContent}>
+          <div className="modal-header" style={componentStyles.modalHeader}>
+            <h5 className="modal-title">
+              <i className="fas fa-plus me-2"></i>
+              Make Payment
+            </h5>
+            <button 
+              type="button" 
+              className="btn-close btn-close-white" 
+              onClick={() => setShowPaymentModal(false)}
+            ></button>
+          </div>
+          
+          <div className="modal-body" style={componentStyles.modalBody}>
+            <div className="row">
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Amount ($)</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={paymentData.amount}
+                  onChange={(e) => setPaymentData({...paymentData, amount: e.target.value})}
+                  placeholder="Enter amount"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Payment Method</label>
+                <select
+                  className="form-control"
+                  value={paymentData.method}
+                  onChange={(e) => setPaymentData({...paymentData, method: e.target.value})}
+                >
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="credit_card">Credit Card</option>
+                  <option value="paypal">PayPal</option>
+                  <option value="check">Check</option>
+                  <option value="cash">Cash</option>
+                </select>
+              </div>
+              <div className="col-12 mb-3">
+                <label className="form-label">Reference Number</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={paymentData.reference}
+                  onChange={(e) => setPaymentData({...paymentData, reference: e.target.value})}
+                  placeholder="Transaction ID, Check number, etc."
+                />
+              </div>
+              <div className="col-12 mb-3">
+                <label className="form-label">Payment Receipt/Proof</label>
+                <input
+                  type="file"
+                  className="form-control"
+                  accept="image/*,.pdf"
+                  onChange={(e) => setPaymentData({...paymentData, receipt: e.target.files[0]})}
+                />
+                <small className="text-muted">Upload a screenshot or receipt of your payment</small>
+              </div>
+              <div className="col-12 mb-3">
+                <label className="form-label">Notes (Optional)</label>
+                <textarea
+                  className="form-control"
+                  rows="3"
+                  value={paymentData.notes}
+                  onChange={(e) => setPaymentData({...paymentData, notes: e.target.value})}
+                  placeholder="Any additional information about this payment"
+                ></textarea>
+              </div>
+            </div>
+
+            <div style={{
+              background: designSystem.colors.light,
+              padding: designSystem.spacing.md,
+              borderRadius: designSystem.borderRadius.button,
+              marginTop: designSystem.spacing.md
+            }}>
+              <p style={{ 
+                margin: 0,
+                fontSize: designSystem.typography.fontSize.sm,
+                color: designSystem.colors.gray[600]
+              }}>
+                <i className="fas fa-info-circle me-2"></i>
+                Your payment will be reviewed by our team and you'll receive confirmation once verified.
+              </p>
+            </div>
+          </div>
+          
+          <div className="modal-footer" style={componentStyles.modalFooter}>
+            <button 
+              type="button" 
+              className="btn btn-secondary" 
+              onClick={() => setShowPaymentModal(false)}
+            >
+              Cancel
+            </button>
+            <button 
+              type="button" 
+              className="btn btn-success" 
+              onClick={handleMakePayment}
+              disabled={!paymentData.amount}
+            >
+              <i className="fas fa-paper-plane me-2"></i>
+              Submit Payment
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const StatCard = ({ icon, number, label, borderColor, iconColor }) => (
+    <div 
+      style={{
+        ...componentStyles.contactsStatCard,
+        borderColor: borderColor,
+        cursor: 'pointer'
+      }}
+      {...hoverEffects.card}
+    >
+      <i className={`${icon} fa-2x mb-2`} style={{ color: iconColor }}></i>
+      <h4 style={{ 
+        color: iconColor,
+        fontWeight: designSystem.typography.fontWeight.bold,
+        marginBottom: '4px'
+      }}>
+        {number}
+      </h4>
+      <small style={{ color: designSystem.colors.gray[500] }}>
+        {label}
+      </small>
+    </div>
+  );
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center py-5">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
+      <div style={componentStyles.loading}>
+        <i className="fas fa-spinner fa-spin fa-2x" style={{ color: designSystem.colors.primary }}></i>
+        <p style={{ marginTop: designSystem.spacing.md, color: designSystem.colors.gray[500] }}>
+          Loading payment history...
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="client-payments">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h4>
-          <i className="fas fa-credit-card me-2"></i>
-          Payments & Billing
-        </h4>
-        <button className="btn btn-primary" onClick={handleMakePayment}>
-          <i className="fas fa-plus me-2"></i>
-          Make Payment
-        </button>
-      </div>
-
-      {/* Payment Stats */}
-      <div className="row mb-4">
-        <div className="col-md-4 mb-3">
-          <div className="card bg-success text-white">
-            <div className="card-body text-center">
-              <i className="fas fa-dollar-sign fa-2x mb-2"></i>
-              <h3 className="mb-1">${stats.totalPaid}</h3>
-              <p className="mb-0">Total Paid</p>
-            </div>
+    <div>
+      {/* Header with Actions */}
+      <div style={componentStyles.header}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={componentStyles.headerIcon}>
+            <i className="fas fa-credit-card fa-lg"></i>
+          </div>
+          <div>
+            <h4 style={componentStyles.headerTitle}>Payments & Billing</h4>
+            <p style={componentStyles.headerSubtitle}>Track your payments and make new payments</p>
           </div>
         </div>
-        <div className="col-md-4 mb-3">
-          <div className="card bg-warning text-white">
-            <div className="card-body text-center">
-              <i className="fas fa-clock fa-2x mb-2"></i>
-              <h3 className="mb-1">${stats.pendingAmount}</h3>
-              <p className="mb-0">Pending</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-4 mb-3">
-          <div className="card bg-info text-white">
-            <div className="card-body text-center">
-              <i className="fas fa-calendar-alt fa-2x mb-2"></i>
-              <h3 className="mb-1">
-                {stats.nextPaymentDue ? new Date(stats.nextPaymentDue).toLocaleDateString() : 'N/A'}
-              </h3>
-              <p className="mb-0">Next Due</p>
-            </div>
-          </div>
+        <div style={{ display: 'flex', gap: designSystem.spacing.sm }}>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: designSystem.colors.success
+            }}
+            onClick={() => setShowPaymentModal(true)}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-plus me-2"></i>Make Payment
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: designSystem.colors.info
+            }}
+            onClick={() => {
+              loadPayments();
+              onRefresh?.();
+            }}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-sync-alt me-2"></i>Refresh
+          </button>
         </div>
       </div>
 
-      {/* Payment History */}
-      <div className="card">
-        <div className="card-header">
-          <h6 className="mb-0">
-            <i className="fas fa-history me-2"></i>
-            Payment History
+      {/* Payment Statistics */}
+      <div style={componentStyles.statsContainer}>
+        <StatCard
+          icon="fas fa-credit-card"
+          number={getPaymentCounts().total}
+          label="Total Payments"
+          borderColor="#8b5cf6"
+          iconColor="#8b5cf6"
+        />
+        <StatCard
+          icon="fas fa-clock"
+          number={getPaymentCounts().pending}
+          label="Pending Review"
+          borderColor="#f59e0b"
+          iconColor="#f59e0b"
+        />
+        <StatCard
+          icon="fas fa-check-circle"
+          number={getPaymentCounts().approved}
+          label="Approved Payments"
+          borderColor="#10b981"
+          iconColor="#10b981"
+        />
+        <StatCard
+          icon="fas fa-dollar-sign"
+          number={`$${getPaymentCounts().paidAmount.toLocaleString()}`}
+          label="Total Paid"
+          borderColor="#3b82f6"
+          iconColor="#3b82f6"
+        />
+      </div>
+
+      {/* Payment Tabs */}
+      <div style={{ marginBottom: designSystem.spacing.lg }}>
+        <div style={{ display: 'flex', gap: designSystem.spacing.xs, flexWrap: 'wrap' }}>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeTab === 'all' ? designSystem.colors.primary : designSystem.colors.gray[100],
+              color: activeTab === 'all' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveTab('all')}
+            {...hoverEffects.button}
+          >
+            All Payments ({getPaymentCounts().total})
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeTab === 'pending' ? '#f59e0b' : designSystem.colors.gray[100],
+              color: activeTab === 'pending' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveTab('pending')}
+            {...hoverEffects.button}
+          >
+            Pending ({getPaymentCounts().pending})
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeTab === 'approved' ? '#10b981' : designSystem.colors.gray[100],
+              color: activeTab === 'approved' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveTab('approved')}
+            {...hoverEffects.button}
+          >
+            Approved ({getPaymentCounts().approved})
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeTab === 'rejected' ? '#ef4444' : designSystem.colors.gray[100],
+              color: activeTab === 'rejected' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveTab('rejected')}
+            {...hoverEffects.button}
+          >
+            Rejected ({getPaymentCounts().rejected})
+          </button>
+        </div>
+      </div>
+
+      {/* Payments Grid */}
+      {getFilteredPayments().length === 0 ? (
+        <div style={componentStyles.emptyState}>
+          <i className="fas fa-credit-card fa-4x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.lg }}></i>
+          <h6 style={{ color: designSystem.colors.gray[500], marginBottom: designSystem.spacing.md }}>
+            No {activeTab === 'all' ? '' : activeTab} payments found
           </h6>
-        </div>
-        <div className="card-body">
-          {payments.length > 0 ? (
-            <div className="table-responsive">
-              <table className="table table-hover">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Description</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Method</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.map((payment) => (
-                    <tr key={payment.id}>
-                      <td>{new Date(payment.created_at).toLocaleDateString()}</td>
-                      <td>
-                        <div>
-                          <div className="fw-bold">{payment.description}</div>
-                          {payment.project_title && (
-                            <small className="text-muted">Project: {payment.project_title}</small>
-                          )}
-                        </div>
-                      </td>
-                      <td className="fw-bold">${payment.amount}</td>
-                      <td>
-                        <span className={`badge ${getStatusBadge(payment.status)}`}>
-                          {payment.status.toUpperCase()}
-                        </span>
-                      </td>
-                      <td>
-                        <i className={`fab fa-cc-${payment.payment_method?.toLowerCase() || 'generic'} me-1`}></i>
-                        {payment.payment_method || 'N/A'}
-                      </td>
-                      <td>
-                        <div className="btn-group btn-group-sm">
-                          <button 
-                            className="btn btn-outline-primary"
-                            onClick={() => handleViewReceipt(payment)}
-                          >
-                            <i className="fas fa-eye"></i>
-                          </button>
-                          {payment.receipt_url && (
-                            <a 
-                              href={payment.receipt_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="btn btn-outline-secondary"
-                            >
-                              <i className="fas fa-download"></i>
-                            </a>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center py-5">
-              <i className="fas fa-receipt text-muted fa-3x mb-3"></i>
-              <h5 className="text-muted">No Payments Yet</h5>
-              <p className="text-muted mb-4">
-                Your payment history will appear here once you make your first payment.
-              </p>
-              <button className="btn btn-primary" onClick={handleMakePayment}>
-                <i className="fas fa-credit-card me-2"></i>
-                Make Your First Payment
-              </button>
-            </div>
+          <p style={{ color: designSystem.colors.gray[500], marginBottom: designSystem.spacing.lg }}>
+            {activeTab === 'all' 
+              ? 'You haven\'t made any payments yet.'
+              : `You don't have any ${activeTab} payments at the moment.`}
+          </p>
+          {activeTab === 'all' && (
+            <button
+              style={componentStyles.primaryButton}
+              onClick={() => setShowPaymentModal(true)}
+              {...hoverEffects.button}
+            >
+              <i className="fas fa-plus me-2"></i>Make Your First Payment
+            </button>
           )}
         </div>
-      </div>
-
-      {/* Payment Methods */}
-      <div className="card mt-4">
-        <div className="card-header">
-          <h6 className="mb-0">
-            <i className="fas fa-credit-card me-2"></i>
-            Payment Methods
-          </h6>
-        </div>
-        <div className="card-body">
-          <div className="row">
-            <div className="col-md-6">
-              <div className="border rounded p-3 mb-3">
-                <h6 className="text-primary">
-                  <i className="fas fa-university me-2"></i>
-                  Bank Transfer
-                </h6>
-                <p className="small text-muted mb-2">
-                  Secure bank-to-bank transfer with low fees.
-                </p>
-                <button className="btn btn-outline-primary btn-sm">
-                  Set Up
-                </button>
-              </div>
-            </div>
-            <div className="col-md-6">
-              <div className="border rounded p-3 mb-3">
-                <h6 className="text-success">
-                  <i className="fab fa-cc-stripe me-2"></i>
-                  Credit/Debit Card
-                </h6>
-                <p className="small text-muted mb-2">
-                  Pay instantly with your credit or debit card.
-                </p>
-                <button className="btn btn-outline-success btn-sm">
-                  Add Card
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Payment Details Modal */}
-      {showPaymentModal && selectedPayment && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Payment Details</h5>
-                <button 
-                  type="button" 
-                  className="btn-close"
-                  onClick={() => setShowPaymentModal(false)}
-                ></button>
-              </div>
-              <div className="modal-body">
-                <div className="row mb-3">
-                  <div className="col-6">
-                    <strong>Payment ID:</strong>
-                  </div>
-                  <div className="col-6">
-                    #{selectedPayment.id}
-                  </div>
-                </div>
-                <div className="row mb-3">
-                  <div className="col-6">
-                    <strong>Date:</strong>
-                  </div>
-                  <div className="col-6">
-                    {new Date(selectedPayment.created_at).toLocaleDateString()}
-                  </div>
-                </div>
-                <div className="row mb-3">
-                  <div className="col-6">
-                    <strong>Amount:</strong>
-                  </div>
-                  <div className="col-6">
-                    <span className="fw-bold">${selectedPayment.amount}</span>
-                  </div>
-                </div>
-                <div className="row mb-3">
-                  <div className="col-6">
-                    <strong>Status:</strong>
-                  </div>
-                  <div className="col-6">
-                    <span className={`badge ${getStatusBadge(selectedPayment.status)}`}>
-                      {selectedPayment.status.toUpperCase()}
-                    </span>
-                  </div>
-                </div>
-                <div className="row mb-3">
-                  <div className="col-6">
-                    <strong>Method:</strong>
-                  </div>
-                  <div className="col-6">
-                    {selectedPayment.payment_method || 'N/A'}
-                  </div>
-                </div>
-                <div className="row mb-3">
-                  <div className="col-12">
-                    <strong>Description:</strong>
-                    <p className="mt-1">{selectedPayment.description}</p>
-                  </div>
-                </div>
-                {selectedPayment.notes && (
-                  <div className="row mb-3">
-                    <div className="col-12">
-                      <strong>Notes:</strong>
-                      <p className="mt-1">{selectedPayment.notes}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="modal-footer">
-                <button 
-                  type="button" 
-                  className="btn btn-secondary"
-                  onClick={() => setShowPaymentModal(false)}
-                >
-                  Close
-                </button>
-                {selectedPayment.receipt_url && (
-                  <a 
-                    href={selectedPayment.receipt_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="btn btn-primary"
-                  >
-                    <i className="fas fa-download me-2"></i>
-                    Download Receipt
-                  </a>
-                )}
-              </div>
-            </div>
-          </div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+          gap: designSystem.spacing.lg
+        }}>
+          {getFilteredPayments().map(payment => (
+            <PaymentCard key={payment._id} payment={payment} />
+          ))}
         </div>
       )}
+
+      {/* Payment Details Modal */}
+      {showModal && <PaymentModal />}
+
+      {/* Make Payment Modal */}
+      {showPaymentModal && <MakePaymentModal />}
     </div>
   );
 };

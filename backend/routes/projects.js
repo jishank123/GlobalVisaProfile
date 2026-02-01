@@ -17,6 +17,11 @@ router.post('/bulk/assign-to-crm', auth(['lead_manager', 'admin']), projectContr
 // @access  Private (CRM Manager only)
 router.get('/my-projects', auth(['crm_manager']), projectController.getMyProjects);
 
+// @route   GET /api/projects/my-created-projects
+// @desc    Get projects created by current lead manager
+// @access  Private (Lead Manager only)
+router.get('/my-created-projects', auth(['lead_manager']), projectController.getMyCreatedProjects);
+
 // @route   POST /api/projects/:id/milestones
 // @desc    Add milestone/task to project
 // @access  Private (CRM Manager, Admin)
@@ -83,9 +88,9 @@ router.patch('/:id/progress', auth(['admin', 'lead_manager', 'crm_manager']), as
     
     // Auto-update status based on progress
     if (progress === 0) {
-      project.status = 'planning';
+      project.status = 'pending';
     } else if (progress > 0 && progress < 100) {
-      project.status = 'in_progress';
+      project.status = 'active';
     } else if (progress === 100) {
       project.status = 'completed';
       project.actualEndDate = new Date();

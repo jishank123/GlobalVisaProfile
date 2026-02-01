@@ -388,9 +388,86 @@ exports.uploadPaymentReceipt = async (req, res) => {
   }
 };
 
-module.exports = {
-  getPendingPayments: exports.getPendingPayments,
-  verifyPayment: exports.verifyPayment,
-  getPaymentStats: exports.getPaymentStats,
-  uploadPaymentReceipt: exports.uploadPaymentReceipt
+/**
+ * Get payments for projects assigned to current CRM manager
+ * @route GET /api/payments/my-payments
+ * @access Private (CRM Manager only)
+ */
+exports.getMyPayments = async (req, res) => {
+  console.log('\n💳 === GET MY PAYMENTS REQUEST ===');
+  console.log('💳 CRM Manager requesting their payments');
+  
+  try {
+    const crmManagerId = req.user.user_id || req.user.id;
+    console.log('💳 CRM Manager ID:', crmManagerId);
+    
+    const { status, page = 1, limit = 50 } = req.query;
+    
+    // Get projects assigned to this CRM manager
+    const Project = require('../models/Project');
+    const projects = await Project.find({ 
+      assigned_to: crmManagerId,
+      status: { $ne: 'deleted' }
+    }).select('_id project_id service_name').lean();
+    
+    console.log('💳 Found assigned projects:', projects.length);
+    
+    if (projects.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        count: 0,
+        message: 'No projects assigned to you'
+      });
+    }
+    
+    const projectIds = projects.map(p => p._id);
+    
+    // Build query for payments
+    let query = {
+      project: { $in: projectIds }
+    };
+    
+    if (status) {
+      query.status = status;
+    }
+    
+    console.log('💳 Payment query:', query);
+    
+    // Get payments with pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    const payments = await Payment.find(query)
+      .populate('client', 'name firstName lastName email')
+      .populate('project', 'project_id service_name client')
+      .populate('service', 'name')
+      .populate('verified_by', 'first_name last_name')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+    
+    const totalPayments = await Payment.countDocuments(query);
+    
+    console.log('💳 Found payments:', payments.length, 'of', totalPayments);
+    
+    res.json({
+      success: true,
+      data: payments,
+      count: payments.length,
+      total: totalPayments,
+      page: parseInt(page),
+      totalPages: Math.ceil(totalPayments / parseInt(limit))
+    });
+    
+  } catch (error) {
+    console.error('❌ Error in getMyPayments:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'PAYMENTS_FETCH_ERROR',
+        message: 'Failed to fetch payments'
+      }
+    });
+  }
 };

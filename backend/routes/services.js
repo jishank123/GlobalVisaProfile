@@ -224,9 +224,19 @@ router.patch('/:id', adminAuth, validateServiceUpdate, serviceController.updateS
 // @access  Private (Admin only)
 router.patch('/:id/toggle-status', adminAuth, serviceController.toggleServiceStatus);
 
+// @route   PATCH /api/services/:id/restore
+// @desc    Restore deleted service
+// @access  Private (Admin only)
+router.patch('/:id/restore', adminAuth, serviceController.restoreService);
+
 // @route   DELETE /api/services/:id
 // @desc    Delete service (soft delete)
 // @access  Private (Admin only)
 router.delete('/:id', adminAuth, serviceController.deleteService);
+
+// @route   DELETE /api/services/:id/permanent
+// @desc    Permanently delete service (hard delete)
+// @access  Private (Admin only)
+router.delete('/:id/permanent', adminAuth, serviceController.permanentDeleteService);
 
 module.exports = router;

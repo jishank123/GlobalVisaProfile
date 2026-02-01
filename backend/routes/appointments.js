@@ -11,7 +11,8 @@ const {
   addCommunication,
   deleteAppointmentRequest,
   getMyAppointments,
-  getClientAppointments
+  getClientAppointments,
+  getMyCreatedAppointments
 } = require('../controllers/appointmentController');
 
 const router = express.Router();
@@ -26,6 +27,10 @@ const publicRateLimit = rateLimit({
       code: 'RATE_LIMIT_EXCEEDED',
       message: 'Too many appointment requests. Please try again later.'
     }
+  },
+  skip: (req) => {
+    // Skip rate limiting for authenticated staff members
+    return req.user && ['admin', 'lead_manager', 'crm_manager'].includes(req.user.role);
   }
 });
 
@@ -45,10 +50,24 @@ const validateAppointmentRequest = [
   
   body('phone')
     .trim()
-    .isLength({ min: 7, max: 20 })
-    .withMessage('Phone number must be between 7 and 20 characters')
-    .matches(/^[\+]?[1-9][\d\s\-\(\)\.]{6,18}$/)
-    .withMessage('Please provide a valid phone number'),
+    .isLength({ min: 1, max: 20 })
+    .withMessage('Phone number must be between 1 and 20 characters')
+    .custom((value) => {
+      // More flexible phone validation - allow empty for staff-created appointments
+      if (!value || value.trim() === '') {
+        return true; // Allow empty phone numbers
+      }
+      // Basic phone validation - allow numbers, spaces, hyphens, parentheses, plus signs, dots
+      if (!/^[\+]?[\d\s\-\(\)\.]+$/.test(value)) {
+        throw new Error('Phone number contains invalid characters');
+      }
+      // Must have at least 7 digits
+      const digitCount = value.replace(/\D/g, '').length;
+      if (digitCount < 7) {
+        throw new Error('Phone number must contain at least 7 digits');
+      }
+      return true;
+    }),
   
   body('visa_category')
     .isIn(['eb1a', 'eb2-niw', 'o1', 'multiple', 'other'])
@@ -160,9 +179,10 @@ const validateCommunication = [
 
 // @route   POST /api/appointments
 // @desc    Submit appointment request
-// @access  Public
+// @access  Public (but can also be used by authenticated staff)
 router.post('/', 
-  publicRateLimit,
+  auth(['admin', 'lead_manager', 'crm_manager'], { optional: true }), // Auth first to set req.user
+  publicRateLimit, // Rate limiting after auth so it can skip for staff
   validateAppointmentRequest,
   submitAppointmentRequest
 );
@@ -183,6 +203,14 @@ router.get('/',
 router.get('/my-appointments', 
   auth(['crm_manager']),
   getMyAppointments
+);
+
+// @route   GET /api/appointments/my-created-appointments
+// @desc    Get appointments created by current lead manager
+// @access  Private (Lead Manager only)
+router.get('/my-created-appointments', 
+  auth(['lead_manager']),
+  getMyCreatedAppointments
 );
 
 // @route   GET /api/appointments/client/:email

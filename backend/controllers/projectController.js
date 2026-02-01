@@ -44,8 +44,8 @@ exports.getProjects = async (req, res) => {
       const clientIds = assignedClients.map(client => client._id);
       query.client = { $in: clientIds };
     } else if (req.user.role === 'lead_manager') {
-      // Lead managers can see projects they created or are assigned to
-      query.assigned_to = req.user.user_id;
+      // Lead managers can only see projects they created
+      query.created_by = req.user._id;
     } else if (req.user.role === 'client') {
       // Clients can only see their own projects
       // Find client record by email since there's no direct user link
@@ -199,20 +199,70 @@ exports.getProject = async (req, res) => {
 // @access  Private (Admin, Lead Manager, CRM Manager)
 exports.createProject = async (req, res) => {
   try {
-    // Check validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
+    const { 
+      client, 
+      service, 
+      service_name, 
+      description, 
+      priority, 
+      amount, 
+      start_date, 
+      due_date, 
+      assigned_to,
+      status,
+      created_by
+    } = req.body;
+    
+    // Basic validation
+    if (!client) {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid input data',
-          details: errors.array()
+          code: 'MISSING_CLIENT',
+          message: 'Client ID is required'
         }
       });
     }
     
-    const { client, service, title, description, priority, deadline } = req.body;
+    if (!service) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_SERVICE',
+          message: 'Service ID is required'
+        }
+      });
+    }
+    
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_AMOUNT',
+          message: 'Valid amount is required'
+        }
+      });
+    }
+    
+    if (!start_date) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_START_DATE',
+          message: 'Start date is required'
+        }
+      });
+    }
+    
+    if (!due_date) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_DUE_DATE',
+          message: 'Due date is required'
+        }
+      });
+    }
     
     // Verify client exists
     const clientRecord = await Client.findById(client);
@@ -255,14 +305,22 @@ exports.createProject = async (req, res) => {
     const projectData = {
       client,
       service,
-      title,
-      description,
+      service_name: service_name || serviceRecord.name,
+      description: description || 'Project created from lead',
       priority: priority || 'medium',
-      deadline,
-      assigned_to: clientRecord.crm_manager || req.user._id,
-      created_by: req.user._id,
-      status: 'planning'
+      amount: Number(amount),
+      start_date: new Date(start_date),
+      due_date: new Date(due_date),
+      assigned_to: assigned_to || clientRecord.crm_manager || req.user._id,
+      created_by: created_by || req.user._id, // Ensure created_by is always set
+      status: status || 'pending' // Use valid enum value
     };
+    
+    console.log('🔍 Project data with created_by:', {
+      ...projectData,
+      created_by_user: req.user.email,
+      created_by_id: req.user._id
+    });
     
     const project = await Project.create(projectData);
     
@@ -278,7 +336,7 @@ exports.createProject = async (req, res) => {
       req.user._id,
       'create',
       'Project',
-      `Created new project: ${project.title} for client: ${clientRecord.name}`,
+      `Created new project: ${project.service_name || project.description} for client: ${clientRecord.name}`,
       req.ip,
       project._id
     );
@@ -563,9 +621,16 @@ exports.getProjectStats = async (req, res) => {
 exports.getMyProjects = async (req, res) => {
   try {
     console.log('📊 === GET MY PROJECTS REQUEST ===');
-    console.log('📊 User:', req.user?.email, 'Role:', req.user?.role);
+    console.log('📊 User object:', JSON.stringify(req.user, null, 2));
+    console.log('📊 User email:', req.user?.email);
+    console.log('📊 User role:', req.user?.role);
+    console.log('📊 User ID from req.user.user_id:', req.user?.user_id);
+    console.log('📊 User ID from req.user._id:', req.user?._id);
+    console.log('📊 User ID from req.user.id:', req.user?.id);
+    console.log('📊 Sample project assigned_to for comparison: "697ec40613b779c47c5cd4cd"');
     
     if (req.user.role !== 'crm_manager') {
+      console.log('❌ Access denied - not a CRM manager. Role:', req.user.role);
       return res.status(403).json({
         success: false,
         error: {
@@ -576,43 +641,83 @@ exports.getMyProjects = async (req, res) => {
     }
     
     const { status, page = 1, limit = 20 } = req.query;
+    const crmManagerId = req.user.user_id || req.user._id || req.user.id;
     
-    // Get assigned clients
-    const assignedClients = await Client.find({ 
-      crm_manager: req.user._id 
-    }).select('_id');
+    console.log('📊 Final CRM Manager ID used for query:', crmManagerId);
+    console.log('📊 CRM Manager ID type:', typeof crmManagerId);
+    console.log('📊 CRM Manager ID toString():', crmManagerId.toString());
     
-    const clientIds = assignedClients.map(client => client._id);
-    
-    if (clientIds.length === 0) {
-      return res.json({
-        success: true,
-        count: 0,
-        total: 0,
-        page: parseInt(page),
-        totalPages: 0,
-        data: []
-      });
-    }
-    
-    // Build query for assigned clients' projects
+    // Build query for projects directly assigned to this CRM manager
+    // Use both ObjectId and string comparison to handle different data types
     let query = {
-      client: { $in: clientIds }
+      $or: [
+        { assigned_to: crmManagerId },
+        { assigned_to: crmManagerId.toString() }
+      ],
+      status: { $ne: 'deleted' } // Exclude deleted projects
     };
     
-    if (status) query.status = status;
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+    
+    console.log('📊 MongoDB Query:', JSON.stringify(query, null, 2));
+    
+    // First, let's check if there are ANY projects with this assigned_to value
+    const allProjectsWithThisAssignedTo = await Project.find({ 
+      $or: [
+        { assigned_to: crmManagerId },
+        { assigned_to: crmManagerId.toString() }
+      ]
+    }).lean();
+    console.log('📊 ALL projects with assigned_to matching CRM ID:', allProjectsWithThisAssignedTo.length);
+    
+    // Let's also check what assigned_to values exist in the database
+    const distinctAssignedTo = await Project.distinct('assigned_to');
+    console.log('📊 All distinct assigned_to values in database:', distinctAssignedTo);
+    console.log('📊 Checking if CRM ID matches any assigned_to values:');
+    distinctAssignedTo.forEach(assignedId => {
+      const matches = assignedId.toString() === crmManagerId.toString();
+      console.log(`📊   ${assignedId} (${typeof assignedId}) === ${crmManagerId} (${typeof crmManagerId}) ? ${matches}`);
+    });
+    
+    // Check specifically for the sample project
+    const sampleProject = await Project.findOne({ project_id: "PRJ-0003" }).lean();
+    if (sampleProject) {
+      console.log('📊 Sample project PRJ-0003 found:');
+      console.log('📊   assigned_to:', sampleProject.assigned_to);
+      console.log('📊   assigned_to type:', typeof sampleProject.assigned_to);
+      console.log('📊   assigned_to toString():', sampleProject.assigned_to.toString());
+      console.log('📊   Does it match CRM ID?', sampleProject.assigned_to.toString() === crmManagerId.toString());
+    } else {
+      console.log('📊 Sample project PRJ-0003 not found in database');
+    }
     
     const projects = await Project.find(query)
-      .populate('client', 'name email company')
+      .populate('client', 'name firstName lastName email company')
       .populate('service', 'name category price')
       .populate('assigned_to', 'first_name last_name email')
+      .populate('created_by', 'first_name last_name email')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
     
     const count = await Project.countDocuments(query);
     
-    console.log('📊 Found CRM projects:', projects.length, 'Total:', count);
+    console.log('📊 Found assigned projects:', projects.length, 'Total:', count);
+    
+    // Log each project for debugging
+    projects.forEach((project, index) => {
+      console.log(`📊 Project ${index + 1}:`, {
+        id: project._id,
+        project_id: project.project_id,
+        assigned_to: project.assigned_to?._id || project.assigned_to,
+        assigned_to_type: typeof project.assigned_to,
+        client: project.client?.name || `${project.client?.firstName} ${project.client?.lastName}`,
+        service: project.service?.name || project.service_name,
+        status: project.status
+      });
+    });
     
     res.json({
       success: true,
@@ -1139,6 +1244,65 @@ exports.bulkAssignProjectsToCrm = async (req, res) => {
       success: false,
       error: {
         code: 'BULK_PROJECT_ASSIGN_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Get projects created by current lead manager
+// @route   GET /api/projects/my-created-projects
+// @access  Private (Lead Manager only)
+exports.getMyCreatedProjects = async (req, res) => {
+  try {
+    console.log('📊 === GET MY CREATED PROJECTS REQUEST ===');
+    console.log('📊 User:', req.user?.email, 'Role:', req.user?.role);
+    
+    if (req.user.role !== 'lead_manager') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only lead managers can access this endpoint'
+        }
+      });
+    }
+    
+    const { status, page = 1, limit = 20 } = req.query;
+    
+    // Build query for projects created by this lead manager
+    let query = {
+      created_by: req.user._id
+    };
+    
+    if (status) query.status = status;
+    
+    const projects = await Project.find(query)
+      .populate('client', 'name email company')
+      .populate('service', 'name category price')
+      .populate('assigned_to', 'first_name last_name email')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+    
+    const count = await Project.countDocuments(query);
+    
+    console.log('📊 Found lead manager created projects:', projects.length, 'Total:', count);
+    
+    res.json({
+      success: true,
+      count: projects.length,
+      total: count,
+      page: parseInt(page),
+      totalPages: Math.ceil(count / limit),
+      data: projects
+    });
+  } catch (error) {
+    console.error('❌ Get lead manager created projects error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'FETCH_LEAD_MANAGER_PROJECTS_FAILED',
         message: error.message
       }
     });

@@ -60,6 +60,10 @@ const projectSchema = new mongoose.Schema({
     ref: 'User',
     required: [true, 'Assigned user is required']
   },
+  created_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   description: {
     type: String,
     trim: true
@@ -163,6 +167,7 @@ projectSchema.pre('save', async function(next) {
 projectSchema.index({ project_id: 1 }, { unique: true });
 projectSchema.index({ client: 1 });
 projectSchema.index({ assigned_to: 1 });
+projectSchema.index({ created_by: 1 });
 projectSchema.index({ status: 1 });
 projectSchema.index({ due_date: 1 });
 

@@ -1,24 +1,29 @@
 import { useState, useEffect } from 'react';
+import { designSystem, componentStyles, hoverEffects, getStatusBadgeStyle } from '../../../../styles/designSystem';
 
-const ClientServices = ({ clientData, apiCall }) => {
+const ClientServices = ({ clientData, apiCall, onRefresh }) => {
   const [services, setServices] = useState([]);
-  const [availableServices, setAvailableServices] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedServices, setSelectedServices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showServiceModal, setShowServiceModal] = useState(false);
-  const [selectedService, setSelectedService] = useState(null);
-  const [activeTab, setActiveTab] = useState('my-services');
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [purchaseType, setPurchaseType] = useState('single'); // 'single' or 'multiple'
 
   useEffect(() => {
     loadServices();
-    loadAvailableServices();
   }, []);
 
   const loadServices = async () => {
     setLoading(true);
     try {
-      const response = await apiCall('/client/services');
+      const response = await apiCall('/services');
       if (response.success) {
-        setServices(response.data);
+        setServices(response.data || []);
+        
+        // Extract unique categories
+        const uniqueCategories = [...new Set(response.data.map(service => service.category))];
+        setCategories(uniqueCategories);
       }
     } catch (error) {
       console.error('Error loading services:', error);
@@ -27,341 +32,411 @@ const ClientServices = ({ clientData, apiCall }) => {
     }
   };
 
-  const loadAvailableServices = async () => {
-    try {
-      const response = await apiCall('/services/available');
-      if (response.success) {
-        setAvailableServices(response.data);
-      }
-    } catch (error) {
-      console.error('Error loading available services:', error);
-    }
+  const getFilteredServices = () => {
+    if (selectedCategory === 'all') return services;
+    return services.filter(service => service.category === selectedCategory);
   };
 
-  const getStatusBadge = (status) => {
-    const statusMap = {
-      'active': 'bg-success',
-      'pending': 'bg-warning',
-      'completed': 'bg-primary',
-      'cancelled': 'bg-danger'
-    };
-    return statusMap[status] || 'bg-secondary';
-  };
-
-  const handleViewService = (service) => {
-    setSelectedService(service);
-    setShowServiceModal(true);
-  };
-
-  const handleRequestService = async (serviceId) => {
-    try {
-      const response = await apiCall('/client/services/request', {
-        method: 'POST',
-        body: JSON.stringify({ service_id: serviceId })
-      });
-      
-      if (response.success) {
-        alert('Service request submitted successfully!');
-        loadServices(); // Reload services
+  const handleServiceSelect = (service) => {
+    setSelectedServices(prev => {
+      const isSelected = prev.find(s => s._id === service._id);
+      if (isSelected) {
+        return prev.filter(s => s._id !== service._id);
       } else {
-        alert('Failed to request service: ' + response.message);
+        return [...prev, service];
+      }
+    });
+  };
+
+  const handlePurchase = (service, type = 'single') => {
+    if (type === 'single') {
+      setSelectedServices([service]);
+    }
+    setPurchaseType(type);
+    setShowPurchaseModal(true);
+  };
+
+  const processPurchase = async () => {
+    try {
+      const purchaseData = {
+        services: selectedServices.map(s => s._id),
+        client: clientData._id,
+        type: purchaseType,
+        total_amount: selectedServices.reduce((sum, s) => sum + s.price, 0)
+      };
+
+      const response = await apiCall('/projects', {
+        method: 'POST',
+        body: JSON.stringify(purchaseData)
+      });
+
+      if (response.success) {
+        alert('Services purchased successfully! Your projects have been created.');
+        setShowPurchaseModal(false);
+        setSelectedServices([]);
+        onRefresh?.();
+      } else {
+        throw new Error(response.message || 'Purchase failed');
       }
     } catch (error) {
-      alert('Error requesting service: ' + error.message);
+      console.error('Error processing purchase:', error);
+      alert(`Purchase failed: ${error.message}`);
     }
   };
+
+  const ServiceCard = ({ service, isSelected, onSelect, onPurchase }) => (
+    <div
+      style={{
+        ...componentStyles.managementCard,
+        margin: 0,
+        cursor: 'pointer',
+        border: isSelected ? `2px solid ${designSystem.colors.primary.split('(')[0]}` : `1px solid ${designSystem.colors.gray[200]}`,
+        transform: isSelected ? 'scale(1.02)' : 'scale(1)',
+        transition: 'all 0.3s ease'
+      }}
+      {...hoverEffects.card}
+      onClick={() => onSelect(service)}
+    >
+      <div style={{ position: 'relative' }}>
+        {isSelected && (
+          <div style={{
+            position: 'absolute',
+            top: '-8px',
+            right: '-8px',
+            width: '24px',
+            height: '24px',
+            borderRadius: '50%',
+            background: designSystem.colors.success,
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '12px',
+            zIndex: 1
+          }}>
+            <i className="fas fa-check"></i>
+          </div>
+        )}
+        
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          marginBottom: designSystem.spacing.md
+        }}>
+          <div style={{
+            ...componentStyles.headerIcon,
+            background: designSystem.colors.primary,
+            marginRight: designSystem.spacing.md
+          }}>
+            <i className="fas fa-concierge-bell"></i>
+          </div>
+          <div style={{ flex: 1 }}>
+            <h5 style={{
+              color: designSystem.colors.dark,
+              fontWeight: designSystem.typography.fontWeight.semibold,
+              marginBottom: '4px'
+            }}>
+              {service.name}
+            </h5>
+            <span style={{
+              ...componentStyles.badge,
+              background: designSystem.colors.info,
+              color: 'white'
+            }}>
+              {service.category}
+            </span>
+          </div>
+          <div style={{
+            fontSize: designSystem.typography.fontSize.xl,
+            fontWeight: designSystem.typography.fontWeight.bold,
+            color: designSystem.colors.success.split('(')[0]
+          }}>
+            ${service.price?.toLocaleString()}
+          </div>
+        </div>
+
+        <p style={{
+          color: designSystem.colors.gray[600],
+          marginBottom: designSystem.spacing.md,
+          fontSize: designSystem.typography.fontSize.sm
+        }}>
+          {service.description}
+        </p>
+
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: designSystem.spacing.md
+        }}>
+          <div style={{
+            fontSize: designSystem.typography.fontSize.sm,
+            color: designSystem.colors.gray[500]
+          }}>
+            <i className="fas fa-clock me-2"></i>
+            Duration: {service.duration || 'Varies'}
+          </div>
+          <div style={{
+            fontSize: designSystem.typography.fontSize.sm,
+            color: designSystem.colors.gray[500]
+          }}>
+            <i className="fas fa-star me-2"></i>
+            {service.rating || 'New'}
+          </div>
+        </div>
+
+        <div style={{
+          display: 'flex',
+          gap: designSystem.spacing.sm
+        }}>
+          <button
+            style={{
+              ...componentStyles.primaryButton,
+              flex: 1,
+              background: designSystem.colors.primary
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onPurchase(service, 'single');
+            }}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-shopping-cart me-2"></i>
+            Purchase Now
+          </button>
+          <button
+            style={{
+              ...componentStyles.secondaryButton,
+              padding: `${designSystem.spacing.sm} ${designSystem.spacing.md}`
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              // View details functionality
+            }}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-info-circle"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const PurchaseModal = () => (
+    <div className="modal d-block" style={componentStyles.modal}>
+      <div className="modal-dialog modal-lg">
+        <div className="modal-content" style={componentStyles.modalContent}>
+          <div className="modal-header" style={componentStyles.modalHeader}>
+            <h5 className="modal-title">
+              <i className="fas fa-shopping-cart me-2"></i>
+              Purchase Services
+            </h5>
+            <button 
+              type="button" 
+              className="btn-close btn-close-white" 
+              onClick={() => setShowPurchaseModal(false)}
+            ></button>
+          </div>
+          
+          <div className="modal-body" style={componentStyles.modalBody}>
+            <h6 style={{ marginBottom: designSystem.spacing.md }}>Selected Services:</h6>
+            
+            {selectedServices.map(service => (
+              <div key={service._id} style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: designSystem.spacing.md,
+                border: `1px solid ${designSystem.colors.gray[200]}`,
+                borderRadius: designSystem.borderRadius.button,
+                marginBottom: designSystem.spacing.sm
+              }}>
+                <div>
+                  <div style={{ fontWeight: designSystem.typography.fontWeight.medium }}>
+                    {service.name}
+                  </div>
+                  <div style={{ 
+                    fontSize: designSystem.typography.fontSize.sm,
+                    color: designSystem.colors.gray[600]
+                  }}>
+                    {service.category}
+                  </div>
+                </div>
+                <div style={{
+                  fontWeight: designSystem.typography.fontWeight.bold,
+                  color: designSystem.colors.success.split('(')[0]
+                }}>
+                  ${service.price?.toLocaleString()}
+                </div>
+              </div>
+            ))}
+
+            <div style={{
+              borderTop: `2px solid ${designSystem.colors.gray[200]}`,
+              paddingTop: designSystem.spacing.md,
+              marginTop: designSystem.spacing.md
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: designSystem.typography.fontSize.lg,
+                fontWeight: designSystem.typography.fontWeight.bold
+              }}>
+                <span>Total Amount:</span>
+                <span style={{ color: designSystem.colors.success.split('(')[0] }}>
+                  ${selectedServices.reduce((sum, s) => sum + s.price, 0).toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            <div style={{
+              background: designSystem.colors.light,
+              padding: designSystem.spacing.md,
+              borderRadius: designSystem.borderRadius.button,
+              marginTop: designSystem.spacing.md
+            }}>
+              <p style={{ 
+                margin: 0,
+                fontSize: designSystem.typography.fontSize.sm,
+                color: designSystem.colors.gray[600]
+              }}>
+                <i className="fas fa-info-circle me-2"></i>
+                After purchase, projects will be created for each service and assigned to our team for processing.
+              </p>
+            </div>
+          </div>
+          
+          <div className="modal-footer" style={componentStyles.modalFooter}>
+            <button 
+              type="button" 
+              className="btn btn-secondary" 
+              onClick={() => setShowPurchaseModal(false)}
+            >
+              Cancel
+            </button>
+            <button 
+              type="button" 
+              className="btn btn-success" 
+              onClick={processPurchase}
+            >
+              <i className="fas fa-credit-card me-2"></i>
+              Proceed to Payment
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center py-5">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
+      <div style={componentStyles.loading}>
+        <i className="fas fa-spinner fa-spin fa-2x" style={{ color: designSystem.colors.primary }}></i>
+        <p style={{ marginTop: designSystem.spacing.md, color: designSystem.colors.gray[500] }}>
+          Loading services catalog...
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="client-services">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h4>
-          <i className="fas fa-concierge-bell me-2"></i>
-          Services
-        </h4>
-      </div>
-
-      {/* Service Tabs */}
-      <div className="card mb-4">
-        <div className="card-header">
-          <nav className="nav nav-pills">
-            <button 
-              className={`nav-link ${activeTab === 'my-services' ? 'active' : ''}`}
-              onClick={() => setActiveTab('my-services')}
-            >
-              <i className="fas fa-list me-2"></i>
-              My Services
-            </button>
-            <button 
-              className={`nav-link ${activeTab === 'available' ? 'active' : ''}`}
-              onClick={() => setActiveTab('available')}
-            >
-              <i className="fas fa-shopping-cart me-2"></i>
-              Available Services
-            </button>
-          </nav>
-        </div>
-      </div>
-
-      {/* My Services Tab */}
-      {activeTab === 'my-services' && (
-        <div className="row">
-          {services.length > 0 ? (
-            services.map((service) => (
-              <div key={service.id} className="col-lg-6 mb-4">
-                <div className="card h-100">
-                  <div className="card-header d-flex justify-content-between align-items-center">
-                    <h6 className="mb-0">{service.name}</h6>
-                    <span className={`badge ${getStatusBadge(service.status)}`}>
-                      {service.status.toUpperCase()}
-                    </span>
-                  </div>
-                  <div className="card-body">
-                    <p className="text-muted mb-3">{service.description}</p>
-                    
-                    {/* Service Details */}
-                    <div className="row mb-3">
-                      <div className="col-6">
-                        <small className="text-muted">Price</small>
-                        <div className="fw-bold text-success">${service.price}</div>
-                      </div>
-                      <div className="col-6">
-                        <small className="text-muted">Duration</small>
-                        <div className="fw-bold">{service.duration || 'Varies'}</div>
-                      </div>
-                    </div>
-
-                    {/* Progress (if applicable) */}
-                    {service.progress !== undefined && (
-                      <div className="mb-3">
-                        <div className="d-flex justify-content-between mb-1">
-                          <small>Progress</small>
-                          <small>{service.progress}%</small>
-                        </div>
-                        <div className="progress" style={{ height: '6px' }}>
-                          <div 
-                            className="progress-bar bg-primary" 
-                            style={{ width: `${service.progress}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Dates */}
-                    <div className="mb-3">
-                      <small className="text-muted">
-                        <i className="fas fa-calendar me-1"></i>
-                        Started: {new Date(service.start_date).toLocaleDateString()}
-                      </small>
-                      {service.end_date && (
-                        <div>
-                          <small className="text-muted">
-                            <i className="fas fa-flag me-1"></i>
-                            Completed: {new Date(service.end_date).toLocaleDateString()}
-                          </small>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Assigned Team */}
-                    {service.assigned_to && (
-                      <div className="mb-3">
-                        <small className="text-muted">
-                          <i className="fas fa-user me-1"></i>
-                          Assigned to: {service.assigned_to}
-                        </small>
-                      </div>
-                    )}
-                  </div>
-                  <div className="card-footer">
-                    <div className="d-flex gap-2">
-                      <button 
-                        className="btn btn-primary btn-sm flex-fill"
-                        onClick={() => handleViewService(service)}
-                      >
-                        <i className="fas fa-eye me-1"></i>
-                        View Details
-                      </button>
-                      <button className="btn btn-outline-secondary btn-sm">
-                        <i className="fas fa-comment me-1"></i>
-                        Message
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="col-12">
-              <div className="card">
-                <div className="card-body text-center py-5">
-                  <i className="fas fa-concierge-bell text-muted fa-3x mb-3"></i>
-                  <h5 className="text-muted">No Services Yet</h5>
-                  <p className="text-muted mb-4">
-                    You haven't subscribed to any services yet. Browse our available services to get started.
-                  </p>
-                  <button 
-                    className="btn btn-primary"
-                    onClick={() => setActiveTab('available')}
-                  >
-                    <i className="fas fa-shopping-cart me-2"></i>
-                    Browse Services
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Available Services Tab */}
-      {activeTab === 'available' && (
-        <div className="row">
-          {availableServices.map((service) => (
-            <div key={service.id} className="col-lg-4 mb-4">
-              <div className="card h-100">
-                <div className="card-header">
-                  <h6 className="mb-0">{service.name}</h6>
-                </div>
-                <div className="card-body">
-                  <p className="text-muted mb-3">{service.description}</p>
-                  
-                  {/* Service Features */}
-                  {service.features && (
-                    <ul className="list-unstyled mb-3">
-                      {service.features.split(',').map((feature, index) => (
-                        <li key={index} className="mb-1">
-                          <i className="fas fa-check text-success me-2"></i>
-                          <small>{feature.trim()}</small>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {/* Price */}
-                  <div className="text-center mb-3">
-                    <div className="display-6 fw-bold text-primary">${service.price}</div>
-                    <small className="text-muted">{service.billing_cycle || 'One-time'}</small>
-                  </div>
-
-                  {/* Duration */}
-                  {service.duration && (
-                    <div className="text-center mb-3">
-                      <small className="text-muted">
-                        <i className="fas fa-clock me-1"></i>
-                        Duration: {service.duration}
-                      </small>
-                    </div>
-                  )}
-                </div>
-                <div className="card-footer">
-                  <button 
-                    className="btn btn-primary w-100"
-                    onClick={() => handleRequestService(service.id)}
-                  >
-                    <i className="fas fa-plus me-2"></i>
-                    Request Service
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Service Details Modal */}
-      {showServiceModal && selectedService && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">{selectedService.name}</h5>
-                <button 
-                  type="button" 
-                  className="btn-close"
-                  onClick={() => setShowServiceModal(false)}
-                ></button>
-              </div>
-              <div className="modal-body">
-                <div className="row mb-4">
-                  <div className="col-md-6">
-                    <h6>Service Information</h6>
-                    <p><strong>Status:</strong> 
-                      <span className={`badge ${getStatusBadge(selectedService.status)} ms-2`}>
-                        {selectedService.status.toUpperCase()}
-                      </span>
-                    </p>
-                    <p><strong>Price:</strong> ${selectedService.price}</p>
-                    <p><strong>Start Date:</strong> {new Date(selectedService.start_date).toLocaleDateString()}</p>
-                    {selectedService.end_date && (
-                      <p><strong>End Date:</strong> {new Date(selectedService.end_date).toLocaleDateString()}</p>
-                    )}
-                  </div>
-                  <div className="col-md-6">
-                    {selectedService.progress !== undefined && (
-                      <>
-                        <h6>Progress</h6>
-                        <div className="progress mb-2" style={{ height: '20px' }}>
-                          <div 
-                            className="progress-bar bg-primary" 
-                            style={{ width: `${selectedService.progress}%` }}
-                          >
-                            {selectedService.progress}%
-                          </div>
-                        </div>
-                      </>
-                    )}
-                    {selectedService.assigned_to && (
-                      <p><strong>Assigned to:</strong> {selectedService.assigned_to}</p>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="mb-4">
-                  <h6>Description</h6>
-                  <p>{selectedService.description}</p>
-                </div>
-
-                {selectedService.deliverables && (
-                  <div className="mb-4">
-                    <h6>Deliverables</h6>
-                    <p>{selectedService.deliverables}</p>
-                  </div>
-                )}
-
-                {selectedService.notes && (
-                  <div className="mb-4">
-                    <h6>Notes</h6>
-                    <p>{selectedService.notes}</p>
-                  </div>
-                )}
-              </div>
-              <div className="modal-footer">
-                <button 
-                  type="button" 
-                  className="btn btn-secondary"
-                  onClick={() => setShowServiceModal(false)}
-                >
-                  Close
-                </button>
-                <button type="button" className="btn btn-primary">
-                  <i className="fas fa-comment me-2"></i>
-                  Send Message
-                </button>
-              </div>
-            </div>
+    <div>
+      {/* Header with Refresh Button */}
+      <div style={componentStyles.header}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={componentStyles.headerIcon}>
+            <i className="fas fa-concierge-bell fa-lg"></i>
+          </div>
+          <div>
+            <h4 style={componentStyles.headerTitle}>Service Catalog</h4>
+            <p style={componentStyles.headerSubtitle}>Browse and purchase our immigration services</p>
           </div>
         </div>
+        <div style={{ display: 'flex', gap: designSystem.spacing.sm }}>
+          {selectedServices.length > 0 && (
+            <button 
+              style={{
+                ...componentStyles.primaryButton,
+                background: designSystem.colors.success
+              }}
+              onClick={() => handlePurchase(null, 'multiple')}
+              {...hoverEffects.button}
+            >
+              <i className="fas fa-shopping-cart me-2"></i>
+              Purchase Selected ({selectedServices.length})
+            </button>
+          )}
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: designSystem.colors.info
+            }}
+            onClick={loadServices}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-sync-alt me-2"></i>Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Category Filter */}
+      <div style={{ marginBottom: designSystem.spacing.lg }}>
+        <div style={{ display: 'flex', gap: designSystem.spacing.xs, flexWrap: 'wrap' }}>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: selectedCategory === 'all' ? designSystem.colors.primary : designSystem.colors.gray[100],
+              color: selectedCategory === 'all' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setSelectedCategory('all')}
+            {...hoverEffects.button}
+          >
+            All Services ({services.length})
+          </button>
+          {categories.map(category => (
+            <button 
+              key={category}
+              style={{
+                ...componentStyles.primaryButton,
+                background: selectedCategory === category ? designSystem.colors.primary : designSystem.colors.gray[100],
+                color: selectedCategory === category ? 'white' : designSystem.colors.gray[600]
+              }}
+              onClick={() => setSelectedCategory(category)}
+              {...hoverEffects.button}
+            >
+              {category} ({services.filter(s => s.category === category).length})
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Services Grid */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+        gap: designSystem.spacing.lg
+      }}>
+        {getFilteredServices().map(service => (
+          <ServiceCard
+            key={service._id}
+            service={service}
+            isSelected={selectedServices.find(s => s._id === service._id)}
+            onSelect={handleServiceSelect}
+            onPurchase={handlePurchase}
+          />
+        ))}
+      </div>
+
+      {getFilteredServices().length === 0 && (
+        <div style={componentStyles.emptyState}>
+          <i className="fas fa-concierge-bell fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
+          <p style={{ color: designSystem.colors.gray[500] }}>No services found in this category</p>
+        </div>
       )}
+
+      {/* Purchase Modal */}
+      {showPurchaseModal && <PurchaseModal />}
     </div>
   );
 };

@@ -8,7 +8,6 @@ import LeadManagement from './components/LeadManagement';
 import UserManagement from './components/UserManagement';
 import ServicesManagement from './components/ServicesManagement';
 import ProjectsManagement from './components/ProjectsManagement';
-import TasksManagement from './components/TasksManagement';
 import QueriesManagement from './components/QueriesManagement';
 import PaymentsManagement from './components/PaymentsManagement';
 import EnhancedAnalytics from './components/EnhancedAnalytics';
@@ -50,8 +49,6 @@ const AdminDashboard = () => {
         return <ServicesManagement />;
       case 'projects':
         return <ProjectsManagement />;
-      case 'tasks':
-        return <TasksManagement />;
       case 'queries':
         return <QueriesManagement />;
       case 'payments':
