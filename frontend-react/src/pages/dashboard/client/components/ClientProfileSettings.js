@@ -6,6 +6,7 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef(null);
   
   // Profile form data - comprehensive structure matching both User and Client models
@@ -43,13 +44,17 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
     strength: { score: 0, level: 'Very Weak', percentage: 0 }
   });
 
+  // Form validation states
+  const [formErrors, setFormErrors] = useState({});
+  const [isFormValid, setIsFormValid] = useState(true);
+
   useEffect(() => {
     if (clientData) {
       // Populate from User model data
       const userData = clientData.user || clientData;
       const clientProfile = clientData.client_profile || {};
       
-      setProfileData({
+      const newProfileData = {
         first_name: userData.first_name || '',
         last_name: userData.last_name || '',
         phone: userData.phone || clientProfile.phone || '',
@@ -68,16 +73,58 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
         tags: clientProfile.tags || [],
         notes: clientProfile.notes || '',
         crm_manager: clientProfile.crm_manager || null
-      });
+      };
+      
+      setProfileData(newProfileData);
+      validateForm(newProfileData);
     }
   }, [clientData]);
 
   const handleProfileChange = (e) => {
+    const { name, value } = e.target;
     setProfileData({
       ...profileData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
+    
+    // Clear specific field error when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+    
     setMessage({ type: '', text: '' });
+    validateForm({ ...profileData, [name]: value });
+  };
+
+  const validateForm = (data = profileData) => {
+    const errors = {};
+    
+    if (!data.first_name?.trim()) {
+      errors.first_name = 'First name is required';
+    }
+    
+    if (!data.last_name?.trim()) {
+      errors.last_name = 'Last name is required';
+    }
+    
+    // Validate URLs if provided
+    const urlFields = ['linkedin_url', 'portfolio_url', 'website_url'];
+    urlFields.forEach(field => {
+      if (data[field] && data[field].trim()) {
+        try {
+          new URL(data[field]);
+        } catch {
+          errors[field] = 'Please enter a valid URL';
+        }
+      }
+    });
+    
+    setFormErrors(errors);
+    setIsFormValid(Object.keys(errors).length === 0);
+    return Object.keys(errors).length === 0;
   };
 
   const handlePasswordChange = (e) => {
@@ -97,28 +144,67 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
     setMessage({ type: '', text: '' });
   };
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Basic validation - just check if it's an image
-      if (!file.type.startsWith('image/')) {
-        setMessage({ type: 'error', text: 'Please select an image file' });
-        return;
-      }
-
-      setProfileData({
-        ...profileData,
-        profile_picture: file
+  const handleImageUpload = (file) => {
+    if (!file) return;
+    
+    // Enhanced validation
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/avif'];
+    
+    if (!allowedTypes.includes(file.type)) {
+      setMessage({ 
+        type: 'error', 
+        text: 'Please select a valid image file (JPEG, PNG, GIF, WebP, or AVIF)' 
       });
-      setMessage({ type: '', text: '' });
+      return;
+    }
+    
+    if (file.size > maxSize) {
+      setMessage({ 
+        type: 'error', 
+        text: 'Image size must be less than 10MB' 
+      });
+      return;
+    }
+
+    setProfileData({
+      ...profileData,
+      profile_picture: file
+    });
+    setMessage({ type: '', text: '' });
+  };
+
+  const handleFileInputChange = (e) => {
+    const file = e.target.files[0];
+    handleImageUpload(file);
+  };
+
+  // Drag and drop handlers
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleImageUpload(e.dataTransfer.files[0]);
     }
   };
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
     
-    if (!profileData.first_name || !profileData.last_name) {
-      setMessage({ type: 'error', text: 'First name and last name are required' });
+    if (!validateForm()) {
+      setMessage({ type: 'error', text: 'Please fix the errors below' });
       return;
     }
 
@@ -281,6 +367,15 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
 
   return (
     <div>
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+      
       {/* Header */}
       <div style={componentStyles.header}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -354,22 +449,27 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
         {activeTab === 'profile' && (
           <form onSubmit={handleProfileSubmit}>
             {/* Profile Picture Section */}
-            <div style={{ marginBottom: designSystem.spacing.xl }}>
+            <div style={{ marginBottom: designSystem.spacing.lg }}>
               <h6 style={{
                 color: designSystem.colors.dark,
                 fontWeight: designSystem.typography.fontWeight.semibold,
-                marginBottom: designSystem.spacing.md
+                marginBottom: designSystem.spacing.md,
+                fontSize: designSystem.typography.fontSize.lg,
+                display: 'flex',
+                alignItems: 'center',
+                gap: designSystem.spacing.sm
               }}>
+                <i className="fas fa-camera" style={{ color: designSystem.colors.primary.split('(')[0] }}></i>
                 Profile Picture
               </h6>
               
               <div style={{
                 display: 'flex',
-                alignItems: 'flex-start',
-                gap: designSystem.spacing.xl,
+                alignItems: 'center',
+                gap: designSystem.spacing.lg,
                 flexWrap: 'wrap'
               }}>
-                {/* Current Profile Picture */}
+                {/* Current Profile Picture - Compact */}
                 <div style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -377,11 +477,12 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
                   gap: designSystem.spacing.sm
                 }}>
                   <div style={{
-                    width: '140px',
-                    height: '140px',
+                    position: 'relative',
+                    width: '120px',
+                    height: '120px',
                     borderRadius: '50%',
                     overflow: 'hidden',
-                    border: `4px solid ${designSystem.colors.primary.split('(')[0]}`,
+                    border: `3px solid ${designSystem.colors.primary.split('(')[0]}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -389,130 +490,178 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
                       ? `url(${profileData.current_profile_picture}) center/cover` 
                       : designSystem.colors.primary,
                     color: 'white',
-                    fontSize: '48px',
+                    fontSize: '36px',
                     fontWeight: designSystem.typography.fontWeight.bold,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                  }}>
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                  >
                     {!profileData.current_profile_picture && getInitials(profileData.first_name, profileData.last_name)}
-                  </div>
-                  
-                  <div style={{
-                    fontSize: designSystem.typography.fontSize.xs,
-                    color: designSystem.colors.gray[500],
-                    textAlign: 'center',
-                    maxWidth: '140px'
-                  }}>
-                    Current Photo
+                    
+                    {/* Hover overlay */}
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      background: 'rgba(0,0,0,0.5)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: 0,
+                      transition: 'opacity 0.3s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                    onMouseLeave={(e) => e.currentTarget.style.opacity = '0'}
+                    >
+                      <i className="fas fa-camera fa-lg" style={{ color: 'white' }}></i>
+                    </div>
                   </div>
                 </div>
 
-                {/* Upload Controls */}
+                {/* Upload Area - Compact */}
                 <div style={{ 
                   flex: 1,
-                  minWidth: '280px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: designSystem.spacing.md
+                  minWidth: '280px'
                 }}>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    style={{ display: 'none' }}
-                  />
-                  
-                  <div style={{
-                    display: 'flex',
-                    gap: designSystem.spacing.sm,
-                    flexWrap: 'wrap'
-                  }}>
-                    <button
-                      type="button"
-                      style={{
-                        ...componentStyles.primaryButton,
-                        background: designSystem.colors.primary,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: designSystem.spacing.xs
-                      }}
-                      onClick={() => fileInputRef.current?.click()}
-                      {...hoverEffects.button}
-                    >
-                      <i className="fas fa-upload"></i>
-                      {profileData.profile_picture ? 'Change Photo' : 'Upload Photo'}
-                    </button>
-                    
-                    {profileData.current_profile_picture && (
-                      <button
-                        type="button"
-                        style={{
-                          ...componentStyles.secondaryButton,
-                          color: designSystem.colors.danger.split('(')[0],
-                          borderColor: designSystem.colors.danger.split('(')[0],
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: designSystem.spacing.xs
-                        }}
-                        onClick={() => {
-                          setProfileData({
-                            ...profileData,
-                            profile_picture: null,
-                            current_profile_picture: ''
-                          });
-                          if (fileInputRef.current) {
-                            fileInputRef.current.value = '';
-                          }
-                        }}
-                        {...hoverEffects.button}
-                      >
-                        <i className="fas fa-trash"></i>Remove
-                      </button>
-                    )}
-                  </div>
-                  
-                  {profileData.profile_picture && (
-                    <div style={{
-                      padding: designSystem.spacing.sm,
-                      backgroundColor: `${designSystem.colors.success}15`,
+                  <div
+                    style={{
+                      border: `2px dashed ${dragActive ? designSystem.colors.primary.split('(')[0] : designSystem.colors.gray[300]}`,
                       borderRadius: designSystem.borderRadius.button,
-                      border: `1px solid ${designSystem.colors.success}30`,
-                      fontSize: designSystem.typography.fontSize.sm,
-                      color: designSystem.colors.success.split('(')[0],
+                      padding: designSystem.spacing.md,
+                      textAlign: 'center',
+                      background: dragActive 
+                        ? `${designSystem.colors.primary}10` 
+                        : profileData.profile_picture 
+                          ? `${designSystem.colors.success}10` 
+                          : designSystem.colors.gray[50],
+                      transition: 'all 0.3s ease',
+                      cursor: 'pointer'
+                    }}
+                    onDragEnter={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDragOver={handleDrag}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileInputChange}
+                      style={{ display: 'none' }}
+                    />
+                    
+                    <div style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: designSystem.spacing.xs
+                      gap: designSystem.spacing.md
                     }}>
-                      <i className="fas fa-check-circle"></i>
-                      <span>New photo selected: <strong>{profileData.profile_picture.name}</strong></span>
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '50%',
+                        background: dragActive 
+                          ? designSystem.colors.primary 
+                          : profileData.profile_picture 
+                            ? designSystem.colors.success 
+                            : designSystem.colors.gray[300],
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontSize: '20px'
+                      }}>
+                        <i className={`fas ${dragActive ? 'fa-cloud-upload-alt' : profileData.profile_picture ? 'fa-check' : 'fa-camera'}`}></i>
+                      </div>
+                      
+                      <div style={{ textAlign: 'left', flex: 1 }}>
+                        <div style={{
+                          fontSize: designSystem.typography.fontSize.sm,
+                          fontWeight: designSystem.typography.fontWeight.semibold,
+                          color: designSystem.colors.dark,
+                          marginBottom: designSystem.spacing.xs
+                        }}>
+                          {dragActive 
+                            ? 'Drop your image here' 
+                            : profileData.profile_picture 
+                              ? 'New photo selected!' 
+                              : 'Upload Profile Picture'
+                          }
+                        </div>
+                        
+                        <div style={{
+                          fontSize: designSystem.typography.fontSize.xs,
+                          color: designSystem.colors.gray[600]
+                        }}>
+                          {profileData.profile_picture 
+                            ? `Selected: ${profileData.profile_picture.name}`
+                            : 'Drag & drop or click to browse'
+                          }
+                        </div>
+                      </div>
+                      
+                      <div style={{
+                        display: 'flex',
+                        gap: designSystem.spacing.xs
+                      }}>
+                        <button
+                          type="button"
+                          style={{
+                            ...componentStyles.primaryButton,
+                            background: designSystem.colors.primary,
+                            padding: `${designSystem.spacing.xs} ${designSystem.spacing.sm}`,
+                            fontSize: designSystem.typography.fontSize.xs,
+                            minWidth: 'auto'
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            fileInputRef.current?.click();
+                          }}
+                        >
+                          <i className="fas fa-upload"></i>
+                        </button>
+                        
+                        {(profileData.current_profile_picture || profileData.profile_picture) && (
+                          <button
+                            type="button"
+                            style={{
+                              ...componentStyles.secondaryButton,
+                              color: designSystem.colors.danger.split('(')[0],
+                              borderColor: designSystem.colors.danger.split('(')[0],
+                              padding: `${designSystem.spacing.xs} ${designSystem.spacing.sm}`,
+                              fontSize: designSystem.typography.fontSize.xs,
+                              minWidth: 'auto'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProfileData({
+                                ...profileData,
+                                profile_picture: null,
+                                current_profile_picture: ''
+                              });
+                              if (fileInputRef.current) {
+                                fileInputRef.current.value = '';
+                              }
+                            }}
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  )}
+                  </div>
                   
+                  {/* Compact file info */}
                   <div style={{
-                    padding: designSystem.spacing.sm,
-                    backgroundColor: designSystem.colors.gray[50],
-                    borderRadius: designSystem.borderRadius.button,
-                    border: `1px solid ${designSystem.colors.gray[200]}`
+                    fontSize: designSystem.typography.fontSize.xs,
+                    color: designSystem.colors.gray[500],
+                    marginTop: designSystem.spacing.xs,
+                    textAlign: 'center'
                   }}>
-                    <div style={{
-                      fontSize: designSystem.typography.fontSize.sm,
-                      color: designSystem.colors.dark,
-                      fontWeight: designSystem.typography.fontWeight.medium,
-                      marginBottom: designSystem.spacing.xs
-                    }}>
-                      <i className="fas fa-info-circle me-2"></i>Photo Guidelines
-                    </div>
-                    <ul style={{
-                      fontSize: designSystem.typography.fontSize.xs,
-                      color: designSystem.colors.gray[600],
-                      margin: 0,
-                      paddingLeft: '20px',
-                      lineHeight: '1.4'
-                    }}>
-                      <li>All image formats supported</li>
-                      <li>Any file size accepted</li>
-                      <li>Professional photo recommended</li>
-                    </ul>
+                    JPEG, PNG, GIF, WebP, AVIF • Max 10MB • Best: 400x400px
                   </div>
                 </div>
               </div>
@@ -520,16 +669,16 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
 
             {/* Basic Information */}
             <div style={{ 
-              marginBottom: designSystem.spacing.xl,
+              marginBottom: designSystem.spacing.lg,
               padding: designSystem.spacing.lg,
-              backgroundColor: designSystem.colors.gray[25],
+              backgroundColor: designSystem.colors.gray[50],
               borderRadius: designSystem.borderRadius.card,
-              border: `1px solid ${designSystem.colors.gray[100]}`
+              border: `1px solid ${designSystem.colors.gray[200]}`
             }}>
               <h6 style={{
                 color: designSystem.colors.dark,
                 fontWeight: designSystem.typography.fontWeight.semibold,
-                marginBottom: designSystem.spacing.lg,
+                marginBottom: designSystem.spacing.md,
                 fontSize: designSystem.typography.fontSize.lg,
                 display: 'flex',
                 alignItems: 'center',
@@ -539,12 +688,12 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
                 Basic Information
               </h6>
               
-              {/* Name Fields Row */}
+              {/* Name Fields Row - Compact */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: designSystem.spacing.lg,
-                marginBottom: designSystem.spacing.lg
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                gap: designSystem.spacing.md,
+                marginBottom: designSystem.spacing.md
               }}>
                 <div>
                   <label style={{
@@ -552,7 +701,7 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
                     fontSize: designSystem.typography.fontSize.sm,
                     fontWeight: designSystem.typography.fontWeight.semibold,
                     color: designSystem.colors.dark,
-                    marginBottom: designSystem.spacing.sm
+                    marginBottom: designSystem.spacing.xs
                   }}>
                     First Name *
                   </label>
@@ -562,13 +711,28 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
                     required
                     style={{
                       ...componentStyles.formInput,
-                      fontSize: designSystem.typography.fontSize.base,
-                      padding: designSystem.spacing.md
+                      fontSize: designSystem.typography.fontSize.sm,
+                      padding: designSystem.spacing.sm,
+                      height: '40px',
+                      borderColor: formErrors.first_name 
+                        ? designSystem.colors.danger.split('(')[0] 
+                        : profileData.first_name 
+                          ? designSystem.colors.success.split('(')[0] 
+                          : designSystem.colors.gray[300]
                     }}
                     value={profileData.first_name}
                     onChange={handleProfileChange}
                     placeholder="Enter first name"
                   />
+                  {formErrors.first_name && (
+                    <div style={{
+                      fontSize: designSystem.typography.fontSize.xs,
+                      color: designSystem.colors.danger.split('(')[0],
+                      marginTop: designSystem.spacing.xs
+                    }}>
+                      {formErrors.first_name}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -577,7 +741,7 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
                     fontSize: designSystem.typography.fontSize.sm,
                     fontWeight: designSystem.typography.fontWeight.semibold,
                     color: designSystem.colors.dark,
-                    marginBottom: designSystem.spacing.sm
+                    marginBottom: designSystem.spacing.xs
                   }}>
                     Last Name *
                   </label>
@@ -587,24 +751,39 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
                     required
                     style={{
                       ...componentStyles.formInput,
-                      fontSize: designSystem.typography.fontSize.base,
-                      padding: designSystem.spacing.md
+                      fontSize: designSystem.typography.fontSize.sm,
+                      padding: designSystem.spacing.sm,
+                      height: '40px',
+                      borderColor: formErrors.last_name 
+                        ? designSystem.colors.danger.split('(')[0] 
+                        : profileData.last_name 
+                          ? designSystem.colors.success.split('(')[0] 
+                          : designSystem.colors.gray[300]
                     }}
                     value={profileData.last_name}
                     onChange={handleProfileChange}
                     placeholder="Enter last name"
                   />
+                  {formErrors.last_name && (
+                    <div style={{
+                      fontSize: designSystem.typography.fontSize.xs,
+                      color: designSystem.colors.danger.split('(')[0],
+                      marginTop: designSystem.spacing.xs
+                    }}>
+                      {formErrors.last_name}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Email Field - Full Width */}
-              <div style={{ marginBottom: designSystem.spacing.lg }}>
+              {/* Email Field - Compact */}
+              <div style={{ marginBottom: designSystem.spacing.md }}>
                 <label style={{
                   display: 'block',
                   fontSize: designSystem.typography.fontSize.sm,
                   fontWeight: designSystem.typography.fontWeight.semibold,
                   color: designSystem.colors.dark,
-                  marginBottom: designSystem.spacing.sm
+                  marginBottom: designSystem.spacing.xs
                 }}>
                   <i className="fas fa-envelope me-2" style={{ color: designSystem.colors.info.split('(')[0] }}></i>
                   Email Address
@@ -616,8 +795,9 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
                     backgroundColor: designSystem.colors.gray[100],
                     cursor: 'not-allowed',
                     color: designSystem.colors.gray[600],
-                    fontSize: designSystem.typography.fontSize.base,
-                    padding: designSystem.spacing.md
+                    fontSize: designSystem.typography.fontSize.sm,
+                    padding: designSystem.spacing.sm,
+                    height: '40px'
                   }}
                   value={clientData?.user?.email || clientData?.email || ''}
                   disabled
@@ -626,22 +806,18 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
                 <div style={{
                   fontSize: designSystem.typography.fontSize.xs,
                   color: designSystem.colors.gray[500],
-                  marginTop: designSystem.spacing.sm,
-                  fontStyle: 'italic',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: designSystem.spacing.xs
+                  marginTop: designSystem.spacing.xs
                 }}>
-                  <i className="fas fa-lock"></i>
-                  Email address cannot be changed for security reasons
+                  <i className="fas fa-lock me-1"></i>
+                  Email cannot be changed for security reasons
                 </div>
               </div>
 
-              {/* Contact & Location Row */}
+              {/* Contact & Location Row - Compact */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: designSystem.spacing.lg
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                gap: designSystem.spacing.md
               }}>
                 <div>
                   <label style={{
@@ -649,7 +825,7 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
                     fontSize: designSystem.typography.fontSize.sm,
                     fontWeight: designSystem.typography.fontWeight.semibold,
                     color: designSystem.colors.dark,
-                    marginBottom: designSystem.spacing.sm
+                    marginBottom: designSystem.spacing.xs
                   }}>
                     <i className="fas fa-phone me-2" style={{ color: designSystem.colors.success.split('(')[0] }}></i>
                     Phone Number
@@ -659,8 +835,9 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
                     name="phone"
                     style={{
                       ...componentStyles.formInput,
-                      fontSize: designSystem.typography.fontSize.base,
-                      padding: designSystem.spacing.md
+                      fontSize: designSystem.typography.fontSize.sm,
+                      padding: designSystem.spacing.sm,
+                      height: '40px'
                     }}
                     value={profileData.phone}
                     onChange={handleProfileChange}
@@ -674,7 +851,7 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
                     fontSize: designSystem.typography.fontSize.sm,
                     fontWeight: designSystem.typography.fontWeight.semibold,
                     color: designSystem.colors.dark,
-                    marginBottom: designSystem.spacing.sm
+                    marginBottom: designSystem.spacing.xs
                   }}>
                     <i className="fas fa-globe me-2" style={{ color: designSystem.colors.warning.split('(')[0] }}></i>
                     Country
@@ -684,8 +861,9 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
                     name="country"
                     style={{
                       ...componentStyles.formInput,
-                      fontSize: designSystem.typography.fontSize.base,
-                      padding: designSystem.spacing.md
+                      fontSize: designSystem.typography.fontSize.sm,
+                      padding: designSystem.spacing.sm,
+                      height: '40px'
                     }}
                     value={profileData.country}
                     onChange={handleProfileChange}
@@ -698,188 +876,699 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
             {/* Professional Information */}
             <div style={{ 
               marginBottom: designSystem.spacing.xl,
-              padding: designSystem.spacing.lg,
-              backgroundColor: designSystem.colors.gray[25],
+              padding: designSystem.spacing.xl,
+              backgroundColor: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
               borderRadius: designSystem.borderRadius.card,
-              border: `1px solid ${designSystem.colors.gray[100]}`
+              border: `1px solid ${designSystem.colors.gray[200]}`,
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
             }}>
               <h6 style={{
                 color: designSystem.colors.dark,
-                fontWeight: designSystem.typography.fontWeight.semibold,
-                marginBottom: designSystem.spacing.lg,
-                fontSize: designSystem.typography.fontSize.lg,
+                fontWeight: designSystem.typography.fontWeight.bold,
+                marginBottom: designSystem.spacing.xl,
+                fontSize: designSystem.typography.fontSize.xl,
                 display: 'flex',
                 alignItems: 'center',
-                gap: designSystem.spacing.sm
+                gap: designSystem.spacing.md,
+                paddingBottom: designSystem.spacing.md,
+                borderBottom: `2px solid ${designSystem.colors.primary.split('(')[0]}20`
               }}>
-                <i className="fas fa-briefcase" style={{ color: designSystem.colors.primary.split('(')[0] }}></i>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${designSystem.colors.primary} 0%, ${designSystem.colors.primary}CC 100%)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '20px'
+                }}>
+                  <i className="fas fa-briefcase"></i>
+                </div>
                 Professional Information
               </h6>
               
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: designSystem.spacing.lg
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                gap: designSystem.spacing.xl
               }}>
-                <div>
+                <div style={{ position: 'relative' }}>
                   <label style={{
                     display: 'block',
                     fontSize: designSystem.typography.fontSize.sm,
-                    fontWeight: designSystem.typography.fontWeight.semibold,
+                    fontWeight: designSystem.typography.fontWeight.bold,
                     color: designSystem.colors.dark,
-                    marginBottom: designSystem.spacing.sm
+                    marginBottom: designSystem.spacing.md,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: designSystem.spacing.xs
                   }}>
-                    <i className="fas fa-building me-2" style={{ color: designSystem.colors.info.split('(')[0] }}></i>
+                    <i className="fas fa-building" style={{ 
+                      color: designSystem.colors.info.split('(')[0],
+                      fontSize: '14px'
+                    }}></i>
                     Company/Organization
                   </label>
-                  <input
-                    type="text"
-                    name="company"
-                    style={{
-                      ...componentStyles.formInput,
-                      fontSize: designSystem.typography.fontSize.base,
-                      padding: designSystem.spacing.md
-                    }}
-                    value={profileData.company}
-                    onChange={handleProfileChange}
-                    placeholder="Enter company name"
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      name="company"
+                      style={{
+                        ...componentStyles.formInput,
+                        fontSize: designSystem.typography.fontSize.base,
+                        padding: `${designSystem.spacing.lg} ${designSystem.spacing.md}`,
+                        paddingLeft: '48px',
+                        height: '56px',
+                        borderRadius: designSystem.borderRadius.button,
+                        border: `2px solid ${profileData.company 
+                          ? designSystem.colors.success.split('(')[0] 
+                          : designSystem.colors.gray[300]}`,
+                        backgroundColor: 'white',
+                        transition: 'all 0.3s ease',
+                        boxShadow: profileData.company 
+                          ? `0 0 0 3px ${designSystem.colors.success}20`
+                          : 'none'
+                      }}
+                      value={profileData.company}
+                      onChange={handleProfileChange}
+                      placeholder="Enter your company name"
+                      onFocus={(e) => {
+                        e.target.style.borderColor = designSystem.colors.primary.split('(')[0];
+                        e.target.style.boxShadow = `0 0 0 3px ${designSystem.colors.primary}20`;
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = profileData.company 
+                          ? designSystem.colors.success.split('(')[0] 
+                          : designSystem.colors.gray[300];
+                        e.target.style.boxShadow = profileData.company 
+                          ? `0 0 0 3px ${designSystem.colors.success}20`
+                          : 'none';
+                      }}
+                    />
+                    <div style={{
+                      position: 'absolute',
+                      left: '16px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: profileData.company 
+                        ? designSystem.colors.success.split('(')[0] 
+                        : designSystem.colors.gray[400],
+                      fontSize: '16px',
+                      pointerEvents: 'none'
+                    }}>
+                      <i className="fas fa-building"></i>
+                    </div>
+                  </div>
                 </div>
 
-                <div>
+                <div style={{ position: 'relative' }}>
                   <label style={{
                     display: 'block',
                     fontSize: designSystem.typography.fontSize.sm,
-                    fontWeight: designSystem.typography.fontWeight.semibold,
+                    fontWeight: designSystem.typography.fontWeight.bold,
                     color: designSystem.colors.dark,
-                    marginBottom: designSystem.spacing.sm
+                    marginBottom: designSystem.spacing.md,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: designSystem.spacing.xs
                   }}>
-                    <i className="fas fa-university me-2" style={{ color: designSystem.colors.warning.split('(')[0] }}></i>
+                    <i className="fas fa-university" style={{ 
+                      color: designSystem.colors.warning.split('(')[0],
+                      fontSize: '14px'
+                    }}></i>
                     University/Institution
                   </label>
-                  <input
-                    type="text"
-                    name="university"
-                    style={{
-                      ...componentStyles.formInput,
-                      fontSize: designSystem.typography.fontSize.base,
-                      padding: designSystem.spacing.md
-                    }}
-                    value={profileData.university}
-                    onChange={handleProfileChange}
-                    placeholder="Enter university name"
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      name="university"
+                      style={{
+                        ...componentStyles.formInput,
+                        fontSize: designSystem.typography.fontSize.base,
+                        padding: `${designSystem.spacing.lg} ${designSystem.spacing.md}`,
+                        paddingLeft: '48px',
+                        height: '56px',
+                        borderRadius: designSystem.borderRadius.button,
+                        border: `2px solid ${profileData.university 
+                          ? designSystem.colors.success.split('(')[0] 
+                          : designSystem.colors.gray[300]}`,
+                        backgroundColor: 'white',
+                        transition: 'all 0.3s ease',
+                        boxShadow: profileData.university 
+                          ? `0 0 0 3px ${designSystem.colors.success}20`
+                          : 'none'
+                      }}
+                      value={profileData.university}
+                      onChange={handleProfileChange}
+                      placeholder="Enter your university name"
+                      onFocus={(e) => {
+                        e.target.style.borderColor = designSystem.colors.primary.split('(')[0];
+                        e.target.style.boxShadow = `0 0 0 3px ${designSystem.colors.primary}20`;
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = profileData.university 
+                          ? designSystem.colors.success.split('(')[0] 
+                          : designSystem.colors.gray[300];
+                        e.target.style.boxShadow = profileData.university 
+                          ? `0 0 0 3px ${designSystem.colors.success}20`
+                          : 'none';
+                      }}
+                    />
+                    <div style={{
+                      position: 'absolute',
+                      left: '16px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: profileData.university 
+                        ? designSystem.colors.success.split('(')[0] 
+                        : designSystem.colors.gray[400],
+                      fontSize: '16px',
+                      pointerEvents: 'none'
+                    }}>
+                      <i className="fas fa-university"></i>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* External Links */}
-            <div style={{ marginBottom: designSystem.spacing.xl }}>
+            <div style={{ 
+              marginBottom: designSystem.spacing.xl,
+              padding: designSystem.spacing.xl,
+              backgroundColor: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+              borderRadius: designSystem.borderRadius.card,
+              border: `1px solid ${designSystem.colors.gray[200]}`,
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+            }}>
               <h6 style={{
                 color: designSystem.colors.dark,
-                fontWeight: designSystem.typography.fontWeight.semibold,
-                marginBottom: designSystem.spacing.md
+                fontWeight: designSystem.typography.fontWeight.bold,
+                marginBottom: designSystem.spacing.xl,
+                fontSize: designSystem.typography.fontSize.xl,
+                display: 'flex',
+                alignItems: 'center',
+                gap: designSystem.spacing.md,
+                paddingBottom: designSystem.spacing.md,
+                borderBottom: `2px solid ${designSystem.colors.primary.split('(')[0]}20`
               }}>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${designSystem.colors.primary} 0%, ${designSystem.colors.primary}CC 100%)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '20px'
+                }}>
+                  <i className="fas fa-link"></i>
+                </div>
                 External Links & Portfolio
               </h6>
               
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                gap: designSystem.spacing.lg
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: designSystem.spacing.xl
               }}>
-                <div>
+                <div style={{ position: 'relative' }}>
                   <label style={{
                     display: 'block',
                     fontSize: designSystem.typography.fontSize.sm,
-                    fontWeight: designSystem.typography.fontWeight.medium,
+                    fontWeight: designSystem.typography.fontWeight.bold,
                     color: designSystem.colors.dark,
-                    marginBottom: designSystem.spacing.xs
+                    marginBottom: designSystem.spacing.md,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: designSystem.spacing.xs
                   }}>
-                    <i className="fab fa-linkedin me-2" style={{ color: '#0077B5' }}></i>LinkedIn Profile
+                    <i className="fab fa-linkedin" style={{ 
+                      color: '#0077B5',
+                      fontSize: '14px'
+                    }}></i>
+                    LinkedIn Profile
                   </label>
-                  <input
-                    type="url"
-                    name="linkedin_url"
-                    style={componentStyles.formInput}
-                    value={profileData.linkedin_url}
-                    onChange={handleProfileChange}
-                    placeholder="https://linkedin.com/in/yourprofile"
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="url"
+                      name="linkedin_url"
+                      style={{
+                        ...componentStyles.formInput,
+                        fontSize: designSystem.typography.fontSize.base,
+                        padding: `${designSystem.spacing.lg} ${designSystem.spacing.md}`,
+                        paddingLeft: '48px',
+                        height: '56px',
+                        borderRadius: designSystem.borderRadius.button,
+                        border: `2px solid ${formErrors.linkedin_url 
+                          ? designSystem.colors.danger.split('(')[0] 
+                          : profileData.linkedin_url 
+                            ? designSystem.colors.success.split('(')[0] 
+                            : designSystem.colors.gray[300]}`,
+                        backgroundColor: 'white',
+                        transition: 'all 0.3s ease',
+                        boxShadow: formErrors.linkedin_url 
+                          ? `0 0 0 3px ${designSystem.colors.danger}20`
+                          : profileData.linkedin_url 
+                            ? `0 0 0 3px ${designSystem.colors.success}20`
+                            : 'none'
+                      }}
+                      value={profileData.linkedin_url}
+                      onChange={handleProfileChange}
+                      placeholder="https://linkedin.com/in/yourprofile"
+                      onFocus={(e) => {
+                        e.target.style.borderColor = designSystem.colors.primary.split('(')[0];
+                        e.target.style.boxShadow = `0 0 0 3px ${designSystem.colors.primary}20`;
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = formErrors.linkedin_url 
+                          ? designSystem.colors.danger.split('(')[0] 
+                          : profileData.linkedin_url 
+                            ? designSystem.colors.success.split('(')[0] 
+                            : designSystem.colors.gray[300];
+                        e.target.style.boxShadow = formErrors.linkedin_url 
+                          ? `0 0 0 3px ${designSystem.colors.danger}20`
+                          : profileData.linkedin_url 
+                            ? `0 0 0 3px ${designSystem.colors.success}20`
+                            : 'none';
+                      }}
+                    />
+                    <div style={{
+                      position: 'absolute',
+                      left: '16px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: formErrors.linkedin_url 
+                        ? designSystem.colors.danger.split('(')[0] 
+                        : profileData.linkedin_url 
+                          ? designSystem.colors.success.split('(')[0] 
+                          : designSystem.colors.gray[400],
+                      fontSize: '16px',
+                      pointerEvents: 'none'
+                    }}>
+                      <i className="fab fa-linkedin"></i>
+                    </div>
+                  </div>
+                  {formErrors.linkedin_url && (
+                    <div style={{
+                      fontSize: designSystem.typography.fontSize.xs,
+                      color: designSystem.colors.danger.split('(')[0],
+                      marginTop: designSystem.spacing.sm,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: designSystem.spacing.xs,
+                      padding: designSystem.spacing.sm,
+                      backgroundColor: `${designSystem.colors.danger}10`,
+                      borderRadius: designSystem.borderRadius.button,
+                      border: `1px solid ${designSystem.colors.danger}30`
+                    }}>
+                      <i className="fas fa-exclamation-triangle"></i>
+                      {formErrors.linkedin_url}
+                    </div>
+                  )}
                 </div>
 
-                <div>
+                <div style={{ position: 'relative' }}>
                   <label style={{
                     display: 'block',
                     fontSize: designSystem.typography.fontSize.sm,
-                    fontWeight: designSystem.typography.fontWeight.medium,
+                    fontWeight: designSystem.typography.fontWeight.bold,
                     color: designSystem.colors.dark,
-                    marginBottom: designSystem.spacing.xs
+                    marginBottom: designSystem.spacing.md,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: designSystem.spacing.xs
                   }}>
-                    <i className="fas fa-briefcase me-2" style={{ color: designSystem.colors.primary.split('(')[0] }}></i>Portfolio URL
+                    <i className="fas fa-briefcase" style={{ 
+                      color: designSystem.colors.primary.split('(')[0],
+                      fontSize: '14px'
+                    }}></i>
+                    Portfolio URL
                   </label>
-                  <input
-                    type="url"
-                    name="portfolio_url"
-                    style={componentStyles.formInput}
-                    value={profileData.portfolio_url}
-                    onChange={handleProfileChange}
-                    placeholder="https://yourportfolio.com"
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="url"
+                      name="portfolio_url"
+                      style={{
+                        ...componentStyles.formInput,
+                        fontSize: designSystem.typography.fontSize.base,
+                        padding: `${designSystem.spacing.lg} ${designSystem.spacing.md}`,
+                        paddingLeft: '48px',
+                        height: '56px',
+                        borderRadius: designSystem.borderRadius.button,
+                        border: `2px solid ${formErrors.portfolio_url 
+                          ? designSystem.colors.danger.split('(')[0] 
+                          : profileData.portfolio_url 
+                            ? designSystem.colors.success.split('(')[0] 
+                            : designSystem.colors.gray[300]}`,
+                        backgroundColor: 'white',
+                        transition: 'all 0.3s ease',
+                        boxShadow: formErrors.portfolio_url 
+                          ? `0 0 0 3px ${designSystem.colors.danger}20`
+                          : profileData.portfolio_url 
+                            ? `0 0 0 3px ${designSystem.colors.success}20`
+                            : 'none'
+                      }}
+                      value={profileData.portfolio_url}
+                      onChange={handleProfileChange}
+                      placeholder="https://yourportfolio.com"
+                      onFocus={(e) => {
+                        e.target.style.borderColor = designSystem.colors.primary.split('(')[0];
+                        e.target.style.boxShadow = `0 0 0 3px ${designSystem.colors.primary}20`;
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = formErrors.portfolio_url 
+                          ? designSystem.colors.danger.split('(')[0] 
+                          : profileData.portfolio_url 
+                            ? designSystem.colors.success.split('(')[0] 
+                            : designSystem.colors.gray[300];
+                        e.target.style.boxShadow = formErrors.portfolio_url 
+                          ? `0 0 0 3px ${designSystem.colors.danger}20`
+                          : profileData.portfolio_url 
+                            ? `0 0 0 3px ${designSystem.colors.success}20`
+                            : 'none';
+                      }}
+                    />
+                    <div style={{
+                      position: 'absolute',
+                      left: '16px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: formErrors.portfolio_url 
+                        ? designSystem.colors.danger.split('(')[0] 
+                        : profileData.portfolio_url 
+                          ? designSystem.colors.success.split('(')[0] 
+                          : designSystem.colors.gray[400],
+                      fontSize: '16px',
+                      pointerEvents: 'none'
+                    }}>
+                      <i className="fas fa-briefcase"></i>
+                    </div>
+                  </div>
+                  {formErrors.portfolio_url && (
+                    <div style={{
+                      fontSize: designSystem.typography.fontSize.xs,
+                      color: designSystem.colors.danger.split('(')[0],
+                      marginTop: designSystem.spacing.sm,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: designSystem.spacing.xs,
+                      padding: designSystem.spacing.sm,
+                      backgroundColor: `${designSystem.colors.danger}10`,
+                      borderRadius: designSystem.borderRadius.button,
+                      border: `1px solid ${designSystem.colors.danger}30`
+                    }}>
+                      <i className="fas fa-exclamation-triangle"></i>
+                      {formErrors.portfolio_url}
+                    </div>
+                  )}
                 </div>
 
-                <div>
+                <div style={{ position: 'relative' }}>
                   <label style={{
                     display: 'block',
                     fontSize: designSystem.typography.fontSize.sm,
-                    fontWeight: designSystem.typography.fontWeight.medium,
+                    fontWeight: designSystem.typography.fontWeight.bold,
                     color: designSystem.colors.dark,
-                    marginBottom: designSystem.spacing.xs
+                    marginBottom: designSystem.spacing.md,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: designSystem.spacing.xs
                   }}>
-                    <i className="fas fa-globe me-2" style={{ color: designSystem.colors.info.split('(')[0] }}></i>Website URL
+                    <i className="fas fa-globe" style={{ 
+                      color: designSystem.colors.info.split('(')[0],
+                      fontSize: '14px'
+                    }}></i>
+                    Website URL
                   </label>
-                  <input
-                    type="url"
-                    name="website_url"
-                    style={componentStyles.formInput}
-                    value={profileData.website_url}
-                    onChange={handleProfileChange}
-                    placeholder="https://yourwebsite.com"
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="url"
+                      name="website_url"
+                      style={{
+                        ...componentStyles.formInput,
+                        fontSize: designSystem.typography.fontSize.base,
+                        padding: `${designSystem.spacing.lg} ${designSystem.spacing.md}`,
+                        paddingLeft: '48px',
+                        height: '56px',
+                        borderRadius: designSystem.borderRadius.button,
+                        border: `2px solid ${formErrors.website_url 
+                          ? designSystem.colors.danger.split('(')[0] 
+                          : profileData.website_url 
+                            ? designSystem.colors.success.split('(')[0] 
+                            : designSystem.colors.gray[300]}`,
+                        backgroundColor: 'white',
+                        transition: 'all 0.3s ease',
+                        boxShadow: formErrors.website_url 
+                          ? `0 0 0 3px ${designSystem.colors.danger}20`
+                          : profileData.website_url 
+                            ? `0 0 0 3px ${designSystem.colors.success}20`
+                            : 'none'
+                      }}
+                      value={profileData.website_url}
+                      onChange={handleProfileChange}
+                      placeholder="https://yourwebsite.com"
+                      onFocus={(e) => {
+                        e.target.style.borderColor = designSystem.colors.primary.split('(')[0];
+                        e.target.style.boxShadow = `0 0 0 3px ${designSystem.colors.primary}20`;
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = formErrors.website_url 
+                          ? designSystem.colors.danger.split('(')[0] 
+                          : profileData.website_url 
+                            ? designSystem.colors.success.split('(')[0] 
+                            : designSystem.colors.gray[300];
+                        e.target.style.boxShadow = formErrors.website_url 
+                          ? `0 0 0 3px ${designSystem.colors.danger}20`
+                          : profileData.website_url 
+                            ? `0 0 0 3px ${designSystem.colors.success}20`
+                            : 'none';
+                      }}
+                    />
+                    <div style={{
+                      position: 'absolute',
+                      left: '16px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: formErrors.website_url 
+                        ? designSystem.colors.danger.split('(')[0] 
+                        : profileData.website_url 
+                          ? designSystem.colors.success.split('(')[0] 
+                          : designSystem.colors.gray[400],
+                      fontSize: '16px',
+                      pointerEvents: 'none'
+                    }}>
+                      <i className="fas fa-globe"></i>
+                    </div>
+                  </div>
+                  {formErrors.website_url && (
+                    <div style={{
+                      fontSize: designSystem.typography.fontSize.xs,
+                      color: designSystem.colors.danger.split('(')[0],
+                      marginTop: designSystem.spacing.sm,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: designSystem.spacing.xs,
+                      padding: designSystem.spacing.sm,
+                      backgroundColor: `${designSystem.colors.danger}10`,
+                      borderRadius: designSystem.borderRadius.button,
+                      border: `1px solid ${designSystem.colors.danger}30`
+                    }}>
+                      <i className="fas fa-exclamation-triangle"></i>
+                      {formErrors.website_url}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Bio */}
-            <div style={{ marginBottom: designSystem.spacing.xl }}>
-              <label style={{
-                display: 'block',
-                fontSize: designSystem.typography.fontSize.sm,
-                fontWeight: designSystem.typography.fontWeight.medium,
-                color: designSystem.colors.dark,
-                marginBottom: designSystem.spacing.xs
-              }}>
-                <i className="fas fa-user-edit me-2"></i>Bio/About Me
-              </label>
-              <textarea
-                name="bio"
-                rows="4"
-                style={{
-                  ...componentStyles.formInput,
-                  resize: 'vertical',
-                  minHeight: '120px',
-                  fontFamily: designSystem.typography.fontFamily
-                }}
-                value={profileData.bio}
-                onChange={handleProfileChange}
-                placeholder="Tell us about yourself, your background, goals, and what you're looking to achieve..."
-              />
+            <div style={{ 
+              marginBottom: designSystem.spacing.xl,
+              padding: designSystem.spacing.xl,
+              backgroundColor: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+              borderRadius: designSystem.borderRadius.card,
+              border: `1px solid ${designSystem.colors.gray[200]}`,
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+            }}>
               <div style={{
-                fontSize: designSystem.typography.fontSize.xs,
-                color: designSystem.colors.gray[500],
-                marginTop: designSystem.spacing.xs
+                display: 'flex',
+                alignItems: 'center',
+                gap: designSystem.spacing.md,
+                marginBottom: designSystem.spacing.xl,
+                paddingBottom: designSystem.spacing.md,
+                borderBottom: `2px solid ${designSystem.colors.primary.split('(')[0]}20`
               }}>
-                Share your professional background, achievements, and immigration goals to help us serve you better.
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${designSystem.colors.primary} 0%, ${designSystem.colors.primary}CC 100%)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '20px'
+                }}>
+                  <i className="fas fa-user-edit"></i>
+                </div>
+                <div>
+                  <h6 style={{
+                    color: designSystem.colors.dark,
+                    fontWeight: designSystem.typography.fontWeight.bold,
+                    fontSize: designSystem.typography.fontSize.xl,
+                    margin: 0,
+                    marginBottom: designSystem.spacing.xs
+                  }}>
+                    Bio/About Me
+                  </h6>
+                  <p style={{
+                    fontSize: designSystem.typography.fontSize.sm,
+                    color: designSystem.colors.gray[600],
+                    margin: 0
+                  }}>
+                    Share your professional background and immigration goals
+                  </p>
+                </div>
+              </div>
+              
+              <div style={{ position: 'relative' }}>
+                <textarea
+                  name="bio"
+                  rows="6"
+                  style={{
+                    ...componentStyles.formInput,
+                    width: '100%',
+                    resize: 'vertical',
+                    minHeight: '180px',
+                    maxHeight: '400px',
+                    fontFamily: designSystem.typography.fontFamily,
+                    fontSize: designSystem.typography.fontSize.base,
+                    padding: designSystem.spacing.lg,
+                    lineHeight: '1.7',
+                    borderRadius: designSystem.borderRadius.button,
+                    border: `2px solid ${profileData.bio 
+                      ? designSystem.colors.success.split('(')[0] 
+                      : designSystem.colors.gray[300]}`,
+                    backgroundColor: 'white',
+                    transition: 'all 0.3s ease',
+                    boxShadow: profileData.bio 
+                      ? `0 0 0 3px ${designSystem.colors.success}20`
+                      : 'none',
+                    '::placeholder': {
+                      color: designSystem.colors.gray[400],
+                      fontSize: designSystem.typography.fontSize.sm
+                    }
+                  }}
+                  value={profileData.bio}
+                  onChange={handleProfileChange}
+                  placeholder="Tell us about yourself, your background, goals, and what you're looking to achieve...
+
+Examples:
+• Your professional background and current role
+• Educational qualifications and achievements
+• Immigration goals (EB-1A, EB-2 NIW, O-1, etc.)
+• Notable accomplishments or publications
+• Future career aspirations
+• Any specific challenges you're facing"
+                  onFocus={(e) => {
+                    e.target.style.borderColor = designSystem.colors.primary.split('(')[0];
+                    e.target.style.boxShadow = `0 0 0 3px ${designSystem.colors.primary}20`;
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = profileData.bio 
+                      ? designSystem.colors.success.split('(')[0] 
+                      : designSystem.colors.gray[300];
+                    e.target.style.boxShadow = profileData.bio 
+                      ? `0 0 0 3px ${designSystem.colors.success}20`
+                      : 'none';
+                  }}
+                />
+                
+                {/* Character count and guidelines */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  marginTop: designSystem.spacing.md,
+                  gap: designSystem.spacing.lg
+                }}>
+                  <div style={{
+                    flex: 1,
+                    padding: designSystem.spacing.md,
+                    backgroundColor: designSystem.colors.gray[50],
+                    borderRadius: designSystem.borderRadius.button,
+                    border: `1px solid ${designSystem.colors.gray[200]}`
+                  }}>
+                    <div style={{
+                      fontSize: designSystem.typography.fontSize.sm,
+                      color: designSystem.colors.dark,
+                      fontWeight: designSystem.typography.fontWeight.medium,
+                      marginBottom: designSystem.spacing.sm,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: designSystem.spacing.xs
+                    }}>
+                      <i className="fas fa-lightbulb" style={{ color: designSystem.colors.warning.split('(')[0] }}></i>
+                      Tips for a great bio:
+                    </div>
+                    <ul style={{
+                      fontSize: designSystem.typography.fontSize.xs,
+                      color: designSystem.colors.gray[600],
+                      margin: 0,
+                      paddingLeft: '16px',
+                      lineHeight: '1.5'
+                    }}>
+                      <li>Be specific about your achievements</li>
+                      <li>Mention your immigration category of interest</li>
+                      <li>Include relevant work experience</li>
+                      <li>Highlight unique qualifications</li>
+                    </ul>
+                  </div>
+                  
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: designSystem.spacing.xs
+                  }}>
+                    <div style={{
+                      fontSize: designSystem.typography.fontSize.sm,
+                      color: (profileData.bio?.length || 0) > 800 
+                        ? designSystem.colors.warning.split('(')[0]
+                        : (profileData.bio?.length || 0) > 950 
+                          ? designSystem.colors.danger.split('(')[0]
+                          : designSystem.colors.gray[500],
+                      fontWeight: designSystem.typography.fontWeight.medium,
+                      padding: `${designSystem.spacing.xs} ${designSystem.spacing.sm}`,
+                      backgroundColor: (profileData.bio?.length || 0) > 800 
+                        ? `${designSystem.colors.warning}10`
+                        : 'transparent',
+                      borderRadius: designSystem.borderRadius.button,
+                      border: (profileData.bio?.length || 0) > 800 
+                        ? `1px solid ${designSystem.colors.warning}30`
+                        : 'none'
+                    }}>
+                      {profileData.bio?.length || 0} / 1000 characters
+                    </div>
+                    
+                    {(profileData.bio?.length || 0) > 0 && (
+                      <div style={{
+                        fontSize: designSystem.typography.fontSize.xs,
+                        color: designSystem.colors.success.split('(')[0],
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: designSystem.spacing.xs
+                      }}>
+                        <i className="fas fa-check-circle"></i>
+                        Looking good!
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -984,35 +1673,64 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
             {/* Submit Button */}
             <div style={{ 
               display: 'flex', 
-              justifyContent: 'flex-end',
-              paddingTop: designSystem.spacing.lg,
-              borderTop: `1px solid ${designSystem.colors.gray[200]}`
+              justifyContent: 'center',
+              paddingTop: designSystem.spacing.xl,
+              borderTop: `2px solid ${designSystem.colors.gray[200]}`,
+              marginTop: designSystem.spacing.lg
             }}>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !isFormValid}
                 style={{
                   ...componentStyles.primaryButton,
-                  background: loading ? designSystem.colors.gray[400] : designSystem.colors.success,
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  padding: `${designSystem.spacing.md} ${designSystem.spacing.xl}`,
-                  fontSize: designSystem.typography.fontSize.base,
-                  fontWeight: designSystem.typography.fontWeight.semibold,
+                  background: loading 
+                    ? designSystem.colors.gray[400] 
+                    : !isFormValid 
+                      ? designSystem.colors.gray[400]
+                      : designSystem.colors.success,
+                  cursor: loading || !isFormValid ? 'not-allowed' : 'pointer',
+                  padding: `${designSystem.spacing.lg} ${designSystem.spacing.xxl}`,
+                  fontSize: designSystem.typography.fontSize.lg,
+                  fontWeight: designSystem.typography.fontWeight.bold,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: designSystem.spacing.sm,
-                  minWidth: '160px',
-                  justifyContent: 'center'
+                  gap: designSystem.spacing.md,
+                  minWidth: '200px',
+                  justifyContent: 'center',
+                  borderRadius: designSystem.borderRadius.card,
+                  boxShadow: loading || !isFormValid 
+                    ? 'none' 
+                    : '0 8px 25px rgba(34, 197, 94, 0.3)',
+                  transform: loading ? 'none' : 'translateY(0)',
+                  transition: 'all 0.3s ease'
                 }}
-                {...(!loading ? hoverEffects.button : {})}
+                {...((!loading && isFormValid) ? {
+                  onMouseEnter: (e) => {
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = '0 12px 35px rgba(34, 197, 94, 0.4)';
+                  },
+                  onMouseLeave: (e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 8px 25px rgba(34, 197, 94, 0.3)';
+                  }
+                } : {})}
               >
                 {loading ? (
                   <>
-                    <i className="fas fa-spinner fa-spin"></i>Updating...
+                    <div style={{
+                      width: '20px',
+                      height: '20px',
+                      border: '2px solid transparent',
+                      borderTop: '2px solid white',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }}></div>
+                    Updating Profile...
                   </>
                 ) : (
                   <>
-                    <i className="fas fa-save"></i>Update Profile
+                    <i className="fas fa-save fa-lg"></i>
+                    Update Profile
                   </>
                 )}
               </button>

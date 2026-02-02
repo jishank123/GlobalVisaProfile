@@ -152,19 +152,19 @@ const validateProfileUpdate = [
     .withMessage('University name cannot exceed 100 characters'),
   
   body('linkedin_url')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .isURL()
     .withMessage('LinkedIn URL must be a valid URL'),
   
   body('portfolio_url')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .isURL()
     .withMessage('Portfolio URL must be a valid URL'),
   
   body('website_url')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .isURL()
     .withMessage('Website URL must be a valid URL'),

@@ -97,6 +97,22 @@ const projectSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  // Payment verification fields
+  verification_status: {
+    type: String,
+    enum: ['pending', 'verified', 'rejected'],
+    default: 'pending'
+  },
+  admin_notes: {
+    type: String,
+    trim: true
+  },
+  verified_at: {
+    type: Date
+  },
+  verified_by: {
+    type: String // admin email or name
+  },
   budget: {
     type: Number,
     default: 0,
@@ -110,13 +126,36 @@ const projectSchema = new mongoose.Schema({
       type: String,
       required: true
     },
+    description: {
+      type: String,
+      trim: true
+    },
     status: {
       type: String,
-      enum: ['pending', 'in_progress', 'completed'],
+      enum: ['pending', 'in_progress', 'completed', 'cancelled'],
       default: 'pending'
+    },
+    priority: {
+      type: String,
+      enum: ['low', 'medium', 'high'],
+      default: 'medium'
+    },
+    progress: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0
     },
     target_date: Date,
     completion_date: Date,
+    created_at: {
+      type: Date,
+      default: Date.now
+    },
+    updated_at: {
+      type: Date,
+      default: Date.now
+    },
     notes: String
   }],
   notes: [{

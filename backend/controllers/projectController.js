@@ -40,7 +40,7 @@ exports.getProjects = async (req, res) => {
     // Role-based access control
     if (req.user.role === 'crm_manager') {
       // CRM managers can only see projects for their assigned clients
-      const assignedClients = await Client.find({ crm_manager: req.user.user_id }).select('_id');
+      const assignedClients = await Client.find({ crm_manager: req.user._id }).select('_id');
       const clientIds = assignedClients.map(client => client._id);
       query.client = { $in: clientIds };
     } else if (req.user.role === 'lead_manager') {
@@ -540,13 +540,23 @@ exports.updateProject = async (req, res) => {
     // Security check - role-based access control
     if (req.user.role === 'crm_manager') {
       const clientRecord = await Client.findById(project.client._id);
-      console.log('🔒 Security check - CRM Manager:', req.user.email);
+      console.log('🔒 Update Security check - CRM Manager:', req.user.email);
+      console.log('🔒 Project client ID:', project.client._id);
+      console.log('🔒 Project assigned_to:', project.assigned_to);
+      console.log('🔒 Client record found:', !!clientRecord);
       console.log('🔒 Client record CRM manager:', clientRecord?.crm_manager);
       console.log('🔒 Current user ID:', req.user._id);
-      console.log('🔒 Comparison result:', clientRecord?.crm_manager?.toString() === req.user._id.toString());
       
-      if (!clientRecord || !clientRecord.crm_manager || 
-          clientRecord.crm_manager.toString() !== req.user._id.toString()) {
+      // Check if CRM manager has access via client assignment OR direct project assignment
+      const hasClientAccess = clientRecord && clientRecord.crm_manager && 
+                              clientRecord.crm_manager.toString() === req.user._id.toString();
+      const hasProjectAccess = project.assigned_to && 
+                               project.assigned_to.toString() === req.user._id.toString();
+      
+      console.log('🔒 Has client access:', hasClientAccess);
+      console.log('🔒 Has project access:', hasProjectAccess);
+      
+      if (!hasClientAccess && !hasProjectAccess) {
         return res.status(403).json({
           success: false,
           error: {
@@ -560,9 +570,14 @@ exports.updateProject = async (req, res) => {
     // Define allowed fields based on role
     let allowedFields = ['title', 'description', 'status', 'progress', 'priority', 'deadline', 'notes'];
     
+    if (req.user.role === 'admin') {
+      // Admins can update payment verification fields
+      allowedFields.push('verification_status', 'admin_notes', 'verified_at', 'verified_by');
+    }
+    
     if (req.user.role === 'crm_manager') {
-      // CRM managers can update progress and status but not reassign
-      allowedFields = ['status', 'progress', 'notes'];
+      // CRM managers can update progress, status, and payment verification fields
+      allowedFields = ['status', 'progress', 'notes', 'verification_status', 'admin_notes', 'verified_at', 'verified_by'];
     }
     
     // Update only allowed fields
@@ -633,6 +648,170 @@ exports.updateProject = async (req, res) => {
       }
     });
   }
+};
+
+// @desc    Generate invoice for project
+// @route   POST /api/projects/:id/invoice
+// @access  Private (Admin, Lead Manager)
+exports.generateProjectInvoice = async (req, res) => {
+  try {
+    console.log('\n📄 === GENERATE PROJECT INVOICE REQUEST ===');
+    console.log('📄 Project ID:', req.params.id);
+    console.log('📄 User:', req.user?.email, 'Role:', req.user?.role);
+    
+    const project = await Project.findById(req.params.id)
+      .populate('client', 'name email company')
+      .populate('service', 'name category pricing');
+    
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'PROJECT_NOT_FOUND',
+          message: 'Project not found'
+        }
+      });
+    }
+    
+    // Security check for CRM managers
+    if (req.user.role === 'crm_manager') {
+      const clientRecord = await Client.findById(project.client._id);
+      console.log('📄 Invoice Security check - CRM Manager:', req.user.email);
+      console.log('📄 Project client ID:', project.client._id);
+      console.log('📄 Project assigned_to:', project.assigned_to);
+      console.log('📄 Client record found:', !!clientRecord);
+      console.log('📄 Client record CRM manager:', clientRecord?.crm_manager);
+      console.log('📄 Current user ID:', req.user._id);
+      
+      // Check if CRM manager has access via client assignment OR direct project assignment
+      const hasClientAccess = clientRecord && clientRecord.crm_manager && 
+                              clientRecord.crm_manager.toString() === req.user._id.toString();
+      const hasProjectAccess = project.assigned_to && 
+                               project.assigned_to.toString() === req.user._id.toString();
+      
+      console.log('📄 Has client access:', hasClientAccess);
+      console.log('📄 Has project access:', hasProjectAccess);
+      
+      if (!hasClientAccess && !hasProjectAccess) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You can only generate invoices for your assigned clients'
+          }
+        });
+      }
+    }
+    
+    // Check if project is in a valid state for invoicing
+    if (project.status !== 'active' && project.status !== 'completed') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_PROJECT_STATUS',
+          message: 'Can only generate invoices for active or completed projects'
+        }
+      });
+    }
+    
+    // Check if invoice already exists for this project
+    const Invoice = require('../models/Invoice');
+    const existingInvoice = await Invoice.findOne({ project: project._id });
+    
+    if (existingInvoice) {
+      console.log('📄 Existing invoice found:', existingInvoice.invoice_number);
+      return res.json({
+        success: true,
+        message: 'Invoice already exists for this project',
+        data: existingInvoice,
+        invoiceUrl: `/api/invoices/${existingInvoice._id}`
+      });
+    }
+    
+    // Calculate due date (30 days from now)
+    const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    
+    // Create invoice data
+    const invoiceData = {
+      client: project.client._id,
+      project: project._id,
+      service: project.service,
+      service_name: project.service_name,
+      amount: project.amount || 0,
+      tax_amount: 0, // You can calculate tax if needed
+      total_amount: project.amount || 0,
+      due_date: dueDate,
+      description: `Invoice for ${project.service_name} service`,
+      line_items: [{
+        description: project.service_name,
+        quantity: 1,
+        unit_price: project.amount || 0,
+        total: project.amount || 0
+      }],
+      notes: project.admin_notes || '',
+      payment_instructions: 'Please pay within 30 days of invoice date.',
+      created_by: req.user._id,
+      status: 'sent'
+    };
+    
+    // Generate invoice number manually as fallback
+    if (!invoiceData.invoice_number) {
+      try {
+        const count = await Invoice.countDocuments();
+        const year = new Date().getFullYear();
+        invoiceData.invoice_number = `INV-${year}-${(count + 1).toString().padStart(4, '0')}`;
+      } catch (error) {
+        console.log('📄 Using timestamp-based invoice number');
+        invoiceData.invoice_number = `INV-${Date.now()}`;
+      }
+    }
+    
+    console.log('📄 Creating invoice with data:', {
+      client: project.client.name,
+      service: project.service_name,
+      amount: project.amount,
+      invoiceData: invoiceData
+    });
+    
+    const invoice = await Invoice.create(invoiceData);
+    console.log('📄 Invoice created with number:', invoice.invoice_number);
+    
+    // Populate the created invoice
+    await invoice.populate('client', 'name email company');
+    await invoice.populate('project', 'project_id service_name');
+    await invoice.populate('created_by', 'first_name last_name email');
+    
+    // Log activity
+    await logActivity(
+      req.user._id,
+      'create',
+      'Invoice',
+      `Generated invoice ${invoice.invoice_number} for project ${project.service_name}`,
+      req.ip,
+      invoice._id
+    );
+    
+    console.log('📄 Invoice created successfully:', invoice.invoice_number);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Invoice generated successfully',
+      data: invoice,
+      invoiceUrl: `/api/invoices/${invoice._id}`
+    });
+    
+  } catch (error) {
+    console.error('❌ Generate invoice error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'GENERATE_INVOICE_FAILED',
+        message: error.message
+      }
+    });
+  }
+  
+  console.log('📄 === GENERATE PROJECT INVOICE REQUEST COMPLETED ===\n');
 };
 
 // @desc    Delete project (soft delete)
@@ -774,7 +953,7 @@ exports.getMyProjects = async (req, res) => {
     console.log('📊 User object:', JSON.stringify(req.user, null, 2));
     console.log('📊 User email:', req.user?.email);
     console.log('📊 User role:', req.user?.role);
-    console.log('📊 User ID from req.user.user_id:', req.user?.user_id);
+    console.log('📊 User ID from req.user._id:', req.user?._id);
     console.log('📊 User ID from req.user._id:', req.user?._id);
     console.log('📊 User ID from req.user.id:', req.user?.id);
     console.log('📊 Sample project assigned_to for comparison: "697ec40613b779c47c5cd4cd"');
@@ -791,7 +970,7 @@ exports.getMyProjects = async (req, res) => {
     }
     
     const { status, page = 1, limit = 20 } = req.query;
-    const crmManagerId = req.user.user_id || req.user._id || req.user.id;
+    const crmManagerId = req.user._id || req.user.id;
     
     console.log('📊 Final CRM Manager ID used for query:', crmManagerId);
     console.log('📊 CRM Manager ID type:', typeof crmManagerId);

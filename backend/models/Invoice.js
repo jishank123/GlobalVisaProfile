@@ -119,14 +119,24 @@ invoiceSchema.virtual('days_overdue').get(function() {
   return 0;
 });
 
-// Pre-save hook to generate invoice number
-invoiceSchema.pre('save', async function(next) {
+// Pre-validate hook to generate invoice number
+invoiceSchema.pre('validate', async function(next) {
   if (!this.invoice_number) {
-    const count = await this.constructor.countDocuments();
-    const year = new Date().getFullYear();
-    this.invoice_number = `INV-${year}-${(count + 1).toString().padStart(4, '0')}`;
+    try {
+      const count = await this.constructor.countDocuments();
+      const year = new Date().getFullYear();
+      this.invoice_number = `INV-${year}-${(count + 1).toString().padStart(4, '0')}`;
+    } catch (error) {
+      console.error('Error generating invoice number:', error);
+      // Fallback to timestamp-based number
+      this.invoice_number = `INV-${Date.now()}`;
+    }
   }
-  
+  next();
+});
+
+// Pre-save hook to calculate totals
+invoiceSchema.pre('save', async function(next) {
   // Calculate total amount
   if (this.line_items && this.line_items.length > 0) {
     this.amount = this.line_items.reduce((sum, item) => sum + item.total, 0);

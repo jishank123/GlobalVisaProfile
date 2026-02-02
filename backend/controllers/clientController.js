@@ -38,7 +38,7 @@ exports.getClients = async (req, res) => {
     // Role-based access control
     if (req.user.role === 'crm_manager') {
       // CRM managers can only see their assigned clients
-      query.crm_manager = req.user.user_id;
+      query.crm_manager = req.user._id;
     }
     
     // Apply filters
@@ -112,7 +112,7 @@ exports.getClient = async (req, res) => {
     }
     
     // Security check - role-based access control
-    if (req.user.role === 'client' && client._id.toString() !== req.user.user_id) {
+    if (req.user.role === 'client' && client._id.toString() !== req.user._id) {
       return res.status(403).json({
         success: false,
         error: {
@@ -123,7 +123,7 @@ exports.getClient = async (req, res) => {
     }
     
     if (req.user.role === 'crm_manager' && 
-        (!client.crm_manager || client.crm_manager._id.toString() !== req.user.user_id)) {
+        (!client.crm_manager || client.crm_manager._id.toString() !== req.user._id)) {
       return res.status(403).json({
         success: false,
         error: {
@@ -178,7 +178,7 @@ exports.createClient = async (req, res) => {
     
     const clientData = {
       ...req.body,
-      created_by: req.user.user_id
+      created_by: req.user._id
     };
     
     const client = await Client.create(clientData);
@@ -240,8 +240,8 @@ exports.updateClient = async (req, res) => {
     }
     
     // Security check - role-based access control
-    const isOwnProfile = client._id.toString() === req.user.user_id;
-    const isAssignedManager = client.crm_manager && client.crm_manager.toString() === req.user.user_id;
+    const isOwnProfile = client._id.toString() === req.user._id;
+    const isAssignedManager = client.crm_manager && client.crm_manager.toString() === req.user._id;
     const isAdminOrLeadManager = ['admin', 'lead_manager'].includes(req.user.role);
     
     if (!isOwnProfile && !isAssignedManager && !isAdminOrLeadManager) {
@@ -397,7 +397,7 @@ exports.deleteClient = async (req, res) => {
     // Soft delete - change status instead of actual deletion
     client.status = 'deleted';
     client.deleted_at = new Date();
-    client.deleted_by = req.user.user_id;
+    client.deleted_by = req.user._id;
     await client.save();
     
     // Log activity
@@ -434,7 +434,7 @@ exports.getClientStats = async (req, res) => {
     
     // Filter by assigned manager for CRM managers
     if (req.user.role === 'crm_manager') {
-      query.crm_manager = req.user.user_id;
+      query.crm_manager = req.user._id;
     }
     
     const total = await Client.countDocuments(query);

@@ -149,7 +149,7 @@ exports.getInvoice = async (req, res) => {
         });
       }
     } else if (req.user.role === 'lead_manager') {
-      if (invoice.created_by._id.toString() !== req.user.user_id.toString()) {
+      if (invoice.created_by._id.toString() !== req.user._id.toString()) {
         return res.status(403).json({
           success: false,
           error: {
@@ -299,6 +299,682 @@ exports.createInvoice = async (req, res) => {
       success: false,
       error: {
         code: 'CREATE_INVOICE_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    View invoice as HTML
+// @route   GET /api/invoices/:id/view
+// @access  Private (Admin, Lead Manager, CRM Manager, Client)
+exports.viewInvoice = async (req, res) => {
+  try {
+    const invoice = await Invoice.findById(req.params.id)
+      .populate('client', 'name email company phone address')
+      .populate('project', 'project_id service_name')
+      .populate('created_by', 'first_name last_name email');
+    
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'INVOICE_NOT_FOUND',
+          message: 'Invoice not found'
+        }
+      });
+    }
+    
+    // Role-based access control
+    if (req.user.role === 'client') {
+      const clientRecord = await Client.findOne({ email: req.user.email });
+      if (!clientRecord || invoice.client._id.toString() !== clientRecord._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You can only view your own invoices'
+          }
+        });
+      }
+    } else if (req.user.role === 'crm_manager') {
+      const clientRecord = await Client.findById(invoice.client._id);
+      
+      // Get the full project details to check assigned_to field
+      const Project = require('../models/Project');
+      const projectRecord = invoice.project ? await Project.findById(invoice.project._id) : null;
+      
+      console.log('👁️ View Security check - CRM Manager:', req.user.email);
+      console.log('👁️ Invoice client ID:', invoice.client._id);
+      console.log('👁️ Invoice project ID:', invoice.project?._id);
+      console.log('👁️ Client record found:', !!clientRecord);
+      console.log('👁️ Project record found:', !!projectRecord);
+      console.log('👁️ Client record CRM manager:', clientRecord?.crm_manager);
+      console.log('👁️ Project assigned_to:', projectRecord?.assigned_to);
+      console.log('👁️ Current user ID:', req.user._id);
+      console.log('👁️ Current user ID type:', typeof req.user._id);
+      
+      // Ensure we have a valid user ID
+      const currentUserId = req.user._id || req.user.user_id || req.user.id;
+      if (!currentUserId) {
+        console.log('👁️ ERROR: No valid user ID found in req.user');
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Invalid user authentication'
+          }
+        });
+      }
+      
+      // Check if CRM manager has access via client assignment OR direct project assignment
+      const hasClientAccess = clientRecord && clientRecord.crm_manager && 
+                              clientRecord.crm_manager.toString() === currentUserId.toString();
+      const hasProjectAccess = projectRecord && projectRecord.assigned_to && 
+                               projectRecord.assigned_to.toString() === currentUserId.toString();
+      
+      console.log('👁️ Has client access:', hasClientAccess);
+      console.log('👁️ Has project access:', hasProjectAccess);
+      
+      if (!hasClientAccess && !hasProjectAccess) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You can only view invoices for your assigned clients'
+          }
+        });
+      }
+    }
+    
+    // Generate HTML invoice
+    const invoiceHTML = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Invoice ${invoice.invoice_number}</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+                line-height: 1.6;
+                color: #333;
+            }
+            .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 2px solid #3b82f6;
+                padding-bottom: 20px;
+                margin-bottom: 30px;
+            }
+            .company-info {
+                text-align: left;
+            }
+            .company-info h1 {
+                color: #3b82f6;
+                margin: 0;
+                font-size: 28px;
+            }
+            .invoice-info {
+                text-align: right;
+            }
+            .invoice-number {
+                font-size: 24px;
+                font-weight: bold;
+                color: #3b82f6;
+                margin: 0;
+            }
+            .client-info {
+                background: #f8fafc;
+                padding: 20px;
+                border-radius: 8px;
+                margin-bottom: 30px;
+            }
+            .client-info h3 {
+                margin-top: 0;
+                color: #1e40af;
+            }
+            .invoice-details {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 30px;
+            }
+            .invoice-details div {
+                flex: 1;
+            }
+            .line-items {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 30px;
+            }
+            .line-items th,
+            .line-items td {
+                padding: 12px;
+                text-align: left;
+                border-bottom: 1px solid #e5e7eb;
+            }
+            .line-items th {
+                background: #3b82f6;
+                color: white;
+                font-weight: bold;
+            }
+            .line-items tr:nth-child(even) {
+                background: #f8fafc;
+            }
+            .totals {
+                text-align: right;
+                margin-bottom: 30px;
+            }
+            .totals table {
+                margin-left: auto;
+                border-collapse: collapse;
+            }
+            .totals td {
+                padding: 8px 12px;
+                border-bottom: 1px solid #e5e7eb;
+            }
+            .total-amount {
+                font-size: 18px;
+                font-weight: bold;
+                color: #059669;
+                border-top: 2px solid #3b82f6;
+            }
+            .footer {
+                border-top: 1px solid #e5e7eb;
+                padding-top: 20px;
+                text-align: center;
+                color: #6b7280;
+                font-size: 14px;
+            }
+            .status-badge {
+                display: inline-block;
+                padding: 4px 12px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: bold;
+                text-transform: uppercase;
+            }
+            .status-sent { background: #dbeafe; color: #1e40af; }
+            .status-paid { background: #d1fae5; color: #065f46; }
+            .status-overdue { background: #fee2e2; color: #991b1b; }
+            .status-draft { background: #f3f4f6; color: #374151; }
+            @media print {
+                body { margin: 0; padding: 15px; }
+                .no-print { display: none; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="company-info">
+                <h1>ImmigrationPro</h1>
+                <p>Professional Immigration Services<br>
+                Email: info@immigrationpro.com<br>
+                Phone: +1 (555) 123-4567</p>
+            </div>
+            <div class="invoice-info">
+                <h2 class="invoice-number">Invoice ${invoice.invoice_number}</h2>
+                <p>Date: ${new Date(invoice.createdAt).toLocaleDateString()}<br>
+                Due Date: ${new Date(invoice.due_date).toLocaleDateString()}</p>
+                <span class="status-badge status-${invoice.status}">${invoice.status}</span>
+            </div>
+        </div>
+
+        <div class="client-info">
+            <h3>Bill To:</h3>
+            <p><strong>${invoice.client.name}</strong><br>
+            ${invoice.client.company ? invoice.client.company + '<br>' : ''}
+            Email: ${invoice.client.email}<br>
+            ${invoice.client.phone ? 'Phone: ' + invoice.client.phone + '<br>' : ''}
+            ${invoice.client.address || ''}</p>
+        </div>
+
+        <div class="invoice-details">
+            <div>
+                <h4>Service Details:</h4>
+                <p><strong>${invoice.service_name}</strong><br>
+                ${invoice.project ? 'Project: ' + invoice.project.project_id : ''}</p>
+            </div>
+            <div>
+                <h4>Payment Instructions:</h4>
+                <p>${invoice.payment_instructions || 'Please pay within 30 days of invoice date.'}</p>
+            </div>
+        </div>
+
+        <table class="line-items">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${invoice.line_items.map(item => `
+                <tr>
+                    <td>${item.description}</td>
+                    <td>${item.quantity}</td>
+                    <td>$${item.unit_price.toLocaleString()}</td>
+                    <td>$${item.total.toLocaleString()}</td>
+                </tr>
+                `).join('')}
+            </tbody>
+        </table>
+
+        <div class="totals">
+            <table>
+                <tr>
+                    <td>Subtotal:</td>
+                    <td>$${invoice.amount.toLocaleString()}</td>
+                </tr>
+                ${invoice.tax_amount > 0 ? `
+                <tr>
+                    <td>Tax:</td>
+                    <td>$${invoice.tax_amount.toLocaleString()}</td>
+                </tr>
+                ` : ''}
+                <tr class="total-amount">
+                    <td><strong>Total Amount:</strong></td>
+                    <td><strong>$${invoice.total_amount.toLocaleString()}</strong></td>
+                </tr>
+            </table>
+        </div>
+
+        ${invoice.notes ? `
+        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h4>Notes:</h4>
+            <p>${invoice.notes}</p>
+        </div>
+        ` : ''}
+
+        <div class="footer">
+            <p>Thank you for your business!<br>
+            For questions about this invoice, please contact us at info@immigrationpro.com</p>
+        </div>
+
+        <div class="no-print" style="margin-top: 30px; text-align: center;">
+            <button onclick="window.print()" style="background: #3b82f6; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">Print Invoice</button>
+            <button onclick="window.close()" style="background: #6b7280; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">Close</button>
+        </div>
+    </body>
+    </html>
+    `;
+    
+    res.setHeader('Content-Type', 'text/html');
+    res.send(invoiceHTML);
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'VIEW_INVOICE_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Download invoice as HTML
+// @route   POST /api/invoices/:id/download
+// @access  Private (Admin, Lead Manager, CRM Manager, Client)
+exports.downloadInvoice = async (req, res) => {
+  try {
+    // Manual token verification since we're using POST
+    const token = req.body.token || req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          code: 'NO_TOKEN',
+          message: 'Access denied. No authentication token provided.'
+        }
+      });
+    }
+
+    // Verify token
+    const jwt = require('jsonwebtoken');
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          code: 'INVALID_TOKEN',
+          message: 'Invalid authentication token.'
+        }
+      });
+    }
+
+    // Set user info for authorization checks
+    req.user = {
+      _id: decoded.user_id || decoded._id || decoded.id,
+      user_id: decoded.user_id || decoded._id || decoded.id,
+      id: decoded.user_id || decoded._id || decoded.id,
+      email: decoded.email,
+      role: decoded.role
+    };
+    
+    const invoice = await Invoice.findById(req.params.id)
+      .populate('client', 'name email company phone address')
+      .populate('project', 'project_id service_name')
+      .populate('created_by', 'first_name last_name email');
+    
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'INVOICE_NOT_FOUND',
+          message: 'Invoice not found'
+        }
+      });
+    }
+    
+    // Role-based access control
+    if (req.user.role === 'client') {
+      const clientRecord = await Client.findOne({ email: req.user.email });
+      if (!clientRecord || invoice.client._id.toString() !== clientRecord._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You can only download your own invoices'
+          }
+        });
+      }
+    } else if (req.user.role === 'crm_manager') {
+      const clientRecord = await Client.findById(invoice.client._id);
+      
+      // Get the full project details to check assigned_to field
+      const Project = require('../models/Project');
+      const projectRecord = invoice.project ? await Project.findById(invoice.project._id) : null;
+      
+      console.log('📄 Download Security check - CRM Manager:', req.user.email);
+      console.log('📄 Invoice client ID:', invoice.client._id);
+      console.log('📄 Invoice project ID:', invoice.project?._id);
+      console.log('📄 Client record found:', !!clientRecord);
+      console.log('📄 Project record found:', !!projectRecord);
+      console.log('📄 Client record CRM manager:', clientRecord?.crm_manager);
+      console.log('📄 Project assigned_to:', projectRecord?.assigned_to);
+      console.log('📄 Current user ID:', req.user._id);
+      console.log('📄 Current user ID type:', typeof req.user._id);
+      
+      // Ensure we have a valid user ID
+      const currentUserId = req.user._id || req.user.user_id || req.user.id;
+      if (!currentUserId) {
+        console.log('📄 ERROR: No valid user ID found in req.user');
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Invalid user authentication'
+          }
+        });
+      }
+      
+      // Check if CRM manager has access via client assignment OR direct project assignment
+      const hasClientAccess = clientRecord && clientRecord.crm_manager && 
+                              clientRecord.crm_manager.toString() === currentUserId.toString();
+      const hasProjectAccess = projectRecord && projectRecord.assigned_to && 
+                               projectRecord.assigned_to.toString() === currentUserId.toString();
+      
+      console.log('📄 Has client access:', hasClientAccess);
+      console.log('📄 Has project access:', hasProjectAccess);
+      
+      if (!hasClientAccess && !hasProjectAccess) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You can only download invoices for your assigned clients'
+          }
+        });
+      }
+    }
+    
+    // Generate HTML invoice with auto-download functionality
+    const invoiceHTML = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Invoice ${invoice.invoice_number}</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+                line-height: 1.6;
+                color: #333;
+            }
+            .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 2px solid #3b82f6;
+                padding-bottom: 20px;
+                margin-bottom: 30px;
+            }
+            .company-info {
+                text-align: left;
+            }
+            .company-info h1 {
+                color: #3b82f6;
+                margin: 0;
+                font-size: 28px;
+            }
+            .invoice-info {
+                text-align: right;
+            }
+            .invoice-number {
+                font-size: 24px;
+                font-weight: bold;
+                color: #3b82f6;
+                margin: 0;
+            }
+            .client-info {
+                background: #f8fafc;
+                padding: 20px;
+                border-radius: 8px;
+                margin-bottom: 30px;
+            }
+            .client-info h3 {
+                margin-top: 0;
+                color: #1e40af;
+            }
+            .invoice-details {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 30px;
+            }
+            .invoice-details div {
+                flex: 1;
+            }
+            .line-items {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 30px;
+            }
+            .line-items th,
+            .line-items td {
+                padding: 12px;
+                text-align: left;
+                border-bottom: 1px solid #e5e7eb;
+            }
+            .line-items th {
+                background: #3b82f6;
+                color: white;
+                font-weight: bold;
+            }
+            .line-items tr:nth-child(even) {
+                background: #f8fafc;
+            }
+            .totals {
+                text-align: right;
+                margin-bottom: 30px;
+            }
+            .totals table {
+                margin-left: auto;
+                border-collapse: collapse;
+            }
+            .totals td {
+                padding: 8px 12px;
+                border-bottom: 1px solid #e5e7eb;
+            }
+            .total-amount {
+                font-size: 18px;
+                font-weight: bold;
+                color: #059669;
+                border-top: 2px solid #3b82f6;
+            }
+            .footer {
+                border-top: 1px solid #e5e7eb;
+                padding-top: 20px;
+                text-align: center;
+                color: #6b7280;
+                font-size: 14px;
+            }
+            .status-badge {
+                display: inline-block;
+                padding: 4px 12px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: bold;
+                text-transform: uppercase;
+            }
+            .status-sent { background: #dbeafe; color: #1e40af; }
+            .status-paid { background: #d1fae5; color: #065f46; }
+            .status-overdue { background: #fee2e2; color: #991b1b; }
+            .status-draft { background: #f3f4f6; color: #374151; }
+            @media print {
+                body { margin: 0; padding: 15px; }
+            }
+        </style>
+        <script>
+            // Auto-trigger print dialog and close after printing
+            window.onload = function() {
+                setTimeout(function() {
+                    window.print();
+                    // Close the window after print dialog
+                    setTimeout(function() {
+                        window.close();
+                    }, 1000);
+                }, 500);
+            };
+        </script>
+    </head>
+    <body>
+        <div class="header">
+            <div class="company-info">
+                <h1>ImmigrationPro</h1>
+                <p>Professional Immigration Services<br>
+                Email: info@immigrationpro.com<br>
+                Phone: +1 (555) 123-4567</p>
+            </div>
+            <div class="invoice-info">
+                <h2 class="invoice-number">Invoice ${invoice.invoice_number}</h2>
+                <p>Date: ${new Date(invoice.createdAt).toLocaleDateString()}<br>
+                Due Date: ${new Date(invoice.due_date).toLocaleDateString()}</p>
+                <span class="status-badge status-${invoice.status}">${invoice.status}</span>
+            </div>
+        </div>
+
+        <div class="client-info">
+            <h3>Bill To:</h3>
+            <p><strong>${invoice.client.name}</strong><br>
+            ${invoice.client.company ? invoice.client.company + '<br>' : ''}
+            Email: ${invoice.client.email}<br>
+            ${invoice.client.phone ? 'Phone: ' + invoice.client.phone + '<br>' : ''}
+            ${invoice.client.address || ''}</p>
+        </div>
+
+        <div class="invoice-details">
+            <div>
+                <h4>Service Details:</h4>
+                <p><strong>${invoice.service_name}</strong><br>
+                ${invoice.project ? 'Project: ' + invoice.project.project_id : ''}</p>
+            </div>
+            <div>
+                <h4>Payment Instructions:</h4>
+                <p>${invoice.payment_instructions || 'Please pay within 30 days of invoice date.'}</p>
+            </div>
+        </div>
+
+        <table class="line-items">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${invoice.line_items.map(item => `
+                <tr>
+                    <td>${item.description}</td>
+                    <td>${item.quantity}</td>
+                    <td>$${item.unit_price.toLocaleString()}</td>
+                    <td>$${item.total.toLocaleString()}</td>
+                </tr>
+                `).join('')}
+            </tbody>
+        </table>
+
+        <div class="totals">
+            <table>
+                <tr>
+                    <td>Subtotal:</td>
+                    <td>$${invoice.amount.toLocaleString()}</td>
+                </tr>
+                ${invoice.tax_amount > 0 ? `
+                <tr>
+                    <td>Tax:</td>
+                    <td>$${invoice.tax_amount.toLocaleString()}</td>
+                </tr>
+                ` : ''}
+                <tr class="total-amount">
+                    <td><strong>Total Amount:</strong></td>
+                    <td><strong>$${invoice.total_amount.toLocaleString()}</strong></td>
+                </tr>
+            </table>
+        </div>
+
+        ${invoice.notes ? `
+        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h4>Notes:</h4>
+            <p>${invoice.notes}</p>
+        </div>
+        ` : ''}
+
+        <div class="footer">
+            <p>Thank you for your business!<br>
+            For questions about this invoice, please contact us at info@immigrationpro.com</p>
+        </div>
+    </body>
+    </html>
+    `;
+    
+    // Set headers for download
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Content-Disposition', `inline; filename="Invoice-${invoice.invoice_number}.html"`);
+    res.send(invoiceHTML);
+    
+  } catch (error) {
+    console.error('Download invoice error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'DOWNLOAD_INVOICE_FAILED',
         message: error.message
       }
     });
@@ -472,6 +1148,8 @@ module.exports = {
   getInvoices: exports.getInvoices,
   getInvoice: exports.getInvoice,
   createInvoice: exports.createInvoice,
+  viewInvoice: exports.viewInvoice,
+  downloadInvoice: exports.downloadInvoice,
   updateInvoiceStatus: exports.updateInvoiceStatus,
   getInvoiceStats: exports.getInvoiceStats
 };

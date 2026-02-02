@@ -27,6 +27,16 @@ router.get('/stats/summary', auth(['admin', 'lead_manager', 'crm_manager']), inv
 // @access  Private (Admin, Lead Manager, CRM Manager, Client)
 router.get('/:id', auth(['admin', 'lead_manager', 'crm_manager', 'client']), invoiceController.getInvoice);
 
+// @route   GET /api/invoices/:id/view
+// @desc    View invoice as HTML (for printing/viewing)
+// @access  Private (Admin, Lead Manager, CRM Manager, Client)
+router.get('/:id/view', auth(['admin', 'lead_manager', 'crm_manager', 'client']), invoiceController.viewInvoice);
+
+// @route   POST /api/invoices/:id/download
+// @desc    Download invoice as HTML (with token in body)
+// @access  Private (Admin, Lead Manager, CRM Manager, Client)
+router.post('/:id/download', invoiceController.downloadInvoice);
+
 // @route   POST /api/invoices
 // @desc    Create new invoice
 // @access  Private (Admin, Lead Manager)

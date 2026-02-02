@@ -131,9 +131,13 @@ const TasksManagement = () => {
       if (response.success) {
         loadTasks(); // Refresh the list
         handleModalClose();
+        alert('Task created successfully!');
+      } else {
+        throw new Error(response.error?.message || 'Failed to create task');
       }
     } catch (error) {
       console.error('Error creating task:', error);
+      alert('Failed to create task: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -143,9 +147,13 @@ const TasksManagement = () => {
       if (response.success) {
         loadTasks(); // Refresh the list
         handleModalClose();
+        alert('Task updated successfully!');
+      } else {
+        throw new Error(response.error?.message || 'Failed to update task');
       }
     } catch (error) {
       console.error('Error updating task:', error);
+      alert('Failed to update task: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -154,9 +162,13 @@ const TasksManagement = () => {
       const response = await projectsAPI.updateTaskStatus(taskId, newStatus);
       if (response.success) {
         loadTasks(); // Refresh the list
+        alert(`Task status updated to ${newStatus.replace('_', ' ')} successfully!`);
+      } else {
+        throw new Error(response.error?.message || 'Failed to update task status');
       }
     } catch (error) {
       console.error('Error updating task status:', error);
+      alert('Failed to update task status: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -355,6 +367,15 @@ const TasksManagement = () => {
                           title="Mark as Completed"
                         >
                           <i className="fas fa-check"></i>
+                        </button>
+                      )}
+                      {task.status !== 'in_progress' && task.status !== 'completed' && (
+                        <button 
+                          className="btn btn-outline-warning btn-sm"
+                          onClick={() => handleUpdateTaskStatus(task._id, 'in_progress')}
+                          title="Mark as In Progress"
+                        >
+                          <i className="fas fa-play"></i>
                         </button>
                       )}
                     </div>
@@ -573,11 +594,15 @@ const TaskModal = ({ show, onHide, type, data, projects, onCreateTask, onUpdateT
     due_date: data?.due_date ? new Date(data.due_date).toISOString().split('T')[0] : '',
     progress: data?.progress || 0
   });
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!show) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (isSubmitting) return; // Prevent double submission
     
     if (!formData.title.trim()) {
       alert('Please enter a task title.');
@@ -588,24 +613,60 @@ const TaskModal = ({ show, onHide, type, data, projects, onCreateTask, onUpdateT
       alert('Please select a project.');
       return;
     }
-
-    if (type === 'create') {
-      onCreateTask(formData);
-    } else if (type === 'edit') {
-      onUpdateTask(data._id, formData);
+    
+    setIsSubmitting(true);
+    
+    try {
+      if (type === 'create') {
+        await onCreateTask(formData);
+      } else if (type === 'edit') {
+        await onUpdateTask(data._id, formData);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value
+      };
+      
+      // Auto-update progress when status changes
+      if (field === 'status') {
+        if (value === 'completed') {
+          newData.progress = 100;
+        } else if (value === 'in_progress' && prev.progress === 0) {
+          newData.progress = 25;
+        }
+      }
+      
+      return newData;
+    });
   };
 
   return (
-    <div className="modal" style={componentStyles.modal}>
-      <div className="modal-dialog modal-lg">
+    <div 
+      className="modal fade show" 
+      style={{ 
+        display: 'block', 
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 1050
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onHide();
+        }
+      }}
+    >
+      <div className="modal-dialog modal-lg" onClick={(e) => e.stopPropagation()}>
         <div className="modal-content" style={componentStyles.modalContent}>
           <div className="modal-header" style={componentStyles.modalHeader}>
             <h5 className="modal-title">
@@ -740,12 +801,23 @@ const TaskModal = ({ show, onHide, type, data, projects, onCreateTask, onUpdateT
           </div>
           
           <div className="modal-footer" style={componentStyles.modalFooter}>
-            <button type="button" className="btn btn-secondary" onClick={onHide}>
-              Close
-            </button>
+           
+           
             {type !== 'view' && (
-              <button type="submit" className="btn btn-primary" onClick={handleSubmit}>
-                {type === 'create' ? 'Create Task' : 'Update Task'}
+              <button 
+                type="button" 
+                className="btn btn-primary" 
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin me-2"></i>
+                    {type === 'create' ? 'Creating...' : 'Updating...'}
+                  </>
+                ) : (
+                  type === 'create' ? 'Create Task' : 'Update Task'
+                )}
               </button>
             )}
           </div>

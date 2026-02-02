@@ -409,6 +409,12 @@ projectsAPI.getMyProjects = crmAPI.getMyProjects;
 projectsAPI.updateStatus = crmAPI.updateProjectStatus;
 projectsAPI.updateProgress = crmAPI.updateProjectProgress;
 
+// Add task-related methods to projectsAPI
+projectsAPI.getMyTasks = crmAPI.getMyTasks;
+projectsAPI.createTask = crmAPI.createTask;
+projectsAPI.updateTask = crmAPI.updateTask;
+projectsAPI.updateTaskStatus = crmAPI.updateTaskStatus;
+
 queriesAPI.getMyQueries = crmAPI.getMyQueries;
 queriesAPI.addResponse = crmAPI.respondToQuery;
 queriesAPI.updateStatus = crmAPI.updateQueryStatus;

@@ -130,7 +130,7 @@ exports.verifyPayment = async (req, res) => {
     if (req.user.role === 'crm_manager') {
       const clientRecord = await Client.findById(payment.client._id);
       if (!clientRecord || !clientRecord.crm_manager || 
-          clientRecord.crm_manager.toString() !== req.user.user_id.toString()) {
+          clientRecord.crm_manager.toString() !== req.user._id.toString()) {
         return res.status(403).json({
           success: false,
           error: {

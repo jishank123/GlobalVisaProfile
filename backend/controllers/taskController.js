@@ -11,7 +11,7 @@ exports.getMyTasks = async (req, res) => {
   console.log('📋 CRM Manager requesting their tasks');
   
   try {
-    const crmManagerId = req.user.user_id || req.user.id;
+    const crmManagerId = req.user._id || req.user.user_id || req.user.id;
     console.log('📋 CRM Manager ID:', crmManagerId);
     
     // Get projects assigned to this CRM manager
@@ -82,7 +82,7 @@ exports.getTasks = async (req, res) => {
   try {
     const { status, priority, project_id, assigned_to } = req.query;
     const userRole = req.user.role;
-    const userId = req.user.user_id || req.user.id;
+    const userId = req.user._id || req.user.user_id || req.user.id;
     
     let projectFilter = {};
     
@@ -236,7 +236,7 @@ exports.createTask = async (req, res) => {
   
   try {
     const { project_id, title, description, status, priority, due_date, progress } = req.body;
-    const userId = req.user.user_id || req.user.id;
+    const userId = req.user._id || req.user.user_id || req.user.id;
     
     console.log('📋 Creating task for project:', project_id);
     
@@ -263,7 +263,7 @@ exports.createTask = async (req, res) => {
     }
     
     // Check if user has permission to add tasks to this project
-    if (req.user.role === 'crm_manager' && project.assigned_to?.toString() !== userId) {
+    if (req.user.role === 'crm_manager' && project.assigned_to?.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
         error: {
@@ -330,7 +330,7 @@ exports.updateTask = async (req, res) => {
   try {
     const taskId = req.params.id;
     const { title, description, status, priority, due_date, progress } = req.body;
-    const userId = req.user.user_id || req.user.id;
+    const userId = req.user._id || req.user.user_id || req.user.id;
     
     console.log('📋 Updating task:', taskId);
     
@@ -349,7 +349,7 @@ exports.updateTask = async (req, res) => {
     }
     
     // Check permissions
-    if (req.user.role === 'crm_manager' && project.assigned_to?.toString() !== userId) {
+    if (req.user.role === 'crm_manager' && project.assigned_to?.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
         error: {
@@ -364,7 +364,15 @@ exports.updateTask = async (req, res) => {
     // Update fields
     if (title !== undefined) milestone.title = title.trim();
     if (description !== undefined) milestone.description = description.trim();
-    if (status !== undefined) milestone.status = status;
+    if (status !== undefined) {
+      milestone.status = status;
+      // Auto-update progress based on status
+      if (status === 'completed') {
+        milestone.progress = 100;
+      } else if (status === 'in_progress' && milestone.progress === 0) {
+        milestone.progress = 25;
+      }
+    }
     if (priority !== undefined) milestone.priority = priority;
     if (due_date !== undefined) milestone.target_date = due_date ? new Date(due_date) : null;
     if (progress !== undefined) milestone.progress = Math.max(0, Math.min(100, progress));
@@ -413,7 +421,7 @@ exports.updateTaskStatus = async (req, res) => {
   try {
     const taskId = req.params.id;
     const { status } = req.body;
-    const userId = req.user.user_id || req.user.id;
+    const userId = req.user._id || req.user.user_id || req.user.id;
     
     console.log('📋 Updating task status:', taskId, 'to:', status);
     
@@ -442,7 +450,7 @@ exports.updateTaskStatus = async (req, res) => {
     }
     
     // Check permissions
-    if (req.user.role === 'crm_manager' && project.assigned_to?.toString() !== userId) {
+    if (req.user.role === 'crm_manager' && project.assigned_to?.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
         error: {
@@ -549,7 +557,7 @@ exports.getTaskStats = async (req, res) => {
   
   try {
     const userRole = req.user.role;
-    const userId = req.user.user_id || req.user.id;
+    const userId = req.user._id || req.user.user_id || req.user.id;
     
     let projectFilter = {};
     

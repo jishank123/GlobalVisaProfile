@@ -198,6 +198,11 @@ router.patch('/:id/milestones/:milestoneId', auth(['admin', 'lead_manager', 'crm
   }
 });
 
+// @route   POST /api/projects/:id/invoice
+// @desc    Generate invoice for project
+// @access  Private (Admin, Lead Manager, CRM Manager)
+router.post('/:id/invoice', auth(['admin', 'lead_manager', 'crm_manager']), projectController.generateProjectInvoice);
+
 // @route   DELETE /api/projects/:id
 // @desc    Delete project
 // @access  Private (Admin only)

@@ -1,9 +1,50 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
 const queryController = require('../controllers/queryController');
 const { auth, authenticateClient } = require('../middleware/auth');
 const Query = require('../models/Query');
 const Client = require('../models/Client');
+
+// Configure multer for query attachments
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/query-attachments/');
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'query-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  // Accept documents and images
+  const allowedTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/gif'
+  ];
+  
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only PDF, DOC, DOCX, JPG, JPEG, PNG, and GIF files are allowed!'), false);
+  }
+};
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit per file
+  }
+});
 
 // @route   GET /api/queries
 // @desc    Get queries with filters (supports client access)
@@ -166,7 +207,7 @@ router.get('/:id', (req, res, next) => {
 // @route   POST /api/queries
 // @desc    Create new query (supports both admin/manager and client creation)
 // @access  Private (Admin, CRM Manager, Client)
-router.post('/', (req, res, next) => {
+router.post('/', upload.array('attachments', 5), (req, res, next) => {
   // Check if this is a client request by looking at the token
   const token = req.headers.authorization?.split(' ')[1];
   if (token) {
