@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
-import { designSystem, componentStyles, hoverEffects, getStatusBadgeStyle } from '../../../../styles/designSystem';
+import { designSystem, componentStyles, hoverEffects } from '../../../../styles/designSystem';
+import StableModal from '../../../../components/StableModal';
+import { useAuth } from '../../../../contexts/AuthContext';
 
 const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
+  const { user, token } = useAuth();
   const [queries, setQueries] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -10,12 +13,14 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [queryData, setQueryData] = useState({
     subject: '',
-    category: 'general',
+    category: 'General',
     priority: 'medium',
     description: '',
     attachments: []
   });
   const [replyText, setReplyText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [replying, setReplying] = useState(false);
 
   useEffect(() => {
     loadQueries();
@@ -24,17 +29,26 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
   const loadQueries = async () => {
     setLoading(true);
     try {
-      // Use client-specific endpoint if clientData has _id
-      const endpoint = clientData?._id 
-        ? `/queries/client/${clientData._id}`
-        : `/queries?client=${clientData?.email}`;
+      console.log('🔍 Loading queries for client:', { 
+        user: user?.email,
+        hasToken: !!token 
+      });
+
+      // Use the general queries endpoint which handles client authentication
+      const response = await apiCall('/queries');
       
-      const response = await apiCall(endpoint);
+      console.log('📋 Queries response:', response);
+      
       if (response.success) {
         setQueries(response.data || []);
+        console.log('✅ Loaded queries:', response.data?.length || 0);
+      } else {
+        console.error('❌ Failed to load queries:', response.message);
+        setQueries([]);
       }
     } catch (error) {
-      console.error('Error loading queries:', error);
+      console.error('❌ Error loading queries:', error);
+      setQueries([]);
     } finally {
       setLoading(false);
     }
@@ -88,77 +102,520 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
   };
 
   const handleCreateQuery = async () => {
-    console.log('handleCreateQuery called'); // Debug log
+    if (!queryData.subject.trim() || !queryData.description.trim()) {
+      alert('Please fill in both subject and description fields.');
+      return;
+    }
+
+    setSubmitting(true);
     try {
+      console.log('📤 Creating query:', queryData);
+
+      // Create FormData for file uploads
       const formData = new FormData();
-      formData.append('subject', queryData.subject);
+      formData.append('subject', queryData.subject.trim());
       formData.append('category', queryData.category);
       formData.append('priority', queryData.priority);
-      formData.append('description', queryData.description);
-      formData.append('client', clientData._id);
-      formData.append('status', 'open');
+      formData.append('description', queryData.description.trim());
 
       // Add attachments if any
-      queryData.attachments.forEach((file, index) => {
+      queryData.attachments.forEach((file) => {
         formData.append('attachments', file);
       });
 
       const response = await apiCall('/queries', {
         method: 'POST',
         body: formData,
-        headers: {
-          // Remove Content-Type to let browser set it with boundary for FormData
-          'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('client_token')}`
-        }
+        // Don't set Content-Type header, let browser set it for FormData
+        headers: {}
       });
 
+      console.log('📤 Query creation response:', response);
+
       if (response.success) {
-        alert('Query sent successfully to admin/managers! They will respond shortly.');
+        alert('Query sent successfully! Our team will respond shortly.');
         setShowCreateModal(false);
         setQueryData({
           subject: '',
-          category: 'general',
+          category: 'General',
           priority: 'medium',
           description: '',
           attachments: []
         });
-        loadQueries();
+        await loadQueries();
+        onRefresh?.();
       } else {
         throw new Error(response.message || 'Failed to send query');
       }
     } catch (error) {
-      console.error('Error creating query:', error);
+      console.error('❌ Error creating query:', error);
       alert(`Failed to send query: ${error.message}`);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleAddReply = async () => {
-    if (!replyText.trim()) return;
+    if (!replyText.trim()) {
+      alert('Please enter a reply message.');
+      return;
+    }
 
+    setReplying(true);
     try {
+      console.log('💬 Adding reply to query:', selectedQuery._id);
+
       const response = await apiCall(`/queries/${selectedQuery._id}/reply`, {
         method: 'POST',
         body: JSON.stringify({
-          message: replyText
-        })
+          message: replyText.trim()
+        }),
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
+
+      console.log('💬 Reply response:', response);
 
       if (response.success) {
         setReplyText('');
-        // Reload the query details
-        const updatedQuery = await apiCall(`/queries/${selectedQuery._id}`);
-        if (updatedQuery.success) {
-          setSelectedQuery(updatedQuery.data);
-        }
-        loadQueries();
+        // Update the selected query with the new reply
+        setSelectedQuery(response.data);
+        await loadQueries();
+        alert('Reply sent successfully!');
       } else {
         throw new Error(response.message || 'Failed to add reply');
       }
     } catch (error) {
-      console.error('Error adding reply:', error);
+      console.error('❌ Error adding reply:', error);
       alert(`Failed to add reply: ${error.message}`);
+    } finally {
+      setReplying(false);
     }
   };
+
+  const QueryDetailsModal = () => {
+    if (!selectedQuery) return null;
+
+    return (
+      <StableModal
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setSelectedQuery(null);
+          setReplyText('');
+        }}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <i className="fas fa-eye me-2" style={{ color: designSystem.colors.primary }}></i>
+            Query Details - #{selectedQuery._id.slice(-8).toUpperCase()}
+          </div>
+        }
+        size="xl"
+        footer={
+          (selectedQuery.status === 'open' || selectedQuery.status === 'in_progress') && (
+            <div style={{ display: 'flex', gap: designSystem.spacing.sm, width: '100%' }}>
+              <input
+                type="text"
+                placeholder="Type your reply here..."
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                disabled={replying}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  border: `1px solid ${designSystem.colors.gray[300]}`,
+                  borderRadius: designSystem.borderRadius.md,
+                  fontSize: designSystem.typography.fontSize.sm
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleAddReply();
+                  }
+                }}
+              />
+              <button 
+                type="button"
+                onClick={handleAddReply}
+                disabled={!replyText.trim() || replying}
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: (!replyText.trim() || replying) 
+                    ? designSystem.colors.gray[400] 
+                    : designSystem.colors.primary,
+                  cursor: (!replyText.trim() || replying) 
+                    ? 'not-allowed' 
+                    : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                {replying ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin"></i>
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-reply"></i>
+                    Reply
+                  </>
+                )}
+              </button>
+            </div>
+          )
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: designSystem.spacing.lg }}>
+          {/* Query Header */}
+          <div style={{
+            padding: designSystem.spacing.lg,
+            backgroundColor: designSystem.colors.gray[50],
+            borderRadius: designSystem.borderRadius.md,
+            border: `1px solid ${designSystem.colors.gray[200]}`
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: designSystem.spacing.md }}>
+              <div>
+                <h5 style={{
+                  color: designSystem.colors.dark,
+                  fontWeight: designSystem.typography.fontWeight.semibold,
+                  marginBottom: designSystem.spacing.sm
+                }}>
+                  {selectedQuery.subject}
+                </h5>
+                <div style={{ display: 'flex', gap: designSystem.spacing.md, flexWrap: 'wrap' }}>
+                  <span style={{
+                    ...componentStyles.badge,
+                    ...getQueryStatusStyle(selectedQuery.status),
+                    textTransform: 'uppercase',
+                    fontSize: '11px',
+                    fontWeight: '600'
+                  }}>
+                    {selectedQuery.status.replace('_', ' ')}
+                  </span>
+                  <span style={{
+                    ...componentStyles.badge,
+                    background: designSystem.colors.gray[200],
+                    color: designSystem.colors.gray[700],
+                    textTransform: 'uppercase',
+                    fontSize: '11px'
+                  }}>
+                    {selectedQuery.category?.replace('_', ' ') || 'GENERAL'}
+                  </span>
+                  <span style={{
+                    ...componentStyles.badge,
+                    ...getPriorityStyle(selectedQuery.priority),
+                    backgroundColor: `${getPriorityStyle(selectedQuery.priority).color}20`,
+                    textTransform: 'uppercase',
+                    fontSize: '11px',
+                    fontWeight: '600'
+                  }}>
+                    {selectedQuery.priority?.toUpperCase() || 'MEDIUM'} PRIORITY
+                  </span>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{
+                  fontSize: designSystem.typography.fontSize.sm,
+                  color: designSystem.colors.gray[600]
+                }}>
+                  Created: {new Date(selectedQuery.createdAt || selectedQuery.created_at).toLocaleDateString()}
+                </div>
+                {selectedQuery.assignedTo && (
+                  <div style={{
+                    fontSize: designSystem.typography.fontSize.sm,
+                    color: designSystem.colors.gray[600],
+                    marginTop: '4px'
+                  }}>
+                    Assigned to: {selectedQuery.assignedTo.first_name} {selectedQuery.assignedTo.last_name}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div style={{
+              fontSize: designSystem.typography.fontSize.md,
+              color: designSystem.colors.gray[700],
+              lineHeight: '1.6',
+              whiteSpace: 'pre-wrap'
+            }}>
+              {selectedQuery.description}
+            </div>
+          </div>
+
+          {/* Conversation Thread */}
+          <div>
+            <h6 style={{
+              color: designSystem.colors.dark,
+              fontWeight: designSystem.typography.fontWeight.semibold,
+              marginBottom: designSystem.spacing.md,
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              <i className="fas fa-comments me-2"></i>
+              Conversation ({selectedQuery.replies?.length || 0} replies)
+            </h6>
+            
+            <div style={{
+              maxHeight: '400px',
+              overflowY: 'auto',
+              border: `1px solid ${designSystem.colors.gray[200]}`,
+              borderRadius: designSystem.borderRadius.md
+            }}>
+              {selectedQuery.replies && selectedQuery.replies.length > 0 ? (
+                selectedQuery.replies.map((reply, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      padding: designSystem.spacing.md,
+                      borderBottom: index < selectedQuery.replies.length - 1 ? `1px solid ${designSystem.colors.gray[200]}` : 'none',
+                      backgroundColor: reply.sender_type === 'Client' ? designSystem.colors.blue[50] : 'white'
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: designSystem.spacing.sm
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: designSystem.spacing.sm
+                      }}>
+                        <span style={{
+                          ...componentStyles.badge,
+                          background: reply.sender_type === 'Client' ? designSystem.colors.blue[600] : designSystem.colors.green[600],
+                          color: 'white',
+                          fontSize: '11px'
+                        }}>
+                          {reply.sender_type === 'Client' ? 'YOU' : 'SUPPORT TEAM'}
+                        </span>
+                        {reply.sender && (
+                          <span style={{
+                            fontSize: designSystem.typography.fontSize.sm,
+                            color: designSystem.colors.gray[600]
+                          }}>
+                            {reply.sender.name || `${reply.sender.first_name || ''} ${reply.sender.last_name || ''}`.trim()}
+                          </span>
+                        )}
+                      </div>
+                      <span style={{
+                        fontSize: designSystem.typography.fontSize.xs,
+                        color: designSystem.colors.gray[500]
+                      }}>
+                        {new Date(reply.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <div style={{
+                      fontSize: designSystem.typography.fontSize.sm,
+                      color: designSystem.colors.gray[700],
+                      lineHeight: '1.5',
+                      whiteSpace: 'pre-wrap'
+                    }}>
+                      {reply.message}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{
+                  padding: designSystem.spacing.xl,
+                  textAlign: 'center',
+                  color: designSystem.colors.gray[500]
+                }}>
+                  <i className="fas fa-comment-slash fa-2x mb-3"></i>
+                  <p>No replies yet. Our support team will respond soon!</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </StableModal>
+    );
+  };
+
+  const CreateQueryModal = () => (
+    <StableModal
+      isOpen={showCreateModal}
+      onClose={() => setShowCreateModal(false)}
+      title={
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <i className="fas fa-paper-plane me-2" style={{ color: designSystem.colors.primary }}></i>
+          Send Query to Support Team
+        </div>
+      }
+      size="lg"
+      footer={
+        <div style={{ display: 'flex', gap: designSystem.spacing.sm }}>
+          <button 
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setShowCreateModal(false)}
+            disabled={submitting}
+            style={{
+              padding: '8px 16px',
+              border: `1px solid ${designSystem.colors.gray[300]}`,
+              borderRadius: designSystem.borderRadius.md,
+              background: 'white',
+              color: designSystem.colors.gray[700],
+              cursor: 'pointer'
+            }}
+          >
+            Cancel
+          </button>
+          <button 
+            type="button"
+            onClick={handleCreateQuery}
+            disabled={!queryData.subject.trim() || !queryData.description.trim() || submitting}
+            style={{
+              ...componentStyles.primaryButton,
+              background: (!queryData.subject.trim() || !queryData.description.trim() || submitting) 
+                ? designSystem.colors.gray[400] 
+                : designSystem.colors.primary,
+              cursor: (!queryData.subject.trim() || !queryData.description.trim() || submitting) 
+                ? 'not-allowed' 
+                : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            {submitting ? (
+              <>
+                <i className="fas fa-spinner fa-spin"></i>
+                Sending...
+              </>
+            ) : (
+              <>
+                <i className="fas fa-paper-plane"></i>
+                Send Query
+              </>
+            )}
+          </button>
+        </div>
+      }
+    >
+      <div className="row">
+        <div className="col-12 mb-3">
+          <label className="form-label" style={{ fontWeight: designSystem.typography.fontWeight.medium }}>
+            Subject *
+          </label>
+          <input
+            type="text"
+            className="form-control"
+            style={componentStyles.formInput}
+            value={queryData.subject}
+            onChange={(e) => setQueryData(prev => ({...prev, subject: e.target.value}))}
+            placeholder="Brief description of your question or issue"
+            disabled={submitting}
+          />
+        </div>
+        
+        <div className="col-md-6 mb-3">
+          <label className="form-label" style={{ fontWeight: designSystem.typography.fontWeight.medium }}>
+            Category
+          </label>
+          <select
+            className="form-control"
+            style={componentStyles.formInput}
+            value={queryData.category}
+            onChange={(e) => setQueryData(prev => ({...prev, category: e.target.value}))}
+            disabled={submitting}
+          >
+            <option value="General">General Question</option>
+            <option value="Technical">Technical Support</option>
+            <option value="Billing">Billing & Payments</option>
+            <option value="Project">Project Related</option>
+            <option value="service_inquiry">Service Inquiry</option>
+            <option value="payment_issue">Payment Issue</option>
+            <option value="document_request">Document Request</option>
+            <option value="status_update">Status Update</option>
+            <option value="technical_support">Technical Support</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        
+        <div className="col-md-6 mb-3">
+          <label className="form-label" style={{ fontWeight: designSystem.typography.fontWeight.medium }}>
+            Priority
+          </label>
+          <select
+            className="form-control"
+            style={componentStyles.formInput}
+            value={queryData.priority}
+            onChange={(e) => setQueryData(prev => ({...prev, priority: e.target.value}))}
+            disabled={submitting}
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+        
+        <div className="col-12 mb-3">
+          <label className="form-label" style={{ fontWeight: designSystem.typography.fontWeight.medium }}>
+            Description *
+          </label>
+          <textarea
+            className="form-control"
+            rows="6"
+            style={{
+              ...componentStyles.formInput,
+              resize: 'vertical',
+              minHeight: '120px'
+            }}
+            value={queryData.description}
+            onChange={(e) => setQueryData(prev => ({...prev, description: e.target.value}))}
+            placeholder="Please provide detailed information about your question or issue..."
+            disabled={submitting}
+          />
+        </div>
+        
+        <div className="col-12 mb-3">
+          <label className="form-label" style={{ fontWeight: designSystem.typography.fontWeight.medium }}>
+            Attachments (Optional)
+          </label>
+          <input
+            type="file"
+            className="form-control"
+            style={componentStyles.formInput}
+            multiple
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
+            onChange={(e) => setQueryData(prev => ({...prev, attachments: Array.from(e.target.files)}))}
+            disabled={submitting}
+          />
+          <small className="form-text text-muted">
+            You can attach documents, images, or other relevant files (max 10MB per file)
+          </small>
+          {queryData.attachments.length > 0 && (
+            <div style={{ marginTop: designSystem.spacing.sm }}>
+              <strong>Selected files:</strong>
+              <ul style={{ marginTop: '4px', paddingLeft: '20px' }}>
+                {queryData.attachments.map((file, index) => (
+                  <li key={index} style={{ fontSize: designSystem.typography.fontSize.sm }}>
+                    {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="alert alert-info" style={{ 
+        backgroundColor: designSystem.colors.blue[50],
+        border: `1px solid ${designSystem.colors.blue[200]}`,
+        borderRadius: designSystem.borderRadius.card,
+        padding: designSystem.spacing.md
+      }}>
+        <i className="fas fa-info-circle me-2" style={{ color: designSystem.colors.blue[600] }}></i>
+        Your query will be sent to our support team. They typically respond within 24 hours. For urgent matters, please call our office directly.
+      </div>
+    </StableModal>
+  );
 
   const QueryCard = ({ query }) => (
     <div
@@ -268,7 +725,6 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
         </div>
       </div>
 
-      {/* Reply Count */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -298,7 +754,6 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
         )}
       </div>
 
-      {/* Last Activity */}
       {query.updated_at && query.updated_at !== query.createdAt && (
         <div style={{
           fontSize: designSystem.typography.fontSize.xs,
@@ -310,7 +765,6 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
         </div>
       )}
 
-      {/* Action Buttons */}
       <div style={{
         display: 'flex',
         gap: designSystem.spacing.sm,
@@ -352,485 +806,6 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
       </div>
     </div>
   );
-
-  const QueryModal = () => (
-    <div 
-      className="modal d-block" 
-      style={{
-        ...componentStyles.modal,
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        zIndex: 1050,
-        backgroundColor: 'rgba(0,0,0,0.5)'
-      }}
-      onClick={(e) => {
-        // Only close if clicking the backdrop, not the modal content
-        if (e.target === e.currentTarget) {
-          setShowModal(false);
-        }
-      }}
-    >
-      <div 
-        className="modal-dialog modal-xl"
-        style={{
-          margin: '1.75rem auto',
-          maxWidth: '1200px',
-          position: 'relative'
-        }}
-        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
-      >
-        <div className="modal-content" style={componentStyles.modalContent}>
-          <div className="modal-header" style={componentStyles.modalHeader}>
-            <h5 className="modal-title">
-              <i className="fas fa-question-circle me-2"></i>
-              Query Details - #{selectedQuery?._id.slice(-8).toUpperCase()}
-            </h5>
-            <button 
-              type="button" 
-              className="btn-close btn-close-white" 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setShowModal(false);
-              }}
-            ></button>
-          </div>
-          
-          <div className="modal-body" style={componentStyles.modalBody}>
-            {selectedQuery && (
-              <div>
-                {/* Query Information */}
-                <div className="row mb-4">
-                  <div className="col-md-8">
-                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
-                      Query Information
-                    </h6>
-                    <div className="row">
-                      <div className="col-md-6">
-                        <p><strong>Subject:</strong> {selectedQuery.subject}</p>
-                        <p><strong>Category:</strong> {selectedQuery.category?.replace('_', ' ').toUpperCase()}</p>
-                        <p><strong>Priority:</strong> 
-                          <span style={{
-                            ...getPriorityStyle(selectedQuery.priority),
-                            marginLeft: '8px',
-                            fontWeight: 'bold'
-                          }}>
-                            {selectedQuery.priority?.toUpperCase()}
-                          </span>
-                        </p>
-                      </div>
-                      <div className="col-md-6">
-                        <p><strong>Status:</strong> 
-                          <span style={{
-                            ...componentStyles.badge,
-                            ...getQueryStatusStyle(selectedQuery.status),
-                            marginLeft: '8px'
-                          }}>
-                            {selectedQuery.status.replace('_', ' ').toUpperCase()}
-                          </span>
-                        </p>
-                        <p><strong>Created:</strong> {new Date(selectedQuery.createdAt).toLocaleString()}</p>
-                        <p><strong>Last Updated:</strong> {new Date(selectedQuery.updated_at || selectedQuery.createdAt).toLocaleString()}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    {selectedQuery.assigned_to && (
-                      <div>
-                        <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
-                          Assigned To
-                        </h6>
-                        <div style={{
-                          background: designSystem.colors.light,
-                          padding: designSystem.spacing.md,
-                          borderRadius: designSystem.borderRadius.button
-                        }}>
-                          <div style={{ marginBottom: designSystem.spacing.sm }}>
-                            <strong>{selectedQuery.assigned_to.first_name} {selectedQuery.assigned_to.last_name}</strong>
-                          </div>
-                          <div style={{ 
-                            fontSize: designSystem.typography.fontSize.sm,
-                            color: designSystem.colors.gray[600]
-                          }}>
-                            {selectedQuery.assigned_to.role?.replace('_', ' ').toUpperCase()}
-                          </div>
-                          {selectedQuery.assigned_to.email && (
-                            <div style={{ 
-                              fontSize: designSystem.typography.fontSize.sm,
-                              color: designSystem.colors.gray[500]
-                            }}>
-                              {selectedQuery.assigned_to.email}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Original Query */}
-                <div className="mb-4">
-                  <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
-                    Original Query
-                  </h6>
-                  <div style={{
-                    background: designSystem.colors.light,
-                    padding: designSystem.spacing.lg,
-                    borderRadius: designSystem.borderRadius.button,
-                    border: `1px solid ${designSystem.colors.gray[200]}`
-                  }}>
-                    <div style={{
-                      whiteSpace: 'pre-wrap',
-                      lineHeight: '1.6'
-                    }}>
-                      {selectedQuery.description}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Conversation Thread */}
-                <div className="mb-4">
-                  <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
-                    Conversation ({(selectedQuery.replies?.length || 0) + (selectedQuery.responses?.length || 0)} messages)
-                  </h6>
-                  
-                  {(() => {
-                    // Combine replies and responses, then sort by date
-                    const allMessages = [];
-                    
-                    // Add replies (client and staff messages)
-                    if (selectedQuery.replies) {
-                      selectedQuery.replies.forEach(reply => {
-                        allMessages.push({
-                          ...reply,
-                          type: 'reply',
-                          timestamp: reply.created_at,
-                          sender_name: reply.sender_type === 'Client' 
-                            ? 'You' 
-                            : (reply.sender?.first_name && reply.sender?.last_name 
-                                ? `${reply.sender.first_name} ${reply.sender.last_name}` 
-                                : reply.sender?.name || 'Support Team')
-                        });
-                      });
-                    }
-                    
-                    // Add responses (legacy format)
-                    if (selectedQuery.responses) {
-                      selectedQuery.responses.forEach(response => {
-                        allMessages.push({
-                          ...response,
-                          type: 'response',
-                          timestamp: response.timestamp,
-                          sender_type: 'User',
-                          sender_name: response.user?.first_name && response.user?.last_name 
-                            ? `${response.user.first_name} ${response.user.last_name}` 
-                            : 'Support Team'
-                        });
-                      });
-                    }
-                    
-                    // Sort by timestamp
-                    allMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-                    
-                    return allMessages.length > 0 ? (
-                      <div style={{
-                        maxHeight: '400px',
-                        overflowY: 'auto',
-                        border: `1px solid ${designSystem.colors.gray[200]}`,
-                        borderRadius: designSystem.borderRadius.button
-                      }}>
-                        {allMessages.map((message, index) => (
-                          <div key={index} style={{
-                            padding: designSystem.spacing.lg,
-                            borderBottom: index < allMessages.length - 1 ? `1px solid ${designSystem.colors.gray[100]}` : 'none',
-                            background: message.sender_type === 'Client' ? designSystem.colors.light : 'white'
-                          }}>
-                            <div style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              marginBottom: designSystem.spacing.sm
-                            }}>
-                              <div style={{
-                                display: 'flex',
-                                alignItems: 'center'
-                              }}>
-                                <div style={{
-                                  width: '32px',
-                                  height: '32px',
-                                  borderRadius: '50%',
-                                  background: message.sender_type === 'Client' ? designSystem.colors.primary : designSystem.colors.success,
-                                  color: 'white',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '12px',
-                                  fontWeight: designSystem.typography.fontWeight.bold,
-                                  marginRight: designSystem.spacing.sm
-                                }}>
-                                  {message.sender_type === 'Client' ? 'C' : 'S'}
-                                </div>
-                                <div>
-                                  <div style={{
-                                    fontWeight: designSystem.typography.fontWeight.medium,
-                                    color: designSystem.colors.dark
-                                  }}>
-                                    {message.sender_name}
-                                  </div>
-                                  <div style={{
-                                    fontSize: designSystem.typography.fontSize.xs,
-                                    color: designSystem.colors.gray[500]
-                                  }}>
-                                    {new Date(message.timestamp).toLocaleString()}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            <div style={{
-                              whiteSpace: 'pre-wrap',
-                              lineHeight: '1.6',
-                              marginLeft: '44px'
-                            }}>
-                              {message.message}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div style={{
-                        textAlign: 'center',
-                        padding: designSystem.spacing.xl,
-                        color: designSystem.colors.gray[500],
-                        background: designSystem.colors.light,
-                        borderRadius: designSystem.borderRadius.button
-                      }}>
-                        <i className="fas fa-comments fa-2x mb-3"></i>
-                        <p>No replies yet. Our admin/managers will respond soon!</p>
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* Add Reply Section */}
-                {(selectedQuery.status === 'open' || selectedQuery.status === 'in_progress') && (
-                  <div>
-                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
-                      Add Reply
-                    </h6>
-                    <div style={{
-                      border: `1px solid ${designSystem.colors.gray[200]}`,
-                      borderRadius: designSystem.borderRadius.button,
-                      overflow: 'hidden'
-                    }}>
-                      <textarea
-                        style={{
-                          width: '100%',
-                          minHeight: '120px',
-                          padding: designSystem.spacing.md,
-                          border: 'none',
-                          resize: 'vertical',
-                          fontSize: designSystem.typography.fontSize.base,
-                          fontFamily: designSystem.typography.fontFamily
-                        }}
-                        value={replyText}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          setReplyText(e.target.value);
-                        }}
-                        placeholder="Type your reply here..."
-                        onClick={(e) => e.stopPropagation()}
-                        onFocus={(e) => e.stopPropagation()}
-                      />
-                      <div style={{
-                        padding: designSystem.spacing.md,
-                        background: designSystem.colors.light,
-                        borderTop: `1px solid ${designSystem.colors.gray[200]}`,
-                        display: 'flex',
-                        justifyContent: 'flex-end'
-                      }}>
-                        <button
-                          style={{
-                            ...componentStyles.primaryButton,
-                            background: designSystem.colors.success
-                          }}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleAddReply();
-                          }}
-                          disabled={!replyText.trim()}
-                          {...hoverEffects.button}
-                        >
-                          <i className="fas fa-paper-plane me-2"></i>
-                          Send Reply
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          
-          <div className="modal-footer" style={componentStyles.modalFooter}>
-            <button 
-              type="button" 
-              className="btn btn-secondary" 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setShowModal(false);
-              }}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const CreateQueryModal = () => {
-    if (!showCreateModal) return null;
-    
-    return (
-      <div className="modal d-block" style={componentStyles.modal}>
-        <div className="modal-dialog modal-lg">
-          <div className="modal-content" style={componentStyles.modalContent}>
-            <div className="modal-header" style={componentStyles.modalHeader}>
-              <h5 className="modal-title">
-                <i className="fas fa-paper-plane me-2"></i>
-                Send Query to Admin/Managers
-              </h5>
-              <button 
-                type="button" 
-                className="btn-close btn-close-white" 
-                onClick={() => setShowCreateModal(false)}
-              ></button>
-            </div>
-            
-            <div className="modal-body" style={componentStyles.modalBody}>
-              <div className="row">
-                <div className="col-12 mb-3">
-                  <label className="form-label" style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Subject *</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    style={componentStyles.formInput}
-                    value={queryData.subject}
-                    onChange={(e) => setQueryData({...queryData, subject: e.target.value})}
-                    placeholder="Brief description of your question or issue"
-                  />
-                </div>
-                
-                <div className="col-md-6 mb-3">
-                  <label className="form-label" style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Category</label>
-                  <select
-                    className="form-control"
-                    style={componentStyles.formInput}
-                    value={queryData.category}
-                    onChange={(e) => setQueryData({...queryData, category: e.target.value})}
-                  >
-                    <option value="general">General Question</option>
-                    <option value="technical">Technical Support</option>
-                    <option value="billing">Billing & Payments</option>
-                    <option value="project">Project Related</option>
-                    <option value="appointment">Appointment</option>
-                    <option value="document">Document Related</option>
-                    <option value="visa_process">Visa Process</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-                
-                <div className="col-md-6 mb-3">
-                  <label className="form-label" style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Priority</label>
-                  <select
-                    className="form-control"
-                    style={componentStyles.formInput}
-                    value={queryData.priority}
-                    onChange={(e) => setQueryData({...queryData, priority: e.target.value})}
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </select>
-                </div>
-                
-                <div className="col-12 mb-3">
-                  <label className="form-label" style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Description *</label>
-                  <textarea
-                    className="form-control"
-                    rows="6"
-                    style={{
-                      ...componentStyles.formInput,
-                      resize: 'vertical'
-                    }}
-                    value={queryData.description}
-                    onChange={(e) => setQueryData({...queryData, description: e.target.value})}
-                    placeholder="Please provide detailed information about your question or issue..."
-                  ></textarea>
-                </div>
-                
-                <div className="col-12 mb-3">
-                  <label className="form-label" style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Attachments (Optional)</label>
-                  <input
-                    type="file"
-                    className="form-control"
-                    style={componentStyles.formInput}
-                    multiple
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
-                    onChange={(e) => setQueryData({...queryData, attachments: Array.from(e.target.files)})}
-                  />
-                  <small style={{ color: '#666', fontSize: '0.875rem' }}>
-                    You can attach documents, images, or other relevant files (max 10MB per file)
-                  </small>
-                </div>
-              </div>
-
-              <div style={{
-                background: '#f8f9fa',
-                padding: '1rem',
-                borderRadius: '4px',
-                marginTop: '1rem'
-              }}>
-                <p style={{ 
-                  margin: 0,
-                  fontSize: '0.875rem',
-                  color: '#666'
-                }}>
-                  <i className="fas fa-info-circle me-2"></i>
-                  Your query will be sent to our admin and managers. They typically respond within 24 hours. For urgent matters, please call our office directly.
-                </p>
-              </div>
-            </div>
-            
-            <div className="modal-footer" style={componentStyles.modalFooter}>
-              <button 
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setShowCreateModal(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                type="button"
-                className="btn btn-primary"
-                onClick={handleCreateQuery}
-                disabled={!queryData.subject || !queryData.description}
-              >
-                <i className="fas fa-paper-plane me-2"></i>
-                Send Query
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   const StatCard = ({ icon, number, label, borderColor, iconColor }) => (
     <div 
@@ -879,6 +854,19 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
             <p style={componentStyles.headerSubtitle}>Send queries to admin/managers and track responses</p>
           </div>
         </div>
+        <button 
+          style={{
+            ...componentStyles.primaryButton,
+            background: designSystem.colors.primary
+          }}
+          onClick={() => {
+            loadQueries();
+            onRefresh?.();
+          }}
+          {...hoverEffects.button}
+        >
+          <i className="fas fa-sync-alt me-2"></i>Refresh
+        </button>
       </div>
 
       {/* Query Statistics */}
@@ -977,10 +965,7 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
             alignItems: 'center',
             gap: '0.5rem'
           }}
-          onClick={() => {
-            console.log('Send Query button clicked'); // Debug log
-            setShowCreateModal(true);
-          }}
+          onClick={() => setShowCreateModal(true)}
           {...hoverEffects.button}
         >
           <i className="fas fa-paper-plane"></i>Send Query
@@ -1010,10 +995,7 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
                 gap: '0.5rem',
                 margin: '0 auto'
               }}
-              onClick={() => {
-                console.log('Send Your First Query button clicked'); // Debug log
-                setShowCreateModal(true);
-              }}
+              onClick={() => setShowCreateModal(true)}
               {...hoverEffects.button}
             >
               <i className="fas fa-paper-plane"></i>Send Your First Query
@@ -1032,11 +1014,9 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
         </div>
       )}
 
-      {/* Query Details Modal */}
-      {showModal && <QueryModal />}
-
-      {/* Create Query Modal */}
-      {showCreateModal && <CreateQueryModal />}
+      {/* Modals */}
+      <QueryDetailsModal />
+      <CreateQueryModal />
     </div>
   );
 };

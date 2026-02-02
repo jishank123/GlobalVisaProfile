@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -100,32 +100,32 @@ if (process.env.NODE_ENV === 'development') {
 app.use('/uploads', express.static('uploads'));
 
 // MongoDB Connection
-console.log('🔌 Attempting to connect to MongoDB...');
+console.log('ðŸ”Œ Attempting to connect to MongoDB...');
 const mongoUri = process.env.MONGODB_URI;
-console.log('🔌 MongoDB URI:', mongoUri);
+console.log('ðŸ”Œ MongoDB URI:', mongoUri);
 
 mongoose.connect(mongoUri).then(() => {
-    console.log('✅ MongoDB Connected Successfully');
-    console.log(`📊 Database: ${
+    console.log('âœ… MongoDB Connected Successfully');
+    console.log(`ðŸ“Š Database: ${
         mongoose.connection.name
     }`);
-    console.log(`🏠 Host: ${
+    console.log(`ðŸ  Host: ${
         mongoose.connection.host
     }`);
-    console.log(`🔌 Port: ${
+    console.log(`ðŸ”Œ Port: ${
         mongoose.connection.port
     }`);
-    console.log(`📊 Ready State: ${
+    console.log(`ðŸ“Š Ready State: ${
         mongoose.connection.readyState
     }`); // 1 = connected
 }).catch((err) => {
-    console.error('❌ MongoDB Connection Error:', err.message);
-    console.error('❌ Full error:', err);
+    console.error('âŒ MongoDB Connection Error:', err.message);
+    console.error('âŒ Full error:', err);
     process.exit(1);
 });
 
 // API Routes
-console.log('🛣️ Setting up API routes...');
+console.log('ðŸ›£ï¸ Setting up API routes...');
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/leads', leadRoutes);
@@ -134,12 +134,12 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/queries', queryRoutes);
 app.use('/api/tasks', (req, res, next) => {
-    console.log(`🛣️ Tasks route hit: ${req.method} ${req.path}`);
+    console.log(`ðŸ›£ï¸ Tasks route hit: ${req.method} ${req.path}`);
     next();
 }, tasksRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/services', (req, res, next) => {
-    console.log(`🛣️ Services route hit: ${
+    console.log(`ðŸ›£ï¸ Services route hit: ${
         req.method
     } ${
         req.path
@@ -147,7 +147,7 @@ app.use('/api/services', (req, res, next) => {
     next();
 }, serviceRoutes);
 app.use('/api/invoices', (req, res, next) => {
-    console.log(`🛣️ Invoices route hit: ${
+    console.log(`ðŸ›£ï¸ Invoices route hit: ${
         req.method
     } ${
         req.path
@@ -159,7 +159,7 @@ app.use('/api/analytics', analyticsRoutes);
 
 // New form API routes
 app.use('/api/profile-assessments', (req, res, next) => {
-    console.log(`🛣️ Profile assessments route hit: ${
+    console.log(`ðŸ›£ï¸ Profile assessments route hit: ${
         req.method
     } ${
         req.path
@@ -167,7 +167,7 @@ app.use('/api/profile-assessments', (req, res, next) => {
     next();
 }, profileAssessmentRoutes);
 app.use('/api/appointments', (req, res, next) => {
-    console.log(`🛣️ Appointments route hit: ${
+    console.log(`ðŸ›£ï¸ Appointments route hit: ${
         req.method
     } ${
         req.path
@@ -175,7 +175,7 @@ app.use('/api/appointments', (req, res, next) => {
     next();
 }, appointmentRoutes);
 app.use('/api/contact', (req, res, next) => {
-    console.log(`🛣️ Contact form route hit: ${
+    console.log(`ðŸ›£ï¸ Contact form route hit: ${
         req.method
     } ${
         req.path
@@ -183,7 +183,7 @@ app.use('/api/contact', (req, res, next) => {
     next();
 }, contactRoutes);
 app.use('/api/client-accounts', (req, res, next) => {
-    console.log(`🛣️ Client accounts route hit: ${
+    console.log(`ðŸ›£ï¸ Client accounts route hit: ${
         req.method
     } ${
         req.path
@@ -193,7 +193,7 @@ app.use('/api/client-accounts', (req, res, next) => {
 
 // Dashboard routes
 app.use('/api/dashboard', (req, res, next) => {
-    console.log(`🛣️ Dashboard route hit: ${
+    console.log(`ðŸ›£ï¸ Dashboard route hit: ${
         req.method
     } ${
         req.path
@@ -204,7 +204,7 @@ app.use('/api/dashboard', (req, res, next) => {
 // Debug routes (remove in production)
 app.use('/api/debug', debugRoutes);
 
-console.log('✅ All API routes configured');
+console.log('âœ… All API routes configured');
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -327,16 +327,17 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📝 Environment: ${
-        process.env.NODE_ENV
-    }`);
+    console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🔗 API URL: http://localhost:${PORT}`);
     console.log(`💚 Health Check: http://localhost:${PORT}/health`);
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
-    console.error('❌ Unhandled Rejection:', err);
+    console.log('💥 UNHANDLED PROMISE REJECTION! Shutting down...');
+    console.error('💥 Error:', err.name, err.message);
+    console.error('💥 Stack:', err.stack);
+    
     // Close server & exit process
     process.exit(1);
 });

@@ -218,13 +218,7 @@ const MeetingScheduleModal = ({ show, onHide, lead, onSchedule }) => {
                 <i className="fas fa-calendar-check me-2"></i>Schedule Meeting
               </button>
               
-              <button 
-                className="btn btn-secondary"
-                onClick={onHide}
-                {...hoverEffects.button}
-              >
-                Cancel
-              </button>
+              
             </div>
           </div>
         </div>

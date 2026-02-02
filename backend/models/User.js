@@ -48,6 +48,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  university: {
+    type: String,
+    trim: true
+  },
   avatar: {
     type: String // URL to avatar image
   },
@@ -64,6 +68,13 @@ const userSchema = new mongoose.Schema({
   email_verification_expires: Date,
   profile_picture: String,
   linkedin_url: String,
+  portfolio_url: String,
+  website_url: String,
+  bio: {
+    type: String,
+    trim: true,
+    maxlength: [1000, 'Bio cannot exceed 1000 characters']
+  },
   is_temp_password: {
     type: Boolean,
     default: false

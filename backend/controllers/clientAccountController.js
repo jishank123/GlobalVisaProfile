@@ -346,6 +346,14 @@ exports.getClientProfile = async (req, res) => {
         full_name: user.full_name,
         email: user.email,
         phone: user.phone,
+        company: user.company,
+        country: user.country,
+        linkedin_url: user.linkedin_url,
+        portfolio_url: user.portfolio_url,
+        website_url: user.website_url,
+        bio: user.bio,
+        profile_picture: user.profile_picture,
+        avatar: user.avatar,
         role: user.role,
         status: user.status,
         last_login: user.last_login,
@@ -396,7 +404,16 @@ exports.getClientProfile = async (req, res) => {
 exports.updateClientProfile = async (req, res) => {
   console.log('\n✏️ === UPDATE CLIENT PROFILE ===');
   console.log('✏️ User ID from auth middleware:', req.user?.id || req.client?.id);
-  console.log('✏️ Update data:', req.body);
+  console.log('✏️ Update data (body):', req.body);
+  console.log('✏️ File uploaded:', req.file ? 'YES' : 'NO');
+  if (req.file) {
+    console.log('✏️ File details:', {
+      filename: req.file.filename,
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
+  }
   
   try {
     // Check for validation errors
@@ -427,29 +444,39 @@ exports.updateClientProfile = async (req, res) => {
       });
     }
 
-    const allowedUpdates = ['first_name', 'last_name', 'phone'];
-    const updates = {};
+    // Define allowed updates for User model
+    const allowedUserUpdates = [
+      'first_name', 'last_name', 'phone', 'company', 'country', 'university',
+      'linkedin_url', 'portfolio_url', 'website_url', 'bio'
+    ];
+    const userUpdates = {};
     
     // Filter allowed updates for User model
     Object.keys(req.body).forEach(key => {
-      if (allowedUpdates.includes(key)) {
-        updates[key] = req.body[key];
+      if (allowedUserUpdates.includes(key) && req.body[key] !== undefined && req.body[key] !== '') {
+        userUpdates[key] = req.body[key];
       }
     });
+
+    // Handle profile picture upload
+    if (req.file) {
+      userUpdates.profile_picture = `/uploads/profile-pictures/${req.file.filename}`;
+      console.log('✏️ Profile picture path set:', userUpdates.profile_picture);
+    }
 
     // Handle full_name update by splitting into first_name and last_name
     if (req.body.full_name) {
       const nameParts = req.body.full_name.trim().split(' ');
-      updates.first_name = nameParts[0];
-      updates.last_name = nameParts.slice(1).join(' ') || nameParts[0];
+      userUpdates.first_name = nameParts[0];
+      userUpdates.last_name = nameParts.slice(1).join(' ') || nameParts[0];
     }
 
-    console.log('📝 Filtered updates for User:', updates);
+    console.log('📝 Filtered updates for User:', userUpdates);
 
     // Update user account
     const user = await User.findByIdAndUpdate(
       userId,
-      updates,
+      userUpdates,
       { new: true, runValidators: true }
     );
 
@@ -467,42 +494,81 @@ exports.updateClientProfile = async (req, res) => {
     console.log('✅ User updated successfully');
 
     // If user is a client, also update the client profile
+    let clientProfile = null;
     if (user.role === 'client') {
       console.log('👤 Updating client profile...');
       const clientUpdates = {};
       
       // Map user updates to client profile fields
-      if (updates.first_name || updates.last_name) {
+      if (userUpdates.first_name || userUpdates.last_name) {
         clientUpdates.name = `${user.first_name} ${user.last_name}`;
       }
-      if (updates.phone) {
-        clientUpdates.phone = updates.phone;
+      if (userUpdates.phone !== undefined) {
+        clientUpdates.phone = userUpdates.phone;
+      }
+      if (userUpdates.university !== undefined) {
+        clientUpdates.university = userUpdates.university;
       }
 
       if (Object.keys(clientUpdates).length > 0) {
-        await Client.findOneAndUpdate(
+        clientProfile = await Client.findOneAndUpdate(
           { email: user.email },
           clientUpdates,
           { new: true, runValidators: true }
-        );
+        ).populate('crm_manager', 'first_name last_name email');
         console.log('✅ Client profile updated successfully');
+      } else {
+        // Still fetch the client profile for response
+        clientProfile = await Client.findOne({ email: user.email })
+          .populate('crm_manager', 'first_name last_name email');
       }
+    }
+
+    // Prepare response data
+    const responseData = {
+      user: {
+        _id: user._id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        full_name: user.full_name,
+        email: user.email,
+        phone: user.phone,
+        company: user.company,
+        country: user.country,
+        university: user.university,
+        linkedin_url: user.linkedin_url,
+        portfolio_url: user.portfolio_url,
+        website_url: user.website_url,
+        bio: user.bio,
+        profile_picture: user.profile_picture,
+        avatar: user.avatar,
+        role: user.role,
+        status: user.status,
+        createdAt: user.createdAt
+      }
+    };
+
+    // Add client profile data if available
+    if (clientProfile) {
+      responseData.client_profile = {
+        _id: clientProfile._id,
+        name: clientProfile.name,
+        email: clientProfile.email,
+        phone: clientProfile.phone,
+        university: clientProfile.university,
+        status: clientProfile.status,
+        crm_manager: clientProfile.crm_manager,
+        satisfaction_rating: clientProfile.satisfaction_rating,
+        tags: clientProfile.tags,
+        notes: clientProfile.notes,
+        createdAt: clientProfile.createdAt
+      };
     }
 
     res.status(200).json({
       success: true,
-      data: {
-        user: {
-          _id: user._id,
-          first_name: user.first_name,
-          last_name: user.last_name,
-          full_name: user.full_name,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-          status: user.status
-        }
-      }
+      data: responseData,
+      message: 'Profile updated successfully'
     });
 
     console.log('✅ Profile update completed successfully');

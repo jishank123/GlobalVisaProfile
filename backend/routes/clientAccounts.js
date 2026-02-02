@@ -1,6 +1,8 @@
 const express = require('express');
 const { body } = require('express-validator');
 const rateLimit = require('express-rate-limit');
+const multer = require('multer');
+const path = require('path');
 const { authenticateClient } = require('../middleware/auth');
 const {
   registerClient,
@@ -17,6 +19,35 @@ const {
 } = require('../controllers/clientAccountController');
 
 const router = express.Router();
+
+// Configure multer for profile picture uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/profile-pictures/');
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'profile-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  // Accept all image types
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed!'), false);
+  }
+};
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB limit (very generous)
+  }
+});
 
 // Rate limiting for authentication endpoints
 const authRateLimit = rateLimit({
@@ -74,6 +105,22 @@ const validateLogin = [
 
 // Validation middleware for profile update
 const validateProfileUpdate = [
+  body('first_name')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('First name must be between 1 and 50 characters')
+    .matches(/^[a-zA-Z\s\-\.\']+$/)
+    .withMessage('First name can only contain letters, spaces, hyphens, dots, and apostrophes'),
+  
+  body('last_name')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Last name must be between 1 and 50 characters')
+    .matches(/^[a-zA-Z\s\-\.\']+$/)
+    .withMessage('Last name can only contain letters, spaces, hyphens, dots, and apostrophes'),
+  
   body('full_name')
     .optional()
     .trim()
@@ -85,6 +132,54 @@ const validateProfileUpdate = [
     .trim()
     .isLength({ min: 7, max: 20 })
     .withMessage('Phone number must be between 7 and 20 characters'),
+  
+  body('company')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Company name cannot exceed 100 characters'),
+  
+  body('country')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Country name cannot exceed 100 characters'),
+  
+  body('university')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('University name cannot exceed 100 characters'),
+  
+  body('linkedin_url')
+    .optional()
+    .trim()
+    .isURL()
+    .withMessage('LinkedIn URL must be a valid URL'),
+  
+  body('portfolio_url')
+    .optional()
+    .trim()
+    .isURL()
+    .withMessage('Portfolio URL must be a valid URL'),
+  
+  body('website_url')
+    .optional()
+    .trim()
+    .isURL()
+    .withMessage('Website URL must be a valid URL'),
+  
+  body('university')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('University name cannot exceed 100 characters'),
+  
+  body('bio')
+    .optional()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage('Bio cannot exceed 1000 characters'),
   
   body('communication_preferences.email_notifications')
     .optional()
@@ -246,6 +341,7 @@ router.get('/profile', authenticateClient, getClientProfile);
 // @access  Private (Client)
 router.put('/profile', 
   authenticateClient,
+  upload.single('profile_picture'),
   validateProfileUpdate,
   updateClientProfile
 );

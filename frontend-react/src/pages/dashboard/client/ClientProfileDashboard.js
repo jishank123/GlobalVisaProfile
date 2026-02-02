@@ -38,17 +38,22 @@ const ClientProfileDashboard = () => {
         const url = `${API_BASE}${endpoint}`;
         const config = {
             headers: {
-                'Content-Type': 'application/json',
                 'Authorization': `Bearer ${authToken}`
             },
             ...options
         };
 
+        // Only set Content-Type for non-FormData requests
+        if (!(options.body instanceof FormData)) {
+            config.headers['Content-Type'] = 'application/json';
+        }
+
         try {
             console.log('🌐 Client API Request:', {
                 method: config.method || 'GET',
                 url: url,
-                hasToken: !!authToken
+                hasToken: !!authToken,
+                isFormData: options.body instanceof FormData
             });
 
             const response = await fetch(url, config);
