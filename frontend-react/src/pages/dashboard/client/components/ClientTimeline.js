@@ -6,7 +6,6 @@ const ClientTimeline = ({ clientData, apiCall, onRefresh }) => {
   const [filteredActivities, setFilteredActivities] = useState([]);
   const [activeFilter, setActiveFilter] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState('all');
 
   useEffect(() => {
     loadActivities();
@@ -14,7 +13,7 @@ const ClientTimeline = ({ clientData, apiCall, onRefresh }) => {
 
   useEffect(() => {
     filterActivities();
-  }, [activities, activeFilter, dateRange]);
+  }, [activities, activeFilter]);
 
   const loadActivities = async () => {
     setLoading(true);
@@ -66,7 +65,7 @@ const ClientTimeline = ({ clientData, apiCall, onRefresh }) => {
             id: `payment-${payment._id}`,
             type: 'payment',
             title: 'Payment Processed',
-            description: `Payment of $${payment.amount} for ${payment.service_name || 'service'}`,
+            description: `Payment of ${payment.amount} for ${payment.service_name || 'service'}`,
             date: payment.createdAt || payment.created_at,
             icon: 'fas fa-credit-card',
             color: '#f59e0b',
@@ -139,31 +138,17 @@ const ClientTimeline = ({ clientData, apiCall, onRefresh }) => {
       filtered = filtered.filter(activity => activity.type === activeFilter);
     }
 
-    // Filter by date range
-    if (dateRange !== 'all') {
-      const now = new Date();
-      const filterDate = new Date();
-      
-      switch (dateRange) {
-        case 'week':
-          filterDate.setDate(now.getDate() - 7);
-          break;
-        case 'month':
-          filterDate.setMonth(now.getMonth() - 1);
-          break;
-        case 'quarter':
-          filterDate.setMonth(now.getMonth() - 3);
-          break;
-        default:
-          filterDate = null;
-      }
-      
-      if (filterDate) {
-        filtered = filtered.filter(activity => new Date(activity.date) >= filterDate);
-      }
-    }
-
     setFilteredActivities(filtered);
+  };
+
+  const getActivityCounts = () => {
+    return {
+      total: activities.length,
+      project: activities.filter(a => a.type === 'project').length,
+      payment: activities.filter(a => a.type === 'payment').length,
+      appointment: activities.filter(a => a.type === 'appointment').length,
+      query: activities.filter(a => a.type === 'query').length
+    };
   };
 
   const getTimeAgo = (dateString) => {
@@ -202,147 +187,292 @@ const ClientTimeline = ({ clientData, apiCall, onRefresh }) => {
     });
   };
 
-  const getTimelineItemColor = (type) => {
-    const colors = {
-      'registration': 'bg-green-500',
-      'profile': 'bg-blue-500',
-      'project': 'bg-purple-500',
-      'payment': 'bg-yellow-500',
-      'appointment': 'bg-indigo-500',
-      'query': 'bg-red-500',
-      'access': 'bg-gray-500',
-      'default': 'bg-blue-500'
-    };
-    return colors[type] || colors.default;
-  };
-
-  const getTimelineItemIcon = (type, customIcon) => {
-    if (customIcon) return customIcon;
-    
-    const icons = {
-      'registration': 'fas fa-user-plus',
-      'profile': 'fas fa-id-card',
-      'project': 'fas fa-briefcase',
-      'payment': 'fas fa-credit-card',
-      'appointment': 'fas fa-calendar-check',
-      'query': 'fas fa-question-circle',
-      'access': 'fas fa-user-circle',
-      'default': 'fas fa-circle'
-    };
-    return icons[type] || icons.default;
-  };
-
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <p className="text-gray-600">Loading timeline...</p>
+      <div style={componentStyles.loading}>
+        <i className="fas fa-spinner fa-spin fa-2x" style={{ color: designSystem.colors.primary }}></i>
+        <p style={{ marginTop: designSystem.spacing.md, color: designSystem.colors.gray[500] }}>
+          Loading timeline...
+        </p>
       </div>
     );
   }
 
   if (filteredActivities.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-        <i className="fas fa-history text-4xl text-gray-400 mb-4"></i>
-        <h5 className="text-lg font-semibold text-gray-700 mb-2">No Timeline Data</h5>
-        <p className="text-gray-600">Your activity timeline will appear here as you interact with our services.</p>
+      <div>
+        {/* Header with Refresh Button */}
+        <div style={componentStyles.header}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={componentStyles.headerIcon}>
+              <i className="fas fa-history fa-lg"></i>
+            </div>
+            <div>
+              <h4 style={componentStyles.headerTitle}>Client Journey Timeline</h4>
+              <p style={componentStyles.headerSubtitle}>Track your complete journey and activity history</p>
+            </div>
+          </div>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: designSystem.colors.primary
+            }}
+            onClick={() => {
+              loadActivities();
+              onRefresh?.();
+            }}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-sync-alt me-2"></i>Refresh
+          </button>
+        </div>
+
+        {/* Filter Navigation */}
+        <div style={{ marginBottom: designSystem.spacing.lg }}>
+          <div style={{ display: 'flex', gap: designSystem.spacing.xs, flexWrap: 'wrap' }}>
+            <button 
+              style={{
+                ...componentStyles.primaryButton,
+                background: activeFilter === 'all' ? designSystem.colors.primary : designSystem.colors.gray[100],
+                color: activeFilter === 'all' ? 'white' : designSystem.colors.gray[600]
+              }}
+              onClick={() => setActiveFilter('all')}
+              {...hoverEffects.button}
+            >
+              All Activities
+            </button>
+            <button 
+              style={{
+                ...componentStyles.primaryButton,
+                background: activeFilter === 'project' ? '#8b5cf6' : designSystem.colors.gray[100],
+                color: activeFilter === 'project' ? 'white' : designSystem.colors.gray[600]
+              }}
+              onClick={() => setActiveFilter('project')}
+              {...hoverEffects.button}
+            >
+              Projects
+            </button>
+            <button 
+              style={{
+                ...componentStyles.primaryButton,
+                background: activeFilter === 'payment' ? '#f59e0b' : designSystem.colors.gray[100],
+                color: activeFilter === 'payment' ? 'white' : designSystem.colors.gray[600]
+              }}
+              onClick={() => setActiveFilter('payment')}
+              {...hoverEffects.button}
+            >
+              Payments
+            </button>
+            <button 
+              style={{
+                ...componentStyles.primaryButton,
+                background: activeFilter === 'appointment' ? '#6366f1' : designSystem.colors.gray[100],
+                color: activeFilter === 'appointment' ? 'white' : designSystem.colors.gray[600]
+              }}
+              onClick={() => setActiveFilter('appointment')}
+              {...hoverEffects.button}
+            >
+              Appointments
+            </button>
+            <button 
+              style={{
+                ...componentStyles.primaryButton,
+                background: activeFilter === 'query' ? '#ef4444' : designSystem.colors.gray[100],
+                color: activeFilter === 'query' ? 'white' : designSystem.colors.gray[600]
+              }}
+              onClick={() => setActiveFilter('query')}
+              {...hoverEffects.button}
+            >
+              Queries
+            </button>
+          </div>
+        </div>
+
+        <div style={componentStyles.emptyState}>
+          <i className="fas fa-history fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
+          <h5 style={{ 
+            fontSize: designSystem.typography.fontSize.lg,
+            fontWeight: designSystem.typography.fontWeight.semibold,
+            color: designSystem.colors.gray[700],
+            marginBottom: designSystem.spacing.sm
+          }}>
+            No Timeline Data
+          </h5>
+          <p style={{ color: designSystem.colors.gray[600] }}>
+            {activeFilter === 'all' 
+              ? 'Your activity timeline will appear here as you interact with our services.'
+              : `No ${activeFilter} activities found.`
+            }
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm">
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">
-            <i className="fas fa-history mr-2"></i>Client Journey Timeline
-          </h3>
+    <div>
+      {/* Header with Refresh Button */}
+      <div style={componentStyles.header}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={componentStyles.headerIcon}>
+            <i className="fas fa-history fa-lg"></i>
+          </div>
+          <div>
+            <h4 style={componentStyles.headerTitle}>Client Journey Timeline</h4>
+            <p style={componentStyles.headerSubtitle}>Track your complete journey and activity history</p>
+          </div>
+        </div>
+        <button 
+          style={{
+            ...componentStyles.primaryButton,
+            background: designSystem.colors.primary
+          }}
+          onClick={() => {
+            loadActivities();
+            onRefresh?.();
+          }}
+          {...hoverEffects.button}
+        >
+          <i className="fas fa-sync-alt me-2"></i>Refresh
+        </button>
+      </div>
+
+      {/* Filter Navigation */}
+      <div style={{ marginBottom: designSystem.spacing.lg }}>
+        <div style={{ display: 'flex', gap: designSystem.spacing.xs, flexWrap: 'wrap' }}>
           <button 
-            onClick={loadActivities}
-            className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors"
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeFilter === 'all' ? designSystem.colors.primary : designSystem.colors.gray[100],
+              color: activeFilter === 'all' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveFilter('all')}
+            {...hoverEffects.button}
           >
-            <i className="fas fa-sync-alt mr-1"></i>Refresh
+            All Activities
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeFilter === 'project' ? '#8b5cf6' : designSystem.colors.gray[100],
+              color: activeFilter === 'project' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveFilter('project')}
+            {...hoverEffects.button}
+          >
+            Projects
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeFilter === 'payment' ? '#f59e0b' : designSystem.colors.gray[100],
+              color: activeFilter === 'payment' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveFilter('payment')}
+            {...hoverEffects.button}
+          >
+            Payments
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeFilter === 'appointment' ? '#6366f1' : designSystem.colors.gray[100],
+              color: activeFilter === 'appointment' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveFilter('appointment')}
+            {...hoverEffects.button}
+          >
+            Appointments
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeFilter === 'query' ? '#ef4444' : designSystem.colors.gray[100],
+              color: activeFilter === 'query' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveFilter('query')}
+            {...hoverEffects.button}
+          >
+            Queries
           </button>
         </div>
-        
-        {/* Filters */}
-        <div className="flex flex-wrap gap-4">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setActiveFilter('all')}
-              className={`px-3 py-1 rounded text-sm ${activeFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setActiveFilter('project')}
-              className={`px-3 py-1 rounded text-sm ${activeFilter === 'project' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
-            >
-              Projects
-            </button>
-            <button
-              onClick={() => setActiveFilter('payment')}
-              className={`px-3 py-1 rounded text-sm ${activeFilter === 'payment' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
-            >
-              Payments
-            </button>
-            <button
-              onClick={() => setActiveFilter('appointment')}
-              className={`px-3 py-1 rounded text-sm ${activeFilter === 'appointment' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
-            >
-              Appointments
-            </button>
-          </div>
-          
-          <select
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-            className="px-3 py-1 border border-gray-300 rounded text-sm"
-          >
-            <option value="all">All Time</option>
-            <option value="week">Last Week</option>
-            <option value="month">Last Month</option>
-            <option value="quarter">Last 3 Months</option>
-          </select>
-        </div>
       </div>
-      
-      <div className="p-6">
+
+      {/* Timeline Content */}
+      <div style={{
+        ...componentStyles.managementCard,
+        margin: 0,
+        padding: designSystem.spacing.lg
+      }}>
         <div className="relative">
           {/* Timeline line */}
-          <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+          <div className="absolute left-8 top-0 bottom-0 w-0.5" style={{ background: designSystem.colors.gray[200] }}></div>
           
           <div className="space-y-8">
             {filteredActivities.map((item, index) => (
               <div key={item.id || index} className="relative flex items-start">
                 {/* Timeline dot */}
-                <div className={`relative z-10 flex items-center justify-center w-16 h-16 rounded-full border-4 border-white shadow-lg`} style={{ backgroundColor: item.color || '#6366f1' }}>
+                <div 
+                  className="relative z-10 flex items-center justify-center w-16 h-16 rounded-full border-4 shadow-lg" 
+                  style={{ 
+                    backgroundColor: item.color || '#6366f1',
+                    borderColor: 'white'
+                  }}
+                >
                   <i className={`${item.icon} text-white text-lg`}></i>
                 </div>
                 
                 {/* Timeline content */}
-                <div className="flex-1 ml-6 bg-gray-50 rounded-lg p-6 border-l-4 border-blue-500">
+                <div 
+                  className="flex-1 ml-6 rounded-lg p-6 border-l-4" 
+                  style={{
+                    background: designSystem.colors.light,
+                    borderLeftColor: item.color || designSystem.colors.primary
+                  }}
+                >
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <h4 className="text-lg font-semibold text-gray-900">{item.title}</h4>
-                      <div className="text-sm text-gray-500 mt-1">
+                      <h4 style={{
+                        fontSize: designSystem.typography.fontSize.lg,
+                        fontWeight: designSystem.typography.fontWeight.semibold,
+                        color: designSystem.colors.dark,
+                        marginBottom: designSystem.spacing.xs
+                      }}>
+                        {item.title}
+                      </h4>
+                      <div style={{
+                        fontSize: designSystem.typography.fontSize.sm,
+                        color: designSystem.colors.gray[500],
+                        marginTop: designSystem.spacing.xs
+                      }}>
                         {formatDate(item.date)} • {getTimeAgo(item.date)}
                       </div>
                     </div>
                     {item.data?.status && (
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        item.data.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        item.data.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        item.data.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {item.data.status.replace('_', ' ').toUpperCase()}
+                      <span style={{
+                        ...componentStyles.badge,
+                        background: 
+                          item.data.status === 'completed' ? designSystem.colors.success :
+                          item.data.status === 'pending' ? designSystem.colors.warning :
+                          item.data.status === 'in_progress' ? designSystem.colors.primary :
+                          designSystem.colors.gray[400],
+                        color: 'white',
+                        textTransform: 'uppercase',
+                        fontSize: designSystem.typography.fontSize.xs,
+                        fontWeight: designSystem.typography.fontWeight.medium
+                      }}>
+                        {item.data.status.replace('_', ' ')}
                       </span>
                     )}
                   </div>
                   
-                  <p className="text-gray-700">{item.description}</p>
+                  <p style={{
+                    color: designSystem.colors.gray[700],
+                    margin: 0,
+                    lineHeight: '1.5'
+                  }}>
+                    {item.description}
+                  </p>
                 </div>
               </div>
             ))}
@@ -351,8 +481,15 @@ const ClientTimeline = ({ clientData, apiCall, onRefresh }) => {
         
         {/* Timeline footer */}
         <div className="mt-8 text-center">
-          <div className="inline-flex items-center px-4 py-2 bg-gray-100 rounded-full text-sm text-gray-600">
-            <i className="fas fa-flag-checkered mr-2"></i>
+          <div 
+            className="inline-flex items-center px-4 py-2 rounded-full" 
+            style={{
+              background: designSystem.colors.gray[100],
+              fontSize: designSystem.typography.fontSize.sm,
+              color: designSystem.colors.gray[600]
+            }}
+          >
+            <i className="fas fa-flag-checkered me-2"></i>
             This is where your journey began
           </div>
         </div>

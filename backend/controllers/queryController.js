@@ -214,12 +214,20 @@ exports.respondToQuery = async (req, res) => {
       }
     }
     
-    // Add response
+    // Add response to both responses and replies arrays for compatibility
     query.responses.push({
       user: req.user.user_id,
       message,
       isInternal,
       timestamp: new Date()
+    });
+    
+    // Add to replies array for client interface
+    query.replies.push({
+      sender: req.user.user_id,
+      sender_type: 'User',
+      message,
+      created_at: new Date()
     });
     
     // Update status if it was open
@@ -233,6 +241,7 @@ exports.respondToQuery = async (req, res) => {
     await query.populate('client', 'name email university');
     await query.populate('assignedTo', 'first_name last_name email');
     await query.populate('responses.user', 'first_name last_name email role');
+    await query.populate('replies.sender', 'first_name last_name email role name');
     
     console.log('💬 Response added to query:', {
       queryId: query._id,

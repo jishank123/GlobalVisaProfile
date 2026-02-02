@@ -357,6 +357,156 @@ exports.createProject = async (req, res) => {
   }
 };
 
+// @desc    Purchase services (for clients)
+// @route   POST /api/projects/purchase
+// @access  Private (Client)
+exports.purchaseServices = async (req, res) => {
+  console.log('\n🛒 === SERVICE PURCHASE REQUEST ===');
+  
+  try {
+    let purchaseData;
+    
+    // Handle both JSON and FormData
+    if (req.body.purchaseData) {
+      // FormData with file upload
+      purchaseData = JSON.parse(req.body.purchaseData);
+    } else {
+      // Regular JSON
+      purchaseData = req.body;
+    }
+    
+    const { services, client, total_amount, payment_method } = purchaseData;
+    
+    console.log('🛒 Purchase data:', { services, client, total_amount, payment_method });
+    console.log('🛒 User info:', { email: req.user.email, role: req.user.role });
+    console.log('🛒 File uploaded:', req.file ? req.file.filename : 'No file');
+    
+    // Validation
+    if (!services || !Array.isArray(services) || services.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_SERVICES',
+          message: 'At least one service must be selected'
+        }
+      });
+    }
+    
+    // Find client record - either by provided ID or by user email
+    let clientRecord;
+    if (client) {
+      clientRecord = await Client.findById(client);
+    } else {
+      // If no client ID provided, find by user email
+      clientRecord = await Client.findOne({ email: req.user.email });
+    }
+    
+    if (!clientRecord) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'CLIENT_NOT_FOUND',
+          message: 'Client record not found. Please contact support.'
+        }
+      });
+    }
+    
+    console.log('🛒 Found client record:', { id: clientRecord._id, name: clientRecord.name, email: clientRecord.email });
+    
+    // Security check - clients can only purchase for themselves
+    if (req.user.role === 'client' && clientRecord.email !== req.user.email) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You can only purchase services for yourself'
+        }
+      });
+    }
+    
+    // Verify all services exist
+    const serviceRecords = await Service.find({ _id: { $in: services }, isActive: true, isDeleted: false });
+    if (serviceRecords.length !== services.length) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_SERVICES',
+          message: 'One or more services are invalid or unavailable'
+        }
+      });
+    }
+    
+    // Create projects for each service
+    const createdProjects = [];
+    const currentDate = new Date();
+    const dueDate = new Date(currentDate.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 days from now
+    
+    for (const serviceId of services) {
+      const serviceRecord = serviceRecords.find(s => s._id.toString() === serviceId);
+      
+      const projectData = {
+        client: clientRecord._id, // Use the found client record ID
+        service: serviceId,
+        service_name: serviceRecord.name,
+        description: `Service purchased: ${serviceRecord.name}`,
+        priority: 'medium',
+        amount: serviceRecord.pricing?.minPrice || 0,
+        budget: serviceRecord.pricing?.minPrice || 0,
+        start_date: currentDate,
+        due_date: dueDate,
+        deadline: dueDate,
+        assigned_to: clientRecord.crm_manager || req.user._id, // Ensure assigned_to is always set
+        created_by: req.user._id,
+        status: 'pending',
+        payment_method: payment_method || 'card',
+        payment_receipt: req.file ? req.file.filename : null,
+        purchase_date: currentDate
+      };
+      
+      const project = await Project.create(projectData);
+      
+      // Populate the created project
+      await project.populate([
+        { path: 'client', select: 'name email company' },
+        { path: 'service', select: 'name category pricing' },
+        { path: 'assigned_to', select: 'first_name last_name email' }
+      ]);
+      
+      createdProjects.push(project);
+      
+      // Log activity
+      await logActivity(
+        req.user._id,
+        'purchase',
+        'Project',
+        `Purchased service: ${serviceRecord.name} for $${serviceRecord.pricing?.minPrice || 0}`,
+        req.ip,
+        project._id
+      );
+    }
+    
+    console.log('✅ Created projects:', createdProjects.length);
+    
+    res.status(201).json({
+      success: true,
+      message: `Successfully purchased ${createdProjects.length} service(s)`,
+      data: createdProjects
+    });
+    
+  } catch (error) {
+    console.error('💥 Service purchase error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'PURCHASE_FAILED',
+        message: error.message
+      }
+    });
+  }
+  
+  console.log('🛒 === SERVICE PURCHASE REQUEST COMPLETED ===\n');
+};
+
 // @desc    Update project
 // @route   PATCH /api/projects/:id
 // @access  Private (Admin, Lead Manager, Assigned Manager)

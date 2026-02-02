@@ -24,7 +24,12 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
   const loadQueries = async () => {
     setLoading(true);
     try {
-      const response = await apiCall('/queries?client=' + clientData?.email);
+      // Use client-specific endpoint if clientData has _id
+      const endpoint = clientData?._id 
+        ? `/queries/client/${clientData._id}`
+        : `/queries?client=${clientData?.email}`;
+      
+      const response = await apiCall(endpoint);
       if (response.success) {
         setQueries(response.data || []);
       }
@@ -83,6 +88,7 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
   };
 
   const handleCreateQuery = async () => {
+    console.log('handleCreateQuery called'); // Debug log
     try {
       const formData = new FormData();
       formData.append('subject', queryData.subject);
@@ -107,7 +113,7 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
       });
 
       if (response.success) {
-        alert('Query submitted successfully! Our team will respond shortly.');
+        alert('Query sent successfully to admin/managers! They will respond shortly.');
         setShowCreateModal(false);
         setQueryData({
           subject: '',
@@ -118,11 +124,11 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
         });
         loadQueries();
       } else {
-        throw new Error(response.message || 'Failed to create query');
+        throw new Error(response.message || 'Failed to send query');
       }
     } catch (error) {
       console.error('Error creating query:', error);
-      alert(`Failed to create query: ${error.message}`);
+      alert(`Failed to send query: ${error.message}`);
     }
   };
 
@@ -133,9 +139,7 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
       const response = await apiCall(`/queries/${selectedQuery._id}/reply`, {
         method: 'POST',
         body: JSON.stringify({
-          message: replyText,
-          sender: clientData._id,
-          sender_type: 'client'
+          message: replyText
         })
       });
 
@@ -350,8 +354,34 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
   );
 
   const QueryModal = () => (
-    <div className="modal d-block" style={componentStyles.modal}>
-      <div className="modal-dialog modal-xl">
+    <div 
+      className="modal d-block" 
+      style={{
+        ...componentStyles.modal,
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 1050,
+        backgroundColor: 'rgba(0,0,0,0.5)'
+      }}
+      onClick={(e) => {
+        // Only close if clicking the backdrop, not the modal content
+        if (e.target === e.currentTarget) {
+          setShowModal(false);
+        }
+      }}
+    >
+      <div 
+        className="modal-dialog modal-xl"
+        style={{
+          margin: '1.75rem auto',
+          maxWidth: '1200px',
+          position: 'relative'
+        }}
+        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+      >
         <div className="modal-content" style={componentStyles.modalContent}>
           <div className="modal-header" style={componentStyles.modalHeader}>
             <h5 className="modal-title">
@@ -361,7 +391,11 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
             <button 
               type="button" 
               className="btn-close btn-close-white" 
-              onClick={() => setShowModal(false)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowModal(false);
+              }}
             ></button>
           </div>
           
@@ -460,85 +494,124 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
                 {/* Conversation Thread */}
                 <div className="mb-4">
                   <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
-                    Conversation ({selectedQuery.replies?.length || 0} replies)
+                    Conversation ({(selectedQuery.replies?.length || 0) + (selectedQuery.responses?.length || 0)} messages)
                   </h6>
                   
-                  {selectedQuery.replies && selectedQuery.replies.length > 0 ? (
-                    <div style={{
-                      maxHeight: '400px',
-                      overflowY: 'auto',
-                      border: `1px solid ${designSystem.colors.gray[200]}`,
-                      borderRadius: designSystem.borderRadius.button
-                    }}>
-                      {selectedQuery.replies.map((reply, index) => (
-                        <div key={index} style={{
-                          padding: designSystem.spacing.lg,
-                          borderBottom: index < selectedQuery.replies.length - 1 ? `1px solid ${designSystem.colors.gray[100]}` : 'none',
-                          background: reply.sender_type === 'client' ? designSystem.colors.light : 'white'
-                        }}>
-                          <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginBottom: designSystem.spacing.sm
+                  {(() => {
+                    // Combine replies and responses, then sort by date
+                    const allMessages = [];
+                    
+                    // Add replies (client and staff messages)
+                    if (selectedQuery.replies) {
+                      selectedQuery.replies.forEach(reply => {
+                        allMessages.push({
+                          ...reply,
+                          type: 'reply',
+                          timestamp: reply.created_at,
+                          sender_name: reply.sender_type === 'Client' 
+                            ? 'You' 
+                            : (reply.sender?.first_name && reply.sender?.last_name 
+                                ? `${reply.sender.first_name} ${reply.sender.last_name}` 
+                                : reply.sender?.name || 'Support Team')
+                        });
+                      });
+                    }
+                    
+                    // Add responses (legacy format)
+                    if (selectedQuery.responses) {
+                      selectedQuery.responses.forEach(response => {
+                        allMessages.push({
+                          ...response,
+                          type: 'response',
+                          timestamp: response.timestamp,
+                          sender_type: 'User',
+                          sender_name: response.user?.first_name && response.user?.last_name 
+                            ? `${response.user.first_name} ${response.user.last_name}` 
+                            : 'Support Team'
+                        });
+                      });
+                    }
+                    
+                    // Sort by timestamp
+                    allMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                    
+                    return allMessages.length > 0 ? (
+                      <div style={{
+                        maxHeight: '400px',
+                        overflowY: 'auto',
+                        border: `1px solid ${designSystem.colors.gray[200]}`,
+                        borderRadius: designSystem.borderRadius.button
+                      }}>
+                        {allMessages.map((message, index) => (
+                          <div key={index} style={{
+                            padding: designSystem.spacing.lg,
+                            borderBottom: index < allMessages.length - 1 ? `1px solid ${designSystem.colors.gray[100]}` : 'none',
+                            background: message.sender_type === 'Client' ? designSystem.colors.light : 'white'
                           }}>
                             <div style={{
                               display: 'flex',
-                              alignItems: 'center'
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              marginBottom: designSystem.spacing.sm
                             }}>
                               <div style={{
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '50%',
-                                background: reply.sender_type === 'client' ? designSystem.colors.primary : designSystem.colors.success,
-                                color: 'white',
                                 display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '12px',
-                                fontWeight: designSystem.typography.fontWeight.bold,
-                                marginRight: designSystem.spacing.sm
+                                alignItems: 'center'
                               }}>
-                                {reply.sender_type === 'client' ? 'C' : 'S'}
-                              </div>
-                              <div>
                                 <div style={{
-                                  fontWeight: designSystem.typography.fontWeight.medium,
-                                  color: designSystem.colors.dark
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '50%',
+                                  background: message.sender_type === 'Client' ? designSystem.colors.primary : designSystem.colors.success,
+                                  color: 'white',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '12px',
+                                  fontWeight: designSystem.typography.fontWeight.bold,
+                                  marginRight: designSystem.spacing.sm
                                 }}>
-                                  {reply.sender_type === 'client' ? 'You' : 'Support Team'}
+                                  {message.sender_type === 'Client' ? 'C' : 'S'}
                                 </div>
-                                <div style={{
-                                  fontSize: designSystem.typography.fontSize.xs,
-                                  color: designSystem.colors.gray[500]
-                                }}>
-                                  {new Date(reply.created_at).toLocaleString()}
+                                <div>
+                                  <div style={{
+                                    fontWeight: designSystem.typography.fontWeight.medium,
+                                    color: designSystem.colors.dark
+                                  }}>
+                                    {message.sender_name}
+                                  </div>
+                                  <div style={{
+                                    fontSize: designSystem.typography.fontSize.xs,
+                                    color: designSystem.colors.gray[500]
+                                  }}>
+                                    {new Date(message.timestamp).toLocaleString()}
+                                  </div>
                                 </div>
                               </div>
                             </div>
+                            <div style={{
+                              whiteSpace: 'pre-wrap',
+                              lineHeight: '1.6',
+                              marginLeft: '44px'
+                            }}>
+                              {message.message}
+                            </div>
                           </div>
-                          <div style={{
-                            whiteSpace: 'pre-wrap',
-                            lineHeight: '1.6',
-                            marginLeft: '44px'
-                          }}>
-                            {reply.message}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{
-                      textAlign: 'center',
-                      padding: designSystem.spacing.xl,
-                      color: designSystem.colors.gray[500],
-                      background: designSystem.colors.light,
-                      borderRadius: designSystem.borderRadius.button
-                    }}>
-                      <i className="fas fa-comments fa-2x mb-3"></i>
-                      <p>No replies yet. Our team will respond soon!</p>
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{
+                        textAlign: 'center',
+                        padding: designSystem.spacing.xl,
+                        color: designSystem.colors.gray[500],
+                        background: designSystem.colors.light,
+                        borderRadius: designSystem.borderRadius.button
+                      }}>
+                        <i className="fas fa-comments fa-2x mb-3"></i>
+                        <p>No replies yet. Our admin/managers will respond soon!</p>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Add Reply Section */}
@@ -563,8 +636,13 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
                           fontFamily: designSystem.typography.fontFamily
                         }}
                         value={replyText}
-                        onChange={(e) => setReplyText(e.target.value)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setReplyText(e.target.value);
+                        }}
                         placeholder="Type your reply here..."
+                        onClick={(e) => e.stopPropagation()}
+                        onFocus={(e) => e.stopPropagation()}
                       />
                       <div style={{
                         padding: designSystem.spacing.md,
@@ -578,7 +656,11 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
                             ...componentStyles.primaryButton,
                             background: designSystem.colors.success
                           }}
-                          onClick={handleAddReply}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleAddReply();
+                          }}
                           disabled={!replyText.trim()}
                           {...hoverEffects.button}
                         >
@@ -597,7 +679,11 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
             <button 
               type="button" 
               className="btn btn-secondary" 
-              onClick={() => setShowModal(false)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowModal(false);
+              }}
             >
               Close
             </button>
@@ -607,130 +693,144 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
     </div>
   );
 
-  const CreateQueryModal = () => (
-    <div className="modal d-block" style={componentStyles.modal}>
-      <div className="modal-dialog modal-lg">
-        <div className="modal-content" style={componentStyles.modalContent}>
-          <div className="modal-header" style={componentStyles.modalHeader}>
-            <h5 className="modal-title">
-              <i className="fas fa-plus me-2"></i>
-              Create New Query
-            </h5>
-            <button 
-              type="button" 
-              className="btn-close btn-close-white" 
-              onClick={() => setShowCreateModal(false)}
-            ></button>
-          </div>
-          
-          <div className="modal-body" style={componentStyles.modalBody}>
-            <div className="row">
-              <div className="col-12 mb-3">
-                <label className="form-label">Subject *</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={queryData.subject}
-                  onChange={(e) => setQueryData({...queryData, subject: e.target.value})}
-                  placeholder="Brief description of your question or issue"
-                  required
-                />
-              </div>
-              <div className="col-md-6 mb-3">
-                <label className="form-label">Category</label>
-                <select
-                  className="form-control"
-                  value={queryData.category}
-                  onChange={(e) => setQueryData({...queryData, category: e.target.value})}
-                >
-                  <option value="general">General Question</option>
-                  <option value="technical">Technical Support</option>
-                  <option value="billing">Billing & Payments</option>
-                  <option value="project">Project Related</option>
-                  <option value="appointment">Appointment</option>
-                  <option value="document">Document Related</option>
-                  <option value="visa_process">Visa Process</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div className="col-md-6 mb-3">
-                <label className="form-label">Priority</label>
-                <select
-                  className="form-control"
-                  value={queryData.priority}
-                  onChange={(e) => setQueryData({...queryData, priority: e.target.value})}
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
-                </select>
-              </div>
-              <div className="col-12 mb-3">
-                <label className="form-label">Description *</label>
-                <textarea
-                  className="form-control"
-                  rows="6"
-                  value={queryData.description}
-                  onChange={(e) => setQueryData({...queryData, description: e.target.value})}
-                  placeholder="Please provide detailed information about your question or issue..."
-                  required
-                ></textarea>
-              </div>
-              <div className="col-12 mb-3">
-                <label className="form-label">Attachments (Optional)</label>
-                <input
-                  type="file"
-                  className="form-control"
-                  multiple
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
-                  onChange={(e) => setQueryData({...queryData, attachments: Array.from(e.target.files)})}
-                />
-                <small className="text-muted">
-                  You can attach documents, images, or other relevant files (max 10MB per file)
-                </small>
-              </div>
+  const CreateQueryModal = () => {
+    if (!showCreateModal) return null;
+    
+    return (
+      <div className="modal d-block" style={componentStyles.modal}>
+        <div className="modal-dialog modal-lg">
+          <div className="modal-content" style={componentStyles.modalContent}>
+            <div className="modal-header" style={componentStyles.modalHeader}>
+              <h5 className="modal-title">
+                <i className="fas fa-paper-plane me-2"></i>
+                Send Query to Admin/Managers
+              </h5>
+              <button 
+                type="button" 
+                className="btn-close btn-close-white" 
+                onClick={() => setShowCreateModal(false)}
+              ></button>
             </div>
+            
+            <div className="modal-body" style={componentStyles.modalBody}>
+              <div className="row">
+                <div className="col-12 mb-3">
+                  <label className="form-label" style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Subject *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={componentStyles.formInput}
+                    value={queryData.subject}
+                    onChange={(e) => setQueryData({...queryData, subject: e.target.value})}
+                    placeholder="Brief description of your question or issue"
+                  />
+                </div>
+                
+                <div className="col-md-6 mb-3">
+                  <label className="form-label" style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Category</label>
+                  <select
+                    className="form-control"
+                    style={componentStyles.formInput}
+                    value={queryData.category}
+                    onChange={(e) => setQueryData({...queryData, category: e.target.value})}
+                  >
+                    <option value="general">General Question</option>
+                    <option value="technical">Technical Support</option>
+                    <option value="billing">Billing & Payments</option>
+                    <option value="project">Project Related</option>
+                    <option value="appointment">Appointment</option>
+                    <option value="document">Document Related</option>
+                    <option value="visa_process">Visa Process</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                
+                <div className="col-md-6 mb-3">
+                  <label className="form-label" style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Priority</label>
+                  <select
+                    className="form-control"
+                    style={componentStyles.formInput}
+                    value={queryData.priority}
+                    onChange={(e) => setQueryData({...queryData, priority: e.target.value})}
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+                
+                <div className="col-12 mb-3">
+                  <label className="form-label" style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Description *</label>
+                  <textarea
+                    className="form-control"
+                    rows="6"
+                    style={{
+                      ...componentStyles.formInput,
+                      resize: 'vertical'
+                    }}
+                    value={queryData.description}
+                    onChange={(e) => setQueryData({...queryData, description: e.target.value})}
+                    placeholder="Please provide detailed information about your question or issue..."
+                  ></textarea>
+                </div>
+                
+                <div className="col-12 mb-3">
+                  <label className="form-label" style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Attachments (Optional)</label>
+                  <input
+                    type="file"
+                    className="form-control"
+                    style={componentStyles.formInput}
+                    multiple
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
+                    onChange={(e) => setQueryData({...queryData, attachments: Array.from(e.target.files)})}
+                  />
+                  <small style={{ color: '#666', fontSize: '0.875rem' }}>
+                    You can attach documents, images, or other relevant files (max 10MB per file)
+                  </small>
+                </div>
+              </div>
 
-            <div style={{
-              background: designSystem.colors.light,
-              padding: designSystem.spacing.md,
-              borderRadius: designSystem.borderRadius.button,
-              marginTop: designSystem.spacing.md
-            }}>
-              <p style={{ 
-                margin: 0,
-                fontSize: designSystem.typography.fontSize.sm,
-                color: designSystem.colors.gray[600]
+              <div style={{
+                background: '#f8f9fa',
+                padding: '1rem',
+                borderRadius: '4px',
+                marginTop: '1rem'
               }}>
-                <i className="fas fa-info-circle me-2"></i>
-                Our support team typically responds within 24 hours. For urgent matters, please call our office directly.
-              </p>
+                <p style={{ 
+                  margin: 0,
+                  fontSize: '0.875rem',
+                  color: '#666'
+                }}>
+                  <i className="fas fa-info-circle me-2"></i>
+                  Your query will be sent to our admin and managers. They typically respond within 24 hours. For urgent matters, please call our office directly.
+                </p>
+              </div>
             </div>
-          </div>
-          
-          <div className="modal-footer" style={componentStyles.modalFooter}>
-            <button 
-              type="button" 
-              className="btn btn-secondary" 
-              onClick={() => setShowCreateModal(false)}
-            >
-              Cancel
-            </button>
-            <button 
-              type="button" 
-              className="btn btn-primary" 
-              onClick={handleCreateQuery}
-              disabled={!queryData.subject || !queryData.description}
-            >
-              <i className="fas fa-paper-plane me-2"></i>
-              Submit Query
-            </button>
+            
+            <div className="modal-footer" style={componentStyles.modalFooter}>
+              <button 
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowCreateModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button"
+                className="btn btn-primary"
+                onClick={handleCreateQuery}
+                disabled={!queryData.subject || !queryData.description}
+              >
+                <i className="fas fa-paper-plane me-2"></i>
+                Send Query
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const StatCard = ({ icon, number, label, borderColor, iconColor }) => (
     <div 
@@ -768,7 +868,7 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
 
   return (
     <div>
-      {/* Header with Actions */}
+      {/* Header */}
       <div style={componentStyles.header}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <div style={componentStyles.headerIcon}>
@@ -776,33 +876,8 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
           </div>
           <div>
             <h4 style={componentStyles.headerTitle}>Support & Queries</h4>
-            <p style={componentStyles.headerSubtitle}>Get help and track your support requests</p>
+            <p style={componentStyles.headerSubtitle}>Send queries to admin/managers and track responses</p>
           </div>
-        </div>
-        <div style={{ display: 'flex', gap: designSystem.spacing.sm }}>
-          <button 
-            style={{
-              ...componentStyles.primaryButton,
-              background: designSystem.colors.success
-            }}
-            onClick={() => setShowCreateModal(true)}
-            {...hoverEffects.button}
-          >
-            <i className="fas fa-plus me-2"></i>New Query
-          </button>
-          <button 
-            style={{
-              ...componentStyles.primaryButton,
-              background: designSystem.colors.info
-            }}
-            onClick={() => {
-              loadQueries();
-              onRefresh?.();
-            }}
-            {...hoverEffects.button}
-          >
-            <i className="fas fa-sync-alt me-2"></i>Refresh
-          </button>
         </div>
       </div>
 
@@ -838,8 +913,13 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
         />
       </div>
 
-      {/* Query Tabs */}
-      <div style={{ marginBottom: designSystem.spacing.lg }}>
+      {/* Query Tabs with Send Query Button */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        marginBottom: designSystem.spacing.lg 
+      }}>
         <div style={{ display: 'flex', gap: designSystem.spacing.xs, flexWrap: 'wrap' }}>
           <button 
             style={{
@@ -886,6 +966,25 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
             Resolved ({getQueryCounts().resolved})
           </button>
         </div>
+        
+        {/* Send Query Button - Right End */}
+        <button 
+          type="button"
+          style={{
+            ...componentStyles.primaryButton,
+            background: designSystem.colors.primary,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}
+          onClick={() => {
+            console.log('Send Query button clicked'); // Debug log
+            setShowCreateModal(true);
+          }}
+          {...hoverEffects.button}
+        >
+          <i className="fas fa-paper-plane"></i>Send Query
+        </button>
       </div>
 
       {/* Queries Grid */}
@@ -897,16 +996,27 @@ const ClientQueries = ({ clientData, apiCall, onRefresh }) => {
           </h6>
           <p style={{ color: designSystem.colors.gray[500], marginBottom: designSystem.spacing.lg }}>
             {activeTab === 'all' 
-              ? 'You haven\'t submitted any queries yet. Need help? Create your first query!'
+              ? 'You haven\'t sent any queries yet. Need help? Send your first query to our admin/managers!'
               : `You don't have any ${activeTab.replace('_', ' ')} queries at the moment.`}
           </p>
           {activeTab === 'all' && (
             <button
-              style={componentStyles.primaryButton}
-              onClick={() => setShowCreateModal(true)}
+              type="button"
+              style={{
+                ...componentStyles.primaryButton,
+                background: designSystem.colors.primary,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                margin: '0 auto'
+              }}
+              onClick={() => {
+                console.log('Send Your First Query button clicked'); // Debug log
+                setShowCreateModal(true);
+              }}
               {...hoverEffects.button}
             >
-              <i className="fas fa-plus me-2"></i>Create Your First Query
+              <i className="fas fa-paper-plane"></i>Send Your First Query
             </button>
           )}
         </div>

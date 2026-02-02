@@ -159,6 +159,14 @@ export const projectsAPI = {
     getAll: (params) => apiClient.get('/projects', {params}),
     getById: (id) => apiClient.get(`/projects/${id}`),
     create: (data) => apiClient.post('/projects', data),
+    purchase: (formData) => {
+        // Handle FormData for file uploads
+        return apiClient.post('/projects/purchase', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+    },
     update: (id, data) => apiClient.patch(`/projects/${id}`, data),
     delete: (id) => apiClient.delete(`/projects/${id}`),
     permanentDelete: (id) => apiClient.delete(`/projects/${id}/permanent`),

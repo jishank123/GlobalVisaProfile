@@ -191,9 +191,9 @@ router.post('/',
 
 // @route   GET /api/appointments
 // @desc    Get all appointment requests with pagination and filtering
-// @access  Private (Admin/Manager)
+// @access  Private (Admin/Manager/Client)
 router.get('/', 
-  auth(['admin', 'lead_manager', 'crm_manager']),
+  auth(['admin', 'lead_manager', 'crm_manager', 'client']),
   getAllAppointmentRequests
 );
 

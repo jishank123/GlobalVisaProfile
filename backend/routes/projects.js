@@ -1,9 +1,44 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
 const Project = require('../models/Project');
 const Client = require('../models/Client');
 const { auth, authenticateClient } = require('../middleware/auth');
 const projectController = require('../controllers/projectController');
+
+// Configure multer for payment receipt uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/payment-receipts/');
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'payment-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  // Accept images and PDFs
+  if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files and PDFs are allowed!'), false);
+  }
+};
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
+
+// @route   POST /api/projects/purchase
+// @desc    Purchase services (for clients)
+// @access  Private (Client)
+router.post('/purchase', authenticateClient, upload.single('paymentReceipt'), projectController.purchaseServices);
 
 // Fixed auth middleware usage - all instances
 

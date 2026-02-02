@@ -183,7 +183,7 @@ const ClientOverview = ({ clientData, apiCall, onRefresh }) => {
         <button 
           style={{
             ...componentStyles.primaryButton,
-            background: designSystem.colors.success
+            background: designSystem.colors.primary
           }}
           onClick={() => {
             loadOverviewData();

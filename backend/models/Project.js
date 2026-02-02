@@ -83,6 +83,28 @@ const projectSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  // Payment-related fields for service purchases
+  payment_method: {
+    type: String,
+    enum: ['card', 'bank_transfer', 'upi', 'paypal', 'cash'],
+    default: 'card'
+  },
+  payment_receipt: {
+    type: String, // filename of uploaded receipt
+    default: null
+  },
+  purchase_date: {
+    type: Date,
+    default: null
+  },
+  budget: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  deadline: {
+    type: Date
+  },
   milestones: [{
     title: {
       type: String,

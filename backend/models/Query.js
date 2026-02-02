@@ -61,6 +61,22 @@ const querySchema = new mongoose.Schema({
       default: false
     }
   }],
+  replies: [{
+    sender: {
+      type: mongoose.Schema.Types.ObjectId,
+      refPath: 'replies.sender_type'
+    },
+    sender_type: {
+      type: String,
+      enum: ['User', 'Client'],
+      required: true
+    },
+    message: String,
+    created_at: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   attachments: [{
     name: String,
     url: String,

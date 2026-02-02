@@ -273,9 +273,13 @@ const getAppointmentRequest = async (req, res) => {
 
 // @desc    Get All Appointment Requests (with pagination and filtering)
 // @route   GET /api/appointments
-// @access  Private (Admin/Manager only)
+// @access  Private (Admin/Manager/Client)
 const getAllAppointmentRequests = async (req, res) => {
   try {
+    console.log('📅 === GET ALL APPOINTMENTS REQUEST ===');
+    console.log('📅 User:', req.user?.email, 'Role:', req.user?.role);
+    console.log('📅 User ID:', req.user?._id);
+    
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
@@ -287,10 +291,14 @@ const getAllAppointmentRequests = async (req, res) => {
     if (req.query.priority) filter.priority = req.query.priority;
     if (req.query.assigned_to) filter.assigned_to = req.query.assigned_to;
 
-    // Role-based filtering for lead managers
+    // Role-based filtering
     if (req.user.role === 'lead_manager') {
       // Lead managers can only see appointments they created
       filter.created_by = req.user._id;
+    } else if (req.user.role === 'client') {
+      // Clients can only see appointments with their email
+      filter.email = req.user.email.toLowerCase();
+      console.log('📅 Client filter applied:', { email: req.user.email });
     }
 
     // Date range filter
@@ -299,6 +307,8 @@ const getAllAppointmentRequests = async (req, res) => {
       if (req.query.start_date) filter.createdAt.$gte = new Date(req.query.start_date);
       if (req.query.end_date) filter.createdAt.$lte = new Date(req.query.end_date);
     }
+
+    console.log('📅 Final filter:', filter);
 
     // Get appointments with pagination
     const appointments = await AppointmentRequest.find(filter)
@@ -311,32 +321,49 @@ const getAllAppointmentRequests = async (req, res) => {
 
     const total = await AppointmentRequest.countDocuments(filter);
 
+    console.log('📅 Found appointments:', appointments.length, 'Total:', total);
+    console.log('📅 Sample appointment:', appointments.length > 0 ? {
+      id: appointments[0]._id,
+      email: appointments[0].email,
+      status: appointments[0].status,
+      name: appointments[0].name
+    } : 'No appointments found');
+
     // Log access
     await ActivityLog.create({
       user: req.user._id,
       action: 'view',
       resourceType: 'AppointmentRequest',
-      description: `Appointment requests list viewed by ${req.user.email}`,
-      metadata: { page, limit, total, filter },
+      description: `Appointment requests list viewed by ${req.user.email} (${req.user.role})`,
+      metadata: { 
+        page, 
+        limit, 
+        total, 
+        filter,
+        user_role: req.user.role,
+        appointments_count: appointments.length
+      },
       ipAddress: req.ip,
       userAgent: req.get('User-Agent')
     });
 
     res.json({
       success: true,
-      data: {
-        appointments,
-        pagination: {
-          current_page: page,
-          total_pages: Math.ceil(total / limit),
-          total_records: total,
-          per_page: limit
-        }
+      data: appointments,
+      count: appointments.length,
+      total: total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / limit),
+      pagination: {
+        current_page: page,
+        total_pages: Math.ceil(total / limit),
+        total_records: total,
+        per_page: limit
       }
     });
 
   } catch (error) {
-    console.error('Get All Appointment Requests Error:', error);
+    console.error('❌ Get All Appointment Requests Error:', error);
     res.status(500).json({
       success: false,
       error: {

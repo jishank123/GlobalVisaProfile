@@ -6,9 +6,57 @@ const Query = require('../models/Query');
 const Client = require('../models/Client');
 
 // @route   GET /api/queries
-// @desc    Get queries with filters
-// @access  Private (Admin, CRM Manager)
-router.get('/', auth(['admin', 'crm_manager']), queryController.getQueries);
+// @desc    Get queries with filters (supports client access)
+// @access  Private (Admin, CRM Manager, Client)
+router.get('/', (req, res, next) => {
+  // Check if this is a client request by looking at the token
+  const token = req.headers.authorization?.split(' ')[1];
+  if (token) {
+    try {
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded.role === 'client') {
+        // Use client authentication middleware
+        return authenticateClient(req, res, async (err) => {
+          if (err) return next(err);
+          
+          try {
+            // Find client record and get their queries
+            const clientRecord = await Client.findOne({ email: req.client.email });
+            if (!clientRecord) {
+              return res.status(404).json({
+                success: false,
+                message: 'Client record not found'
+              });
+            }
+            
+            const queries = await Query.find({ client: clientRecord._id })
+              .populate('assignedTo', 'first_name last_name email')
+              .populate('responses.user', 'first_name last_name email role')
+              .sort({ createdAt: -1 });
+            
+            res.json({
+              success: true,
+              count: queries.length,
+              data: queries
+            });
+          } catch (error) {
+            console.error('❌ Error fetching client queries:', error);
+            res.status(500).json({
+              success: false,
+              message: 'Server error',
+              error: error.message
+            });
+          }
+        });
+      }
+    } catch (error) {
+      // If token verification fails, fall through to regular auth
+    }
+  }
+  // Use regular auth middleware for admin/crm_manager
+  return auth(['admin', 'crm_manager'])(req, res, next);
+}, queryController.getQueries);
 
 // @route   GET /api/queries/stats/summary
 // @desc    Get query statistics
@@ -57,9 +105,63 @@ router.get('/client/:clientId', authenticateClient, async (req, res) => {
 });
 
 // @route   GET /api/queries/:id
-// @desc    Get single query
-// @access  Private (Admin, CRM Manager)
-router.get('/:id', auth(['admin', 'crm_manager']), queryController.getQuery);
+// @desc    Get single query (supports client access)
+// @access  Private (Admin, CRM Manager, Client)
+router.get('/:id', (req, res, next) => {
+  // Check if this is a client request by looking at the token
+  const token = req.headers.authorization?.split(' ')[1];
+  if (token) {
+    try {
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded.role === 'client') {
+        // Use client authentication middleware
+        return authenticateClient(req, res, async (err) => {
+          if (err) return next(err);
+          
+          try {
+            const query = await Query.findById(req.params.id)
+              .populate('client', 'name email university phone')
+              .populate('assignedTo', 'first_name last_name email')
+              .populate('replies.sender', 'first_name last_name email role name');
+            
+            if (!query) {
+              return res.status(404).json({
+                success: false,
+                message: 'Query not found'
+              });
+            }
+            
+            // Verify that the client owns this query
+            const clientRecord = await Client.findOne({ email: req.client.email });
+            if (!clientRecord || query.client._id.toString() !== clientRecord._id.toString()) {
+              return res.status(403).json({
+                success: false,
+                message: 'Access denied. You can only view your own queries.'
+              });
+            }
+            
+            res.json({
+              success: true,
+              data: query
+            });
+          } catch (error) {
+            console.error('❌ Error fetching query:', error);
+            res.status(500).json({
+              success: false,
+              message: 'Server error',
+              error: error.message
+            });
+          }
+        });
+      }
+    } catch (error) {
+      // If token verification fails, fall through to regular auth
+    }
+  }
+  // Use regular auth middleware for admin/crm_manager
+  return auth(['admin', 'crm_manager'])(req, res, next);
+}, queryController.getQuery);
 
 // @route   POST /api/queries
 // @desc    Create new query (supports both admin/manager and client creation)
@@ -82,6 +184,77 @@ router.post('/', (req, res, next) => {
   // Use regular auth middleware for admin/crm_manager
   return auth(['admin', 'crm_manager', 'client'])(req, res, next);
 }, queryController.createQuery);
+
+// @route   POST /api/queries/:id/reply
+// @desc    Add reply to query (for clients)
+// @access  Private (Client)
+router.post('/:id/reply', authenticateClient, async (req, res) => {
+  try {
+    const { message } = req.body;
+    
+    if (!message) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reply message is required'
+      });
+    }
+    
+    const query = await Query.findById(req.params.id);
+    if (!query) {
+      return res.status(404).json({
+        success: false,
+        message: 'Query not found'
+      });
+    }
+    
+    // Verify that the client owns this query
+    const clientRecord = await Client.findOne({ email: req.client.email });
+    if (!clientRecord || query.client.toString() !== clientRecord._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You can only reply to your own queries.'
+      });
+    }
+    
+    // Add reply
+    query.replies.push({
+      sender: clientRecord._id,
+      sender_type: 'Client',
+      message,
+      created_at: new Date()
+    });
+    
+    // Update status if it was resolved
+    if (query.status === 'resolved') {
+      query.status = 'in_progress';
+    }
+    
+    await query.save();
+    
+    // Populate the updated query
+    await query.populate('assignedTo', 'first_name last_name email');
+    await query.populate('replies.sender', 'name email');
+    
+    console.log('💬 Client reply added to query:', {
+      queryId: query._id,
+      clientEmail: req.client.email,
+      message: message.substring(0, 50) + '...'
+    });
+    
+    res.json({
+      success: true,
+      message: 'Reply added successfully',
+      data: query
+    });
+  } catch (error) {
+    console.error('❌ Error adding client reply:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add reply',
+      error: error.message
+    });
+  }
+});
 
 // @route   POST /api/queries/:id/respond
 // @desc    Add response to query
