@@ -123,7 +123,7 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
 
         // Make a direct fetch call to handle FormData properly
         const token = localStorage.getItem('token') || localStorage.getItem('client_token');
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/projects/purchase`, {
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://backend.immigrationprofile.com/api'}/projects/purchase`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`

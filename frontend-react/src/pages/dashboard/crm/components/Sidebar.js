@@ -3,7 +3,6 @@ const Sidebar = ({ activeSection, setActiveSection, sidebarOpen, setSidebarOpen 
     { id: 'dashboard', icon: 'fas fa-tachometer-alt', label: 'Dashboard Overview' },
     { id: 'projects', icon: 'fas fa-project-diagram', label: 'Assigned Projects' },
     { id: 'tasks', icon: 'fas fa-tasks', label: 'Project Tasks' },
-    { id: 'queries', icon: 'fas fa-question-circle', label: 'Client Queries' },
     { id: 'appointments', icon: 'fas fa-calendar-alt', label: 'My Meetings' },
     { id: 'payments', icon: 'fas fa-credit-card', label: 'Payment Status' }
   ];

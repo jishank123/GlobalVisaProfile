@@ -22,7 +22,7 @@ const ClientProfileDashboard = () => {
     const [error, setError] = useState(null);
 
     // API configuration
-    const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+    const API_BASE = process.env.REACT_APP_API_URL || 'https://backend.immigrationprofile.com/api';
     const authToken = localStorage.getItem('token') || localStorage.getItem('client_token');
 
     useEffect(() => {

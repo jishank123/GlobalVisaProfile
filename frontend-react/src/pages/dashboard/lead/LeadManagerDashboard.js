@@ -92,7 +92,7 @@ const LeadManagerDashboard = () => {
   const loadProjects = async () => {
     try {
       console.log('🔍 Starting to load projects...');
-      console.log('🔍 Projects API URL:', `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/projects/my-created-projects`);
+      console.log('🔍 Projects API URL:', `${process.env.REACT_APP_API_URL || 'https://backend.immigrationprofile.com/api'}/projects/my-created-projects`);
       
       const response = await projectsAPI.getMyCreatedProjects();
       console.log('🔍 Projects API response:', response);

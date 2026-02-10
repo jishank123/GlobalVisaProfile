@@ -30,7 +30,7 @@ const PaymentsManagement = () => {
     try {
       setLoading(true);
       // Load projects (service purchases) for CRM manager's assigned clients
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/projects/my-projects`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://backend.immigrationprofile.com/api'}/projects/my-projects`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
@@ -72,7 +72,7 @@ const PaymentsManagement = () => {
       // Update project status based on action
       const newStatus = action === 'verified' ? 'active' : 'cancelled';
       
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/projects/${projectId}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://backend.immigrationprofile.com/api'}/projects/${projectId}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -108,7 +108,7 @@ const PaymentsManagement = () => {
   const generateInvoice = async (projectId) => {
     try {
       setLoading(true);
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/projects/${projectId}/invoice`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://backend.immigrationprofile.com/api'}/projects/${projectId}/invoice`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -122,7 +122,7 @@ const PaymentsManagement = () => {
         // Create a form to submit with token for invoice viewing
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/invoices/${result.data._id}/download`;
+        form.action = `${process.env.REACT_APP_API_URL || 'https://backend.immigrationprofile.com/api'}/invoices/${result.data._id}/download`;
         form.target = '_blank';
         
         // Add token as hidden field
@@ -793,7 +793,7 @@ const PaymentsManagement = () => {
                         background: designSystem.colors.gray[50]
                       }}>
                         <img 
-                          src={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/payment-receipts/${selectedPayment.payment_receipt}`}
+                          src={`${process.env.REACT_APP_API_URL || 'https://backend.immigrationprofile.com'}/uploads/payment-receipts/${selectedPayment.payment_receipt}`}
                           alt="Payment Receipt"
                           style={{ 
                             maxWidth: '100%', 
@@ -802,7 +802,7 @@ const PaymentsManagement = () => {
                             boxShadow: designSystem.shadows.card,
                             cursor: 'pointer'
                           }}
-                          onClick={() => window.open(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/payment-receipts/${selectedPayment.payment_receipt}`, '_blank')}
+                          onClick={() => window.open(`${process.env.REACT_APP_API_URL || 'https://backend.immigrationprofile.com'}/uploads/payment-receipts/${selectedPayment.payment_receipt}`, '_blank')}
                         />
                         <p style={{ 
                           marginTop: designSystem.spacing.sm, 

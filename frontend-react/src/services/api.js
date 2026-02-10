@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // API Base URL - configured via environment variables
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://backend.immigrationprofile.com/api';
 const API_TIMEOUT = parseInt(process.env.REACT_APP_API_TIMEOUT) || 30000;
 const DEBUG_MODE = process.env.REACT_APP_DEBUG === 'true';
 
