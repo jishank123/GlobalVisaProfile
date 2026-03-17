@@ -515,9 +515,21 @@ export const CountrySelect = ({
     setShowSuggestions(false);
   };
 
-  const filteredCountries = countries.filter(country =>
-    country.toLowerCase().includes(value.toLowerCase())
-  ).slice(0, 5);
+  const countryAliases = {
+    'usa': 'United States', 'us': 'United States', 'u.s.': 'United States', 'u.s.a.': 'United States',
+    'america': 'United States', 'uk': 'United Kingdom', 'u.k.': 'United Kingdom',
+    'great britain': 'United Kingdom', 'britain': 'United Kingdom', 'england': 'United Kingdom',
+    'uae': 'United Arab Emirates', 'emirates': 'United Arab Emirates',
+    'ind': 'India', 'bharat': 'India', 'hindustan': 'India',
+  };
+
+  const aliasMatch = countryAliases[value.toLowerCase()];
+  const filteredCountries = [
+    ...(aliasMatch ? [aliasMatch] : []),
+    ...countries.filter(country =>
+      country.toLowerCase().includes(value.toLowerCase()) && country !== aliasMatch
+    )
+  ].slice(0, 5);
 
   const hasErrors = touched && validation.errors && validation.errors.length > 0;
 

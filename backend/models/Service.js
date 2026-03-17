@@ -12,7 +12,7 @@ const serviceSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['Research', 'Writing', 'Editing', 'Consulting', 'Other'],
+    enum: ['EB-1A Eligibility', 'Profile Building', 'EB-2 NIW', 'O-1 Visa', 'Career Coaching', 'Other'],
     default: 'Other'
   },
   pricing: {

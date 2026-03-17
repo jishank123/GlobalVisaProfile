@@ -527,8 +527,34 @@ export const validateCountry = (country) => {
     'United States', 'Uruguay', 'Venezuela', 'Vietnam'
   ];
   
-  const isValidCountry = validCountries.some(validCountry => 
-    validCountry.toLowerCase() === trimmedCountry.toLowerCase()
+  // Common aliases/abbreviations mapped to valid country names
+  const countryAliases = {
+    'usa': 'United States',
+    'us': 'United States',
+    'u.s.': 'United States',
+    'u.s.a.': 'United States',
+    'america': 'United States',
+    'uk': 'United Kingdom',
+    'u.k.': 'United Kingdom',
+    'great britain': 'United Kingdom',
+    'britain': 'United Kingdom',
+    'england': 'United Kingdom',
+    'uae': 'United Arab Emirates',
+    'u.a.e.': 'United Arab Emirates',
+    'emirates': 'United Arab Emirates',
+    'ind': 'India',
+    'bharat': 'India',
+    'hindustan': 'India',
+    'south korea': 'South Korea',
+    'korea': 'South Korea',
+    'russia': 'Russia',
+    'czech': 'Czech Republic',
+  };
+
+  const lowerCountry = trimmedCountry.toLowerCase();
+  const isAlias = Object.prototype.hasOwnProperty.call(countryAliases, lowerCountry);
+  const isValidCountry = isAlias || validCountries.some(validCountry => 
+    validCountry.toLowerCase() === lowerCountry
   );
   
   if (trimmedCountry.length > 0 && !isValidCountry) {

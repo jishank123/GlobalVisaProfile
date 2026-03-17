@@ -67,7 +67,7 @@ const adminAuth = async (req, res, next) => {
 const validateServiceCreation = [
   body('name').notEmpty().withMessage('Service name is required'),
   body('description').notEmpty().withMessage('Service description is required'),
-  body('category').isIn(['Research', 'Writing', 'Editing', 'Consulting', 'Other']).withMessage('Invalid category'),
+  body('category').isIn(['EB-1A Eligibility', 'Profile Building', 'EB-2 NIW', 'O-1 Visa', 'Career Coaching', 'Other']).withMessage('Invalid category'),
   body('pricing.minPrice').isNumeric().withMessage('Minimum price must be a number'),
   body('pricing.maxPrice').isNumeric().withMessage('Maximum price must be a number')
 ];
@@ -75,7 +75,7 @@ const validateServiceCreation = [
 const validateServiceUpdate = [
   body('name').optional().notEmpty().withMessage('Service name cannot be empty'),
   body('description').optional().notEmpty().withMessage('Service description cannot be empty'),
-  body('category').optional().isIn(['Research', 'Writing', 'Editing', 'Consulting', 'Other']).withMessage('Invalid category')
+  body('category').optional().isIn(['EB-1A Eligibility', 'Profile Building', 'EB-2 NIW', 'O-1 Visa', 'Career Coaching', 'Other']).withMessage('Invalid category')
 ];
 
 // @route   GET /api/services

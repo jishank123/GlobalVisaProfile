@@ -248,10 +248,11 @@ const ServiceModal = ({
                     required
                   >
                     <option value="">Select Category</option>
-                    <option value="Research">Research</option>
-                    <option value="Writing">Writing</option>
-                    <option value="Editing">Editing</option>
-                    <option value="Consulting">Consulting</option>
+                    <option value="EB-1A Eligibility">EB-1A Eligibility</option>
+                    <option value="Profile Building">Profile Building</option>
+                    <option value="EB-2 NIW">EB-2 NIW</option>
+                    <option value="O-1 Visa">O-1 Visa</option>
+                    <option value="Career Coaching">Career Coaching</option>
                     <option value="Other">Other</option>
                   </select>
                   {formErrors.category && (
