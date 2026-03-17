@@ -18,6 +18,11 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
     totalSpent: 0,
     activeProjects: 0
   });
+  
+  // Search and filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [priceFilter, setPriceFilter] = useState('all'); // 'all', 'low', 'medium', 'high'
+  const [categoryFilter, setCategoryFilter] = useState('all');
 
   useEffect(() => {
     loadServices();
@@ -135,6 +140,22 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
 
   const processPurchase = async () => {
     try {
+      // Validate required fields
+      if (!paymentReceipt) {
+        alert('Please upload a payment receipt before completing the purchase.');
+        return;
+      }
+
+      if (!paymentMethod) {
+        alert('Please select a payment method.');
+        return;
+      }
+
+      if (selectedServices.length === 0) {
+        alert('Please select at least one service to purchase.');
+        return;
+      }
+
       console.log('🛒 Client data:', clientData);
       console.log('🛒 Selected services:', selectedServices);
       
@@ -246,40 +267,17 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
     </div>
   );
 
-  const ServiceCard = ({ service, isSelected, onSelect, onPurchase }) => (
+  const ServiceCard = ({ service, onPurchase }) => (
     <div
       style={{
         ...componentStyles.managementCard,
         margin: 0,
-        cursor: 'pointer',
-        border: isSelected ? `2px solid ${designSystem.colors.primary.split('(')[0]}` : `1px solid ${designSystem.colors.gray[200]}`,
-        transform: isSelected ? 'scale(1.02)' : 'scale(1)',
+        border: `1px solid ${designSystem.colors.gray[200]}`,
         transition: 'all 0.3s ease'
       }}
       {...hoverEffects.card}
-      onClick={() => onSelect(service)}
     >
       <div style={{ position: 'relative' }}>
-        {isSelected && (
-          <div style={{
-            position: 'absolute',
-            top: '-8px',
-            right: '-8px',
-            width: '24px',
-            height: '24px',
-            borderRadius: '50%',
-            background: designSystem.colors.success,
-            color: 'white',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '12px',
-            zIndex: 1
-          }}>
-            <i className="fas fa-check"></i>
-          </div>
-        )}
-        
         {/* Service Name */}
         <h5 style={{
           color: designSystem.colors.dark,
@@ -314,9 +312,7 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
         }}>
           {service.pricing?.type === 'fixed' 
             ? `$${service.pricing.minPrice?.toLocaleString()}`
-            : service.pricing?.type === 'range'
-            ? `$${service.pricing.minPrice?.toLocaleString()} - $${service.pricing.maxPrice?.toLocaleString()}`
-            : `$${service.pricing.minPrice?.toLocaleString()}/hr`
+            : `$${service.pricing.minPrice?.toLocaleString()}`
           }
         </div>
 
@@ -420,23 +416,27 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
     </div>
   );
 
-  const PurchaseModal = () => (
-    <div className="modal d-block" style={componentStyles.modal}>
-      <div className="modal-dialog modal-lg">
-        <div className="modal-content" style={componentStyles.modalContent}>
-          <div className="modal-header" style={componentStyles.modalHeader}>
-            <h5 className="modal-title">
-              <i className="fas fa-shopping-cart me-2"></i>
-              Purchase Services
-            </h5>
-            <button 
-              type="button" 
-              className="btn-close btn-close-white" 
-              onClick={() => setShowPurchaseModal(false)}
-            ></button>
-          </div>
-          
-          <div className="modal-body" style={componentStyles.modalBody}>
+  const PurchaseModal = () => {
+    // Check if all required fields are filled
+    const isFormValid = selectedServices.length > 0 && paymentMethod && paymentReceipt;
+    
+    return (
+      <div className="modal d-block" style={componentStyles.modal}>
+        <div className="modal-dialog modal-lg">
+          <div className="modal-content" style={componentStyles.modalContent}>
+            <div className="modal-header" style={componentStyles.modalHeader}>
+              <h5 className="modal-title">
+                <i className="fas fa-shopping-cart me-2"></i>
+                Purchase Services
+              </h5>
+              <button 
+                type="button" 
+                className="btn-close btn-close-white" 
+                onClick={() => setShowPurchaseModal(false)}
+              ></button>
+            </div>
+            
+            <div className="modal-body" style={componentStyles.modalBody}>
             <h6 style={{ marginBottom: designSystem.spacing.md }}>Selected Services:</h6>
             
             {selectedServices.map(service => (
@@ -466,9 +466,7 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
                 }}>
                   {service.pricing?.type === 'fixed' 
                     ? `$${service.pricing.minPrice?.toLocaleString()}`
-                    : service.pricing?.type === 'range'
-                    ? `$${service.pricing.minPrice?.toLocaleString()} - $${service.pricing.maxPrice?.toLocaleString()}`
-                    : `$${service.pricing.minPrice?.toLocaleString()}/hr`
+                    : `$${service.pricing.minPrice?.toLocaleString()}`
                   }
                 </div>
               </div>
@@ -531,28 +529,65 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
 
             {/* Payment Receipt Upload */}
             <div style={{ marginBottom: designSystem.spacing.md }}>
-              <h6 style={{ marginBottom: designSystem.spacing.sm }}>Upload Payment Receipt/Screenshot (Optional):</h6>
+              <h6 style={{ marginBottom: designSystem.spacing.sm }}>
+                Upload Payment Receipt/Screenshot <span style={{ color: designSystem.colors.danger }}>*</span>
+              </h6>
+              
+              {/* Hidden file input */}
               <input 
                 type="file" 
                 accept="image/*,.pdf"
                 onChange={handleFileUpload}
-                style={{
-                  width: '100%',
-                  padding: designSystem.spacing.sm,
-                  border: `1px solid ${designSystem.colors.gray[300]}`,
-                  borderRadius: designSystem.borderRadius.button
-                }}
+                style={{ display: 'none' }}
+                id="payment-receipt-upload"
               />
-              {paymentReceipt && (
+              
+              {/* Custom file upload button */}
+              <label 
+                htmlFor="payment-receipt-upload"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: designSystem.spacing.sm,
+                  width: '100%',
+                  padding: designSystem.spacing.md,
+                  border: `2px dashed ${paymentReceipt ? designSystem.colors.success : designSystem.colors.gray[300]}`,
+                  borderRadius: designSystem.borderRadius.button,
+                  background: paymentReceipt ? `${designSystem.colors.success}10` : designSystem.colors.gray[50],
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  fontSize: designSystem.typography.fontSize.sm,
+                  color: designSystem.colors.dark,
+                  fontWeight: designSystem.typography.fontWeight.medium
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = designSystem.colors.primary;
+                  e.currentTarget.style.background = `${designSystem.colors.primary}10`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = paymentReceipt ? designSystem.colors.success : designSystem.colors.gray[300];
+                  e.currentTarget.style.background = paymentReceipt ? `${designSystem.colors.success}10` : designSystem.colors.gray[50];
+                }}
+              >
+                <i className={`fas ${paymentReceipt ? 'fa-check-circle' : 'fa-cloud-upload-alt'} fa-lg`} 
+                   style={{ color: paymentReceipt ? designSystem.colors.success : designSystem.colors.primary }}></i>
+                <span>
+                  {paymentReceipt ? paymentReceipt.name : 'Click to choose file or drag and drop'}
+                </span>
+              </label>
+              
+              {!paymentReceipt && (
                 <div style={{
                   marginTop: designSystem.spacing.sm,
                   padding: designSystem.spacing.sm,
-                  background: designSystem.colors.light,
+                  background: designSystem.colors.warning.replace('rgb', 'rgba').replace(')', ', 0.1)'),
                   borderRadius: designSystem.borderRadius.button,
-                  fontSize: designSystem.typography.fontSize.sm
+                  fontSize: designSystem.typography.fontSize.sm,
+                  border: `1px solid ${designSystem.colors.warning}`
                 }}>
-                  <i className="fas fa-file me-2"></i>
-                  {paymentReceipt.name}
+                  <i className="fas fa-exclamation-triangle me-2" style={{ color: designSystem.colors.warning }}></i>
+                  Please upload payment receipt to complete purchase
                 </div>
               )}
             </div>
@@ -589,7 +624,7 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
               }}>
                 <i className="fas fa-info-circle me-2"></i>
                 After purchase, projects will be created for each service and assigned to our team for processing.
-                You can upload a payment receipt for verification (optional).
+                Payment receipt is required for verification.
               </p>
             </div>
           </div>
@@ -606,6 +641,11 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
               type="button" 
               className="btn btn-success" 
               onClick={processPurchase}
+              disabled={!isFormValid}
+              style={{
+                opacity: isFormValid ? 1 : 0.5,
+                cursor: isFormValid ? 'pointer' : 'not-allowed'
+              }}
             >
               <i className="fas fa-credit-card me-2"></i>
               Complete Purchase
@@ -615,6 +655,7 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
       </div>
     </div>
   );
+};
 
   if (loading) {
     return (
@@ -641,19 +682,6 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
           </div>
         </div>
         <div style={{ display: 'flex', gap: designSystem.spacing.sm }}>
-          {selectedServices.length > 0 && activeTab === 'browse' && (
-            <button 
-              style={{
-                ...componentStyles.primaryButton,
-                background: designSystem.colors.primary
-              }}
-              onClick={() => handlePurchase(null, 'multiple')}
-              {...hoverEffects.button}
-            >
-              <i className="fas fa-shopping-cart me-2"></i>
-              Purchase Selected ({selectedServices.length})
-            </button>
-          )}
           <button 
             style={{
               ...componentStyles.primaryButton,
@@ -722,33 +750,90 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
         />
       </div>
 
-      {/* Tab Navigation */}
+      {/* Tab Navigation with Search */}
       <div style={{ marginBottom: designSystem.spacing.lg }}>
-        <div style={{ display: 'flex', gap: designSystem.spacing.xs }}>
-          <button 
-            style={{
-              ...componentStyles.primaryButton,
-              background: activeTab === 'browse' ? designSystem.colors.primary : designSystem.colors.gray[100],
-              color: activeTab === 'browse' ? 'white' : designSystem.colors.gray[600]
-            }}
-            onClick={() => setActiveTab('browse')}
-            {...hoverEffects.button}
-          >
-            <i className="fas fa-store me-2"></i>
-            Browse Services ({services.length})
-          </button>
-          <button 
-            style={{
-              ...componentStyles.primaryButton,
-              background: activeTab === 'purchased' ? designSystem.colors.success : designSystem.colors.gray[100],
-              color: activeTab === 'purchased' ? 'white' : designSystem.colors.gray[600]
-            }}
-            onClick={() => setActiveTab('purchased')}
-            {...hoverEffects.button}
-          >
-            <i className="fas fa-shopping-bag me-2"></i>
-            My Purchases ({purchasedServices.length})
-          </button>
+        <div style={{ 
+          display: 'flex', 
+          gap: designSystem.spacing.md,
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between'
+        }}>
+          {/* Tab Buttons */}
+          <div style={{ display: 'flex', gap: designSystem.spacing.xs }}>
+            <button 
+              style={{
+                ...componentStyles.primaryButton,
+                background: activeTab === 'browse' ? designSystem.colors.primary : designSystem.colors.gray[100],
+                color: activeTab === 'browse' ? 'white' : designSystem.colors.gray[600]
+              }}
+              onClick={() => setActiveTab('browse')}
+              {...hoverEffects.button}
+            >
+              <i className="fas fa-store me-2"></i>
+              Browse Services ({services.length})
+            </button>
+            <button 
+              style={{
+                ...componentStyles.primaryButton,
+                background: activeTab === 'purchased' ? designSystem.colors.success : designSystem.colors.gray[100],
+                color: activeTab === 'purchased' ? 'white' : designSystem.colors.gray[600]
+              }}
+              onClick={() => setActiveTab('purchased')}
+              {...hoverEffects.button}
+            >
+              <i className="fas fa-shopping-bag me-2"></i>
+              My Purchases ({purchasedServices.length})
+            </button>
+          </div>
+
+          {/* Search Bar - Only show on Browse tab */}
+          {activeTab === 'browse' && (
+            <div style={{ position: 'relative', flex: '1', maxWidth: '400px', minWidth: '250px' }}>
+              <input
+                type="text"
+                placeholder="Search by name, category, or price..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  ...componentStyles.formInput,
+                  paddingLeft: '40px',
+                  paddingRight: searchTerm ? '40px' : '12px',
+                  width: '100%',
+                  margin: 0
+                }}
+              />
+              <i className="fas fa-search" style={{
+                position: 'absolute',
+                left: '14px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: designSystem.colors.gray[400],
+                pointerEvents: 'none'
+              }}></i>
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  style={{
+                    position: 'absolute',
+                    right: '8px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: designSystem.colors.gray[400],
+                    padding: '4px 8px',
+                    fontSize: '14px'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = designSystem.colors.primary}
+                  onMouseLeave={(e) => e.currentTarget.style.color = designSystem.colors.gray[400]}
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -761,21 +846,65 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
             gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
             gap: designSystem.spacing.lg
           }}>
-            {services.map(service => (
-              <ServiceCard
-                key={service._id}
-                service={service}
-                isSelected={selectedServices.find(s => s._id === service._id)}
-                onSelect={handleServiceSelect}
-                onPurchase={handlePurchase}
-              />
-            ))}
+            {services
+              .filter(service => {
+                if (!searchTerm) return true;
+                
+                const search = searchTerm.toLowerCase();
+                const name = service.name?.toLowerCase() || '';
+                const description = service.description?.toLowerCase() || '';
+                const category = service.category?.toLowerCase() || '';
+                const price = service.pricing?.minPrice?.toString() || '';
+                
+                // Search in name, description, category, and price
+                return name.includes(search) || 
+                       description.includes(search) || 
+                       category.includes(search) ||
+                       price.includes(search);
+              })
+              .map(service => (
+                <ServiceCard
+                  key={service._id}
+                  service={service}
+                  onPurchase={handlePurchase}
+                />
+              ))}
           </div>
 
-          {services.length === 0 && (
+          {services.filter(service => {
+            if (!searchTerm) return true;
+            
+            const search = searchTerm.toLowerCase();
+            const name = service.name?.toLowerCase() || '';
+            const description = service.description?.toLowerCase() || '';
+            const category = service.category?.toLowerCase() || '';
+            const price = service.pricing?.minPrice?.toString() || '';
+            
+            return name.includes(search) || 
+                   description.includes(search) || 
+                   category.includes(search) ||
+                   price.includes(search);
+          }).length === 0 && (
             <div style={componentStyles.emptyState}>
-              <i className="fas fa-concierge-bell fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
-              <p style={{ color: designSystem.colors.gray[500] }}>No services available</p>
+              <i className="fas fa-search fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
+              <p style={{ color: designSystem.colors.gray[500] }}>
+                {searchTerm 
+                  ? `No services found matching "${searchTerm}"` 
+                  : 'No services available'}
+              </p>
+              {searchTerm && (
+                <button 
+                  style={{
+                    ...componentStyles.primaryButton,
+                    background: designSystem.colors.primary,
+                    marginTop: designSystem.spacing.md
+                  }}
+                  onClick={() => setSearchTerm('')}
+                  {...hoverEffects.button}
+                >
+                  Clear Search
+                </button>
+              )}
             </div>
           )}
         </>

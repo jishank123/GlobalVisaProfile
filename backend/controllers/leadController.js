@@ -149,8 +149,10 @@ exports.getLead = async (req, res) => {
     await logActivity(
       req.user._id,
       'view',
+      'Lead',
       `Viewed lead: ${lead.firstName} ${lead.lastName} (${lead.email})`,
-      req.ip
+      req.ip,
+      lead._id
     );
     
     res.json({
@@ -1164,15 +1166,29 @@ exports.bulkConvertToProject = async (req, res) => {
     
     for (const leadId of lead_ids) {
       try {
+        console.log('\n🎯 ========================================');
+        console.log('🎯 Starting conversion for lead ID:', leadId);
+        console.log('🎯 ========================================\n');
+        
         // First check if lead exists and is qualified
         const existingLead = await Lead.findById(leadId);
         if (!existingLead) {
+          console.error('❌ Lead not found:', leadId);
           errors.push({
             leadId: leadId,
             error: 'Lead not found'
           });
           continue;
         }
+        
+        console.log('✅ Lead found:', {
+          leadId: existingLead._id,
+          firstName: existingLead.firstName,
+          lastName: existingLead.lastName,
+          email: existingLead.email,
+          status: existingLead.status,
+          assignedTo: existingLead.assignedTo
+        });
         
         // Check if lead is assigned to this lead manager or if user is admin
         if (req.user.role === 'lead_manager' && 
@@ -1197,54 +1213,220 @@ exports.bulkConvertToProject = async (req, res) => {
         const Client = require('../models/Client');
         let client;
         
-        // Check if client already exists
-        const existingClient = await Client.findOne({ email: existingLead.email });
+        console.log(`🔍 ========== Processing lead ${leadId} ==========`);
+        console.log('🔍 Lead details:', {
+          leadId: leadId,
+          leadEmail: existingLead.email,
+          leadEmailType: typeof existingLead.email,
+          leadName: `${existingLead.firstName} ${existingLead.lastName}`,
+          leadPhone: existingLead.phone
+        });
+        
+        // First, let's see ALL clients in the database for debugging
+        const allClients = await Client.find({}).select('_id name email').limit(5);
+        console.log('🔍 First 5 clients in database:', allClients.map(c => ({
+          id: c._id,
+          name: c.name,
+          email: c.email
+        })));
+        
+        // Check if client already exists - match by email AND name to be more specific
+        console.log('🔍 Searching for client with email:', existingLead.email, 'and name:', `${existingLead.firstName} ${existingLead.lastName}`);
+        const existingClient = await Client.findOne({ 
+          email: existingLead.email,
+          name: `${existingLead.firstName} ${existingLead.lastName}`
+        });
+        
+        console.log('🔍 Client found by email AND name?', existingClient ? 'YES' : 'NO');
         if (existingClient) {
-          console.log('🔍 Using existing client:', existingClient.name);
+          console.log('🔍 Using existing client (matched by email AND name):', {
+            clientId: existingClient._id,
+            clientName: existingClient.name,
+            clientEmail: existingClient.email
+          });
           client = existingClient;
         } else {
-          const clientData = {
-            name: `${existingLead.firstName} ${existingLead.lastName}`,
-            email: existingLead.email,
-            phone: existingLead.phone,
-            company: existingLead.university || 'Unknown',
-            country: existingLead.country || 'Unknown',
-            status: 'active',
-            created_by: req.user._id,
-            converted_from_lead: existingLead._id
-          };
+          // Check if there's a client with just the email (for backwards compatibility)
+          console.log('🔍 Searching for client with email only:', existingLead.email);
+          const clientByEmail = await Client.findOne({ email: existingLead.email });
           
-          client = await Client.create(clientData);
-          console.log('✅ Created new client:', client.name);
+          console.log('🔍 Client found by email only?', clientByEmail ? 'YES' : 'NO');
+          if (clientByEmail) {
+            console.log('⚠️ Found client by email only (name mismatch):', {
+              clientId: clientByEmail._id,
+              clientName: clientByEmail.name,
+              clientEmail: clientByEmail.email,
+              leadName: `${existingLead.firstName} ${existingLead.lastName}`
+            });
+            console.log('⚠️ Using existing client by email (cannot create duplicate due to unique constraint)');
+            client = clientByEmail;
+          } else {
+            // No existing client found, create new one
+            console.log('✅ No existing client found - creating new client');
+            try {
+              const clientData = {
+                name: `${existingLead.firstName} ${existingLead.lastName}`,
+                email: existingLead.email,
+                phone: existingLead.phone,
+                company: existingLead.university || 'Unknown',
+                country: existingLead.country || 'Unknown',
+                status: 'active',
+                created_by: req.user._id,
+                converted_from_lead: existingLead._id
+              };
+              
+              console.log('✅ Creating client with data:', clientData);
+              client = await Client.create(clientData);
+              console.log('✅ Created new client:', {
+                clientId: client._id,
+                clientName: client.name,
+                clientEmail: client.email
+              });
+            } catch (clientError) {
+              console.error('❌ Error creating client:', clientError);
+              
+              // If it's a duplicate key error, try to find the existing client
+              if (clientError.code === 11000) {
+                console.log('⚠️ Duplicate key error - finding existing client by email');
+                client = await Client.findOne({ email: existingLead.email });
+                
+                if (client) {
+                  console.log('✅ Found existing client after duplicate error:', {
+                    clientId: client._id,
+                    clientName: client.name,
+                    clientEmail: client.email
+                  });
+                } else {
+                  console.error('❌ CRITICAL: Duplicate error but client not found!');
+                  errors.push({
+                    leadId: leadId,
+                    error: 'Failed to create or find client: Duplicate email but client not found'
+                  });
+                  continue;
+                }
+              } else {
+                errors.push({
+                  leadId: leadId,
+                  error: `Failed to create client: ${clientError.message}`
+                });
+                continue;
+              }
+            }
+          }
         }
+        
+        console.log('🔍 ========== Client resolution complete ==========');
+        console.log('🔍 Final client to be used:', {
+          clientId: client._id,
+          clientName: client.name,
+          clientEmail: client.email
+        });
         
         // Create project record
         const Project = require('../models/Project');
+        
+        // CRITICAL: Verify client was properly created/found
+        if (!client || !client._id) {
+          console.error('❌ CRITICAL ERROR: Client is null or has no ID!');
+          errors.push({
+            leadId: leadId,
+            error: 'Failed to create or find client record'
+          });
+          continue;
+        }
+        
         const projectData = {
           client: client._id,
           service: service_id,
           service_name: service.name,
-          status: 'pending', // Use valid enum value
+          status: 'active', // Set to 'active' for qualified leads that are ready to work on
           priority: priority || 'medium',
           amount: service.pricing?.minPrice || 1000, // Use service price or default
           start_date: new Date(),
           due_date: due_date ? new Date(due_date) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
           assigned_to: req.user._id, // Initially assigned to lead manager
           description: notes || `Project created from lead: ${existingLead.firstName} ${existingLead.lastName}`,
-          created_from_lead: existingLead._id
+          created_from_lead: existingLead._id,
+          created_by: req.user._id,
+          progress: 0 // Start at 0% progress
         };
+        
+        console.log('📋 Creating project with data:', {
+          clientId: projectData.client,
+          clientIdType: typeof projectData.client,
+          clientName: client.name,
+          clientEmail: client.email,
+          serviceName: projectData.service_name,
+          leadId: leadId,
+          leadName: `${existingLead.firstName} ${existingLead.lastName}`,
+          leadEmail: existingLead.email
+        });
         
         const project = await Project.create(projectData);
         
+        console.log('✅ Project created:', {
+          projectId: project._id,
+          project_id: project.project_id,
+          clientId: project.client,
+          clientIdInDb: project.client.toString(),
+          serviceName: project.service_name
+        });
+        
+        // **NEW: Automatically create a pending payment record for this project**
+        try {
+          const Payment = require('../models/Payment');
+          
+          const paymentData = {
+            client: client._id,
+            project: project._id,
+            service_id: service_id.toString(),
+            service_name: service.name,
+            amount: service.pricing?.minPrice || 1000,
+            currency: 'USD',
+            status: 'due', // Changed from 'pending' to 'due'
+            paymentMethod: 'online',
+            dueDate: projectData.due_date,
+            notes: `Payment due for project: ${service.name}. Created from lead conversion by ${req.user.role}.`,
+            verification_status: null
+          };
+          
+          const payment = await Payment.create(paymentData);
+          
+          console.log('💳 Due payment created for project:', {
+            paymentId: payment._id,
+            projectId: project._id,
+            clientId: client._id,
+            amount: paymentData.amount,
+            service: service.name,
+            status: 'due'
+          });
+          
+          // Log activity for payment creation
+          await logActivity(
+            req.user._id,
+            'create',
+            'Payment',
+            `Auto-created due payment for project: ${project.service_name} (Amount: $${paymentData.amount})`,
+            req.ip,
+            payment._id
+          );
+        } catch (paymentError) {
+          console.error('⚠️ Failed to create due payment (non-critical):', paymentError);
+          // Don't fail the conversion if payment creation fails
+        }
+        
         // Update lead status and link to project
+        // Change status to 'converted' so it doesn't appear in qualified leads
+        // but remains visible in assigned leads list
         const lead = await Lead.findByIdAndUpdate(
           leadId,
           { 
-            status: 'converted_to_project',
+            status: 'converted',
             convertedToProject: project._id,
             convertedToProjectAt: new Date(),
             convertedToProjectBy: req.user._id,
-            updated_at: new Date()
+            updated_at: new Date(),
+            hasActiveProject: true
           },
           { new: true }
         ).populate('assignedTo', 'first_name last_name email')

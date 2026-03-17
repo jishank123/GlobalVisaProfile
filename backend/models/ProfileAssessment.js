@@ -220,6 +220,7 @@ profileAssessmentSchema.virtual('eligibility_recommendation').get(function() {
 
 // Indexes for better query performance
 profileAssessmentSchema.index({ client_email: 1 });
+profileAssessmentSchema.index({ user_id: 1 });
 profileAssessmentSchema.index({ status: 1 });
 profileAssessmentSchema.index({ createdAt: -1 });
 profileAssessmentSchema.index({ overall_score: -1 });
@@ -249,5 +250,27 @@ profileAssessmentSchema.pre('save', function(next) {
   
   next();
 });
+
+// Method to get decrypted assessment data for display
+profileAssessmentSchema.methods.toDisplayJSON = function() {
+  // Get decrypted version of the document
+  const decryptedDoc = this.toObject();
+  
+  return {
+    _id: this._id,
+    client_name: decryptedDoc.client_name,
+    client_email: decryptedDoc.client_email,
+    client_phone: decryptedDoc.client_phone,
+    field_of_expertise: decryptedDoc.field_of_expertise,
+    years_of_experience: this.years_of_experience,
+    current_location: decryptedDoc.current_location,
+    overall_score: this.overall_score,
+    profile_strength: this.profile_strength,
+    criteria_met: this.criteria_met,
+    status: this.status,
+    createdAt: this.createdAt,
+    updatedAt: this.updatedAt
+  };
+};
 
 module.exports = mongoose.model('ProfileAssessment', profileAssessmentSchema);

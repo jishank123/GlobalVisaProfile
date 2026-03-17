@@ -80,11 +80,18 @@ const PaymentsManagement = () => {
               
               if (paymentResult.success && paymentResult.data && paymentResult.data.length > 0) {
                 const payment = paymentResult.data[0];
-                console.log(`💳 Found payment for project ${project._id}:`, payment.status);
+                console.log(`💳 Found payment for project ${project._id}:`, {
+                  status: payment.status,
+                  paymentMethod: payment.paymentMethod,
+                  receipt_screenshot: payment.receipt_screenshot
+                });
                 return {
                   ...project,
                   payment_status: payment.status, // Add actual payment status
-                  payment_id: payment._id
+                  payment_id: payment._id,
+                  paymentMethod: payment.paymentMethod, // Add payment method from payment record
+                  receipt_screenshot: payment.receipt_screenshot, // Add receipt from payment record
+                  payment_receipt: payment.receipt_screenshot || project.payment_receipt // Fallback compatibility
                 };
               }
               
@@ -167,7 +174,14 @@ const PaymentsManagement = () => {
         const status = p.payment_status || p.status;
         return status === 'rejected' || status === 'cancelled';
       }).length,
-      totalAmount: projectsData.reduce((sum, p) => sum + (p.amount || 0), 0)
+      // Only count verified/completed payments in total revenue
+      totalAmount: projectsData
+        .filter(p => {
+          const status = p.payment_status || p.status;
+          const statusLower = status?.toLowerCase().trim();
+          return statusLower === 'verified' || statusLower === 'completed';
+        })
+        .reduce((sum, p) => sum + (p.amount || 0), 0)
     };
     setStats(stats);
   };
@@ -856,11 +870,18 @@ const PaymentsManagement = () => {
                           fontWeight: '600',
                           textTransform: 'uppercase'
                         }}>
-                          {project.payment_method || 'N/A'}
+                          {(() => {
+                            const paymentStatus = project.payment_status || project.status;
+                            // Show "PENDING" for due payments (waiting for client to submit)
+                            if (paymentStatus === 'due') {
+                              return 'PENDING';
+                            }
+                            return project.paymentMethod || project.payment_method || 'N/A';
+                          })()}
                         </span>
                       </td>
                       <td style={componentStyles.tableCell}>
-                        {project.payment_receipt ? (
+                        {(project.receipt_screenshot || project.payment_receipt) ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: designSystem.spacing.xs }}>
                             <i className="fas fa-image" style={{ color: designSystem.colors.success }}></i>
                             <span style={{
@@ -920,7 +941,8 @@ const PaymentsManagement = () => {
                           </button>
                           {(() => {
                             const paymentStatus = project.payment_status || project.status;
-                            return (paymentStatus === 'pending' || paymentStatus === 'pending_verification' || paymentStatus === 'due');
+                            // Only show approve/reject for pending_verification (not for due)
+                            return (paymentStatus === 'pending' || paymentStatus === 'pending_verification');
                           })() && (
                             <>
                               <button 
@@ -1441,14 +1463,23 @@ const PaymentsManagement = () => {
                     )}
                   </button>
                 )}
-                {modalType === 'view' && (selectedPayment.status === 'active' || selectedPayment.status === 'completed') && (
+                {modalType === 'view' && (() => {
+                  // Check if payment is verified/completed
+                  const paymentStatus = selectedPayment.payment_status || selectedPayment.status;
+                  const isPaymentVerified = paymentStatus === 'verified' || paymentStatus === 'completed';
+                  const isProjectActive = selectedPayment.status === 'active' || selectedPayment.status === 'completed';
+                  
+                  return isPaymentVerified && isProjectActive;
+                })() && (
                   <>
                     {/* CRM Manager: Show Download Invoice button if invoice exists, otherwise show Generate Invoice */}
                     {(() => {
                       const hasInvoice = existingInvoices[selectedPayment._id];
+                      const paymentStatus = selectedPayment.payment_status || selectedPayment.status;
                       console.log(`🎯 Modal Footer Button Logic - Project ID: ${selectedPayment._id}`);
                       console.log(`🎯 Modal Footer Button Logic - Has Invoice:`, hasInvoice);
-                      console.log(`🎯 Modal Footer Button Logic - Payment Status:`, selectedPayment.status);
+                      console.log(`🎯 Modal Footer Button Logic - Payment Status:`, paymentStatus);
+                      console.log(`🎯 Modal Footer Button Logic - Project Status:`, selectedPayment.status);
                       console.log(`🎯 Modal Footer Button Logic - All Invoices:`, existingInvoices);
                       
                       if (hasInvoice) {

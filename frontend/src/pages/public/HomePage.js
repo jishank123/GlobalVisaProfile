@@ -1,8 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { contactAPI } from '../../services/api';
+import { useEffect } from 'react';
+import HomePageFAQ from '../../components/HomePageFAQ';
 
 const HomePage = () => {
+  // Scroll to top on component mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   const [contactForm, setContactForm] = useState({
     name: '',
     email: '',
@@ -83,6 +89,21 @@ const HomePage = () => {
               <p className="text-lg md:text-xl text-blue-100 mb-6 leading-relaxed">
                 Expert profile building and application assistance for <strong className="text-white">EB-1A, EB-2 NIW, and O-1</strong> visa petitions. We help you strengthen your credentials and prepare compelling applications.
               </p>
+              
+              {/* Key Differentiator */}
+              <div className="bg-white/10 backdrop-blur-sm border-2 border-yellow-300 rounded-xl p-5 mb-6">
+                <div className="flex items-start">
+                  <div className="bg-yellow-300 rounded-full p-2 mr-4 flex-shrink-0">
+                    <i className="fas fa-handshake text-blue-900 text-xl"></i>
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-yellow-300 font-bold text-lg mb-2">We Don't Just Guide — We Build With You</h3>
+                    <p className="text-blue-100 text-base leading-relaxed">
+                      Unlike consultants who only charge for advice, we <strong className="text-white">partner with you throughout your entire journey</strong> — from initial assessment to meeting your attorney, and even through petition filing. We actively work alongside you to build your profile, not just tell you what to do.
+                    </p>
+                  </div>
+                </div>
+              </div>
               
               {/* Disclaimer Badge */}
               <div className="bg-yellow-400/20 border-l-4 border-yellow-300 p-4 mb-8 rounded-r-lg backdrop-blur-sm">
@@ -191,6 +212,250 @@ const HomePage = () => {
         </div>
       </section>
 
+      {/* Why RFEs Happen Section */}
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+              {/* Left side - Image */}
+              <div className="relative">
+                <div className="relative rounded-3xl overflow-hidden shadow-2xl">
+                  <div className="bg-gradient-to-br from-gray-100 to-gray-200 p-12 flex items-center justify-center min-h-[400px]">
+                    <div className="text-center">
+                      <div className="bg-teal-600 text-white px-8 py-4 rounded-xl inline-block mb-6 shadow-lg">
+                        <p className="text-xl font-bold">When Brilliant Work Isn't Enough</p>
+                      </div>
+                      <div className="w-48 h-48 bg-gray-300 rounded-full mx-auto flex items-center justify-center">
+                        <i className="fas fa-user text-6xl text-gray-500"></i>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* Decorative elements */}
+                <div className="absolute -top-6 -left-6 w-24 h-24 bg-teal-400 rounded-full opacity-20 blur-2xl"></div>
+                <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-blue-400 rounded-full opacity-20 blur-2xl"></div>
+              </div>
+
+              {/* Right side - Content */}
+              <div>
+                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+                  Why Exceptional Careers Still Receive RFEs or Denials?
+                </h2>
+                <p className="text-gray-700 mb-4 leading-relaxed">
+                  You may have designed complex systems, driven large-scale innovation, authored research, or influenced industry standards. Yet <strong>USCIS does not approve talent alone</strong>. USCIS approves well-supported claims of sustained national or international recognition.
+                </p>
+                <p className="text-gray-700 mb-6 leading-relaxed">
+                  Most denials are <em>not</em> about lack of achievement. They stem from <strong>unclear evidence strategy and weak narrative development</strong>.
+                </p>
+                
+                <div className="bg-blue-50 border-l-4 border-blue-600 p-6 rounded-r-lg mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">
+                    Great accomplishments must be translated into a legal story that shows:
+                  </h3>
+                  <ul className="space-y-3">
+                    <li className="flex items-start">
+                      <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                        <i className="fas fa-check text-xs"></i>
+                      </div>
+                      <span className="text-gray-700">Why your work matters</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                        <i className="fas fa-check text-xs"></i>
+                      </div>
+                      <span className="text-gray-700">Who is influenced by it</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                        <i className="fas fa-check text-xs"></i>
+                      </div>
+                      <span className="text-gray-700">How it advances your field</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                        <i className="fas fa-check text-xs"></i>
+                      </div>
+                      <span className="text-gray-700">Why you stand among the small percentage at the top</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <p className="text-gray-700 mb-6 italic">
+                  That translation is where most petitions fail.
+                </p>
+
+                <Link to="/assessment" className="bg-teal-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-teal-700 transition-all inline-flex items-center">
+                  Transform Your EB-1A Profile
+                  <i className="fas fa-arrow-right ml-2"></i>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Trusted By Section */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="max-w-6xl mx-auto text-center">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Trusted by <span className="text-teal-600">Top Tech</span> Professionals
+            </h2>
+            <p className="text-xl text-gray-600 mb-12">
+              Professionals from leading companies trust us with their immigration journey
+            </p>
+            
+            {/* Company Logos Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-8 items-center justify-items-center opacity-70">
+              <div className="flex items-center justify-center h-16">
+                <span className="text-2xl font-bold text-gray-600">Microsoft</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-2xl font-bold text-gray-600">Amazon</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-2xl font-bold text-blue-600">LinkedIn</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-2xl font-bold text-red-600">ORACLE</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-2xl font-bold text-blue-600">DELL</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-2xl font-bold text-gray-600">accenture</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-2xl font-bold text-blue-600">PayPal</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-2xl font-bold text-blue-600">intel</span>
+              </div>
+            </div>
+
+            {/* Second Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-8 items-center justify-items-center opacity-70 mt-8">
+              <div className="flex items-center justify-center h-16">
+                <span className="text-xl font-bold text-gray-600">Lyft</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-xl font-bold text-gray-600">Snap Inc.</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-xl font-bold text-pink-600">T-Mobile</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-xl font-bold text-gray-600">JPMorgan</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-xl font-bold text-blue-600">citibank</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-xl font-bold text-gray-600">ACTIVISION</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-xl font-bold text-yellow-600">Expedia</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* H1-B vs EB-1A Comparison Section */}
+      <section className="py-20 bg-gradient-to-br from-blue-600 to-indigo-700">
+        <div className="container mx-auto px-4">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                The Right Path to Your Green Card in the United States?
+              </h2>
+              <p className="text-xl text-blue-100">
+                Choose your way!
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8">
+              {/* H1-B / EB-2/EB-3 Column */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border-2 border-white/20">
+                <div className="text-center mb-6">
+                  <h3 className="text-2xl font-bold text-white mb-2">H1-B / EB-2/EB-3</h3>
+                  <p className="text-blue-200">Traditional Path</p>
+                </div>
+                <ul className="space-y-4">
+                  <li className="flex items-start text-white">
+                    <i className="fas fa-times-circle text-red-400 mt-1 mr-3 flex-shrink-0"></i>
+                    <span>Visa stamping headache</span>
+                  </li>
+                  <li className="flex items-start text-white">
+                    <i className="fas fa-times-circle text-red-400 mt-1 mr-3 flex-shrink-0"></i>
+                    <span>Emergency travel restriction</span>
+                  </li>
+                  <li className="flex items-start text-white">
+                    <i className="fas fa-times-circle text-red-400 mt-1 mr-3 flex-shrink-0"></i>
+                    <span>Employer restriction</span>
+                  </li>
+                  <li className="flex items-start text-white">
+                    <i className="fas fa-times-circle text-red-400 mt-1 mr-3 flex-shrink-0"></i>
+                    <span>Layoff tension</span>
+                  </li>
+                  <li className="flex items-start text-white">
+                    <i className="fas fa-times-circle text-red-400 mt-1 mr-3 flex-shrink-0"></i>
+                    <span>Backlog wait</span>
+                  </li>
+                  <li className="flex items-start text-white">
+                    <i className="fas fa-times-circle text-red-400 mt-1 mr-3 flex-shrink-0"></i>
+                    <span>Business restrictions</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* EB-1A Green Card Column */}
+              <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-8 border-2 border-green-400 shadow-2xl transform md:scale-105">
+                <div className="text-center mb-6">
+                  <div className="inline-block bg-yellow-400 text-gray-900 px-4 py-2 rounded-full text-sm font-bold mb-3">
+                    RECOMMENDED
+                  </div>
+                  <h3 className="text-2xl font-bold text-white mb-2">EB-1A Green Card</h3>
+                  <p className="text-green-100">Merit-Based Path</p>
+                </div>
+                <ul className="space-y-4">
+                  <li className="flex items-start text-white">
+                    <i className="fas fa-check-circle text-yellow-300 mt-1 mr-3 flex-shrink-0"></i>
+                    <span><strong>Become US citizen in 5 years</strong></span>
+                  </li>
+                  <li className="flex items-start text-white">
+                    <i className="fas fa-check-circle text-yellow-300 mt-1 mr-3 flex-shrink-0"></i>
+                    <span><strong>Get green card in one year</strong></span>
+                  </li>
+                  <li className="flex items-start text-white">
+                    <i className="fas fa-check-circle text-yellow-300 mt-1 mr-3 flex-shrink-0"></i>
+                    <span>No visa stamping</span>
+                  </li>
+                  <li className="flex items-start text-white">
+                    <i className="fas fa-check-circle text-yellow-300 mt-1 mr-3 flex-shrink-0"></i>
+                    <span>Employer/business freedom</span>
+                  </li>
+                  <li className="flex items-start text-white">
+                    <i className="fas fa-check-circle text-yellow-300 mt-1 mr-3 flex-shrink-0"></i>
+                    <span>Travel freedom</span>
+                  </li>
+                  <li className="flex items-start text-white">
+                    <i className="fas fa-check-circle text-yellow-300 mt-1 mr-3 flex-shrink-0"></i>
+                    <span>High professional confidence</span>
+                  </li>
+                </ul>
+                <div className="mt-8 text-center">
+                  <Link to="/assessment" className="bg-yellow-400 text-gray-900 px-8 py-4 rounded-xl text-lg font-bold hover:bg-yellow-300 transition-all inline-flex items-center">
+                    Start Your EB-1A Journey
+                    <i className="fas fa-arrow-right ml-2"></i>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Services Section */}
       <section id="services" className="py-20 bg-white">
         <div className="container mx-auto px-4">
@@ -201,7 +466,7 @@ const HomePage = () => {
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-8">
             {/* EB-1A */}
             <div className="service-card bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all transform hover:-translate-y-2">
               <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mb-6">
@@ -290,7 +555,7 @@ const HomePage = () => {
             </div>
             
             {/* Profile Building */}
-            <div className="service-card bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all transform hover:-translate-y-2 lg:col-span-3 md:col-span-2">
+            <div className="service-card bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all transform hover:-translate-y-2">
               <div className="bg-yellow-100 w-16 h-16 rounded-full flex items-center justify-center mb-6">
                 <i className="fas fa-user-plus text-3xl text-yellow-600"></i>
               </div>
@@ -299,39 +564,50 @@ const HomePage = () => {
               <p className="text-gray-600 mb-4">
                 Comprehensive profile development to strengthen your immigration case and qualify for premium categories.
               </p>
-              <div className="grid md:grid-cols-3 gap-4 mb-6">
-                <ul className="space-y-2">
-                  <li className="flex items-start">
-                    <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
-                    <span className="text-gray-700">Publication strategy</span>
-                  </li>
-                  <li className="flex items-start">
-                    <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
-                    <span className="text-gray-700">Awards & recognition guidance</span>
-                  </li>
-                </ul>
-                <ul className="space-y-2">
-                  <li className="flex items-start">
-                    <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
-                    <span className="text-gray-700">Media coverage assistance</span>
-                  </li>
-                  <li className="flex items-start">
-                    <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
-                    <span className="text-gray-700">Speaking engagement opportunities</span>
-                  </li>
-                </ul>
-                <ul className="space-y-2">
-                  <li className="flex items-start">
-                    <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
-                    <span className="text-gray-700">Professional network building</span>
-                  </li>
-                  <li className="flex items-start">
-                    <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
-                    <span className="text-gray-700">Impact measurement & documentation</span>
-                  </li>
-                </ul>
-              </div>
+              <ul className="space-y-2 mb-6">
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Publication strategy</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Awards & recognition guidance</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Media coverage assistance</span>
+                </li>
+              </ul>
               <Link to="/profile-building" className="text-yellow-600 font-semibold hover:text-yellow-800 transition-colors">
+                Learn More <i className="fas fa-arrow-right ml-2"></i>
+              </Link>
+            </div>
+
+            {/* Career Coaching - NEW SERVICE */}
+            <div className="service-card bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all transform hover:-translate-y-2">
+              <div className="bg-teal-100 w-16 h-16 rounded-full flex items-center justify-center mb-6">
+                <i className="fas fa-briefcase text-3xl text-teal-600"></i>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Career Coaching</h3>
+              <h4 className="text-lg font-semibold text-teal-600 mb-3">Professional Development</h4>
+              <p className="text-gray-600 mb-4">
+                Strategic career guidance to advance your professional trajectory and maximize your extraordinary ability credentials.
+              </p>
+              <ul className="space-y-2 mb-6">
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Career strategy & positioning</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Leadership development</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Industry positioning & branding</span>
+                </li>
+              </ul>
+              <Link to="/career-coaching" className="text-teal-600 font-semibold hover:text-teal-800 transition-colors">
                 Learn More <i className="fas fa-arrow-right ml-2"></i>
               </Link>
             </div>
@@ -339,196 +615,77 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Contact Section */}
-      <section id="contact" className="py-20 bg-gradient-to-br from-primary to-secondary text-white">
+      {/* Trusted by Top Tech Professionals Section */}
+      <section className="py-16 bg-gradient-to-br from-gray-50 to-blue-50">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-4xl md:text-5xl font-bold mb-4">Start Your Journey Today</h2>
-              <p className="text-xl opacity-90">
-                Schedule a consultation to discuss your immigration goals and explore your options
-              </p>
-            </div>
-            
-            <div className="grid md:grid-cols-2 gap-12">
-              {/* Contact Form */}
-              <div className="bg-white rounded-xl p-8 shadow-2xl">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">Get in Touch</h3>
-                <form onSubmit={handleContactSubmit}>
-                  <div className="mb-4">
-                    <label className="block text-gray-700 font-semibold mb-2" htmlFor="name">Full Name *</label>
-                    <input 
-                      type="text" 
-                      id="name" 
-                      name="name" 
-                      required 
-                      maxLength="100"
-                      value={contactForm.name}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900"
-                    />
-                  </div>
-                  
-                  <div className="mb-4">
-                    <label className="block text-gray-700 font-semibold mb-2" htmlFor="email">Email Address *</label>
-                    <input 
-                      type="email" 
-                      id="email" 
-                      name="email" 
-                      required
-                      value={contactForm.email}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900"
-                    />
-                  </div>
-                  
-                  <div className="mb-4">
-                    <label className="block text-gray-700 font-semibold mb-2" htmlFor="phone">Phone Number</label>
-                    <input 
-                      type="tel" 
-                      id="phone" 
-                      name="phone" 
-                      maxLength="20"
-                      value={contactForm.phone}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900"
-                    />
-                  </div>
-                  
-                  <div className="mb-4">
-                    <label className="block text-gray-700 font-semibold mb-2" htmlFor="visa-type">Visa Category of Interest *</label>
-                    <select 
-                      id="visa-type" 
-                      name="visa-type" 
-                      required
-                      value={contactForm['visa-type']}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900"
-                    >
-                      <option value="">Select a category</option>
-                      <option value="eb1a">EB-1A (Extraordinary Ability)</option>
-                      <option value="eb2-niw">EB-2 NIW (National Interest Waiver)</option>
-                      <option value="o1">O-1 Visa</option>
-                      <option value="profile">Profile Building</option>
-                      <option value="other">Other / Not Sure</option>
-                    </select>
-                  </div>
-                  
-                  <div className="mb-6">
-                    <label className="block text-gray-700 font-semibold mb-2" htmlFor="message">Tell Us About Your Background *</label>
-                    <textarea 
-                      id="message" 
-                      name="message" 
-                      rows="4" 
-                      required 
-                      maxLength="2000"
-                      value={contactForm.message}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900"
-                    ></textarea>
-                    <p className="text-xs text-gray-500 mt-1">Maximum 2000 characters</p>
-                  </div>
-                  
-                  <button 
-                    type="submit" 
-                    disabled={isSubmitting}
-                    className="w-full bg-primary text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-secondary transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <i className="fas fa-spinner fa-spin mr-2"></i>
-                        Sending...
-                      </>
-                    ) : (
-                      'Schedule Consultation'
-                    )}
-                  </button>
-                  
-                  {submitMessage && (
-                    <div className="mt-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
-                      <i className="fas fa-check-circle mr-2"></i>
-                      {submitMessage}
-                    </div>
-                  )}
-                  
-                  {submitError && (
-                    <div className="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-                      <i className="fas fa-exclamation-triangle mr-2"></i>
-                      {submitError}
-                    </div>
-                  )}
-                </form>
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-4">
+            Trusted by <span className="text-primary">Top Tech Professionals</span>
+          </h2>
+          <p className="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
+            Professionals from leading companies trust us to build their extraordinary ability profiles
+          </p>
+          
+          {/* Company Logos Grid */}
+          <div className="max-w-6xl mx-auto">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-8 items-center justify-items-center opacity-70">
+              {/* Row 1 */}
+              <div className="flex items-center justify-center h-16">
+                <span className="text-2xl font-bold text-gray-400">Microsoft</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-2xl font-bold text-gray-700">amazon</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-2xl font-bold text-blue-600">LinkedIn</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-2xl font-bold text-red-600">ORACLE</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-2xl font-bold text-blue-500">DELL</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-xl font-semibold text-gray-700">accenture</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-2xl font-bold text-blue-600">PayPal</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-2xl font-bold text-blue-500">intel</span>
               </div>
               
-              {/* Contact Info */}
-              <div>
-                <div className="mb-8">
-                  <h3 className="text-2xl font-bold mb-6">Contact Information</h3>
-                  
-                  <div className="flex items-start mb-6">
-                    <div className="bg-white/20 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <i className="fas fa-map-marker-alt text-xl"></i>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-lg mb-1">Office Address</h4>
-                      <p className="opacity-90">123 Immigration Plaza, Suite 500<br />New York, NY 10001</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start mb-6">
-                    <div className="bg-white/20 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <i className="fas fa-phone text-xl"></i>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-lg mb-1">Phone</h4>
-                      <p className="opacity-90">(555) 123-4567</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start mb-6">
-                    <div className="bg-white/20 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <i className="fas fa-envelope text-xl"></i>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-lg mb-1">Email</h4>
-                      <p className="opacity-90">info@immigrationpro.com</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start">
-                    <div className="bg-white/20 w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <i className="fas fa-clock text-xl"></i>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-lg mb-1">Business Hours</h4>
-                      <p className="opacity-90">Monday - Friday: 9:00 AM - 6:00 PM<br />Saturday: 10:00 AM - 2:00 PM</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-white/10 rounded-xl p-6 backdrop-blur-sm">
-                  <h3 className="text-xl font-bold mb-4">Follow Us</h3>
-                  <div className="flex space-x-4">
-                    <button type="button" className="bg-white/20 w-12 h-12 rounded-full flex items-center justify-center hover:bg-white/30 transition-all">
-                      <i className="fab fa-linkedin text-xl"></i>
-                    </button>
-                    <button type="button" className="bg-white/20 w-12 h-12 rounded-full flex items-center justify-center hover:bg-white/30 transition-all">
-                      <i className="fab fa-twitter text-xl"></i>
-                    </button>
-                    <button type="button" className="bg-white/20 w-12 h-12 rounded-full flex items-center justify-center hover:bg-white/30 transition-all">
-                      <i className="fab fa-facebook text-xl"></i>
-                    </button>
-                    <button type="button" className="bg-white/20 w-12 h-12 rounded-full flex items-center justify-center hover:bg-white/30 transition-all">
-                      <i className="fab fa-instagram text-xl"></i>
-                    </button>
-                  </div>
-                </div>
+              {/* Row 2 */}
+              <div className="flex items-center justify-center h-16">
+                <span className="text-xl font-semibold text-gray-400">Lyft</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-xl font-bold text-gray-700">Snap Inc.</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-xl font-semibold text-pink-500">T-Mobile</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-lg font-semibold text-gray-600">JP Morgan Chase</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-xl font-bold text-blue-600">citibank</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-lg font-semibold text-gray-500">Deloitte</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-xl font-bold text-gray-700">ACTIVISION</span>
+              </div>
+              <div className="flex items-center justify-center h-16">
+                <span className="text-xl font-semibold text-yellow-600">Expedia</span>
               </div>
             </div>
           </div>
         </div>
       </section>
 
+      {/* FAQ Section */}
+      <HomePageFAQ />
     </div>
   );
 };

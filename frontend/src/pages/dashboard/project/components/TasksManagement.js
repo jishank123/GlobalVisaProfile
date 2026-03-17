@@ -248,7 +248,14 @@ const TasksManagement = () => {
   const renderTaskTable = (taskType) => {
     const filteredTasks = getFilteredTasks(taskType);
     
-    if (filteredTasks.length === 0) {
+    // Sort tasks by creation date (newest first)
+    const sortedTasks = [...filteredTasks].sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0);
+      const dateB = new Date(b.createdAt || 0);
+      return dateB - dateA; // Descending order (newest first)
+    });
+    
+    if (sortedTasks.length === 0) {
       return (
         <div style={componentStyles.emptyState}>
           <i className="fas fa-tasks fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
@@ -274,7 +281,7 @@ const TasksManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredTasks.map(task => {
+            {sortedTasks.map(task => {
               const statusStyle = getStatusBadgeStyle(task.status);
               const priorityStyle = getPriorityStyle(task.priority || 'medium');
               const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';
@@ -325,18 +332,6 @@ const TasksManagement = () => {
                     }}>
                       {task.status.replace('_', ' ')}
                     </span>
-                    {isOverdue && (
-                      <div style={{ marginTop: '4px' }}>
-                        <span style={{
-                          ...componentStyles.badge,
-                          background: '#ef4444',
-                          color: 'white',
-                          fontSize: '10px'
-                        }}>
-                          OVERDUE
-                        </span>
-                      </div>
-                    )}
                   </td>
                   <td style={componentStyles.tableCell}>
                     <span style={{
@@ -358,7 +353,10 @@ const TasksManagement = () => {
                         }}>
                           {new Date(task.due_date).toLocaleDateString()}
                         </div>
-                        <small style={{ color: designSystem.colors.gray[500] }}>
+                        <small style={{ 
+                          color: isOverdue ? '#ef4444' : designSystem.colors.gray[500],
+                          fontWeight: isOverdue ? '600' : 'normal'
+                        }}>
                           {isOverdue ? 'Overdue' : 'Upcoming'}
                         </small>
                       </div>
@@ -628,6 +626,7 @@ const TasksManagement = () => {
           employees={employees}
           onCreateTask={handleCreateTask}
           onUpdateTask={handleUpdateTask}
+          loadTasks={loadTasks}
         />
       )}
     </div>
@@ -635,7 +634,7 @@ const TasksManagement = () => {
 };
 
 // Task Modal Component
-const TaskModal = ({ show, onHide, type, data, projects, employees, onCreateTask, onUpdateTask }) => {
+const TaskModal = ({ show, onHide, type, data, projects, employees, onCreateTask, onUpdateTask, loadTasks }) => {
   const [formData, setFormData] = useState({
     title: data?.title || '',
     description: data?.description || '',
@@ -648,9 +647,106 @@ const TaskModal = ({ show, onHide, type, data, projects, employees, onCreateTask
     progress: data?.progress || 0
   });
   
+  const [fileData, setFileData] = useState({
+    files: [{ file: null, description: '' }]
+  });
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!show) return null;
+
+  const handleFileChange = (index, e) => {
+    if (e.target.files && e.target.files[0]) {
+      const newFiles = [...fileData.files];
+      newFiles[index].file = e.target.files[0];
+      setFileData({
+        ...fileData,
+        files: newFiles
+      });
+    }
+  };
+
+  const handleFileDescriptionChange = (index, value) => {
+    const newFiles = [...fileData.files];
+    newFiles[index].description = value;
+    setFileData({
+      ...fileData,
+      files: newFiles
+    });
+  };
+
+  const addMoreFile = () => {
+    setFileData({
+      ...fileData,
+      files: [...fileData.files, { file: null, description: '' }]
+    });
+  };
+
+  const removeFile = (index) => {
+    const newFiles = fileData.files.filter((_, i) => i !== index);
+    setFileData({
+      ...fileData,
+      files: newFiles.length > 0 ? newFiles : [{ file: null, description: '' }]
+    });
+  };
+
+  const uploadTaskFiles = async (taskId) => {
+    const hasFiles = fileData.files.some(item => item.file !== null);
+    if (!hasFiles) {
+      return { success: true, message: 'No files to upload' };
+    }
+
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+      
+      // Upload each file separately with its own description
+      for (const fileItem of fileData.files) {
+        if (!fileItem.file) continue; // Skip empty file slots
+        
+        try {
+          const formDataToSend = new FormData();
+          formDataToSend.append('files', fileItem.file);
+          formDataToSend.append('description', fileItem.description || '');
+
+          const { getApiEndpoint } = await import('../../../../utils/apiConfig');
+          const endpoint = getApiEndpoint(`/tasks/${taskId}/upload`);
+          
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: formDataToSend
+          });
+
+          const result = await response.json();
+          
+          if (result.success) {
+            successCount++;
+          } else {
+            errorCount++;
+            console.error(`Failed to upload ${fileItem.file.name}:`, result.error);
+          }
+        } catch (error) {
+          errorCount++;
+          console.error(`Error uploading ${fileItem.file.name}:`, error);
+        }
+      }
+      
+      // Return result summary
+      if (successCount > 0 && errorCount === 0) {
+        return { success: true, message: `${successCount} file(s) uploaded successfully` };
+      } else if (successCount > 0 && errorCount > 0) {
+        return { success: true, message: `${successCount} file(s) uploaded, ${errorCount} failed` };
+      } else {
+        return { success: false, error: 'All file uploads failed' };
+      }
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      return { success: false, error: error.message };
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -671,10 +767,35 @@ const TaskModal = ({ show, onHide, type, data, projects, employees, onCreateTask
     
     try {
       if (type === 'create') {
-        await onCreateTask(formData);
+        // Create task first
+        const response = await projectsAPI.createTask(formData);
+        
+        if (response.success && response.data?._id) {
+          // Upload files if any
+          const uploadResult = await uploadTaskFiles(response.data._id);
+          
+          // Refresh the task list
+          loadTasks();
+          onHide();
+          
+          if (uploadResult.success) {
+            alert('Task created successfully' + (uploadResult.message !== 'No files to upload' ? ' with files!' : '!'));
+          } else {
+            alert('Task created but file upload failed: ' + uploadResult.error);
+          }
+        }
       } else if (type === 'edit') {
         await onUpdateTask(data._id, formData);
+        
+        // Upload files if any for edit mode
+        const uploadResult = await uploadTaskFiles(data._id);
+        if (uploadResult.success && uploadResult.message !== 'No files to upload') {
+          alert('Task updated and files uploaded successfully!');
+        }
       }
+    } catch (error) {
+      console.error('Error in handleSubmit:', error);
+      alert('Error: ' + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -767,52 +888,168 @@ const TaskModal = ({ show, onHide, type, data, projects, employees, onCreateTask
                     <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
                       <i className="fas fa-paperclip me-2"></i>Uploaded Files ({data.files.length})
                     </h6>
-                    <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                      {data.files.map((file, index) => (
-                        <div 
-                          key={index}
-                          style={{
-                            padding: designSystem.spacing.md,
-                            marginBottom: designSystem.spacing.sm,
-                            background: designSystem.colors.gray[100],
-                            borderRadius: designSystem.borderRadius.button,
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
-                          }}
-                        >
-                          <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                              <i className={`fas ${
-                                file.mimetype?.includes('image') ? 'fa-image' :
-                                file.mimetype?.includes('pdf') ? 'fa-file-pdf' :
-                                file.mimetype?.includes('word') ? 'fa-file-word' :
-                                file.mimetype?.includes('excel') ? 'fa-file-excel' :
-                                'fa-file'
-                              }`} style={{ color: '#0dcaf0' }}></i>
-                              <strong>{file.originalName || file.filename}</strong>
-                            </div>
-                            {file.description && (
-                              <div style={{ fontSize: '13px', color: designSystem.colors.gray[600], marginBottom: '4px' }}>
-                                {file.description}
+                    <div className="row">
+                      {/* Project Manager Files (Left Column - Green) */}
+                      <div className="col-md-6">
+                        <h6 style={{ fontSize: '14px', color: '#2e7d32', marginBottom: designSystem.spacing.sm }}>
+                          <i className="fas fa-user-tie me-2"></i>
+                          My Uploaded Files
+                        </h6>
+                        <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                          {data.files
+                            .filter(file => file.uploaded_by_role === 'project_manager')
+                            .map((file, index) => (
+                              <div 
+                                key={index}
+                                style={{
+                                  padding: designSystem.spacing.sm,
+                                  marginBottom: designSystem.spacing.xs,
+                                  background: '#e8f5e9',
+                                  borderRadius: designSystem.borderRadius.button,
+                                  border: '1px solid #a5d6a7',
+                                  borderLeft: '4px solid #388e3c'
+                                }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                                      <i className={`fas ${
+                                        file.mimetype?.includes('image') ? 'fa-image' :
+                                        file.mimetype?.includes('pdf') ? 'fa-file-pdf' :
+                                        file.mimetype?.includes('word') ? 'fa-file-word' :
+                                        file.mimetype?.includes('excel') ? 'fa-file-excel' :
+                                        'fa-file'
+                                      }`} style={{ color: '#388e3c', fontSize: '12px' }}></i>
+                                      <strong style={{ color: '#2e7d32', fontSize: '13px' }}>{file.originalName || file.filename}</strong>
+                                    </div>
+                                    {file.description && (
+                                      <div style={{ fontSize: '12px', color: designSystem.colors.gray[600], marginTop: '2px' }}>
+                                        {file.description}
+                                      </div>
+                                    )}
+                                    <div style={{ fontSize: '11px', color: designSystem.colors.gray[500], marginTop: '2px' }}>
+                                      {new Date(file.uploaded_at).toLocaleDateString()}
+                                      {file.size && ` • ${(file.size / 1024).toFixed(2)} KB`}
+                                    </div>
+                                  </div>
+                                  <button 
+                                    onClick={async () => {
+                                      try {
+                                        const fileUrl = `${process.env.REACT_APP_API_URL?.replace('/api', '')}/${file.path}`;
+                                        const fileName = file.originalName || file.filename || 'download';
+                                        
+                                        const response = await fetch(fileUrl);
+                                        const blob = await response.blob();
+                                        
+                                        const blobUrl = window.URL.createObjectURL(blob);
+                                        const link = document.createElement('a');
+                                        link.href = blobUrl;
+                                        link.download = fileName;
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                        
+                                        window.URL.revokeObjectURL(blobUrl);
+                                      } catch (error) {
+                                        console.error('Download error:', error);
+                                        alert('Failed to download file');
+                                      }
+                                    }}
+                                    className="btn btn-outline-success btn-sm"
+                                    style={{ padding: '2px 6px', fontSize: '11px' }}
+                                    title="Download File"
+                                  >
+                                    <i className="fas fa-download"></i>
+                                  </button>
+                                </div>
                               </div>
-                            )}
-                            <div style={{ fontSize: '12px', color: designSystem.colors.gray[500] }}>
-                              Uploaded by: {file.uploaded_by?.first_name} {file.uploaded_by?.last_name} on {new Date(file.uploaded_at).toLocaleDateString()}
-                              {file.size && ` • ${(file.size / 1024).toFixed(2)} KB`}
-                            </div>
-                          </div>
-                          <a 
-                            href={`${process.env.REACT_APP_API_URL?.replace('/api', '')}/${file.path}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn btn-outline-primary btn-sm"
-                            title="Download File"
-                          >
-                            <i className="fas fa-download"></i>
-                          </a>
+                            ))}
+                          {data.files.filter(file => file.uploaded_by_role === 'project_manager').length === 0 && (
+                            <small className="text-muted">No files uploaded yet</small>
+                          )}
                         </div>
-                      ))}
+                      </div>
+
+                      {/* Employee Files (Right Column - Blue) */}
+                      <div className="col-md-6">
+                        <h6 style={{ fontSize: '14px', color: '#1565c0', marginBottom: designSystem.spacing.sm }}>
+                          <i className="fas fa-user me-2"></i>
+                          Employee Files
+                        </h6>
+                        <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                          {data.files
+                            .filter(file => file.uploaded_by_role === 'employee')
+                            .map((file, index) => (
+                              <div 
+                                key={index}
+                                style={{
+                                  padding: designSystem.spacing.sm,
+                                  marginBottom: designSystem.spacing.xs,
+                                  background: '#e3f2fd',
+                                  borderRadius: designSystem.borderRadius.button,
+                                  border: '1px solid #90caf9',
+                                  borderLeft: '4px solid #1976d2'
+                                }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                                      <i className={`fas ${
+                                        file.mimetype?.includes('image') ? 'fa-image' :
+                                        file.mimetype?.includes('pdf') ? 'fa-file-pdf' :
+                                        file.mimetype?.includes('word') ? 'fa-file-word' :
+                                        file.mimetype?.includes('excel') ? 'fa-file-excel' :
+                                        'fa-file'
+                                      }`} style={{ color: '#1976d2', fontSize: '12px' }}></i>
+                                      <strong style={{ color: '#1565c0', fontSize: '13px' }}>{file.originalName || file.filename}</strong>
+                                    </div>
+                                    {file.description && (
+                                      <div style={{ fontSize: '12px', color: designSystem.colors.gray[600], marginTop: '2px' }}>
+                                        {file.description}
+                                      </div>
+                                    )}
+                                    <div style={{ fontSize: '11px', color: designSystem.colors.gray[500], marginTop: '2px' }}>
+                                      {file.uploaded_by?.first_name} {file.uploaded_by?.last_name} • {new Date(file.uploaded_at).toLocaleDateString()}
+                                      {file.size && ` • ${(file.size / 1024).toFixed(2)} KB`}
+                                    </div>
+                                  </div>
+                                  <button 
+                                    onClick={async () => {
+                                      try {
+                                        const fileUrl = `${process.env.REACT_APP_API_URL?.replace('/api', '')}/${file.path}`;
+                                        const fileName = file.originalName || file.filename || 'download';
+                                        
+                                        const response = await fetch(fileUrl);
+                                        const blob = await response.blob();
+                                        
+                                        const blobUrl = window.URL.createObjectURL(blob);
+                                        const link = document.createElement('a');
+                                        link.href = blobUrl;
+                                        link.download = fileName;
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                        
+                                        window.URL.revokeObjectURL(blobUrl);
+                                      } catch (error) {
+                                        console.error('Download error:', error);
+                                        alert('Failed to download file');
+                                      }
+                                    }}
+                                    className="btn btn-outline-primary btn-sm"
+                                    style={{ padding: '2px 6px', fontSize: '11px' }}
+                                    title="Download File"
+                                  >
+                                    <i className="fas fa-download"></i>
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          {data.files.filter(file => file.uploaded_by_role === 'employee').length === 0 && (
+                            <small className="text-muted">No files uploaded yet</small>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -999,6 +1236,98 @@ const TaskModal = ({ show, onHide, type, data, projects, employees, onCreateTask
                         onChange={(e) => handleInputChange('description', e.target.value)}
                         placeholder="Enter task description..."
                       />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 6: File Upload Section (Optional) */}
+                <div className="row">
+                  <div className="col-12">
+                    <div className="mb-3">
+                      <label className="form-label">
+                        <strong>
+                          <i className="fas fa-paperclip me-2"></i>
+                          Attach Files (Optional)
+                        </strong>
+                      </label>
+                      <small className="text-muted d-block mb-2">
+                        You can attach relevant files to this task. This is optional.
+                      </small>
+                      
+                      {fileData.files.map((fileItem, index) => (
+                        <div key={index} style={{
+                          border: `1px solid ${designSystem.colors.gray[300]}`,
+                          borderRadius: designSystem.borderRadius.button,
+                          padding: designSystem.spacing.sm,
+                          marginBottom: designSystem.spacing.sm,
+                          background: 'white'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: designSystem.spacing.xs }}>
+                            <h6 style={{ margin: 0, color: designSystem.colors.dark, fontSize: '13px' }}>
+                              <i className="fas fa-file me-2"></i>
+                              File {index + 1}
+                            </h6>
+                            {fileData.files.length > 1 && (
+                              <button 
+                                type="button"
+                                className="btn btn-sm btn-outline-danger"
+                                onClick={() => removeFile(index)}
+                                style={{ padding: '2px 8px', fontSize: '11px' }}
+                              >
+                                <i className="fas fa-times"></i>
+                              </button>
+                            )}
+                          </div>
+                          
+                          <div className="mb-2">
+                            <label className="form-label" style={{ fontSize: '12px', marginBottom: '4px' }}>
+                              Select File
+                            </label>
+                            <input 
+                              type="file"
+                              className="form-control form-control-sm"
+                              onChange={(e) => handleFileChange(index, e)}
+                              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif"
+                            />
+                            {index === 0 && (
+                              <small className="text-muted" style={{ fontSize: '11px' }}>
+                                <i className="fas fa-info-circle me-1"></i>
+                                PDF, Word, Excel, Images (Max 5MB per file)
+                              </small>
+                            )}
+                            {fileItem.file && (
+                              <small className="text-success d-block mt-1" style={{ fontSize: '11px' }}>
+                                <i className="fas fa-check-circle me-1"></i>
+                                {fileItem.file.name} ({(fileItem.file.size / 1024).toFixed(2)} KB)
+                              </small>
+                            )}
+                          </div>
+                          
+                          <div className="mb-0">
+                            <label className="form-label" style={{ fontSize: '12px', marginBottom: '4px' }}>
+                              Description/Notes
+                            </label>
+                            <textarea 
+                              className="form-control form-control-sm"
+                              rows="2"
+                              value={fileItem.description}
+                              onChange={(e) => handleFileDescriptionChange(index, e.target.value)}
+                              placeholder="Add notes about this file..."
+                              style={{ fontSize: '12px' }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      
+                      <button 
+                        type="button"
+                        className="btn btn-sm btn-outline-primary"
+                        onClick={addMoreFile}
+                        style={{ fontSize: '11px', padding: '4px 10px' }}
+                      >
+                        <i className="fas fa-plus me-1"></i>
+                        Add More Files
+                      </button>
                     </div>
                   </div>
                 </div>

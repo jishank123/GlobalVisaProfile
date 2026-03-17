@@ -99,6 +99,8 @@ const Navigation = () => {
           <div className="hidden md:flex space-x-8 items-center">
             <NavLink to="/">Home</NavLink>
             
+            <NavLink to="/about">About Us</NavLink>
+            
             {/* Services Dropdown */}
             <div className="relative group">
               <button className="nav-link text-gray-700 hover:text-primary transition-colors cursor-pointer inline-block py-2">
@@ -117,6 +119,9 @@ const Navigation = () => {
                   </Link>
                   <Link to="/o1-visa" className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-primary transition-colors">
                     O-1 Visa
+                  </Link>
+                  <Link to="/career-coaching" className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-primary transition-colors">
+                    Career Coaching
                   </Link>
                 </div>
               </div>
@@ -193,6 +198,10 @@ const Navigation = () => {
                 <i className="fas fa-home w-5 inline-block mr-3 text-primary"></i>Home
               </NavLink>
               
+              <NavLink to="/about" onClick={closeMobileMenu} className="block px-6 py-4 text-gray-700 hover:bg-blue-50 hover:text-primary transition-all duration-200 text-base font-medium border-b border-gray-100 active:bg-gray-50">
+                <i className="fas fa-info-circle w-5 inline-block mr-3 text-primary"></i>About Us
+              </NavLink>
+              
               <div className="border-b border-gray-200"></div>
               <div className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50">Services</div>
               
@@ -208,9 +217,11 @@ const Navigation = () => {
               <Link to="/o1-visa" onClick={closeMobileMenu} className="block px-6 py-4 pl-12 text-gray-700 hover:bg-blue-50 hover:text-primary transition-all duration-200 text-base border-b border-gray-100 active:bg-gray-50">
                 <i className="fas fa-medal w-4 inline-block mr-2 text-red-500"></i>O-1 Visa
               </Link>
+              <Link to="/career-coaching" onClick={closeMobileMenu} className="block px-6 py-4 pl-12 text-gray-700 hover:bg-blue-50 hover:text-primary transition-all duration-200 text-base border-b border-gray-100 active:bg-gray-50">
+                <i className="fas fa-briefcase w-4 inline-block mr-2 text-teal-500"></i>Career Coaching
+              </Link>
               
               <div className="border-b border-gray-200"></div>
-              
               <NavLink to="/profile-assessment" onClick={closeMobileMenu} className="block px-6 py-4 text-gray-700 hover:bg-blue-50 hover:text-primary transition-all duration-200 text-base font-medium border-b border-gray-100 active:bg-gray-50">
                 <i className="fas fa-chart-line w-5 inline-block mr-3 text-primary"></i>Profile Assessment
               </NavLink>

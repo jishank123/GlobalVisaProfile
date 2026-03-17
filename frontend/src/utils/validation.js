@@ -1,6 +1,6 @@
 // Comprehensive form validation utilities
 
-// Email validation with RFC 5322 compliance and .com requirement
+// Email validation with RFC 5322 compliance
 export const validateEmail = (email) => {
   const errors = [];
   
@@ -28,9 +28,52 @@ export const validateEmail = (email) => {
     return { isValid: false, errors };
   }
   
-  // Check for .com requirement
-  if (!email.toLowerCase().includes('.com')) {
-    errors.push('Email must contain .com domain');
+  // Split email into local and domain parts
+  const parts = email.split('@');
+  if (parts.length !== 2) {
+    errors.push('Email must contain exactly one @ symbol');
+    return { isValid: false, errors };
+  }
+  
+  const [localPart, domain] = parts;
+  
+  // Validate local part (before @)
+  if (!localPart || localPart.length === 0) {
+    errors.push('Email must have a username before @ symbol');
+    return { isValid: false, errors };
+  }
+  
+  // Validate domain part (after @)
+  if (!domain || domain.length === 0) {
+    errors.push('Email must have a domain after @ symbol');
+    return { isValid: false, errors };
+  }
+  
+  // Check that domain has at least one dot
+  if (!domain.includes('.')) {
+    errors.push('Email domain must contain a dot (e.g., example.com)');
+    return { isValid: false, errors };
+  }
+  
+  // Check that domain is not just @.com or @something.com with no proper domain name
+  const domainParts = domain.split('.');
+  if (domainParts.length < 2) {
+    errors.push('Email must have a valid domain (e.g., example.com)');
+    return { isValid: false, errors };
+  }
+  
+  // Check that each part of domain has content
+  for (const part of domainParts) {
+    if (!part || part.length === 0) {
+      errors.push('Email domain is invalid');
+      return { isValid: false, errors };
+    }
+  }
+  
+  // Check that domain name (before TLD) has at least 2 characters
+  const domainName = domainParts[domainParts.length - 2];
+  if (domainName.length < 2) {
+    errors.push('Email domain name must be at least 2 characters (e.g., example.com, not e.com)');
   }
   
   // RFC 5322 compliant email regex
@@ -41,13 +84,9 @@ export const validateEmail = (email) => {
   }
   
   // Check for common typos
-  const commonDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com'];
-  const domain = email.split('@')[1];
-  if (domain) {
-    const suspiciousDomains = ['gmial.com', 'gmai.com', 'yahooo.com', 'hotmial.com'];
-    if (suspiciousDomains.includes(domain.toLowerCase())) {
-      errors.push('Please check your email domain for typos');
-    }
+  const suspiciousDomains = ['gmial.com', 'gmai.com', 'yahooo.com', 'hotmial.com', 'outlok.com'];
+  if (suspiciousDomains.includes(domain.toLowerCase())) {
+    errors.push('Please check your email domain for typos');
   }
   
   return {
@@ -109,11 +148,14 @@ export const validatePassword = (password, confirmPassword = null) => {
   }
   
   // Confirm password validation
-  if (confirmPassword !== null) {
-    if (!confirmPassword) {
-      errors.push('Please confirm your password');
-    } else if (password !== confirmPassword) {
-      errors.push('Passwords do not match');
+  if (confirmPassword !== null && confirmPassword !== undefined) {
+    // Only show error if confirmPassword has some content or if password is complete
+    if (confirmPassword.length > 0 || password.length >= 8) {
+      if (!confirmPassword || confirmPassword.trim() === '') {
+        errors.push('Please confirm your password');
+      } else if (password !== confirmPassword) {
+        errors.push('Passwords do not match');
+      }
     }
   }
   
@@ -158,25 +200,37 @@ export const validatePhoneWithCountry = (phone, countryCode = 'US') => {
     return { isValid: false, errors, maxLength: getPhoneMaxLength(countryCode) };
   }
   
-  // Enhanced country-specific validation patterns
+  // Enhanced country-specific validation patterns with flexible digit counts
   const countryPatterns = {
     'US': {
-      exactLength: 10,
-      pattern: /^[2-9]\d{9}$/,
+      minDigits: 10,
+      maxDigits: 11,
+      patterns: [
+        /^[2-9]\d{9}$/, // 10 digits starting with 2-9
+        /^1[2-9]\d{8}$/, // 11 digits starting with 1 followed by 2-9
+        /^[2-9]\d{10}$/ // 11 digits starting with 2-9 (alternative format)
+      ],
       format: '(XXX) XXX-XXXX',
       example: '(555) 123-4567',
       code: '+1'
     },
     'UK': {
-      exactLength: 10,
-      pattern: /^[1-9]\d{9}$/,
+      minDigits: 10,
+      maxDigits: 11,
+      patterns: [
+        /^[1-9]\d{9}$/, // 10 digits starting with 1-9
+        /^[1-9]\d{10}$/ // 11 digits starting with 1-9
+      ],
       format: '+44 XXXX XXXXXX',
       example: '+44 20 7946 0958',
       code: '+44'
     },
     'IN': {
-      exactLength: 10,
-      pattern: /^[6-9]\d{9}$/,
+      minDigits: 10,
+      maxDigits: 10,
+      patterns: [
+        /^[6-9]\d{9}$/ // 10 digits starting with 6-9
+      ],
       format: '+91 XXXXX XXXXX',
       example: '+91 98765 43210',
       code: '+91'
@@ -191,33 +245,42 @@ export const validatePhoneWithCountry = (phone, countryCode = 'US') => {
     return { isValid: false, errors, maxLength: 10 };
   }
   
-  // Validate exact length requirement
-  if (digitsOnly.length !== pattern.exactLength) {
-    if (digitsOnly.length < pattern.exactLength) {
-      errors.push(`Phone number must be exactly ${pattern.exactLength} digits for ${countryCode}`);
+  // Validate digit count is within acceptable range
+  if (digitsOnly.length < pattern.minDigits || digitsOnly.length > pattern.maxDigits) {
+    if (pattern.minDigits === pattern.maxDigits) {
+      errors.push(`Phone number must be exactly ${pattern.minDigits} digits for ${countryCode}`);
     } else {
-      errors.push(`Phone number must be exactly ${pattern.exactLength} digits for ${countryCode}`);
+      errors.push(`Phone number must be ${pattern.minDigits}-${pattern.maxDigits} digits for ${countryCode}`);
     }
   }
   
   // Check pattern using digits only for more reliable validation
-  if (digitsOnly.length === pattern.exactLength && !pattern.pattern.test(digitsOnly)) {
-    if (countryCode === 'US') {
-      errors.push('US phone numbers must start with 2-9');
-    } else if (countryCode === 'IN') {
-      errors.push('Indian phone numbers must start with 6, 7, 8, or 9');
-    } else if (countryCode === 'UK') {
-      errors.push('UK phone numbers must start with 1-9');
-    } else {
-      errors.push(`Please enter a valid ${countryCode} phone number (${pattern.example})`);
+  let patternMatches = false;
+  if (digitsOnly.length >= pattern.minDigits && digitsOnly.length <= pattern.maxDigits) {
+    patternMatches = pattern.patterns.some(p => p.test(digitsOnly));
+    
+    if (!patternMatches) {
+      if (countryCode === 'US') {
+        errors.push('US phone numbers must start with 2-9 (or 1 for country code)');
+      } else if (countryCode === 'IN') {
+        errors.push('Indian phone numbers must start with 6, 7, 8, or 9');
+      } else if (countryCode === 'UK') {
+        errors.push('UK phone numbers must start with 1-9');
+      } else {
+        errors.push(`Please enter a valid ${countryCode} phone number (${pattern.example})`);
+      }
     }
   }
   
   // Format phone number for display
   let formatted = phone;
-  if (errors.length === 0 && digitsOnly.length === pattern.exactLength) {
+  if (errors.length === 0 && patternMatches) {
     if (countryCode === 'US') {
-      formatted = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6)}`;
+      if (digitsOnly.length === 10) {
+        formatted = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6)}`;
+      } else if (digitsOnly.length === 11) {
+        formatted = `+1 (${digitsOnly.slice(1, 4)}) ${digitsOnly.slice(4, 7)}-${digitsOnly.slice(7)}`;
+      }
     } else {
       formatted = `${pattern.code} ${phone}`;
     }
@@ -229,15 +292,15 @@ export const validatePhoneWithCountry = (phone, countryCode = 'US') => {
     formatted,
     digitsOnly,
     countryCode: pattern.code,
-    maxLength: pattern.exactLength
+    maxLength: pattern.maxDigits
   };
 };
 
 // Get phone max length for a country
 export const getPhoneMaxLength = (countryCode) => {
   const lengths = {
-    'US': 10,
-    'UK': 10,
+    'US': 11,
+    'UK': 11,
     'IN': 10
   };
   return lengths[countryCode.toUpperCase()] || 10;
@@ -254,14 +317,36 @@ export const validateEmailRealTime = (email) => {
   // Check for @ symbol
   if (!email.includes('@')) {
     errors.push('Email must contain @ symbol');
+  } else {
+    // Split and validate domain structure
+    const parts = email.split('@');
+    if (parts.length === 2) {
+      const [localPart, domain] = parts;
+      
+      // Check that local part exists
+      if (!localPart || localPart.length === 0) {
+        errors.push('Email must have a username before @ symbol');
+      }
+      
+      // Check that domain exists and has proper structure
+      if (!domain || domain.length === 0) {
+        errors.push('Email must have a domain after @ symbol');
+      } else if (!domain.includes('.')) {
+        errors.push('Email domain must contain a dot (e.g., example.com)');
+      } else {
+        // Check that domain name (before TLD) is not empty
+        const domainParts = domain.split('.');
+        if (domainParts.length >= 2) {
+          const domainName = domainParts[domainParts.length - 2];
+          if (!domainName || domainName.length < 2) {
+            errors.push('Email domain name must be at least 2 characters (e.g., example.com)');
+          }
+        }
+      }
+    }
   }
   
-  // Check for .com requirement
-  if (!email.toLowerCase().includes('.com')) {
-    errors.push('Email must contain .com domain');
-  }
-  
-  // Basic format check
+  // RFC 5322 compliant email regex
   const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
   
   if (email.length > 0 && !emailRegex.test(email)) {
@@ -304,8 +389,8 @@ export const validateNameRealTime = (name, fieldName = 'Name') => {
 // Get list of supported countries for dropdown (limited to US, UK, IN as requested)
 export const getSupportedCountries = () => {
   return [
-    { code: 'US', name: 'United States', dialCode: '+1', flag: '🇺🇸', minDigits: 10, maxDigits: 10, example: '(555) 123-4567' },
-    { code: 'UK', name: 'United Kingdom', dialCode: '+44', flag: '🇬🇧', minDigits: 10, maxDigits: 10, example: '20 7946 0958' },
+    { code: 'US', name: 'United States', dialCode: '+1', flag: '🇺🇸', minDigits: 10, maxDigits: 11, example: '(555) 123-4567' },
+    { code: 'UK', name: 'United Kingdom', dialCode: '+44', flag: '🇬🇧', minDigits: 10, maxDigits: 11, example: '20 7946 0958' },
     { code: 'IN', name: 'India', dialCode: '+91', flag: '🇮🇳', minDigits: 10, maxDigits: 10, example: '98765 43210' }
   ];
 };
@@ -344,10 +429,10 @@ export const validateName = (name, fieldName = 'Name') => {
     errors.push(`${fieldName} is too long (maximum 50 characters)`);
   }
   
-  // Only allow letters, spaces, hyphens, and apostrophes
-  const namePattern = /^[a-zA-Z\s\-'\.]+$/;
+  // Only allow letters and numbers (no special characters)
+  const namePattern = /^[a-zA-Z0-9\s]+$/;
   if (!namePattern.test(trimmedName)) {
-    errors.push(`${fieldName} can only contain letters, spaces, hyphens, and apostrophes`);
+    errors.push(`${fieldName} can only contain letters and numbers`);
   }
   
   // Check for suspicious patterns

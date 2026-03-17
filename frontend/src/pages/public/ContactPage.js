@@ -1,10 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { contactAPI, authAPI } from '../../services/api';
 import { validateEmailRealTime, validateNameRealTime, validatePhoneRealTime, getSupportedCountries, getPhoneMaxLength } from '../../utils/validation';
 
 const ContactPage = () => {
   const navigate = useNavigate();
+  
+  // Scroll to top on component mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+  
   const [contactForm, setContactForm] = useState({
     first_name: '',
     last_name: '',
@@ -20,17 +26,129 @@ const ContactPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
+  const [emailExists, setEmailExists] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+
+  // Check if email exists with debouncing
+  useEffect(() => {
+    const checkEmailExists = async () => {
+      const email = contactForm.email;
+      
+      // Only check if email is valid format
+      const emailPattern = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+      if (!email || !emailPattern.test(email)) {
+        setEmailExists(false);
+        return;
+      }
+
+      setCheckingEmail(true);
+      try {
+        const response = await authAPI.checkEmail(email);
+        if (response.success && response.exists) {
+          setEmailExists(true);
+        } else {
+          setEmailExists(false);
+        }
+      } catch (error) {
+        console.error('Error checking email:', error);
+        setEmailExists(false);
+      } finally {
+        setCheckingEmail(false);
+      }
+    };
+
+    // Debounce the email check
+    const timeoutId = setTimeout(() => {
+      if (contactForm.email) {
+        checkEmailExists();
+      }
+    }, 800);
+
+    return () => clearTimeout(timeoutId);
+  }, [contactForm.email]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     
-    // Handle phone number length restriction
+    // Handle first_name and last_name - only allow letters and numbers
+    if (name === 'first_name' || name === 'last_name') {
+      // Only allow letters and numbers
+      const filteredValue = value.replace(/[^a-zA-Z0-9\s]/g, '');
+      
+      setContactForm(prev => ({
+        ...prev,
+        [name]: filteredValue
+      }));
+      
+      // Validate name
+      const validation = validateNameRealTime(filteredValue, name === 'first_name' ? 'First name' : 'Last name');
+      
+      // Update field validation state
+      setFieldValidation(prev => ({
+        ...prev,
+        [name]: validation
+      }));
+      
+      // Update validation errors for form submission
+      if (validation.showError && validation.errors.length > 0) {
+        setValidationErrors(prev => ({
+          ...prev,
+          [name]: validation.errors[0]
+        }));
+      } else {
+        setValidationErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[name];
+          return newErrors;
+        });
+      }
+      
+      return; // Exit early for name inputs
+    }
+    
+    // Handle phone number - only allow digits
     if (name === 'phone') {
+      // Remove all non-digit characters
       const digitsOnly = value.replace(/\D/g, '');
       const maxLength = getPhoneMaxLength(contactForm.country_code);
+      
+      // Don't allow more digits than the maximum
       if (digitsOnly.length > maxLength) {
-        return; // Don't allow more digits than the maximum
+        return;
       }
+      
+      // Update with digits only
+      const newFormData = {
+        ...contactForm,
+        [name]: digitsOnly
+      };
+      
+      setContactForm(newFormData);
+      
+      // Validate phone
+      const validation = validatePhoneRealTime(digitsOnly, contactForm.country_code);
+      
+      // Update field validation state
+      setFieldValidation(prev => ({
+        ...prev,
+        [name]: validation
+      }));
+      
+      // Update validation errors for form submission
+      if (validation.showError && validation.errors.length > 0) {
+        setValidationErrors(prev => ({
+          ...prev,
+          [name]: validation.errors[0]
+        }));
+      } else {
+        setValidationErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[name];
+          return newErrors;
+        });
+      }
+      
+      return; // Exit early for phone input
     }
     
     setContactForm(prev => ({
@@ -41,17 +159,8 @@ const ContactPage = () => {
     // Real-time validation based on field type
     let validation;
     switch (name) {
-      case 'first_name':
-        validation = validateNameRealTime(value, 'First name');
-        break;
-      case 'last_name':
-        validation = validateNameRealTime(value, 'Last name');
-        break;
       case 'email':
         validation = validateEmailRealTime(value);
-        break;
-      case 'phone':
-        validation = validatePhoneRealTime(value, contactForm.country_code);
         break;
       case 'message':
         // Check minimum 10 characters for message
@@ -117,6 +226,11 @@ const ContactPage = () => {
   const validateForm = () => {
     const errors = {};
     const requiredFields = ['first_name', 'last_name', 'email', 'visa-type', 'message'];
+    
+    // Check if email already exists - block submission
+    if (emailExists) {
+      errors.email = 'This email is already registered. Please use a different email address.';
+    }
     
     requiredFields.forEach(field => {
       let validation;
@@ -245,6 +359,8 @@ const ContactPage = () => {
     const hasError = validationErrors[name];
     const validation = fieldValidation[name];
     const isValid = validation?.isValid && contactForm[name];
+    const isEmailField = name === 'email';
+    const showEmailExistsWarning = isEmailField && emailExists && !hasError;
     
     return (
       <div className="form-group">
@@ -258,7 +374,7 @@ const ContactPage = () => {
           onChange={handleInputChange}
           placeholder={placeholder}
           className={`form-control-custom ${
-            hasError ? 'border-red-500' : 
+            hasError || showEmailExistsWarning ? 'border-red-500' : 
             isValid ? 'border-green-500' : ''
           }`}
         />
@@ -268,7 +384,19 @@ const ContactPage = () => {
             {hasError}
           </div>
         )}
-        {isValid && !hasError && (
+        {showEmailExistsWarning && (
+          <div className="mt-2 text-red-600 text-sm flex items-center border-l-4 border-red-500 bg-red-50 p-3 rounded">
+            <i className="fas fa-exclamation-circle mr-2"></i>
+            <span><strong>This email is already used.</strong> You cannot submit another public form with this email.</span>
+          </div>
+        )}
+        {checkingEmail && isEmailField && !hasError && !emailExists && (
+          <div className="mt-2 text-gray-500 text-sm flex items-center">
+            <i className="fas fa-spinner fa-spin mr-2"></i>
+            Checking email...
+          </div>
+        )}
+        {isValid && !hasError && !showEmailExistsWarning && (
           <div className="mt-2 text-green-600 text-sm flex items-center">
             <i className="fas fa-check-circle mr-2"></i>
             Looks good!
@@ -412,7 +540,9 @@ const ContactPage = () => {
             value={contactForm.phone}
             onChange={handleInputChange}
             placeholder={`Enter ${currentCountry.maxDigits} digits`}
-            maxLength={currentCountry.maxDigits + 5} // Allow for formatting characters
+            maxLength={currentCountry.maxDigits + 5}
+            inputMode="numeric"
+            pattern="[0-9]*"
             className={`form-control-custom ${
               hasError ? 'border-red-500' : 
               isValid ? 'border-green-500' : ''
@@ -499,10 +629,8 @@ const ContactPage = () => {
                     {renderInputField('last_name', 'Last Name', 'text', true, 'Enter your last name')}
                   </div>
 
-                  <div className="form-grid-2">
-                    {renderInputField('email', 'Email Address', 'email', true, 'your.email@example.com')}
-                    {renderPhoneInputField()}
-                  </div>
+                  {renderInputField('email', 'Email Address', 'email', true, 'your.email@example.com')}
+                  {renderPhoneInputField()}
 
                   {renderSelectField('visa-type', 'Visa Category', visaTypeOptions, true)}
 
@@ -526,8 +654,9 @@ const ContactPage = () => {
                   <div className="text-center">
                     <button
                       type="submit"
-                      disabled={isSubmitting}
-                      className="btn-primary"
+                      disabled={isSubmitting || emailExists}
+                      className={`btn-primary ${emailExists ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      title={emailExists ? 'This email is already registered. Please use a different email to continue.' : ''}
                     >
                       {isSubmitting ? (
                         <>

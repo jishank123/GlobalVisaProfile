@@ -210,6 +210,50 @@ appointmentRequestSchema.index({ createdAt: -1 });
 appointmentRequestSchema.index({ visa_category: 1 });
 appointmentRequestSchema.index({ priority: 1, status: 1 });
 
+// Fields to encrypt
+const encryptedFields = [
+  'name', 'email', 'phone', 'preferred_date', 'preferred_time',
+  'details', 'scheduled_time', 'meeting_link', 'meeting_id',
+  'consultation_notes', 'ip_address', 'user_agent'
+];
+
+// Pre-save hook: Encrypt fields before saving
+appointmentRequestSchema.pre('save', function(next) {
+  try {
+    // Skip if encryption is globally disabled
+    if (global.ENCRYPTION_DISABLED || this._skipEncryption) {
+      return next();
+    }
+    
+    const encryption = require('../middleware/encryptionMiddleware');
+    
+    encryptedFields.forEach(field => {
+      if (this[field] !== undefined && this[field] !== null && this.isModified(field)) {
+        const value = this[field];
+        
+        // Handle strings - only encrypt if not already encrypted
+        if (typeof value === 'string' && !value.includes(':')) {
+          this[field] = encryption.encrypt(value);
+        }
+      }
+    });
+    
+    // Encrypt communications array
+    if (this.communications && Array.isArray(this.communications) && this.isModified('communications')) {
+      this.communications.forEach(comm => {
+        if (comm.message && typeof comm.message === 'string' && !comm.message.includes(':')) {
+          comm.message = encryption.encrypt(comm.message);
+        }
+      });
+    }
+    
+    next();
+  } catch (error) {
+    console.error('Appointment encryption error:', error);
+    next(error);
+  }
+});
+
 // Pre-save middleware for automatic priority assignment
 appointmentRequestSchema.pre('save', function(next) {
   // Set priority based on visa category
@@ -245,5 +289,74 @@ appointmentRequestSchema.methods.scheduleAppointment = function(date, time, meet
   this.status = 'confirmed';
   return this.save();
 };
+
+// Method to get decrypted appointment data for display
+appointmentRequestSchema.methods.toDisplayJSON = function() {
+  // Get decrypted version of the document
+  const decryptedDoc = this.toObject();
+  
+  return {
+    _id: this._id,
+    name: decryptedDoc.name,
+    email: decryptedDoc.email,
+    phone: decryptedDoc.phone,
+    visa_category: this.visa_category,
+    timezone: this.timezone,
+    preferred_date: decryptedDoc.preferred_date,
+    preferred_time: decryptedDoc.preferred_time,
+    consultation_type: this.consultation_type,
+    details: decryptedDoc.details,
+    status: this.status,
+    priority: this.priority,
+    scheduled_date: this.scheduled_date,
+    scheduled_time: decryptedDoc.scheduled_time,
+    createdAt: this.createdAt,
+    updatedAt: this.updatedAt
+  };
+};
+
+// Helper function to decrypt appointment fields
+const decryptAppointmentFields = (doc) => {
+  if (!doc) return;
+  
+  const encryptionMiddleware = require('../middleware/encryptionMiddleware');
+  
+  // Decrypt string fields
+  const fieldsToDecrypt = [
+    'name', 'email', 'phone', 'preferred_date', 'preferred_time',
+    'details', 'scheduled_time', 'meeting_link', 'meeting_id',
+    'consultation_notes', 'ip_address', 'user_agent'
+  ];
+  
+  fieldsToDecrypt.forEach(field => {
+    if (doc[field] && typeof doc[field] === 'string') {
+      doc[field] = encryptionMiddleware.decrypt(doc[field]);
+    }
+  });
+  
+  // Decrypt communications array
+  if (doc.communications && Array.isArray(doc.communications)) {
+    doc.communications.forEach(comm => {
+      if (comm.message && typeof comm.message === 'string') {
+        comm.message = encryptionMiddleware.decrypt(comm.message);
+      }
+    });
+  }
+};
+
+// Decrypt data after finding from database
+appointmentRequestSchema.post('find', function(docs) {
+  if (Array.isArray(docs)) {
+    docs.forEach(doc => decryptAppointmentFields(doc));
+  }
+});
+
+appointmentRequestSchema.post('findOne', function(doc) {
+  decryptAppointmentFields(doc);
+});
+
+appointmentRequestSchema.post('findOneAndUpdate', function(doc) {
+  decryptAppointmentFields(doc);
+});
 
 module.exports = mongoose.model('AppointmentRequest', appointmentRequestSchema);

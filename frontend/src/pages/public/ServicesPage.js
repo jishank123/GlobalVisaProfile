@@ -1,6 +1,12 @@
 import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
 
 const ServicesPage = () => {
+  // Scroll to top on component mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+  
   return (
     <div>
       
@@ -21,7 +27,7 @@ const ServicesPage = () => {
       {/* Services Grid */}
       <div className="py-20 bg-white">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {/* EB-1A Service */}
             <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all">
               <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mb-6">
@@ -106,8 +112,38 @@ const ServicesPage = () => {
               </Link>
             </div>
 
-            {/* Profile Building Service */}
-            <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all lg:col-span-3">
+            {/* Career Coaching Service - NEW */}
+            <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all">
+              <div className="bg-teal-100 w-16 h-16 rounded-full flex items-center justify-center mb-6">
+                <i className="fas fa-briefcase text-3xl text-teal-600"></i>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Career Coaching</h3>
+              <p className="text-gray-600 mb-6">
+                Strategic career development to advance your professional trajectory and build extraordinary ability credentials.
+              </p>
+              <ul className="space-y-2 mb-6">
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Career strategy & positioning</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Leadership development</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Industry positioning</span>
+                </li>
+              </ul>
+              <Link to="/career-coaching" className="bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition-colors inline-block">
+                Learn More
+              </Link>
+            </div>
+          </div>
+
+          {/* Profile Building Service - Full Width */}
+          <div className="mt-8">
+            <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all">
               <div className="bg-yellow-100 w-16 h-16 rounded-full flex items-center justify-center mb-6">
                 <i className="fas fa-user-plus text-3xl text-yellow-600"></i>
               </div>

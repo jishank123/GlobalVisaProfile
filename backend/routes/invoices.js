@@ -35,7 +35,7 @@ router.get('/:id/view', auth(['admin', 'lead_manager', 'crm_manager', 'client'])
 // @route   POST /api/invoices/:id/download
 // @desc    Download invoice as HTML (with token in body)
 // @access  Private (Admin, Lead Manager, CRM Manager, Client)
-router.post('/:id/download', invoiceController.downloadInvoice);
+router.post('/:id/download', auth(['admin', 'lead_manager', 'crm_manager', 'client']), invoiceController.downloadInvoice);
 
 // @route   POST /api/invoices
 // @desc    Create new invoice

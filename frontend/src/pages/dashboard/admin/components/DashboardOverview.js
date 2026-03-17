@@ -270,7 +270,7 @@ const DashboardOverview = () => {
                       onMouseLeave={(e) => e.target.style.color = designSystem.colors.gray[400]}
                       title="View details"
                     >
-                      <i className="fas fa-chevron-right"></i>
+                      {/* <i className="fas fa-chevron-right"></i> */}
                     </button>
                   </div>
                 </div>

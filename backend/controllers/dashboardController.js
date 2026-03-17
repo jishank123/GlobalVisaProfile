@@ -1,5 +1,5 @@
-const ClientAccount = require('../models/ClientAccount');
 const User = require('../models/User');
+const Client = require('../models/Client');
 const ProfileAssessment = require('../models/ProfileAssessment');
 const ContactForm = require('../models/ContactForm');
 const AppointmentRequest = require('../models/AppointmentRequest');
@@ -15,67 +15,125 @@ const Service = require('../models/Service');
 exports.getDashboardStats = async (req, res) => {
   console.log('\n📊 === DASHBOARD STATS REQUEST ===');
   console.log('📊 Admin requesting dashboard statistics');
+  console.log('⏰ Start time:', new Date().toISOString());
   
   try {
     console.log('📊 Fetching statistics from database...');
     
-    // Get total clients (from ClientAccount collection)
-    const totalClients = await ClientAccount.countDocuments({ status: { $ne: 'deleted' } });
+    // Get total clients (from Client collection)
+    console.log('🔍 Step 1: Counting clients...');
+    const startClients = Date.now();
+    const totalClients = await Client.countDocuments({ status: { $ne: 'deleted' } });
+    console.log(`✅ Step 1 completed in ${Date.now() - startClients}ms`);
     console.log('👥 Total Clients:', totalClients);
     
     // Get active projects (from Project collection)
-    const activeProjects = await Project.countDocuments({ 
-      status: { $in: ['active', 'in_progress', 'pending'] } 
-    });
+    console.log('🔍 Step 2: Counting active projects...');
+    const startProjects = Date.now();
+    
+    // Since status is encrypted, we need to fetch all projects and filter after decryption
+    const allProjects = await Project.find({}).lean();
+    console.log('📊 All projects fetched:', allProjects.length);
+    console.log('📊 All project statuses in DB:', allProjects.map(p => p.status));
+    
+    // Filter for active projects (active, pending, on_hold)
+    const activeProjectsList = allProjects.filter(p => 
+      ['active', 'pending', 'on_hold'].includes(p.status)
+    );
+    const activeProjects = activeProjectsList.length;
+    
+    console.log('📊 Active projects count (active/pending/on_hold):', activeProjects);
+    
+    // Also count by individual status for debugging
+    const activeCount = allProjects.filter(p => p.status === 'active').length;
+    const pendingCount = allProjects.filter(p => p.status === 'pending').length;
+    const onHoldCount = allProjects.filter(p => p.status === 'on_hold').length;
+    console.log('📊 Breakdown: active=' + activeCount + ', pending=' + pendingCount + ', on_hold=' + onHoldCount);
+    console.log(`✅ Step 2 completed in ${Date.now() - startProjects}ms`);
     console.log('📋 Active Projects:', activeProjects);
     
     // Get total team members (admin, lead_manager, crm_manager - excluding clients and deleted users)
+    console.log('🔍 Step 3: Counting team members...');
+    const startTeam = Date.now();
     const teamMembers = await User.countDocuments({ 
       role: { $in: ['admin', 'lead_manager', 'crm_manager'] },
       status: { $ne: 'deleted' }
     });
+    console.log(`✅ Step 3 completed in ${Date.now() - startTeam}ms`);
     console.log('👨‍💼 Team Members (admin, lead_manager, crm_manager):', teamMembers);
     
     // Calculate real monthly revenue from payments
+    console.log('🔍 Step 4: Calculating monthly revenue...');
+    const startRevenue = Date.now();
     const currentMonth = new Date();
     const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
     const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
     
-    const monthlyPayments = await Payment.aggregate([
-      {
-        $match: {
-          $or: [
-            { paymentDate: { $gte: startOfMonth, $lte: endOfMonth } },
-            { createdAt: { $gte: startOfMonth, $lte: endOfMonth } }
-          ],
-          status: 'completed'
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          totalRevenue: { $sum: '$amount' }
-        }
-      }
-    ]);
+    console.log('📅 Date range:', startOfMonth, 'to', endOfMonth);
     
-    const monthlyRevenue = monthlyPayments.length > 0 ? monthlyPayments[0].totalRevenue : 0;
+    // First, get all payments to see what we have (status is encrypted, so we need to fetch all and filter)
+    const allPayments = await Payment.find({}).lean();
+    console.log('💰 Total payments in DB:', allPayments.length);
+    console.log('💰 All payment details:', allPayments.map(p => ({ 
+      status: p.status, 
+      amount: p.amount,
+      paymentDate: p.paymentDate,
+      createdAt: p.createdAt
+    })));
+    
+    // Filter for completed payments in the current month
+    const monthlyPayments = allPayments.filter(p => {
+      const paymentDate = p.paymentDate || p.createdAt;
+      const isInDateRange = paymentDate >= startOfMonth && paymentDate <= endOfMonth;
+      const isCompleted = p.status === 'completed';
+      
+      console.log('💰 Checking payment:', {
+        status: p.status,
+        isCompleted,
+        paymentDate,
+        isInDateRange,
+        amount: p.amount
+      });
+      
+      return isCompleted && isInDateRange;
+    });
+    
+    console.log('💰 Monthly completed payments found:', monthlyPayments.length);
+    console.log('💰 Monthly payments details:', monthlyPayments.map(p => ({ 
+      amount: p.amount, 
+      status: p.status,
+      date: p.paymentDate || p.createdAt 
+    })));
+    
+    // Calculate total revenue
+    let monthlyRevenue = 0;
+    for (const payment of monthlyPayments) {
+      const amount = typeof payment.amount === 'number' ? payment.amount : parseFloat(payment.amount) || 0;
+      monthlyRevenue += amount;
+    }
+    
+    console.log(`✅ Step 4 completed in ${Date.now() - startRevenue}ms`);
     console.log('💰 Real Monthly Revenue:', monthlyRevenue);
     
-    // Get additional statistics
-    const totalLeads = await ContactForm.countDocuments();
-    const appointmentRequests = await AppointmentRequest.countDocuments();
-    const totalProjects = await Project.countDocuments();
-    const completedProjects = await Project.countDocuments({ status: 'completed' });
+    // Get additional statistics in parallel for better performance
+    console.log('🔍 Step 5: Fetching additional statistics in parallel...');
+    const startAdditional = Date.now();
     
-    // Get recent activity counts
-    const recentClients = await ClientAccount.countDocuments({
-      createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Last 30 days
-    });
+    // For encrypted fields, we already have allProjects, so reuse it
+    const totalProjects = allProjects.length;
+    const completedProjects = allProjects.filter(p => p.status === 'completed').length;
     
-    const recentAssessments = await ProfileAssessment.countDocuments({
-      createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Last 30 days
-    });
+    const [totalLeads, appointmentRequests, recentClients, recentAssessments] = await Promise.all([
+      ContactForm.countDocuments(),
+      AppointmentRequest.countDocuments(),
+      Client.countDocuments({
+        createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Last 30 days
+      }),
+      ProfileAssessment.countDocuments({
+        createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Last 30 days
+      })
+    ]);
+    console.log(`✅ Step 5 completed in ${Date.now() - startAdditional}ms`);
     
     const stats = {
       totalClients,
@@ -93,6 +151,7 @@ exports.getDashboardStats = async (req, res) => {
     };
     
     console.log('📊 Final statistics:', stats);
+    console.log('⏰ Total execution time:', Date.now() - Date.parse(new Date().toISOString().split('.')[0]), 'ms');
     
     res.json({
       success: true,
@@ -100,8 +159,13 @@ exports.getDashboardStats = async (req, res) => {
     });
     
     console.log('✅ Dashboard statistics sent successfully');
+    console.log('📊 === DASHBOARD STATS REQUEST COMPLETED ===\n');
     
   } catch (error) {
+    console.error('💥 ========== DASHBOARD STATS ERROR ==========');
+    console.error('💥 Error Type:', error.name);
+    console.error('💥 Error Message:', error.message);
+    console.error('💥 Error Stack:', error.stack);
     console.error('💥 Dashboard stats error:', error);
     res.status(500).json({
       success: false,
@@ -253,40 +317,46 @@ exports.getFinancialOverview = async (req, res) => {
  */
 exports.getRecentActivity = async (req, res) => {
   try {
-    console.log('📊 Fetching recent activity...');
+    console.log('📊 === FETCHING RECENT ACTIVITY ===');
     
     const activities = [];
     
     // Get recent client registrations
-    const recentClients = await ClientAccount.find()
+    console.log('📊 Fetching recent clients...');
+    const recentClients = await Client.find()
       .sort({ createdAt: -1 })
-      .limit(3)
-      .select('full_name email createdAt');
+      .limit(3);
     
+    console.log(`📊 Found ${recentClients.length} recent clients`);
     recentClients.forEach(client => {
+      const displayData = client.toDisplayJSON();
+      console.log(`📊 Client: ${displayData.name || displayData.email} (${client._id}) - ${client.createdAt}`);
       activities.push({
         id: `client_${client._id}`,
         type: 'user_registration',
         icon: 'fas fa-user-plus',
         color: '#3b82f6',
-        message: `New client registered: ${client.full_name || client.email}`,
+        message: `New client registered: ${displayData.name || displayData.email}`,
         timestamp: client.createdAt
       });
     });
     
     // Get recent profile assessments
+    console.log('📊 Fetching recent profile assessments...');
     const recentAssessments = await ProfileAssessment.find()
       .sort({ createdAt: -1 })
-      .limit(3)
-      .select('client_name client_email overall_score createdAt');
+      .limit(3);
     
+    console.log(`📊 Found ${recentAssessments.length} recent assessments`);
     recentAssessments.forEach(assessment => {
+      const displayData = assessment.toDisplayJSON();
+      console.log(`📊 Assessment: ${displayData.client_name} (${assessment._id}) - ${assessment.createdAt}`);
       activities.push({
         id: `assessment_${assessment._id}`,
         type: 'profile_assessment',
         icon: 'fas fa-chart-line',
         color: '#14b8a6',
-        message: `Profile assessment completed for ${assessment.client_name}`,
+        message: `Profile assessment completed for ${displayData.client_name}`,
         timestamp: assessment.createdAt
       });
     });
@@ -294,16 +364,16 @@ exports.getRecentActivity = async (req, res) => {
     // Get recent contact forms
     const recentContacts = await ContactForm.find()
       .sort({ createdAt: -1 })
-      .limit(3)
-      .select('name email visa_type createdAt');
+      .limit(3);
     
     recentContacts.forEach(contact => {
+      const displayData = contact.toDisplayJSON();
       activities.push({
         id: `contact_${contact._id}`,
         type: 'contact_form',
         icon: 'fas fa-envelope',
         color: '#8b5cf6',
-        message: `New contact form submission from ${contact.name}`,
+        message: `New contact form submission from ${displayData.name}`,
         timestamp: contact.createdAt
       });
     });
@@ -312,8 +382,7 @@ exports.getRecentActivity = async (req, res) => {
     const recentPayments = await Payment.find({ status: 'completed' })
       .sort({ createdAt: -1 })
       .limit(3)
-      .populate('client', 'name email')
-      .select('amount client createdAt');
+      .populate('client');
     
     recentPayments.forEach(payment => {
       activities.push({
@@ -330,8 +399,7 @@ exports.getRecentActivity = async (req, res) => {
     const recentProjects = await Project.find()
       .sort({ createdAt: -1 })
       .limit(2)
-      .populate('client', 'name email')
-      .select('service_name client status createdAt');
+      .populate('client');
     
     recentProjects.forEach(project => {
       const isCompleted = project.status === 'completed';
@@ -350,16 +418,16 @@ exports.getRecentActivity = async (req, res) => {
     // Get recent appointments
     const recentAppointments = await AppointmentRequest.find()
       .sort({ createdAt: -1 })
-      .limit(2)
-      .select('name email status createdAt');
+      .limit(2);
     
     recentAppointments.forEach(appointment => {
+      const displayData = appointment.toDisplayJSON();
       activities.push({
         id: `appointment_${appointment._id}`,
         type: 'appointment_scheduled',
         icon: 'fas fa-calendar-check',
         color: '#84cc16',
-        message: `Appointment ${appointment.status === 'scheduled' ? 'scheduled' : 'requested'} with ${appointment.name}`,
+        message: `Appointment ${appointment.status === 'scheduled' ? 'scheduled' : 'requested'} with ${displayData.name}`,
         timestamp: appointment.createdAt
       });
     });
@@ -563,14 +631,19 @@ exports.getCrmStats = async (req, res) => {
     });
     console.log('💳 Pending Payments:', pendingPayments);
     
-    // Get completed projects
-    const completedProjects = await Project.countDocuments({
+    // Get completed projects - fetch all and filter to ensure accuracy
+    const allAssignedProjects = await Project.find({
       $or: [
         { assigned_to: crmManagerId },
         { assigned_to: crmManagerId.toString() }
       ],
-      status: 'completed'
-    });
+      status: { $ne: 'deleted' }
+    }).lean();
+    
+    console.log('📊 Total assigned projects found:', allAssignedProjects.length);
+    console.log('📊 Project statuses:', allAssignedProjects.map(p => ({ id: p.project_id, status: p.status })));
+    
+    const completedProjects = allAssignedProjects.filter(p => p.status === 'completed').length;
     console.log('✅ Completed Projects:', completedProjects);
     
     const stats = {
@@ -698,6 +771,7 @@ exports.getCrmActivity = async (req, res) => {
     }).distinct('_id');
     const recentPayments = await Payment.find({
       project: { $in: projectIds },
+      status: 'completed', // Only show completed payments as "received"
       createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
     }).populate('project', 'project_id')
       .sort({ createdAt: -1 })

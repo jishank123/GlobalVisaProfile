@@ -4,25 +4,37 @@ class EmailService {
   constructor() {
     this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: process.env.SMTP_PORT || 587,
-      secure: false,
+      port: parseInt(process.env.SMTP_PORT) || 587,
+      secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465', // true for 465, false for other ports
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
-      }
+      },
+      tls: {
+        rejectUnauthorized: false // Allow self-signed certificates (common with cPanel)
+      },
+      requireTLS: false,
+      connectionTimeout: 30000, // 30 seconds
+      greetingTimeout: 30000,
+      socketTimeout: 30000
     });
   }
 
   async sendEmailVerification(user, verificationToken) {
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}&email=${user.email}`;
+    // Get decrypted user data
+    const userData = user.toAuthJSON ? user.toAuthJSON() : user;
+    const userEmail = userData.email;
+    const userFirstName = userData.first_name;
+    
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}&email=${userEmail}`;
     
     const mailOptions = {
       from: `"${process.env.COMPANY_NAME || 'Immigration Services'}" <${process.env.SMTP_USER}>`,
-      to: user.email,
+      to: userEmail,
       subject: 'Verify Your Email Address',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Welcome ${user.first_name}!</h2>
+          <h2>Welcome ${userFirstName}!</h2>
           <p>Thank you for registering with us. Please verify your email address to complete your account setup.</p>
           
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
@@ -50,15 +62,20 @@ class EmailService {
   }
 
   async sendPasswordSetup(user, setupToken) {
-    const setupUrl = `${process.env.FRONTEND_URL}/setup-password?token=${setupToken}&email=${user.email}`;
+    // Get decrypted user data
+    const userData = user.toAuthJSON ? user.toAuthJSON() : user;
+    const userEmail = userData.email;
+    const userFirstName = userData.first_name;
+    
+    const setupUrl = `${process.env.FRONTEND_URL}/setup-password?token=${setupToken}&email=${userEmail}`;
     
     const mailOptions = {
       from: `"${process.env.COMPANY_NAME || 'Immigration Services'}" <${process.env.SMTP_USER}>`,
-      to: user.email,
+      to: userEmail,
       subject: 'Set Up Your Password',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Welcome ${user.first_name}!</h2>
+          <h2>Welcome ${userFirstName}!</h2>
           <p>Your account has been created. Please set up your password to access your dashboard.</p>
           
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
@@ -86,16 +103,27 @@ class EmailService {
   }
 
   async sendPasswordReset(user, resetToken) {
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}&email=${user.email}`;
+    // Get decrypted user data
+    const userData = user.toAuthJSON ? user.toAuthJSON() : user;
+    const userEmail = userData.email;
+    const userFirstName = userData.first_name;
+    
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}&email=${userEmail}`;
     
     const mailOptions = {
       from: `"${process.env.COMPANY_NAME || 'Immigration Services'}" <${process.env.SMTP_USER}>`,
-      to: user.email,
+      replyTo: process.env.SUPPORT_EMAIL || process.env.SMTP_USER,
+      to: userEmail,
       subject: 'Reset Your Password',
+      headers: {
+        'X-Priority': '1',
+        'X-MSMail-Priority': 'High',
+        'Importance': 'high'
+      },
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Password Reset Request</h2>
-          <p>Hi ${user.first_name},</p>
+          <p>Hi ${userFirstName},</p>
           <p>You requested to reset your password. Click the button below to create a new password.</p>
           
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
@@ -122,15 +150,20 @@ class EmailService {
   }
 
   async sendWelcomeEmail(user) {
+    // Get decrypted user data
+    const userData = user.toAuthJSON ? user.toAuthJSON() : user;
+    const userEmail = userData.email;
+    const userFirstName = userData.first_name;
+    
     const dashboardUrl = `${process.env.FRONTEND_URL}/dashboard`;
     
     const mailOptions = {
       from: `"${process.env.COMPANY_NAME || 'Immigration Services'}" <${process.env.SMTP_USER}>`,
-      to: user.email,
+      to: userEmail,
       subject: 'Welcome to Your Immigration Journey!',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Welcome ${user.first_name}!</h2>
+          <h2>Welcome ${userFirstName}!</h2>
           <p>Your account is now fully set up and ready to use.</p>
           
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">

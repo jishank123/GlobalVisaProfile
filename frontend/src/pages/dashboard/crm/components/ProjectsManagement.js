@@ -6,7 +6,7 @@ import { designSystem, componentStyles, hoverEffects } from '../../../../styles/
 const getStatusBadgeStyle = (status) => {
   const statusStyles = {
     'pending': { background: '#f59e0b', color: 'white' },
-    'in_progress': { background: '#3b82f6', color: 'white' },
+    'active': { background: '#3b82f6', color: 'white' },
     'on_hold': { background: '#ef4444', color: 'white' },
     'completed': { background: '#10b981', color: 'white' },
     'cancelled': { background: '#6b7280', color: 'white' }
@@ -82,7 +82,7 @@ const ProjectsManagement = ({ user }) => {
     return projects.filter(project => {
       switch (status) {
         case 'active':
-          return project.status === 'in_progress';
+          return project.status === 'active';
         case 'pending':
           return project.status === 'pending';
         case 'completed':
@@ -99,7 +99,7 @@ const ProjectsManagement = ({ user }) => {
   const getProjectCounts = () => {
     return {
       total: projects.length,
-      active: projects.filter(project => project.status === 'in_progress').length,
+      active: projects.filter(project => project.status === 'active').length,
       pending: projects.filter(project => project.status === 'pending').length,
       completed: projects.filter(project => project.status === 'completed').length,
       onHold: projects.filter(project => project.status === 'on_hold').length
@@ -129,6 +129,9 @@ const ProjectsManagement = ({ user }) => {
   };
 
   const viewProjectDetails = (project) => {
+    console.log('👁️ Opening project details modal for project:', project);
+    console.log('👁️ Project status:', project.status);
+    console.log('👁️ Project progress:', project.progress);
     setModalData(project);
     setModalType('view');
     setShowModal(true);
@@ -178,47 +181,29 @@ const ProjectsManagement = ({ user }) => {
 
   const handleUpdateProjectStatus = async (projectId, newStatus, newProgress) => {
     try {
-      // Use the progress update endpoint which has better security logic
-      // and automatically updates status based on progress
-      if (newProgress !== undefined) {
-        const response = await projectsAPI.updateProgress(projectId, newProgress);
-        
-        if (response.success) {
-          loadAssignedProjects(); // Refresh the list
-          alert('Project status and progress updated successfully!');
-        } else {
-          throw new Error(response.error?.message || 'Failed to update project');
-        }
+      console.log('🔄 Updating project:', projectId);
+      console.log('🔄 New status (before sending):', newStatus);
+      console.log('🔄 New progress:', newProgress);
+      
+      // Ensure we're not sending in_progress
+      const statusToSend = newStatus === 'in_progress' ? 'active' : newStatus;
+      console.log('🔄 Status to send:', statusToSend);
+      
+      // Update both status and progress using the general update endpoint
+      const response = await projectsAPI.update(projectId, {
+        status: statusToSend,
+        progress: newProgress
+      });
+      
+      if (response.success) {
+        console.log('✅ Project updated successfully');
+        await loadAssignedProjects(); // Refresh the list
+        alert('Project status and progress updated successfully!');
       } else {
-        // If only status is being updated, we still need to use the general update
-        // but we'll set a progress value that matches the status
-        let progressValue;
-        switch (newStatus) {
-          case 'pending':
-            progressValue = 0;
-            break;
-          case 'in_progress':
-          case 'active':
-            progressValue = 50; // Default to 50% for active projects
-            break;
-          case 'completed':
-            progressValue = 100;
-            break;
-          default:
-            progressValue = 25; // Default progress
-        }
-        
-        const response = await projectsAPI.updateProgress(projectId, progressValue);
-        
-        if (response.success) {
-          loadAssignedProjects(); // Refresh the list
-          alert('Project status and progress updated successfully!');
-        } else {
-          throw new Error(response.error?.message || 'Failed to update project');
-        }
+        throw new Error(response.error?.message || 'Failed to update project');
       }
     } catch (error) {
-      console.error('Error updating project:', error);
+      console.error('❌ Error updating project:', error);
       alert(`Error updating project: ${error.message}`);
     }
   };
@@ -410,13 +395,6 @@ const ProjectsManagement = ({ user }) => {
                       >
                         <i className="fas fa-calendar-plus"></i>
                       </button>
-                      <button 
-                        className="btn btn-outline-info btn-sm"
-                        onClick={() => viewClientDetails(project)}
-                        title="View Client Details"
-                      >
-                        <i className="fas fa-user"></i>
-                      </button>
                     </div>
                   </td>
                 </tr>
@@ -470,9 +448,9 @@ const ProjectsManagement = ({ user }) => {
           iconColor="#3b82f6"
         />
         <StatCard
-          icon="fas fa-clock"
-          number={getProjectCounts().pending}
-          label="Pending Projects"
+          icon="fas fa-pause-circle"
+          number={getProjectCounts().onHold}
+          label="On Hold Projects"
           borderColor="#f59e0b"
           iconColor="#f59e0b"
         />
@@ -578,8 +556,9 @@ const ProjectsManagement = ({ user }) => {
       )}
 
       {/* Project Details Modal */}
-      {showModal && (
+      {showModal && modalData && (
         <ProjectDetailsModal
+          key={`${modalData._id}-${modalData.status}-${modalData.progress}`}
           show={showModal}
           onHide={handleModalClose}
           type={modalType}
@@ -594,7 +573,7 @@ const ProjectsManagement = ({ user }) => {
 
 // Project Details Modal Component
 const ProjectDetailsModal = ({ show, onHide, type, data, onUpdateStatus, user }) => {
-  const [newStatus, setNewStatus] = useState(data?.status || '');
+  const [newStatus, setNewStatus] = useState(data?.status || 'pending');
   const [newProgress, setNewProgress] = useState(data?.progress || 0);
   const [loadingClient, setLoadingClient] = useState(false);
   const [meetingData, setMeetingData] = useState({
@@ -608,7 +587,17 @@ const ProjectDetailsModal = ({ show, onHide, type, data, onUpdateStatus, user })
     meetingLink: ''
   });
 
+  // Auto-set progress to 100% when status is completed
+  useEffect(() => {
+    if (newStatus === 'completed' && newProgress !== 100) {
+      console.log('📊 Auto-setting progress to 100% for completed status');
+      setNewProgress(100);
+    }
+  }, [newStatus]);
+
   if (!show || !data) return null;
+
+  console.log('📊 Rendering modal with status:', newStatus, 'progress:', newProgress);
 
   const handleStatusUpdate = () => {
     if (newStatus !== data.status || newProgress !== data.progress) {
@@ -629,7 +618,7 @@ const ProjectDetailsModal = ({ show, onHide, type, data, onUpdateStatus, user })
                  `${data.client.firstName} ${data.client.lastName}` : 
                  'Unknown Client'),
           email: data.client?.email || '',
-          phone: data.client?.phone && data.client.phone.trim() ? data.client.phone : '000-000-0000', // Provide valid phone format
+          phone: data.client?.phone && String(data.client.phone).trim() ? String(data.client.phone).trim() : '000-000-0000', // Provide valid phone format
           visa_category: 'other', // Use valid visa category like lead manager
           timezone: 'EST',
           preferred_date: meetingData.date,
@@ -701,49 +690,62 @@ const ProjectDetailsModal = ({ show, onHide, type, data, onUpdateStatus, user })
                 </h6>
                 <div className="row">
                   <div className="col-md-6">
-                    <p><strong>Name:</strong> {data.client?.name || 
-                      (data.client?.user_id?.first_name && data.client?.user_id?.last_name ? 
-                       `${data.client.user_id.first_name} ${data.client.user_id.last_name}` : 
-                       'N/A')}</p>
-                    <p><strong>Email:</strong> {data.client?.email || data.client?.user_id?.email || 'N/A'}</p>
-                    <p><strong>Phone:</strong> {data.client?.phone || data.client?.user_id?.phone || 'Not provided'}</p>
-                    <p><strong>Company:</strong> {data.client?.user_id?.company || 'Not provided'}</p>
+                    {(data.client?.name || (data.client?.user_id?.first_name && data.client?.user_id?.last_name)) && (
+                      <p><strong>Name:</strong> {data.client?.name || 
+                        `${data.client.user_id.first_name} ${data.client.user_id.last_name}`}</p>
+                    )}
+                    {(data.client?.email || data.client?.user_id?.email) && (
+                      <p><strong>Email:</strong> {data.client?.email || data.client?.user_id?.email}</p>
+                    )}
+                    {(data.client?.phone || data.client?.user_id?.phone) && (
+                      <p><strong>Phone:</strong> {data.client?.phone || data.client?.user_id?.phone}</p>
+                    )}
+                    {data.client?.user_id?.company && (
+                      <p><strong>Company:</strong> {data.client.user_id.company}</p>
+                    )}
                   </div>
                   <div className="col-md-6">
-                    <p><strong>University:</strong> {data.client?.university || data.client?.user_id?.university || 'Not provided'}</p>
-                    <p><strong>Country:</strong> {data.client?.user_id?.country || 'Not provided'}</p>
-                    <p><strong>Status:</strong> {data.client?.status ? (
-                      <span style={{
+                    {(data.client?.university || data.client?.user_id?.university) && (
+                      <p><strong>University:</strong> {data.client?.university || data.client?.user_id?.university}</p>
+                    )}
+                    {data.client?.user_id?.country && (
+                      <p><strong>Country:</strong> {data.client.user_id.country}</p>
+                    )}
+                    {data.client?.status && (
+                      <p><strong>Status:</strong> <span style={{
                         ...componentStyles.badge,
                         background: data.client.status === 'active' ? '#10b981' : 
                                    data.client.status === 'vip' ? '#8b5cf6' : '#6b7280',
                         color: 'white',
                         textTransform: 'uppercase',
                         marginLeft: '8px'
-                      }}>{data.client.status}</span>
-                    ) : 'Not set'}</p>
-                    <p><strong>Satisfaction Rating:</strong> {data.client?.satisfaction_rating ? 
-                      `${data.client.satisfaction_rating}/5 ⭐` : 'Not rated'}</p>
+                      }}>{data.client.status}</span></p>
+                    )}
+                    {data.client?.satisfaction_rating && (
+                      <p><strong>Satisfaction Rating:</strong> {data.client.satisfaction_rating}/5 ⭐</p>
+                    )}
                   </div>
                 </div>
 
                 <div className="row mt-3">
-                  <div className="col-md-6">
-                    <p><strong>Registration Date:</strong> {data.client?.createdAt ? 
-                      new Date(data.client.createdAt).toLocaleDateString('en-US', {
+                  {data.client?.createdAt && (
+                    <div className="col-md-6">
+                      <p><strong>Registration Date:</strong> {new Date(data.client.createdAt).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'
-                      }) : 'N/A'}</p>
-                  </div>
-                  <div className="col-md-6">
-                    <p><strong>Last Updated:</strong> {data.client?.updatedAt ? 
-                      new Date(data.client.updatedAt).toLocaleDateString('en-US', {
+                      })}</p>
+                    </div>
+                  )}
+                  {data.client?.updatedAt && (
+                    <div className="col-md-6">
+                      <p><strong>Last Updated:</strong> {new Date(data.client.updatedAt).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'
-                      }) : 'N/A'}</p>
-                  </div>
+                      })}</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Bio Section */}
@@ -980,18 +982,26 @@ const ProjectDetailsModal = ({ show, onHide, type, data, onUpdateStatus, user })
               <div>
                 <div className="row">
                   <div className="col-md-6">
-                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
-                      Project Information
+                    <h6 className="text-primary mb-3">
+                      <i className="fas fa-info-circle me-2"></i>Project Information
                     </h6>
                     <p><strong>Project ID:</strong> {data.project_id || `#${data._id.slice(-8).toUpperCase()}`}</p>
                     <p><strong>Service:</strong> {data.service?.name || data.service_name || 'N/A'}</p>
-                    <p><strong>Client:</strong> {data.client?.name || `${data.client?.firstName || ''} ${data.client?.lastName || ''}`.trim() || 'N/A'}</p>
                     <p><strong>Amount:</strong> ${data.amount || 0}</p>
-                    <p><strong>Paid Amount:</strong> ${data.paid_amount || 0}</p>
+                    
+                    <h6 className="text-primary mb-3 mt-4">
+                      <i className="fas fa-user me-2"></i>Client Information
+                    </h6>
+                    <p><strong>Name:</strong> {data.client?.name || 
+                      (data.client?.firstName && data.client?.lastName ? 
+                       `${data.client.firstName} ${data.client.lastName}` : 
+                       'Unknown Client')}</p>
+                    <p><strong>Email:</strong> {data.client?.email || 'N/A'}</p>
+                    <p><strong>Phone:</strong> {data.client?.phone || 'Not provided'}</p>
                   </div>
                   <div className="col-md-6">
-                    <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
-                      Status & Progress
+                    <h6 className="text-primary mb-3">
+                      <i className="fas fa-chart-bar me-2"></i>Status & Progress
                     </h6>
                     <div className="mb-3">
                       <label className="form-label"><strong>Status:</strong></label>
@@ -1001,7 +1011,7 @@ const ProjectDetailsModal = ({ show, onHide, type, data, onUpdateStatus, user })
                         onChange={(e) => setNewStatus(e.target.value)}
                       >
                         <option value="pending">Pending</option>
-                        <option value="in_progress">In Progress</option>
+                        <option value="active">Active</option>
                         <option value="on_hold">On Hold</option>
                         <option value="completed">Completed</option>
                         <option value="cancelled">Cancelled</option>
@@ -1027,7 +1037,6 @@ const ProjectDetailsModal = ({ show, onHide, type, data, onUpdateStatus, user })
                     <p><strong>Due Date:</strong> {data.due_date ? new Date(data.due_date).toLocaleDateString() : 'Not set'}</p>
                   </div>
                 </div>
-                
 
               </div>
             )}

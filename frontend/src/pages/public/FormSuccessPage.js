@@ -1,28 +1,72 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { profileAssessmentsAPI } from '../../services/api';
+import { generateAssessmentPDF } from '../../utils/pdfGenerator';
 
 const FormSuccessPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [countdown, setCountdown] = useState(10);
+  const [assessment, setAssessment] = useState(null);
+  const [loadingAssessment, setLoadingAssessment] = useState(false);
+
+  // Scroll to top on component mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
   
   const type = searchParams.get('type') || 'form';
   const email = searchParams.get('email');
   const accountCreated = searchParams.get('accountCreated') === 'true';
-  
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          navigate('/');
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
 
-    return () => clearInterval(timer);
-  }, [navigate]);
+  // Fetch assessment data if it's a profile assessment
+  useEffect(() => {
+    const fetchAssessment = async () => {
+      if (type === 'profile_assessment' && email) {
+        setLoadingAssessment(true);
+        try {
+          const token = localStorage.getItem('token');
+          if (token) {
+            // Add a small delay to ensure the assessment is fully saved and linked
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            const response = await profileAssessmentsAPI.getClientAssessments();
+            console.log('Assessment fetch response:', response);
+            
+            if (response.success && response.data && response.data.length > 0) {
+              // Get the most recent assessment
+              setAssessment(response.data[0]);
+              console.log('Assessment loaded:', response.data[0]);
+            } else {
+              console.log('No assessments found');
+            }
+          } else {
+            console.log('No token found');
+          }
+        } catch (error) {
+          console.error('Failed to fetch assessment:', error);
+        } finally {
+          setLoadingAssessment(false);
+        }
+      }
+    };
+
+    fetchAssessment();
+  }, [type, email]);
+
+  const handleDownloadPDF = () => {
+    if (!assessment) return;
+    
+    setDownloadingPDF(true);
+    try {
+      generateAssessmentPDF(assessment);
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setDownloadingPDF(false);
+    }
+  };
 
   const getContent = () => {
     switch (type) {
@@ -86,17 +130,47 @@ const FormSuccessPage = () => {
           {email && (
             <div className="mt-4 p-4 bg-white rounded-lg border border-blue-100">
               <p className="text-sm text-gray-600 mb-2">
-                <strong>{accountCreated ? 'Account Created:' : 'Existing Account:'}</strong>
+                <strong>Account Created:</strong>
               </p>
               <p className="text-blue-600 font-medium">
                 {email}
               </p>
               <p className="text-sm text-gray-500 mt-2">
-                {accountCreated 
-                  ? 'A new account has been created for you. Check your email for login instructions and password setup.'
-                  : 'You have been automatically logged in to your existing account. You can access your dashboard now.'
-                }
+                Your account has been created automatically. You can now login with your email to access your dashboard now.
               </p>
+            </div>
+          )}
+
+          {/* Download Assessment Button */}
+          {type === 'profile_assessment' && assessment && (
+            <div className="mt-4">
+              <button
+                onClick={handleDownloadPDF}
+                disabled={downloadingPDF}
+                className="w-full bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                {downloadingPDF ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin"></i>
+                    Generating PDF...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-download"></i>
+                    Download Assessment Report Card
+                  </>
+                )}
+              </button>
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Download your detailed EB-1A profile assessment report
+              </p>
+            </div>
+          )}
+
+          {type === 'profile_assessment' && loadingAssessment && (
+            <div className="mt-4 text-center text-gray-500">
+              <i className="fas fa-spinner fa-spin mr-2"></i>
+              Loading your assessment...
             </div>
           )}
         </div>
@@ -145,18 +219,6 @@ const FormSuccessPage = () => {
               Login to Dashboard
             </button>
           )}
-          
-          <button
-            onClick={() => navigate('/contact')}
-            className="border border-gray-300 text-gray-700 px-8 py-3 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-          >
-            Contact Us
-          </button>
-        </div>
-        
-        {/* Auto-redirect notice */}
-        <div className="mt-8 text-sm text-gray-500">
-          Automatically redirecting to home page in {countdown} seconds...
         </div>
       </div>
     </div>

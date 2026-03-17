@@ -38,6 +38,14 @@ const MyTasks = () => {
 
   const getFilteredTasks = (status) => {
     if (status === 'all') return tasks;
+    if (status === 'overdue') {
+      const now = new Date();
+      return tasks.filter(task => {
+        if (task.status === 'completed') return false;
+        if (!task.due_date) return false;
+        return new Date(task.due_date) < now;
+      });
+    }
     return tasks.filter(task => {
       switch (status) {
         case 'pending':
@@ -53,11 +61,19 @@ const MyTasks = () => {
   };
 
   const getTaskCounts = () => {
+    const now = new Date();
+    const overdue = tasks.filter(t => {
+      if (t.status === 'completed') return false;
+      if (!t.due_date) return false;
+      return new Date(t.due_date) < now;
+    }).length;
+
     return {
       total: tasks.length,
       pending: tasks.filter(t => t.status === 'pending').length,
       inProgress: tasks.filter(t => t.status === 'in_progress').length,
-      completed: tasks.filter(t => t.status === 'completed').length
+      completed: tasks.filter(t => t.status === 'completed').length,
+      overdue: overdue
     };
   };
 
@@ -118,7 +134,14 @@ const MyTasks = () => {
   const renderTaskTable = (taskType) => {
     const filteredTasks = getFilteredTasks(taskType);
     
-    if (filteredTasks.length === 0) {
+    // Sort tasks by creation date (newest first)
+    const sortedTasks = [...filteredTasks].sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0);
+      const dateB = new Date(b.createdAt || 0);
+      return dateB - dateA; // Descending order (newest first)
+    });
+    
+    if (sortedTasks.length === 0) {
       return (
         <div style={componentStyles.emptyState}>
           <i className="fas fa-tasks fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
@@ -144,7 +167,7 @@ const MyTasks = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredTasks.map(task => {
+            {sortedTasks.map(task => {
               const statusStyle = getStatusBadgeStyle(task.status);
               const priorityStyle = getPriorityStyle(task.priority || 'medium');
               const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';
@@ -306,38 +329,6 @@ const MyTasks = () => {
         </button>
       </div>
 
-      {/* Overview Statistics */}
-      <div style={componentStyles.statsContainer}>
-        <StatCard
-          icon="fas fa-tasks"
-          number={getTaskCounts().total}
-          label="Total Tasks"
-          borderColor="#10b981"
-          iconColor="#10b981"
-        />
-        <StatCard
-          icon="fas fa-clock"
-          number={getTaskCounts().pending}
-          label="Pending"
-          borderColor="#f59e0b"
-          iconColor="#f59e0b"
-        />
-        <StatCard
-          icon="fas fa-play-circle"
-          number={getTaskCounts().inProgress}
-          label="In Progress"
-          borderColor="#3b82f6"
-          iconColor="#3b82f6"
-        />
-        <StatCard
-          icon="fas fa-check-circle"
-          number={getTaskCounts().completed}
-          label="Completed"
-          borderColor="#10b981"
-          iconColor="#10b981"
-        />
-      </div>
-
       {/* Loading State */}
       {loading && (
         <div style={componentStyles.loading}>
@@ -399,6 +390,19 @@ const MyTasks = () => {
               >
                 Completed ({getTaskCounts().completed})
               </button>
+              <button 
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: activeTab === 'overdue' ? '#ef4444' : designSystem.colors.gray[100],
+                  color: activeTab === 'overdue' ? 'white' : designSystem.colors.gray[600],
+                  boxShadow: activeTab === 'overdue' ? designSystem.shadows.button : 'none'
+                }}
+                onClick={() => setActiveTab('overdue')}
+                {...hoverEffects.button}
+              >
+                <i className="fas fa-exclamation-triangle me-2"></i>
+                Overdue ({getTaskCounts().overdue})
+              </button>
             </div>
           </div>
 
@@ -440,16 +444,54 @@ const MyTasks = () => {
 const TaskModal = ({ show, onHide, type, task, onUpdate }) => {
   const [progress, setProgress] = useState(task.progress || 0);
   const [status, setStatus] = useState(task.status || 'pending');
-  const [selectedFiles, setSelectedFiles] = useState([]);
-  const [fileDescription, setFileDescription] = useState('');
+  const [fileData, setFileData] = useState({
+    files: [{ file: null, description: '' }]
+  });
   const [uploading, setUploading] = useState(false);
   const [updating, setUpdating] = useState(false);
 
+  // Auto-set progress to 100% when status is completed
+  useEffect(() => {
+    if (status === 'completed' && progress !== 100) {
+      setProgress(100);
+    }
+  }, [status]);
+
   if (!show) return null;
 
-  const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files);
-    setSelectedFiles(files);
+  const handleFileChange = (index, e) => {
+    if (e.target.files && e.target.files[0]) {
+      const newFiles = [...fileData.files];
+      newFiles[index].file = e.target.files[0];
+      setFileData({
+        ...fileData,
+        files: newFiles
+      });
+    }
+  };
+
+  const handleFileDescriptionChange = (index, value) => {
+    const newFiles = [...fileData.files];
+    newFiles[index].description = value;
+    setFileData({
+      ...fileData,
+      files: newFiles
+    });
+  };
+
+  const addMoreFile = () => {
+    setFileData({
+      ...fileData,
+      files: [...fileData.files, { file: null, description: '' }]
+    });
+  };
+
+  const removeFile = (index) => {
+    const newFiles = fileData.files.filter((_, i) => i !== index);
+    setFileData({
+      ...fileData,
+      files: newFiles.length > 0 ? newFiles : [{ file: null, description: '' }]
+    });
   };
 
   const handleUpdateProgress = async () => {
@@ -485,38 +527,63 @@ const TaskModal = ({ show, onHide, type, task, onUpdate }) => {
   };
 
   const handleFileUpload = async () => {
-    if (selectedFiles.length === 0) {
-      alert('Please select files to upload');
+    const hasFiles = fileData.files.some(item => item.file !== null);
+    if (!hasFiles) {
+      alert('Please select at least one file to upload');
       return;
     }
 
     try {
       setUploading(true);
+      let successCount = 0;
+      let errorCount = 0;
       
-      const formData = new FormData();
-      selectedFiles.forEach(file => {
-        formData.append('files', file);
-      });
-      formData.append('description', fileDescription);
-      formData.append('taskId', task._id);
+      // Upload each file separately with its own description
+      for (const fileItem of fileData.files) {
+        if (!fileItem.file) continue; // Skip empty file slots
+        
+        try {
+          const formData = new FormData();
+          formData.append('files', fileItem.file);
+          formData.append('description', fileItem.description || '');
+          
+          const response = await fetch(getApiEndpoint(`/tasks/${task._id}/upload`), {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: formData
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            successCount++;
+          } else {
+            errorCount++;
+            console.error(`Failed to upload ${fileItem.file.name}:`, data.error);
+          }
+        } catch (error) {
+          errorCount++;
+          console.error(`Error uploading ${fileItem.file.name}:`, error);
+        }
+      }
       
-      const response = await fetch(getApiEndpoint(`/tasks/${task._id}/upload`), {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: formData
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        alert('Files uploaded successfully!');
-        setSelectedFiles([]);
-        setFileDescription('');
-        onUpdate();
+      // Show result message and update progress if files uploaded successfully
+      if (successCount > 0 && errorCount === 0) {
+        alert(`Successfully uploaded ${successCount} file(s)!`);
+        setFileData({ files: [{ file: null, description: '' }] });
+        
+        // Automatically update task progress after successful file upload
+        await handleUpdateProgress();
+      } else if (successCount > 0 && errorCount > 0) {
+        alert(`Uploaded ${successCount} file(s) successfully, but ${errorCount} file(s) failed.`);
+        setFileData({ files: [{ file: null, description: '' }] });
+        
+        // Still update progress even if some files failed
+        await handleUpdateProgress();
       } else {
-        throw new Error(data.error?.message || 'Failed to upload files');
+        alert('Failed to upload files. Please try again.');
       }
     } catch (error) {
       console.error('Error uploading files:', error);
@@ -541,7 +608,7 @@ const TaskModal = ({ show, onHide, type, task, onUpdate }) => {
           <div className="modal-body" style={componentStyles.modalBody}>
             {/* Task Information */}
             <div className="mb-4">
-              <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+              <h6 style={{ color: '#3b82f6', marginBottom: designSystem.spacing.md, fontWeight: '600' }}>
                 Task Information
               </h6>
               <div className="row">
@@ -561,7 +628,7 @@ const TaskModal = ({ show, onHide, type, task, onUpdate }) => {
             {/* Update Progress Section */}
             {type === 'update' && (
               <div className="mb-4">
-                <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                <h6 style={{ color: '#3b82f6', marginBottom: designSystem.spacing.md, fontWeight: '600' }}>
                   Update Progress
                 </h6>
                 <div className="mb-3">
@@ -626,102 +693,268 @@ const TaskModal = ({ show, onHide, type, task, onUpdate }) => {
             {/* File Upload Section */}
             {type === 'update' && (
               <div className="mb-4">
-                <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                <h6 style={{ color: '#3b82f6', marginBottom: designSystem.spacing.md, fontWeight: '600' }}>
                   <i className="fas fa-paperclip me-2"></i>Upload Files
                 </h6>
-                <div className="mb-3">
-                  <label className="form-label"><strong>Select Files</strong></label>
-                  <input 
-                    type="file"
-                    className="form-control"
-                    multiple
-                    onChange={handleFileSelect}
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif"
-                  />
-                  <small className="text-muted">Accepted: PDF, Word, Excel, Images (Max 5MB per file)</small>
+                
+                <div style={{
+                  background: '#eff6ff',
+                  border: '1px solid #93c5fd',
+                  borderRadius: designSystem.borderRadius.button,
+                  padding: designSystem.spacing.sm,
+                  marginBottom: designSystem.spacing.md,
+                  fontSize: '13px',
+                  color: '#1e40af'
+                }}>
+                  <i className="fas fa-info-circle me-2"></i>
+                  <strong>Note:</strong> Uploading files will automatically save your progress update as well.
                 </div>
                 
-                {selectedFiles.length > 0 && (
-                  <div className="mb-3">
-                    <strong>Selected Files:</strong>
-                    <ul className="list-unstyled mt-2">
-                      {selectedFiles.map((file, index) => (
-                        <li key={index} style={{ padding: '4px 0' }}>
-                          <i className="fas fa-file me-2"></i>
-                          {file.name} ({(file.size / 1024).toFixed(2)} KB)
-                        </li>
-                      ))}
-                    </ul>
+                {fileData.files.map((fileItem, index) => (
+                  <div key={index} style={{
+                    border: `1px solid ${designSystem.colors.gray[300]}`,
+                    borderRadius: designSystem.borderRadius.button,
+                    padding: designSystem.spacing.sm,
+                    marginBottom: designSystem.spacing.sm,
+                    background: 'white'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: designSystem.spacing.xs }}>
+                      <h6 style={{ margin: 0, color: designSystem.colors.dark, fontSize: '13px' }}>
+                        <i className="fas fa-file me-2"></i>
+                        File {index + 1}
+                      </h6>
+                      {fileData.files.length > 1 && (
+                        <button 
+                          type="button"
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => removeFile(index)}
+                          style={{ padding: '2px 8px', fontSize: '11px' }}
+                        >
+                          <i className="fas fa-times"></i>
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="mb-2">
+                      <label className="form-label" style={{ fontSize: '12px', marginBottom: '4px' }}>
+                        Select File
+                      </label>
+                      <input 
+                        type="file"
+                        className="form-control form-control-sm"
+                        onChange={(e) => handleFileChange(index, e)}
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif"
+                      />
+                      {index === 0 && (
+                        <small className="text-muted" style={{ fontSize: '11px' }}>
+                          <i className="fas fa-info-circle me-1"></i>
+                          PDF, Word, Excel, Images (Max 5MB per file)
+                        </small>
+                      )}
+                      {fileItem.file && (
+                        <small className="text-success d-block mt-1" style={{ fontSize: '11px' }}>
+                          <i className="fas fa-check-circle me-1"></i>
+                          {fileItem.file.name} ({(fileItem.file.size / 1024).toFixed(2)} KB)
+                        </small>
+                      )}
+                    </div>
+                    
+                    <div className="mb-0">
+                      <label className="form-label" style={{ fontSize: '12px', marginBottom: '4px' }}>
+                        Description/Notes
+                      </label>
+                      <textarea 
+                        className="form-control form-control-sm"
+                        rows="2"
+                        value={fileItem.description}
+                        onChange={(e) => handleFileDescriptionChange(index, e.target.value)}
+                        placeholder="Add notes about this file..."
+                        style={{ fontSize: '12px' }}
+                      />
+                    </div>
                   </div>
-                )}
+                ))}
                 
                 <div className="mb-3">
-                  <label className="form-label"><strong>File Description (Optional)</strong></label>
-                  <textarea 
-                    className="form-control"
-                    rows="2"
-                    value={fileDescription}
-                    onChange={(e) => setFileDescription(e.target.value)}
-                    placeholder="Add a description for these files..."
-                  />
+                  <button 
+                    type="button"
+                    className="btn btn-sm btn-outline-primary"
+                    onClick={addMoreFile}
+                    style={{ fontSize: '11px', padding: '4px 10px' }}
+                  >
+                    <i className="fas fa-plus me-1"></i>
+                    Add More Files
+                  </button>
                 </div>
 
                 <button 
                   className="btn btn-success w-100"
                   onClick={handleFileUpload}
-                  disabled={uploading || selectedFiles.length === 0}
+                  disabled={uploading || !fileData.files.some(f => f.file !== null)}
                 >
                   {uploading ? (
                     <>
                       <i className="fas fa-spinner fa-spin me-2"></i>
-                      Uploading...
+                      Uploading & Updating...
                     </>
                   ) : (
                     <>
                       <i className="fas fa-upload me-2"></i>
-                      Upload Files ({selectedFiles.length})
+                      Upload {fileData.files.filter(f => f.file !== null).length} File(s) & Update Progress
                     </>
                   )}
                 </button>
               </div>
             )}
 
-            {/* Existing Files */}
-            {task.files && task.files.length > 0 && (
+            {/* Existing Files - Only show in view mode */}
+            {type === 'view' && task.files && task.files.length > 0 && (
               <div>
-                <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
+                <h6 style={{ color: '#3b82f6', marginBottom: designSystem.spacing.md, fontWeight: '600' }}>
                   <i className="fas fa-paperclip me-2"></i>Uploaded Files ({task.files.length})
                 </h6>
-                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                  {task.files.map((file, index) => (
-                    <div 
-                      key={index}
-                      style={{
-                        padding: designSystem.spacing.sm,
-                        marginBottom: designSystem.spacing.xs,
-                        background: designSystem.colors.gray[100],
-                        borderRadius: designSystem.borderRadius.button,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <div>
-                        <strong>{file.originalName || file.filename}</strong>
-                        <div style={{ fontSize: '12px', color: designSystem.colors.gray[500] }}>
-                          Uploaded: {new Date(file.uploaded_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                      <a 
-                        href={getStaticFileUrl(`/${file.path}`)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-outline-primary btn-sm"
-                      >
-                        <i className="fas fa-download"></i>
-                      </a>
+                <div className="row">
+                  {/* Employee Files (Left Column - Blue) */}
+                  <div className="col-md-6">
+                    <h6 style={{ fontSize: '14px', color: '#1565c0', marginBottom: designSystem.spacing.sm }}>
+                      <i className="fas fa-user me-2"></i>
+                      My Uploaded Files
+                    </h6>
+                    <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                      {task.files
+                        .filter(file => file.uploaded_by_role === 'employee')
+                        .map((file, index) => (
+                          <div 
+                            key={index}
+                            style={{
+                              padding: designSystem.spacing.sm,
+                              marginBottom: designSystem.spacing.xs,
+                              background: '#e3f2fd',
+                              borderRadius: designSystem.borderRadius.button,
+                              border: '1px solid #90caf9',
+                              borderLeft: '4px solid #1976d2'
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <div style={{ flex: 1 }}>
+                                <strong style={{ color: '#1565c0', fontSize: '13px' }}>{file.originalName || file.filename}</strong>
+                                {file.description && (
+                                  <div style={{ fontSize: '12px', color: designSystem.colors.gray[600], marginTop: '2px' }}>
+                                    {file.description}
+                                  </div>
+                                )}
+                                <div style={{ fontSize: '11px', color: designSystem.colors.gray[500], marginTop: '2px' }}>
+                                  Uploaded: {new Date(file.uploaded_at).toLocaleDateString()}
+                                </div>
+                              </div>
+                              <button
+                                className="btn btn-outline-primary btn-sm"
+                                style={{ padding: '2px 6px', fontSize: '11px' }}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  const fileUrl = getStaticFileUrl(`/${file.path}`);
+                                  fetch(fileUrl)
+                                    .then(response => response.blob())
+                                    .then(blob => {
+                                      const url = window.URL.createObjectURL(blob);
+                                      const a = document.createElement('a');
+                                      a.style.display = 'none';
+                                      a.href = url;
+                                      a.download = file.originalName || file.filename;
+                                      document.body.appendChild(a);
+                                      a.click();
+                                      window.URL.revokeObjectURL(url);
+                                      document.body.removeChild(a);
+                                    })
+                                    .catch(err => {
+                                      console.error('Download error:', err);
+                                      alert('Failed to download file. Opening in new tab instead.');
+                                      window.open(fileUrl, '_blank');
+                                    });
+                                }}
+                                title="Download file"
+                              >
+                                <i className="fas fa-download"></i>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      {task.files.filter(file => file.uploaded_by_role === 'employee').length === 0 && (
+                        <small className="text-muted">No files uploaded yet</small>
+                      )}
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Project Manager Files (Right Column - Green) */}
+                  <div className="col-md-6">
+                    <h6 style={{ fontSize: '14px', color: '#2e7d32', marginBottom: designSystem.spacing.sm }}>
+                      <i className="fas fa-user-tie me-2"></i>
+                      Project Manager Files
+                    </h6>
+                    <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                      {task.files
+                        .filter(file => file.uploaded_by_role === 'project_manager')
+                        .map((file, index) => (
+                          <div 
+                            key={index}
+                            style={{
+                              padding: designSystem.spacing.sm,
+                              marginBottom: designSystem.spacing.xs,
+                              background: '#e8f5e9',
+                              borderRadius: designSystem.borderRadius.button,
+                              border: '1px solid #a5d6a7',
+                              borderLeft: '4px solid #388e3c'
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <div style={{ flex: 1 }}>
+                                <strong style={{ color: '#2e7d32', fontSize: '13px' }}>{file.originalName || file.filename}</strong>
+                                {file.description && (
+                                  <div style={{ fontSize: '12px', color: designSystem.colors.gray[600], marginTop: '2px' }}>
+                                    {file.description}
+                                  </div>
+                                )}
+                                <div style={{ fontSize: '11px', color: designSystem.colors.gray[500], marginTop: '2px' }}>
+                                  Uploaded: {new Date(file.uploaded_at).toLocaleDateString()}
+                                </div>
+                              </div>
+                              <button
+                                className="btn btn-outline-success btn-sm"
+                                style={{ padding: '2px 6px', fontSize: '11px' }}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  const fileUrl = getStaticFileUrl(`/${file.path}`);
+                                  fetch(fileUrl)
+                                    .then(response => response.blob())
+                                    .then(blob => {
+                                      const url = window.URL.createObjectURL(blob);
+                                      const a = document.createElement('a');
+                                      a.style.display = 'none';
+                                      a.href = url;
+                                      a.download = file.originalName || file.filename;
+                                      document.body.appendChild(a);
+                                      a.click();
+                                      window.URL.revokeObjectURL(url);
+                                      document.body.removeChild(a);
+                                    })
+                                    .catch(err => {
+                                      console.error('Download error:', err);
+                                      alert('Failed to download file. Opening in new tab instead.');
+                                      window.open(fileUrl, '_blank');
+                                    });
+                                }}
+                                title="Download file"
+                              >
+                                <i className="fas fa-download"></i>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      {task.files.filter(file => file.uploaded_by_role === 'project_manager').length === 0 && (
+                        <small className="text-muted">No files uploaded yet</small>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

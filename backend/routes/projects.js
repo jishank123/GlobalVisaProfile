@@ -18,6 +18,17 @@ const storage = multer.diskStorage({
   }
 });
 
+// Configure multer for final files uploads
+const finalFilesStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/final-files/');
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'final-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
 const fileFilter = (req, file, cb) => {
   // Accept images and PDFs
   if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
@@ -27,11 +38,61 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+const finalFilesFilter = (req, file, cb) => {
+  // Accept various file types for final deliverables
+  const allowedTypes = [
+    'image/',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/zip',
+    'application/x-zip-compressed',
+    'text/plain'
+  ];
+  
+  const isAllowed = allowedTypes.some(type => file.mimetype.startsWith(type) || file.mimetype === type);
+  
+  if (isAllowed) {
+    cb(null, true);
+  } else {
+    cb(new Error('File type not allowed!'), false);
+  }
+};
+
 const upload = multer({ 
   storage: storage,
   fileFilter: fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
+
+const uploadFinalFiles = multer({ 
+  storage: finalFilesStorage,
+  fileFilter: finalFilesFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit for final files
+  }
+});
+
+// Configure multer for task files uploads
+const taskFilesStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/task-files/');
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'task-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const uploadTaskFiles = multer({ 
+  storage: taskFilesStorage,
+  fileFilter: finalFilesFilter, // Use same filter as final files
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit for task files
   }
 });
 
@@ -52,10 +113,20 @@ router.post('/bulk/assign-to-crm', auth(['lead_manager', 'admin']), projectContr
 // @access  Private (CRM Manager only)
 router.get('/my-projects', auth(['crm_manager']), projectController.getMyProjects);
 
+// @route   POST /api/projects/:id/assign-pm
+// @desc    Assign project to project manager with optional task files
+// @access  Private (CRM Manager, Admin)
+router.post('/:id/assign-pm', auth(['crm_manager', 'admin']), uploadTaskFiles.array('task_files', 10), projectController.assignProjectToProjectManager);
+
 // @route   GET /api/projects/my-created-projects
 // @desc    Get projects created by current lead manager
 // @access  Private (Lead Manager only)
 router.get('/my-created-projects', auth(['lead_manager']), projectController.getMyCreatedProjects);
+
+// @route   GET /api/projects/my-pm-projects
+// @desc    Get projects assigned to current project manager
+// @access  Private (Project Manager only)
+router.get('/my-pm-projects', auth(['project_manager']), projectController.getMyPMProjects);
 
 // @route   POST /api/projects/:id/milestones
 // @desc    Add milestone/task to project
@@ -66,6 +137,26 @@ router.post('/:id/milestones', auth(['crm_manager', 'admin']), projectController
 // @desc    Add note to project
 // @access  Private (CRM Manager, Admin)
 router.post('/:id/notes', auth(['crm_manager', 'admin']), projectController.addProjectNote);
+
+// @route   POST /api/projects/:id/final-files
+// @desc    Upload final files to project (Project Manager only)
+// @access  Private (Project Manager)
+router.post('/:id/final-files', auth(['project_manager']), uploadFinalFiles.single('file'), projectController.uploadFinalFile);
+
+// @route   DELETE /api/projects/:id/final-files/:fileId
+// @desc    Delete final file from project
+// @access  Private (Project Manager, Admin)
+router.delete('/:id/final-files/:fileId', auth(['project_manager', 'admin']), projectController.deleteFinalFile);
+
+// @route   PATCH /api/projects/:id/final-files/:fileId/approve
+// @desc    Approve final file (CRM Manager only)
+// @access  Private (CRM Manager, Admin)
+router.patch('/:id/final-files/:fileId/approve', auth(['crm_manager', 'admin']), projectController.approveFinalFile);
+
+// @route   PATCH /api/projects/:id/final-files/:fileId/reject
+// @desc    Reject final file (CRM Manager only)
+// @access  Private (CRM Manager, Admin)
+router.patch('/:id/final-files/:fileId/reject', auth(['crm_manager', 'admin']), projectController.rejectFinalFile);
 
 // @route   GET /api/projects
 // @desc    Get all projects with filters
@@ -84,8 +175,8 @@ router.post('/', auth(['admin', 'lead_manager', 'crm_manager']), projectControll
 
 // @route   PATCH /api/projects/:id
 // @desc    Update project
-// @access  Private (Admin, Lead Manager, CRM Manager)
-router.patch('/:id', auth(['admin', 'lead_manager', 'crm_manager']), projectController.updateProject);
+// @access  Private (Admin, Lead Manager, CRM Manager, Project Manager)
+router.patch('/:id', auth(['admin', 'lead_manager', 'crm_manager', 'project_manager']), projectController.updateProject);
 
 // @route   PATCH /api/projects/:id/handover
 // @desc    Handover project to another CRM manager
@@ -95,7 +186,7 @@ router.patch('/:id/handover', auth(['crm_manager', 'admin']), projectController.
 // @route   PATCH /api/projects/:id/progress
 // @desc    Update project progress
 // @access  Private (Team Members)
-router.patch('/:id/progress', auth(['admin', 'lead_manager', 'crm_manager']), async (req, res) => {
+router.patch('/:id/progress', auth(['admin', 'lead_manager', 'crm_manager', 'project_manager']), async (req, res) => {
   try {
     const { progress } = req.body;
     
@@ -109,10 +200,11 @@ router.patch('/:id/progress', auth(['admin', 'lead_manager', 'crm_manager']), as
     }
     
     // Check permission
-    const isAssigned = project.assigned_to && project.assigned_to.toString() === req.user._id.toString();
+    const isAssignedCRM = project.assigned_to && project.assigned_to.toString() === req.user._id.toString();
+    const isAssignedPM = project.project_manager && project.project_manager.toString() === req.user._id.toString();
     const isAdminOrManager = ['admin', 'lead_manager', 'crm_manager'].includes(req.user.role);
     
-    if (!isAssigned && !isAdminOrManager) {
+    if (!isAssignedCRM && !isAssignedPM && !isAdminOrManager) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'

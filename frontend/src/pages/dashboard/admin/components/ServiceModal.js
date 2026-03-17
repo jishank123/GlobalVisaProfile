@@ -156,7 +156,7 @@ const ServiceModal = ({
                   marginBottom: designSystem.spacing.xs
                 }}>Created</label>
                 <div style={{ fontWeight: designSystem.typography.fontWeight.semibold }}>
-                  {data?.created_at ? new Date(data.created_at).toLocaleDateString() : 'N/A'}
+                  {data?.createdAt ? new Date(data.createdAt).toLocaleDateString() : 'N/A'}
                 </div>
               </div>
             </div>
@@ -305,7 +305,7 @@ const ServiceModal = ({
 
               <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: '1fr 1fr 1fr', 
+                gridTemplateColumns: formData.pricing_type === 'fixed' ? '1fr 1fr' : '1fr 1fr 1fr', 
                 gap: designSystem.spacing.lg, 
                 marginBottom: designSystem.spacing.lg,
                 padding: designSystem.spacing.md,
@@ -335,7 +335,6 @@ const ServiceModal = ({
                     required
                   >
                     <option value="fixed">Fixed Price</option>
-                    <option value="hourly">Hourly Rate</option>
                     <option value="range">Price Range</option>
                   </select>
                   {formErrors.pricing_type && (
@@ -357,7 +356,7 @@ const ServiceModal = ({
                     fontSize: designSystem.typography.fontSize.sm,
                     fontWeight: designSystem.typography.fontWeight.semibold
                   }}>
-                    Min Price ($) <span style={{ color: '#dc3545' }}>*</span>
+                    {formData.pricing_type === 'fixed' ? 'Price ($)' : 'Min Price ($)'} <span style={{ color: '#dc3545' }}>*</span>
                   </label>
                   <input 
                     type="number" 
@@ -385,42 +384,44 @@ const ServiceModal = ({
                     </small>
                   )}
                 </div>
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    marginBottom: designSystem.spacing.xs,
-                    color: designSystem.colors.gray[700],
-                    fontSize: designSystem.typography.fontSize.sm,
-                    fontWeight: designSystem.typography.fontWeight.semibold
-                  }}>
-                    Max Price ($) <span style={{ color: '#dc3545' }}>*</span>
-                  </label>
-                  <input 
-                    type="number" 
-                    name="max_price"
-                    value={formData.max_price}
-                    onChange={onInputChange}
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
-                    style={{
-                      ...componentStyles.formInput,
-                      borderColor: formErrors.max_price ? '#dc3545' : componentStyles.formInput.borderColor,
-                      width: '100%'
-                    }}
-                    required 
-                  />
-                  {formErrors.max_price && (
-                    <small style={{ 
-                      color: '#dc3545', 
-                      fontSize: designSystem.typography.fontSize.xs,
-                      display: 'block',
-                      marginTop: '4px'
+                {formData.pricing_type === 'range' && (
+                  <div>
+                    <label style={{ 
+                      display: 'block', 
+                      marginBottom: designSystem.spacing.xs,
+                      color: designSystem.colors.gray[700],
+                      fontSize: designSystem.typography.fontSize.sm,
+                      fontWeight: designSystem.typography.fontWeight.semibold
                     }}>
-                      {formErrors.max_price}
-                    </small>
-                  )}
-                </div>
+                      Max Price ($) <span style={{ color: '#dc3545' }}>*</span>
+                    </label>
+                    <input 
+                      type="number" 
+                      name="max_price"
+                      value={formData.max_price}
+                      onChange={onInputChange}
+                      placeholder="0.00"
+                      min="0"
+                      step="0.01"
+                      style={{
+                        ...componentStyles.formInput,
+                        borderColor: formErrors.max_price ? '#dc3545' : componentStyles.formInput.borderColor,
+                        width: '100%'
+                      }}
+                      required 
+                    />
+                    {formErrors.max_price && (
+                      <small style={{ 
+                        color: '#dc3545', 
+                        fontSize: designSystem.typography.fontSize.xs,
+                        display: 'block',
+                        marginTop: '4px'
+                      }}>
+                        {formErrors.max_price}
+                      </small>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: designSystem.spacing.lg, marginBottom: designSystem.spacing.lg }}>

@@ -23,8 +23,9 @@ const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
+    today: 0,
+    upcoming: 0,
     confirmed: 0,
-    completed: 0,
     cancelled: 0
   });
 
@@ -54,12 +55,30 @@ const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
         console.log('✅ Appointments loaded for client:', clientAppointments.length, 'appointments');
         setAppointments(clientAppointments);
         
+        // Get today's date at midnight for comparison
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
         // Calculate stats
         const stats = {
           total: clientAppointments.length,
           pending: clientAppointments.filter(a => a.status === 'pending').length,
+          today: clientAppointments.filter(a => {
+            if (!a.scheduled_date && !a.preferred_date) return false;
+            const appointmentDate = new Date(a.scheduled_date || a.preferred_date);
+            appointmentDate.setHours(0, 0, 0, 0);
+            return appointmentDate.getTime() === today.getTime() && a.status !== 'cancelled';
+          }).length,
+          upcoming: clientAppointments.filter(a => {
+            if (!a.scheduled_date && !a.preferred_date) return false;
+            const appointmentDate = new Date(a.scheduled_date || a.preferred_date);
+            appointmentDate.setHours(0, 0, 0, 0);
+            return appointmentDate.getTime() >= tomorrow.getTime() && a.status !== 'cancelled' && a.status !== 'completed';
+          }).length,
           confirmed: clientAppointments.filter(a => a.status === 'confirmed').length,
-          completed: clientAppointments.filter(a => a.status === 'completed').length,
           cancelled: clientAppointments.filter(a => a.status === 'cancelled').length
         };
         setStats(stats);
@@ -75,6 +94,33 @@ const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
 
   const getFilteredAppointments = () => {
     if (activeTab === 'all') return appointments;
+    
+    if (activeTab === 'today') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      return appointments.filter(appointment => {
+        if (!appointment.scheduled_date && !appointment.preferred_date) return false;
+        const appointmentDate = new Date(appointment.scheduled_date || appointment.preferred_date);
+        appointmentDate.setHours(0, 0, 0, 0);
+        return appointmentDate.getTime() === today.getTime() && appointment.status !== 'cancelled';
+      });
+    }
+    
+    if (activeTab === 'upcoming') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      return appointments.filter(appointment => {
+        if (!appointment.scheduled_date && !appointment.preferred_date) return false;
+        const appointmentDate = new Date(appointment.scheduled_date || appointment.preferred_date);
+        appointmentDate.setHours(0, 0, 0, 0);
+        return appointmentDate.getTime() >= tomorrow.getTime() && appointment.status !== 'cancelled' && appointment.status !== 'completed';
+      });
+    }
+    
     return appointments.filter(appointment => appointment.status === activeTab);
   };
 
@@ -134,11 +180,12 @@ const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
 
   const getSourceBadge = (source) => {
     const sourceStyles = {
-      'client': { background: '#3b82f6', color: 'white', text: 'Self Booked' },
       'staff': { background: '#8b5cf6', color: 'white', text: 'Staff Booked' },
-      'admin': { background: '#ef4444', color: 'white', text: 'Admin Booked' }
+      'admin': { background: '#ef4444', color: 'white', text: 'Staff Booked' },
+      'client': { background: '#3b82f6', color: 'white', text: 'Self Booked' }
     };
-    return sourceStyles[source] || { background: '#6b7280', color: 'white', text: 'Unknown' };
+    // Default to 'Self Booked' if source is not recognized or missing
+    return sourceStyles[source] || { background: '#3b82f6', color: 'white', text: 'Self Booked' };
   };
 
   const handleScheduleAppointment = async () => {
@@ -270,15 +317,6 @@ const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
               </span>
               <span style={{
                 ...componentStyles.badge,
-                ...getPriorityStyle(appointment.priority),
-                textTransform: 'uppercase',
-                fontSize: '11px',
-                fontWeight: '600'
-              }}>
-                {appointment.priority} Priority
-              </span>
-              <span style={{
-                ...componentStyles.badge,
                 background: sourceBadge.background,
                 color: sourceBadge.color,
                 fontSize: '11px',
@@ -376,22 +414,6 @@ const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
           </div>
         )}
 
-        {/* Details */}
-        {appointment.details && (
-          <p style={{
-            fontSize: designSystem.typography.fontSize.sm,
-            color: designSystem.colors.gray[600],
-            margin: 0,
-            fontStyle: 'italic',
-            lineHeight: '1.4'
-          }}>
-            {appointment.details.length > 100 
-              ? `${appointment.details.substring(0, 100)}...` 
-              : appointment.details
-            }
-          </p>
-        )}
-
         {/* Consultation Notes */}
         {appointment.consultation_notes && (
           <div style={{
@@ -430,7 +452,7 @@ const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
               <>
                 {/* Appointment Overview */}
                 <div style={{ marginBottom: designSystem.spacing.lg }}>
-                  <h6 style={{ marginBottom: designSystem.spacing.md }}>Appointment Overview</h6>
+                  <h6 style={{ marginBottom: designSystem.spacing.md, color: '#3b82f6', fontWeight: '600' }}>Appointment Overview</h6>
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -440,20 +462,16 @@ const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
                     borderRadius: designSystem.borderRadius.button
                   }}>
                     <div>
-                      <strong>Name:</strong><br />
-                      {selectedAppointment.name}
+                      <strong>Name:</strong> {selectedAppointment.name}
                     </div>
                     <div>
-                      <strong>Email:</strong><br />
-                      {selectedAppointment.email}
+                      <strong>Email:</strong> {selectedAppointment.email}
                     </div>
                     <div>
-                      <strong>Phone:</strong><br />
-                      {selectedAppointment.phone || 'Not provided'}
+                      <strong>Phone:</strong> {selectedAppointment.phone || 'Not provided'}
                     </div>
                     <div>
-                      <strong>Status:</strong><br />
-                      <span style={{
+                      <strong>Status:</strong> <span style={{
                         ...componentStyles.badge,
                         ...getAppointmentStatusStyle(selectedAppointment.status)
                       }}>
@@ -461,34 +479,17 @@ const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
                       </span>
                     </div>
                     <div>
-                      <strong>Priority:</strong><br />
-                      <span style={{
-                        ...componentStyles.badge,
-                        ...getPriorityStyle(selectedAppointment.priority)
-                      }}>
-                        {selectedAppointment.priority.toUpperCase()}
-                      </span>
-                    </div>
-                    <div>
-                      <strong>Visa Category:</strong><br />
-                      {selectedAppointment.visa_category?.replace('_', ' ').toUpperCase()}
-                    </div>
-                    <div>
-                      <strong>Consultation Type:</strong><br />
-                      <i className={getConsultationTypeIcon(selectedAppointment.consultation_type)} style={{ marginRight: '8px' }}></i>
+                      <strong>Consultation Type:</strong> <i className={getConsultationTypeIcon(selectedAppointment.consultation_type)} style={{ marginRight: '8px' }}></i>
                       {selectedAppointment.consultation_type?.replace('_', ' ').toUpperCase()}
                     </div>
                     <div>
-                      <strong>Duration:</strong><br />
-                      {selectedAppointment.duration_minutes || 60} minutes
+                      <strong>Duration:</strong> {selectedAppointment.duration_minutes || 60} minutes
                     </div>
                     <div>
-                      <strong>Timezone:</strong><br />
-                      {selectedAppointment.timezone}
+                      <strong>Timezone:</strong> {selectedAppointment.timezone}
                     </div>
                     <div>
-                      <strong>Source:</strong><br />
-                      <span style={{
+                      <strong>Source:</strong> <span style={{
                         ...componentStyles.badge,
                         ...getSourceBadge(selectedAppointment.source)
                       }}>
@@ -500,7 +501,7 @@ const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
 
                 {/* Scheduling Information */}
                 <div style={{ marginBottom: designSystem.spacing.lg }}>
-                  <h6 style={{ marginBottom: designSystem.spacing.md }}>Scheduling Information</h6>
+                  <h6 style={{ marginBottom: designSystem.spacing.md, color: '#3b82f6', fontWeight: '600' }}>Scheduling Information</h6>
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: '1fr 1fr',
@@ -510,44 +511,32 @@ const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
                     borderRadius: designSystem.borderRadius.button
                   }}>
                     <div>
-                      <strong>Preferred Date:</strong><br />
-                      {formatDate(selectedAppointment.preferred_date)}
+                      <strong>Preferred Date:</strong> {formatDate(selectedAppointment.preferred_date)}
                     </div>
                     <div>
-                      <strong>Preferred Time:</strong><br />
-                      {selectedAppointment.preferred_time || 'Not specified'}
+                      <strong>Preferred Time:</strong> {selectedAppointment.preferred_time || 'Not specified'}
                     </div>
                     {selectedAppointment.scheduled_date && (
                       <>
                         <div>
-                          <strong>Scheduled Date:</strong><br />
-                          <span style={{ color: designSystem.colors.success.split('(')[0] }}>
+                          <strong>Scheduled Date:</strong> <span style={{ color: designSystem.colors.success.split('(')[0] }}>
                             {formatDate(selectedAppointment.scheduled_date)}
                           </span>
                         </div>
                         <div>
-                          <strong>Scheduled Time:</strong><br />
-                          <span style={{ color: designSystem.colors.success.split('(')[0] }}>
+                          <strong>Scheduled Time:</strong> <span style={{ color: designSystem.colors.success.split('(')[0] }}>
                             {selectedAppointment.scheduled_time || 'TBD'}
                           </span>
                         </div>
                       </>
                     )}
-                    <div>
-                      <strong>Submission Date:</strong><br />
-                      {formatDate(selectedAppointment.submission_date)}
-                    </div>
-                    <div>
-                      <strong>Follow-up Required:</strong><br />
-                      {selectedAppointment.follow_up_required ? 'Yes' : 'No'}
-                    </div>
                   </div>
                 </div>
 
                 {/* Meeting Link */}
                 {selectedAppointment.meeting_link && (
                   <div style={{ marginBottom: designSystem.spacing.lg }}>
-                    <h6 style={{ marginBottom: designSystem.spacing.md }}>Meeting Information</h6>
+                    <h6 style={{ marginBottom: designSystem.spacing.md, color: '#3b82f6', fontWeight: '600' }}>Meeting Information</h6>
                     <div style={{
                       padding: designSystem.spacing.md,
                       background: designSystem.colors.success + '20',
@@ -580,26 +569,10 @@ const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
                   </div>
                 )}
 
-                {/* Details */}
-                {selectedAppointment.details && (
-                  <div style={{ marginBottom: designSystem.spacing.lg }}>
-                    <h6 style={{ marginBottom: designSystem.spacing.md }}>Details</h6>
-                    <p style={{
-                      padding: designSystem.spacing.md,
-                      background: designSystem.colors.light,
-                      borderRadius: designSystem.borderRadius.button,
-                      margin: 0,
-                      lineHeight: '1.6'
-                    }}>
-                      {selectedAppointment.details}
-                    </p>
-                  </div>
-                )}
-
                 {/* Consultation Notes */}
                 {selectedAppointment.consultation_notes && (
                   <div style={{ marginBottom: designSystem.spacing.lg }}>
-                    <h6 style={{ marginBottom: designSystem.spacing.md }}>Consultation Notes</h6>
+                    <h6 style={{ marginBottom: designSystem.spacing.md, color: '#3b82f6', fontWeight: '600' }}>Consultation Notes</h6>
                     <p style={{
                       padding: designSystem.spacing.md,
                       background: designSystem.colors.light,
@@ -611,50 +584,6 @@ const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
                     </p>
                   </div>
                 )}
-
-                {/* Communications */}
-                <div style={{ marginBottom: designSystem.spacing.lg }}>
-                  <h6 style={{ marginBottom: designSystem.spacing.md }}>
-                    Communications ({selectedAppointment.communications?.length || 0})
-                  </h6>
-                  {selectedAppointment.communications && selectedAppointment.communications.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: designSystem.spacing.sm }}>
-                      {selectedAppointment.communications.map((comm, index) => (
-                        <div key={index} style={{
-                          padding: designSystem.spacing.md,
-                          background: designSystem.colors.light,
-                          borderRadius: designSystem.borderRadius.button,
-                          border: `1px solid ${designSystem.colors.gray[200]}`
-                        }}>
-                          <div style={{
-                            fontSize: designSystem.typography.fontSize.sm,
-                            color: designSystem.colors.gray[500],
-                            marginBottom: designSystem.spacing.xs
-                          }}>
-                            {formatDate(comm.date)} - {comm.type?.toUpperCase()}
-                          </div>
-                          <p style={{
-                            margin: 0,
-                            lineHeight: '1.6'
-                          }}>
-                            {comm.message}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{
-                      padding: designSystem.spacing.lg,
-                      background: designSystem.colors.light,
-                      borderRadius: designSystem.borderRadius.button,
-                      textAlign: 'center',
-                      color: designSystem.colors.gray[500]
-                    }}>
-                      <i className="fas fa-comments fa-2x mb-3"></i>
-                      <p>No communications recorded</p>
-                    </div>
-                  )}
-                </div>
               </>
             )}
           </div>
@@ -957,11 +886,18 @@ const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
           bgColor="#eff6ff"
         />
         <StatsCard
-          icon="fas fa-clock"
-          number={stats.pending}
-          label="Pending Appointments"
+          icon="fas fa-calendar-day"
+          number={stats.today}
+          label="Today Appointments"
           color="#f59e0b"
           bgColor="#fffbeb"
+        />
+        <StatsCard
+          icon="fas fa-calendar-plus"
+          number={stats.upcoming}
+          label="Upcoming Appointments"
+          color="#8b5cf6"
+          bgColor="#faf5ff"
         />
         <StatsCard
           icon="fas fa-check-circle"
@@ -969,13 +905,6 @@ const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
           label="Confirmed Appointments"
           color="#10b981"
           bgColor="#ecfdf5"
-        />
-        <StatsCard
-          icon="fas fa-calendar-check"
-          number={stats.completed}
-          label="Completed Appointments"
-          color="#8b5cf6"
-          bgColor="#faf5ff"
         />
       </div>
 
@@ -1002,7 +931,31 @@ const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
             onClick={() => setActiveTab('pending')}
             {...hoverEffects.button}
           >
-            Pending ({stats.pending})
+            Pending ({stats.pending || 0})
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeTab === 'today' ? '#f59e0b' : designSystem.colors.gray[100],
+              color: activeTab === 'today' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveTab('today')}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-calendar-day me-2"></i>
+            Today ({stats.today})
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeTab === 'upcoming' ? '#8b5cf6' : designSystem.colors.gray[100],
+              color: activeTab === 'upcoming' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveTab('upcoming')}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-calendar-plus me-2"></i>
+            Upcoming ({stats.upcoming})
           </button>
           <button 
             style={{
@@ -1015,30 +968,6 @@ const ClientAppointments = ({ clientData, apiCall, onRefresh }) => {
           >
             Confirmed ({stats.confirmed})
           </button>
-          <button 
-            style={{
-              ...componentStyles.primaryButton,
-              background: activeTab === 'completed' ? designSystem.colors.info : designSystem.colors.gray[100],
-              color: activeTab === 'completed' ? 'white' : designSystem.colors.gray[600]
-            }}
-            onClick={() => setActiveTab('completed')}
-            {...hoverEffects.button}
-          >
-            Completed ({stats.completed})
-          </button>
-          {stats.cancelled > 0 && (
-            <button 
-              style={{
-                ...componentStyles.primaryButton,
-                background: activeTab === 'cancelled' ? designSystem.colors.danger : designSystem.colors.gray[100],
-                color: activeTab === 'cancelled' ? 'white' : designSystem.colors.gray[600]
-              }}
-              onClick={() => setActiveTab('cancelled')}
-              {...hoverEffects.button}
-            >
-              Cancelled ({stats.cancelled})
-            </button>
-          )}
         </div>
       </div>
 

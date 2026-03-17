@@ -1,37 +1,23 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 const ProfileBuildingPage = () => {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+  
   return (
     <div>
-      
       {/* Hero Section */}
-      <section className="pt-28 pb-12 md:pt-32 md:pb-16 bg-gradient-to-br from-blue-50 to-indigo-100">
+      <section className="pt-28 pb-20 bg-gradient-to-br from-green-600 to-blue-700">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-block bg-blue-100 text-primary px-4 py-2 rounded-full text-sm font-semibold mb-4">
-              STRATEGIC PROFILE DEVELOPMENT
-            </div>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+          <div className="text-center text-white mb-12">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">
               Profile Building Services
             </h1>
-            <p className="text-xl text-gray-700 mb-4">
+            <p className="text-xl opacity-90 max-w-3xl mx-auto">
               We help you strengthen your credentials and build a compelling profile that meets EB-1A criteria through strategic planning and active development guidance
             </p>
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 max-w-3xl mx-auto">
-              <p className="text-sm text-gray-700">
-                <i className="fas fa-info-circle text-yellow-600 mr-2"></i>
-                <strong>Note:</strong> We provide profile development consultation and application preparation services. We are not attorneys. For legal advice, please consult a licensed immigration attorney.
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="#services" className="bg-primary text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-secondary transition-all transform hover:scale-105">
-                View Our Services
-              </a>
-              <Link to="/schedule" className="bg-white text-primary border-2 border-primary px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-50 transition-all">
-                Schedule Consultation
-              </Link>
-            </div>
           </div>
         </div>
       </section>
@@ -41,50 +27,48 @@ const ProfileBuildingPage = () => {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">What is Profile Building?</h2>
-            <div className="prose prose-lg max-w-none">
-              <p className="text-gray-700 mb-4">
-                Profile building is our comprehensive service that goes beyond traditional immigration consulting. While most firms only help you document existing achievements, we <strong>actively work with you to develop new qualifications</strong> that strengthen your EB-1A case.
-              </p>
-              <p className="text-gray-700 mb-6">
-                Many talented professionals have the potential to meet EB-1A criteria but lack specific evidence or documentation. Our profile building services bridge this gap by:
-              </p>
+            <p className="text-gray-700 mb-4">
+              Profile building is our comprehensive service that goes beyond traditional immigration consulting. While most firms only help you document existing achievements, we <strong>actively work with you to develop new qualifications</strong> that strengthen your EB-1A case.
+            </p>
+            <p className="text-gray-700 mb-6">
+              Many talented professionals have the potential to meet EB-1A criteria but lack specific evidence or documentation. Our profile building services bridge this gap by:
+            </p>
+            
+            <div className="grid md:grid-cols-2 gap-6 mb-8">
+              <div className="bg-blue-50 p-6 rounded-xl">
+                <h3 className="text-xl font-bold text-primary mb-3">
+                  <i className="fas fa-search-plus mr-2"></i>Gap Analysis
+                </h3>
+                <p className="text-gray-700">
+                  Identifying which of the 10 EB-1A criteria you currently meet and which ones you can realistically achieve with our guidance.
+                </p>
+              </div>
               
-              <div className="grid md:grid-cols-2 gap-6 mb-8">
-                <div className="bg-blue-50 p-6 rounded-xl">
-                  <h3 className="text-xl font-bold text-primary mb-3">
-                    <i className="fas fa-search-plus mr-2"></i>Gap Analysis
-                  </h3>
-                  <p className="text-gray-700">
-                    Identifying which of the 10 EB-1A criteria you currently meet and which ones you can realistically achieve with our guidance.
-                  </p>
-                </div>
-                
-                <div className="bg-green-50 p-6 rounded-xl">
-                  <h3 className="text-xl font-bold text-green-700 mb-3">
-                    <i className="fas fa-route mr-2"></i>Strategic Roadmap
-                  </h3>
-                  <p className="text-gray-700">
-                    Creating a personalized action plan with specific steps, timelines, and milestones to develop missing evidence.
-                  </p>
-                </div>
-                
-                <div className="bg-purple-50 p-6 rounded-xl">
-                  <h3 className="text-xl font-bold text-purple-700 mb-3">
-                    <i className="fas fa-hands-helping mr-2"></i>Active Assistance
-                  </h3>
-                  <p className="text-gray-700">
-                    Connecting you with opportunities, guiding applications, drafting materials, and facilitating introductions to build your profile.
-                  </p>
-                </div>
-                
-                <div className="bg-yellow-50 p-6 rounded-xl">
-                  <h3 className="text-xl font-bold text-yellow-700 mb-3">
-                    <i className="fas fa-file-invoice mr-2"></i>Documentation
-                  </h3>
-                  <p className="text-gray-700">
-                    Properly documenting all achievements with supporting evidence that meets USCIS requirements and standards.
-                  </p>
-                </div>
+              <div className="bg-green-50 p-6 rounded-xl">
+                <h3 className="text-xl font-bold text-green-700 mb-3">
+                  <i className="fas fa-route mr-2"></i>Strategic Roadmap
+                </h3>
+                <p className="text-gray-700">
+                  Creating a personalized action plan with specific steps, timelines, and milestones to develop missing evidence.
+                </p>
+              </div>
+              
+              <div className="bg-purple-50 p-6 rounded-xl">
+                <h3 className="text-xl font-bold text-purple-700 mb-3">
+                  <i className="fas fa-hands-helping mr-2"></i>Active Assistance
+                </h3>
+                <p className="text-gray-700">
+                  Connecting you with opportunities, guiding applications, drafting materials, and facilitating introductions to build your profile.
+                </p>
+              </div>
+              
+              <div className="bg-yellow-50 p-6 rounded-xl">
+                <h3 className="text-xl font-bold text-yellow-700 mb-3">
+                  <i className="fas fa-file-invoice mr-2"></i>Documentation
+                </h3>
+                <p className="text-gray-700">
+                  Properly documenting all achievements with supporting evidence that meets USCIS requirements and standards.
+                </p>
               </div>
             </div>
           </div>
@@ -251,41 +235,41 @@ const ProfileBuildingPage = () => {
                 </div>
               </div>
               <p className="text-gray-700 mb-4">
-                We help document and showcase your original scientific, scholarly, artistic, athletic, or business-related contributions.
+                We help articulate and document the major significance of your contributions.
               </p>
               <ul className="space-y-2 mb-6">
                 <li className="flex items-start">
                   <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
-                  <span className="text-gray-700">Document innovation impact</span>
+                  <span className="text-gray-700">Identify key contributions</span>
                 </li>
                 <li className="flex items-start">
                   <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
-                  <span className="text-gray-700">Gather expert testimonials</span>
+                  <span className="text-gray-700">Document impact and adoption</span>
                 </li>
                 <li className="flex items-start">
                   <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
-                  <span className="text-gray-700">Quantify contributions</span>
+                  <span className="text-gray-700">Obtain expert testimonials</span>
                 </li>
                 <li className="flex items-start">
                   <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
-                  <span className="text-gray-700">Create compelling narratives</span>
+                  <span className="text-gray-700">Quantify influence metrics</span>
                 </li>
               </ul>
             </div>
 
-            {/* Service 6: Scholarly Articles */}
+            {/* Service 6: Publications */}
             <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all">
               <div className="flex items-start mb-6">
                 <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
                   <i className="fas fa-file-alt text-3xl text-blue-600"></i>
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Scholarly Articles</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Scholarly Publications</h3>
                   <p className="text-sm text-primary font-semibold">Criterion #6</p>
                 </div>
               </div>
               <p className="text-gray-700 mb-4">
-                We guide your publication strategy to build a strong portfolio of scholarly articles in professional journals.
+                We guide your publication strategy to maximize impact and citations.
               </p>
               <ul className="space-y-2 mb-6">
                 <li className="flex items-start">
@@ -294,17 +278,156 @@ const ProfileBuildingPage = () => {
                 </li>
                 <li className="flex items-start">
                   <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
-                  <span className="text-gray-700">Improve manuscript quality</span>
+                  <span className="text-gray-700">Writing and editing support</span>
                 </li>
                 <li className="flex items-start">
                   <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
-                  <span className="text-gray-700">Track citation metrics</span>
+                  <span className="text-gray-700">Citation analysis & metrics</span>
                 </li>
                 <li className="flex items-start">
                   <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
-                  <span className="text-gray-700">Build publication portfolio</span>
+                  <span className="text-gray-700">Publication impact documentation</span>
                 </li>
               </ul>
+            </div>
+
+            {/* Service 7: Leadership Roles */}
+            <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all">
+              <div className="flex items-start mb-6">
+                <div className="bg-teal-100 w-16 h-16 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                  <i className="fas fa-user-tie text-3xl text-teal-600"></i>
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Leadership Roles</h3>
+                  <p className="text-sm text-primary font-semibold">Criterion #8</p>
+                </div>
+              </div>
+              <p className="text-gray-700 mb-4">
+                We document your critical role and help position you for leadership opportunities.
+              </p>
+              <ul className="space-y-2 mb-6">
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Document role criticality</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Establish org reputation</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Quantify leadership impact</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Obtain verification letters</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Service 8: High Compensation */}
+            <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all">
+              <div className="flex items-start mb-6">
+                <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                  <i className="fas fa-dollar-sign text-3xl text-green-700"></i>
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">High Compensation</h3>
+                  <p className="text-sm text-primary font-semibold">Criterion #9</p>
+                </div>
+              </div>
+              <p className="text-gray-700 mb-4">
+                We compile comprehensive compensation analysis with industry comparisons.
+              </p>
+              <ul className="space-y-2 mb-6">
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Gather salary statistics</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Document total compensation</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Statistical analysis & charts</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Employer verification letters</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Service 9: Commercial Success */}
+            <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all">
+              <div className="flex items-start mb-6">
+                <div className="bg-orange-100 w-16 h-16 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                  <i className="fas fa-chart-line text-3xl text-orange-600"></i>
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Commercial Success</h3>
+                  <p className="text-sm text-primary font-semibold">Criterion #10</p>
+                </div>
+              </div>
+              <p className="text-gray-700 mb-4">
+                We document market success and commercial impact of your work.
+              </p>
+              <ul className="space-y-2 mb-6">
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Sales & revenue documentation</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">User adoption metrics</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Market impact analysis</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                  <span className="text-gray-700">Company verification</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Service 10: Comprehensive Package */}
+            <div className="bg-gradient-to-br from-primary to-secondary rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all text-white">
+              <div className="flex items-start mb-6">
+                <div className="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                  <i className="fas fa-star text-3xl text-white"></i>
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold mb-2">Complete Profile Package</h3>
+                  <p className="text-sm font-semibold opacity-90">All Criteria Covered</p>
+                </div>
+              </div>
+              <p className="mb-4 opacity-90">
+                Our comprehensive package includes assessment, strategy, active development, and petition preparation.
+              </p>
+              <ul className="space-y-2 mb-6">
+                <li className="flex items-start">
+                  <i className="fas fa-check text-yellow-300 mt-1 mr-2"></i>
+                  <span>Full eligibility assessment</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-yellow-300 mt-1 mr-2"></i>
+                  <span>12-month development plan</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-yellow-300 mt-1 mr-2"></i>
+                  <span>Active guidance & support</span>
+                </li>
+                <li className="flex items-start">
+                  <i className="fas fa-check text-yellow-300 mt-1 mr-2"></i>
+                  <span>Complete petition preparation</span>
+                </li>
+              </ul>
+              <Link to="/" className="bg-white text-primary px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-all inline-block">
+                Get Started Today
+              </Link>
             </div>
           </div>
         </div>
@@ -313,103 +436,169 @@ const ProfileBuildingPage = () => {
       {/* Process Section */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4">
-          <div className="max-w-5xl mx-auto">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4 text-center">Our Profile Building Process</h2>
-            <p className="text-xl text-gray-600 mb-12 text-center">
-              A systematic approach to strengthening your immigration profile
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Our Profile Building Process</h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              A systematic approach to developing your EB-1A profile over 12-18 months
             </p>
-            
-            <div className="grid md:grid-cols-4 gap-6">
-              <div className="text-center">
-                <div className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+          </div>
+          
+          <div className="max-w-5xl mx-auto">
+            <div className="relative">
+              {/* Timeline line */}
+              <div className="hidden md:block absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-primary"></div>
+              
+              {/* Phase 1 */}
+              <div className="mb-12 flex flex-col md:flex-row items-center">
+                <div className="md:w-1/2 md:pr-12 mb-4 md:mb-0">
+                  <div className="bg-blue-50 p-6 rounded-xl">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">Phase 1: Assessment</h3>
+                    <p className="text-primary font-semibold mb-3">Months 1-2</p>
+                    <p className="text-gray-700">
+                      Comprehensive evaluation of your current profile, identification of qualifying criteria, gap analysis, and development of strategic roadmap.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex-shrink-0 w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center text-2xl font-bold shadow-lg z-10">
                   1
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">Assessment</h3>
-                <p className="text-gray-700">
-                  Comprehensive evaluation of your current qualifications against EB-1A criteria
-                </p>
+                <div className="md:w-1/2 md:pl-12"></div>
               </div>
               
-              <div className="text-center">
-                <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+              {/* Phase 2 */}
+              <div className="mb-12 flex flex-col md:flex-row items-center">
+                <div className="md:w-1/2 md:pr-12"></div>
+                <div className="flex-shrink-0 w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center text-2xl font-bold shadow-lg z-10">
                   2
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">Strategy</h3>
-                <p className="text-gray-700">
-                  Develop personalized roadmap with specific actions and timelines
-                </p>
+                <div className="md:w-1/2 md:pl-12 mb-4 md:mb-0">
+                  <div className="bg-green-50 p-6 rounded-xl">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">Phase 2: Quick Wins</h3>
+                    <p className="text-green-700 font-semibold mb-3">Months 3-6</p>
+                    <p className="text-gray-700">
+                      Focus on criteria that can be achieved quickly: memberships, peer review, media coverage, documentation of existing achievements.
+                    </p>
+                  </div>
+                </div>
               </div>
               
-              <div className="text-center">
-                <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+              {/* Phase 3 */}
+              <div className="mb-12 flex flex-col md:flex-row items-center">
+                <div className="md:w-1/2 md:pr-12 mb-4 md:mb-0">
+                  <div className="bg-purple-50 p-6 rounded-xl">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">Phase 3: Long-term Development</h3>
+                    <p className="text-purple-700 font-semibold mb-3">Months 7-12</p>
+                    <p className="text-gray-700">
+                      Work on criteria requiring more time: publications, awards, leadership recognition, building evidence of original contributions.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex-shrink-0 w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center text-2xl font-bold shadow-lg z-10">
                   3
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">Execution</h3>
-                <p className="text-gray-700">
-                  Active support in implementing profile-building activities
-                </p>
+                <div className="md:w-1/2 md:pl-12"></div>
               </div>
               
-              <div className="text-center">
-                <div className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+              {/* Phase 4 */}
+              <div className="flex flex-col md:flex-row items-center">
+                <div className="md:w-1/2 md:pr-12"></div>
+                <div className="flex-shrink-0 w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center text-2xl font-bold shadow-lg z-10">
                   4
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">Documentation</h3>
-                <p className="text-gray-700">
-                  Organize evidence and prepare compelling petition materials
-                </p>
+                <div className="md:w-1/2 md:pl-12 mb-4 md:mb-0">
+                  <div className="bg-yellow-50 p-6 rounded-xl">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">Phase 4: Petition Preparation</h3>
+                    <p className="text-yellow-700 font-semibold mb-3">Months 13-15</p>
+                    <p className="text-gray-700">
+                      Compile all evidence, draft petition, obtain recommendation letters, prepare final documentation package, and file with USCIS.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Success Stories Section */}
+      {/* Testimonials Section */}
       <section className="py-20 bg-gray-50">
         <div className="container mx-auto px-4">
-          <div className="max-w-5xl mx-auto">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4 text-center">Success Stories</h2>
-            <p className="text-xl text-gray-600 mb-12 text-center">
-              How we've helped professionals strengthen their profiles
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Success Stories</h2>
+            <p className="text-xl text-gray-600">
+              Hear from clients who built their profiles with us
             </p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <div className="bg-white rounded-xl p-6 shadow-lg">
+              <div className="flex items-center mb-4">
+                <div className="flex text-yellow-400">
+                  <i className="fas fa-star"></i>
+                  <i className="fas fa-star"></i>
+                  <i className="fas fa-star"></i>
+                  <i className="fas fa-star"></i>
+                  <i className="fas fa-star"></i>
+                </div>
+              </div>
+              <p className="text-gray-600 mb-4">
+                "When I started, I only met 1 criterion. Over 14 months, the team helped me get published, join exclusive associations, and secure media coverage. My EB-1A was approved without RFE!"
+              </p>
+              <div className="flex items-center">
+                <div className="bg-primary text-white w-12 h-12 rounded-full flex items-center justify-center font-bold mr-3">
+                  SK
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900">Dr. Sarah K.</div>
+                  <div className="text-sm text-gray-600">Research Scientist</div>
+                </div>
+              </div>
+            </div>
             
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="bg-white p-6 rounded-xl shadow-lg">
-                <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                  <i className="fas fa-code text-2xl text-blue-600"></i>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">Software Engineer</h3>
-                <p className="text-gray-700 mb-4">
-                  "Started with 1 EB-1A criterion. Through strategic profile building, we helped them achieve 5 criteria in 18 months."
-                </p>
-                <div className="text-sm text-gray-600">
-                  <strong>Added:</strong> Awards, media coverage, judging roles, original contributions
+            <div className="bg-white rounded-xl p-6 shadow-lg">
+              <div className="flex items-center mb-4">
+                <div className="flex text-yellow-400">
+                  <i className="fas fa-star"></i>
+                  <i className="fas fa-star"></i>
+                  <i className="fas fa-star"></i>
+                  <i className="fas fa-star"></i>
+                  <i className="fas fa-star"></i>
                 </div>
               </div>
-              
-              <div className="bg-white p-6 rounded-xl shadow-lg">
-                <div className="bg-green-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                  <i className="fas fa-microscope text-2xl text-green-600"></i>
+              <p className="text-gray-600 mb-4">
+                "The profile building service was a game-changer. They connected me with award opportunities I didn't know existed and helped me become a peer reviewer for top journals."
+              </p>
+              <div className="flex items-center">
+                <div className="bg-purple-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold mr-3">
+                  AP
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">Research Scientist</h3>
-                <p className="text-gray-700 mb-4">
-                  "Transformed from having only publications to meeting 6 EB-1A criteria through targeted profile development."
-                </p>
-                <div className="text-sm text-gray-600">
-                  <strong>Added:</strong> Professional memberships, peer review, media features, leadership roles
+                <div>
+                  <div className="font-semibold text-gray-900">Alex P.</div>
+                  <div className="text-sm text-gray-600">Software Engineer</div>
                 </div>
               </div>
-              
-              <div className="bg-white p-6 rounded-xl shadow-lg">
-                <div className="bg-purple-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                  <i className="fas fa-chart-line text-2xl text-purple-600"></i>
+            </div>
+            
+            <div className="bg-white rounded-xl p-6 shadow-lg">
+              <div className="flex items-center mb-4">
+                <div className="flex text-yellow-400">
+                  <i className="fas fa-star"></i>
+                  <i className="fas fa-star"></i>
+                  <i className="fas fa-star"></i>
+                  <i className="fas fa-star"></i>
+                  <i className="fas fa-star"></i>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">Business Executive</h3>
-                <p className="text-gray-700 mb-4">
-                  "Built from 2 criteria to 7 criteria by strategically positioning achievements and gaining recognition."
-                </p>
-                <div className="text-sm text-gray-600">
-                  <strong>Added:</strong> Industry awards, media coverage, high salary documentation, original contributions
+              </div>
+              <p className="text-gray-600 mb-4">
+                "Their strategic approach made all the difference. They didn't just document my work—they helped me build a profile that clearly demonstrated extraordinary ability."
+              </p>
+              <div className="flex items-center">
+                <div className="bg-green-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold mr-3">
+                  ML
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900">Maria L.</div>
+                  <div className="text-sm text-gray-600">Business Executive</div>
                 </div>
               </div>
             </div>
@@ -418,23 +607,19 @@ const ProfileBuildingPage = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-r from-blue-600 to-purple-600">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Ready to Build Your Extraordinary Profile?
-            </h2>
-            <p className="text-xl text-blue-100 mb-8">
-              Get expert guidance on strengthening your qualifications and achieving EB-1A eligibility
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/assessment" className="bg-white text-primary px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-100 transition-all">
-                Free Profile Assessment
-              </Link>
-              <Link to="/schedule" className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-white hover:text-primary transition-all">
-                Schedule Consultation
-              </Link>
-            </div>
+      <section className="py-20 bg-gradient-to-br from-primary to-secondary text-white">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-4xl font-bold mb-4">Start Building Your Profile Today</h2>
+          <p className="text-xl mb-8 opacity-90 max-w-3xl mx-auto">
+            Don't wait until you have everything perfect. We'll work with you to strategically develop the profile you need for EB-1A success.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link to="/schedule" className="bg-white text-primary px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-100 transition-all transform hover:scale-105">
+              Schedule Free Assessment
+            </Link>
+            <Link to="/eb1a-eligibility" className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-white/10 transition-all">
+              Review EB-1A Criteria
+            </Link>
           </div>
         </div>
       </section>

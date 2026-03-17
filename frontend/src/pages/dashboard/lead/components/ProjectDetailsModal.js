@@ -84,16 +84,6 @@ const ProjectDetailsModal = ({ show, onHide, project, type, onAssignToCrm, crmMa
                     </span>
                   </div>
                   <div className="mb-2">
-                    <strong>Status:</strong>
-                    <span className="ms-2 badge" style={{
-                      background: getStatusColor(project.status),
-                      color: 'white',
-                      textTransform: 'uppercase'
-                    }}>
-                      {project.status?.replace('_', ' ')}
-                    </span>
-                  </div>
-                  <div className="mb-2">
                     <strong>Priority:</strong>
                     <span className="ms-2" style={{
                       color: getPriorityColor(project.priority),
@@ -104,10 +94,7 @@ const ProjectDetailsModal = ({ show, onHide, project, type, onAssignToCrm, crmMa
                     </span>
                   </div>
                   <div className="mb-2">
-                    <strong>Created:</strong> {new Date(project.createdAt).toLocaleDateString()}
-                  </div>
-                  <div className="mb-2">
-                    <strong>Last Updated:</strong> {new Date(project.updatedAt).toLocaleDateString()}
+                    <strong>Due Date:</strong> {project.due_date ? new Date(project.due_date).toLocaleDateString() : 'Not set'}
                   </div>
                 </div>
               </div>
@@ -115,11 +102,55 @@ const ProjectDetailsModal = ({ show, onHide, project, type, onAssignToCrm, crmMa
               <div className="col-md-6">
                 <div className="card border-0" style={{ background: designSystem.colors.light, padding: designSystem.spacing.md }}>
                   <h6 className="text-primary mb-3">
-                    <i className="fas fa-users me-2"></i>Team & Client
+                    <i className="fas fa-chart-bar me-2"></i>Status & Progress
                   </h6>
+                  <div className="mb-2">
+                    <strong>Status:</strong>
+                    <span className="ms-2 badge" style={{
+                      background: getStatusColor(project.status),
+                      color: 'white',
+                      textTransform: 'uppercase'
+                    }}>
+                      {project.status?.replace('_', ' ')}
+                    </span>
+                  </div>
                   <div className="mb-3">
-                    <strong>Client:</strong>
-                    <div className="mt-1">
+                    <strong>Progress:</strong>
+                    <div className="mt-2">
+                      <div className="d-flex align-items-center justify-content-between mb-2">
+                        <span style={{ fontWeight: 'bold' }}>{project.progress || 0}%</span>
+                      </div>
+                      <div style={{ 
+                        width: '100%', 
+                        height: '12px',
+                        background: designSystem.colors.gray[200],
+                        borderRadius: '6px',
+                        overflow: 'hidden'
+                      }}>
+                        <div 
+                          style={{
+                            width: `${project.progress || 0}%`,
+                            height: '100%',
+                            background: getProgressColor(project.progress || 0),
+                            transition: 'width 0.3s ease'
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Client and CRM Manager - Show only in project details modal */}
+            {type !== 'tasks' && (
+              <div className="row mb-4">
+                <div className="col-md-6">
+                  <div className="card border-0" style={{ background: designSystem.colors.light, padding: designSystem.spacing.md }}>
+                    <h6 className="text-primary mb-3">
+                      <i className="fas fa-user me-2"></i>Client
+                    </h6>
+                    <div className="mb-2">
                       <div style={{ fontWeight: designSystem.typography.fontWeight.medium }}>
                         {project.client?.name || 
                          (project.client?.firstName && project.client?.lastName ? 
@@ -131,28 +162,14 @@ const ProjectDetailsModal = ({ show, onHide, project, type, onAssignToCrm, crmMa
                       </small>
                     </div>
                   </div>
-                  <div className="mb-3">
-                    <strong>Lead Manager:</strong>
-                    <div className="mt-1">
-                      {project.lead_manager ? (
-                        <div>
-                          <div style={{ fontWeight: designSystem.typography.fontWeight.medium }}>
-                            {project.lead_manager.first_name} {project.lead_manager.last_name}
-                          </div>
-                          <small style={{ color: designSystem.colors.gray[500] }}>
-                            {project.lead_manager.email}
-                          </small>
-                        </div>
-                      ) : (
-                        <span style={{ color: designSystem.colors.gray[500], fontStyle: 'italic' }}>
-                          No Lead Manager
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="mb-2">
-                    <strong>CRM Manager:</strong>
-                    <div className="mt-1">
+                </div>
+                
+                <div className="col-md-6">
+                  <div className="card border-0" style={{ background: designSystem.colors.light, padding: designSystem.spacing.md }}>
+                    <h6 className="text-primary mb-3">
+                      <i className="fas fa-user-tie me-2"></i>CRM Manager
+                    </h6>
+                    <div className="mb-2">
                       {project.assigned_to ? (
                         <div>
                           <div style={{ fontWeight: designSystem.typography.fontWeight.medium }}>
@@ -171,39 +188,10 @@ const ProjectDetailsModal = ({ show, onHide, project, type, onAssignToCrm, crmMa
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Progress Section */}
-            <div className="mb-4">
-              <h6 className="text-primary mb-3">
-                <i className="fas fa-chart-line me-2"></i>Progress
-              </h6>
-              <div className="card border-0" style={{ background: designSystem.colors.light, padding: designSystem.spacing.md }}>
-                <div className="d-flex align-items-center justify-content-between mb-2">
-                  <span>Project Progress</span>
-                  <span style={{ fontWeight: 'bold' }}>{project.progress || 0}%</span>
-                </div>
-                <div style={{ 
-                  width: '100%', 
-                  height: '12px',
-                  background: designSystem.colors.gray[200],
-                  borderRadius: '6px',
-                  overflow: 'hidden'
-                }}>
-                  <div 
-                    style={{
-                      width: `${project.progress || 0}%`,
-                      height: '100%',
-                      background: getProgressColor(project.progress || 0),
-                      transition: 'width 0.3s ease'
-                    }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Project Description */}
-            {project.description && (
+            {/* Project Description - Hide in tasks modal */}
+            {type !== 'tasks' && project.description && (
               <div className="mb-4">
                 <h6 className="text-primary mb-3">
                   <i className="fas fa-file-text me-2"></i>Description
@@ -214,36 +202,40 @@ const ProjectDetailsModal = ({ show, onHide, project, type, onAssignToCrm, crmMa
               </div>
             )}
 
-            {/* Budget & Timeline */}
-            <div className="row mb-4">
-              <div className="col-md-6">
-                <div className="card border-0" style={{ background: designSystem.colors.light, padding: designSystem.spacing.md }}>
-                  <h6 className="text-primary mb-3">
-                    <i className="fas fa-dollar-sign me-2"></i>Budget
-                  </h6>
-                  <div className="mb-2">
-                    <strong>Budget:</strong> {project.budget || 'Not specified'}
+            {/* Budget & Timeline - Hide in tasks modal */}
+            {type !== 'tasks' && (
+              <div className="row mb-4">
+                <div className="col-md-6">
+                  <div className="card border-0" style={{ background: designSystem.colors.light, padding: designSystem.spacing.md }}>
+                    <h6 className="text-primary mb-3">
+                      <i className="fas fa-dollar-sign me-2"></i>Budget
+                    </h6>
+                    <div className="mb-2">
+                      <strong>Budget:</strong> ${project.budget || project.amount || 'Not specified'}
+                    </div>
+                    {project.estimated_duration && (
+                      <div className="mb-2">
+                        <strong>Estimated Duration:</strong> {project.estimated_duration}
+                      </div>
+                    )}
                   </div>
-                  <div className="mb-2">
-                    <strong>Estimated Duration:</strong> {project.estimated_duration || 'Not specified'}
+                </div>
+                
+                <div className="col-md-6">
+                  <div className="card border-0" style={{ background: designSystem.colors.light, padding: designSystem.spacing.md }}>
+                    <h6 className="text-primary mb-3">
+                      <i className="fas fa-calendar me-2"></i>Timeline
+                    </h6>
+                    <div className="mb-2">
+                      <strong>Start Date:</strong> {project.start_date ? new Date(project.start_date).toLocaleDateString() : 'Not set'}
+                    </div>
+                    <div className="mb-2">
+                      <strong>Due Date:</strong> {project.due_date ? new Date(project.due_date).toLocaleDateString() : 'Not set'}
+                    </div>
                   </div>
                 </div>
               </div>
-              
-              <div className="col-md-6">
-                <div className="card border-0" style={{ background: designSystem.colors.light, padding: designSystem.spacing.md }}>
-                  <h6 className="text-primary mb-3">
-                    <i className="fas fa-calendar me-2"></i>Timeline
-                  </h6>
-                  <div className="mb-2">
-                    <strong>Start Date:</strong> {project.start_date ? new Date(project.start_date).toLocaleDateString() : 'Not set'}
-                  </div>
-                  <div className="mb-2">
-                    <strong>Due Date:</strong> {project.due_date ? new Date(project.due_date).toLocaleDateString() : 'Not set'}
-                  </div>
-                </div>
-              </div>
-            </div>
+            )}
 
             {/* Project Tasks/Milestones - Show when type is 'tasks' */}
             {type === 'tasks' && (

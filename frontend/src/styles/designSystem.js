@@ -196,10 +196,12 @@ export const componentStyles = {
   },
 
   tableCell: {
-    padding: designSystem.spacing.md,
+    padding: `${designSystem.spacing.sm} ${designSystem.spacing.md}`,
     border: 'none',
     borderBottom: `1px solid ${designSystem.colors.gray[100]}`,
-    fontSize: designSystem.typography.fontSize.sm
+    fontSize: designSystem.typography.fontSize.sm,
+    wordBreak: 'break-word',
+    overflowWrap: 'break-word'
   },
 
   tableRow: {

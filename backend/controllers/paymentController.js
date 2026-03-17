@@ -93,6 +93,73 @@ exports.getPendingPayments = async (req, res) => {
   }
 };
 
+// @desc    Get all payments for admin/CRM managers
+// @route   GET /api/payments/admin/all
+// @access  Private (CRM Manager, Admin)
+exports.getAllPaymentsForAdmin = async (req, res) => {
+  try {
+    console.log('💳 === GET ALL PAYMENTS FOR ADMIN REQUEST ===');
+    console.log('💳 User:', req.user?.email, 'Role:', req.user?.role);
+    
+    let query = {};
+    
+    // Filter by assigned clients for CRM managers
+    if (req.user.role === 'crm_manager') {
+      const crmManagerId = req.user.user_id;
+      console.log('💳 Looking for clients assigned to CRM manager:', crmManagerId);
+      
+      const assignedClients = await Client.find({ crm_manager: crmManagerId }).select('_id name email');
+      console.log('💳 Found assigned clients:', assignedClients.map(c => ({ id: c._id, name: c.name, email: c.email })));
+      
+      const clientIds = assignedClients.map(client => client._id);
+      
+      if (clientIds.length === 0) {
+        console.log('💳 No clients assigned to this CRM manager');
+        return res.json({
+          success: true,
+          count: 0,
+          data: []
+        });
+      }
+      
+      query.client = { $in: clientIds };
+      console.log('💳 Payment query with client filter:', query);
+    }
+    
+    const payments = await Payment.find(query)
+      .populate('client', 'name email phone')
+      .populate('project', 'project_id service_name')
+      .sort({ paymentDate: -1 });
+    
+    console.log('💳 Found payments:', payments.length);
+    console.log('💳 Payment details:', payments.map(p => ({
+      id: p._id,
+      clientId: p.client?._id,
+      clientName: p.client?.name,
+      service: p.service_name,
+      amount: p.amount,
+      status: p.status,
+      verification_status: p.verification_status,
+      receipt_screenshot: p.receipt_screenshot
+    })));
+    
+    res.json({
+      success: true,
+      count: payments.length,
+      data: payments
+    });
+  } catch (error) {
+    console.error('❌ Error fetching all payments:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'FETCH_ALL_PAYMENTS_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
 // @desc    Verify payment (CRM Manager, Admin)
 // @route   PATCH /api/payments/:id/verify
 // @access  Private (CRM Manager, Admin)

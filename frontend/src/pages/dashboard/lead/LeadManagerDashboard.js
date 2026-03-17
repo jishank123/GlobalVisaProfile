@@ -38,7 +38,7 @@ const LeadManagerDashboard = () => {
   
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [activeSection, setActiveSection] = useState('leads');
+  const [activeSection, setActiveSection] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // Data states
@@ -48,6 +48,8 @@ const LeadManagerDashboard = () => {
   const [appointments, setAppointments] = useState([]);
   const [crmManagers, setCrmManagers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
   
   // Modal states
   const [showLeadModal, setShowLeadModal] = useState(false);
@@ -60,6 +62,7 @@ const LeadManagerDashboard = () => {
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [modalType, setModalType] = useState('');
+  const [projectCreating, setProjectCreating] = useState(false);
 
   // Load data functions
   const loadLeads = async () => {
@@ -202,7 +205,8 @@ const LeadManagerDashboard = () => {
         loadProjects(),
         loadClients(),
         loadCrmManagers(),
-        loadAppointments()
+        loadAppointments(),
+        loadRecentActivity()
       ]);
       console.log('🔍 All data loaded successfully');
       console.log('🔍 Final counts:', {
@@ -212,6 +216,58 @@ const LeadManagerDashboard = () => {
       });
     } catch (error) {
       console.error('🔍 Error loading data:', error);
+    }
+  };
+
+  const loadRecentActivity = async () => {
+    try {
+      setActivityLoading(true);
+      
+      // Generate recent activity from leads, projects, and appointments
+      const activities = [];
+      
+      // Add recent lead activities - show more leads
+      leads.slice(0, 5).forEach(lead => {
+        activities.push({
+          id: `lead-${lead._id}`,
+          icon: 'fas fa-user-plus',
+          color: '#3b82f6',
+          message: `New lead assigned: ${lead.firstName} ${lead.lastName}`,
+          timestamp: lead.createdAt || new Date()
+        });
+      });
+      
+      // Add recent project activities
+      projects.slice(0, 5).forEach(project => {
+        activities.push({
+          id: `project-${project._id}`,
+          icon: 'fas fa-project-diagram',
+          color: '#10b981',
+          message: `Project created: ${project.service_name || 'New Project'}`,
+          timestamp: project.createdAt || new Date()
+        });
+      });
+      
+      // Add recent appointment activities
+      appointments.slice(0, 5).forEach(appointment => {
+        activities.push({
+          id: `appointment-${appointment._id}`,
+          icon: 'fas fa-calendar-check',
+          color: '#8b5cf6',
+          message: `Appointment scheduled for ${appointment.scheduled_date ? new Date(appointment.scheduled_date).toLocaleDateString() : 'upcoming'}`,
+          timestamp: appointment.createdAt || new Date()
+        });
+      });
+      
+      // Sort by timestamp (most recent first)
+      activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      
+      setRecentActivity(activities.slice(0, 8));
+    } catch (error) {
+      console.error('Error loading recent activity:', error);
+      setRecentActivity([]);
+    } finally {
+      setActivityLoading(false);
     }
   };
 
@@ -254,6 +310,10 @@ const LeadManagerDashboard = () => {
 
   const handleCreateProject = async (leadId, projectData) => {
     try {
+      // Set loading state at component level
+      setProjectCreating(true);
+      console.log('🚀 Starting project creation...');
+      
       // FORCE BROWSER TO USE NEW CODE - Add timestamp to break cache
       const timestamp = Date.now();
       console.log(`🔄 PROJECT CREATION - TIMESTAMP: ${timestamp}`);
@@ -280,21 +340,114 @@ const LeadManagerDashboard = () => {
       if (!clientId) {
         console.log('🔍 No client_id on lead, searching for existing client by email:', lead.email);
         
+        let existingUser = null; // Declare at this scope so it's accessible later
+        
         try {
-          // Search for existing client by email
-          const existingClientsResponse = await clientsAPI.getAll({ email: lead.email });
-          console.log('🔍 Client search response:', existingClientsResponse);
+          // IMPORTANT: Search for client by BOTH email AND user_id to avoid duplicates
+          // First, try to find a user account with this email
+          const userResponse = await fetch(getApiEndpoint('/users?email=' + lead.email), {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          const userResult = await userResponse.json();
           
-          if (existingClientsResponse.success && existingClientsResponse.data && existingClientsResponse.data.length > 0) {
-            // Found existing client
-            clientId = existingClientsResponse.data[0]._id;
-            console.log('✅ Found existing client:', {
-              clientId: clientId,
-              clientName: existingClientsResponse.data[0].name,
-              clientEmail: existingClientsResponse.data[0].email
+          console.log('🔍 User search response:', userResult);
+          
+          if (userResult.success && userResult.data && userResult.data.length > 0) {
+            existingUser = userResult.data[0];
+            console.log('✅ Found existing user:', {
+              userId: existingUser._id,
+              userEmail: existingUser.email,
+              userName: `${existingUser.first_name} ${existingUser.last_name}`
             });
-          } else {
-            console.log('🔍 No existing client found, will create new one');
+          }
+          
+          // Now search for client by email OR user_id
+          const clientSearchParams = new URLSearchParams();
+          clientSearchParams.append('email', lead.email.toLowerCase().trim());
+          if (existingUser) {
+            clientSearchParams.append('user_id', existingUser._id);
+          }
+          
+          // CRITICAL: If user exists, search for client by user_id FIRST (most reliable)
+          if (existingUser) {
+            console.log('🔍 Searching for client by user_id:', existingUser._id);
+            
+            // Get all clients and filter by user_id (since API might not support user_id filter)
+            const allClientsResponse = await clientsAPI.getAll({});
+            console.log('🔍 Total clients fetched:', allClientsResponse.data?.length);
+            
+            if (allClientsResponse.success && allClientsResponse.data) {
+              // Log first 5 clients to see their structure
+              console.log('🔍 Sample clients:', allClientsResponse.data.slice(0, 5).map(c => ({
+                id: c._id,
+                name: c.name,
+                email: c.email,
+                user_id: c.user_id
+              })));
+              
+              const matchingClients = allClientsResponse.data.filter(c => {
+                const hasUserId = c.user_id !== null && c.user_id !== undefined;
+                const matches = hasUserId && c.user_id.toString() === existingUser._id.toString();
+                
+                if (hasUserId) {
+                  console.log(`🔍 Checking client ${c._id}: user_id=${c.user_id}, matches=${matches}`);
+                }
+                
+                return matches;
+              });
+              
+              console.log('🔍 Found clients with matching user_id:', matchingClients.length);
+              
+              if (matchingClients.length > 0) {
+                // Use the FIRST client record (should only be one, but handle duplicates)
+                clientId = matchingClients[0]._id;
+                console.log('✅ Found client by user_id:', {
+                  clientId: clientId,
+                  clientName: matchingClients[0].name,
+                  clientEmail: matchingClients[0].email,
+                  clientUserId: matchingClients[0].user_id
+                });
+                
+                // IMPORTANT: Update the lead with this client_id to avoid future lookups
+                await leadsAPI.update(leadId, { client_id: clientId });
+                console.log('✅ Updated lead with client_id:', clientId);
+                
+                // If there are duplicate clients, log a warning
+                if (matchingClients.length > 1) {
+                  console.warn('⚠️ WARNING: Found', matchingClients.length, 'client records for user_id:', existingUser._id);
+                  console.warn('⚠️ Using the first one:', clientId);
+                }
+              } else {
+                console.log('❌ No clients found with user_id:', existingUser._id);
+              }
+            }
+          }
+          
+          // Fallback: If still no client found, try searching by email
+          if (!clientId) {
+            console.log('🔍 No client found by user_id, trying email search...');
+            const existingClientsResponse = await clientsAPI.getAll({ email: lead.email });
+            console.log('🔍 Client search by email response:', existingClientsResponse);
+            
+            if (existingClientsResponse.success && existingClientsResponse.data && existingClientsResponse.data.length > 0) {
+              // Found existing client - use the first one
+              clientId = existingClientsResponse.data[0]._id;
+              console.log('✅ Found existing client by email:', {
+                clientId: clientId,
+                clientName: existingClientsResponse.data[0].name,
+                clientEmail: existingClientsResponse.data[0].email,
+                clientUserId: existingClientsResponse.data[0].user_id
+              });
+              
+              // IMPORTANT: Update the lead with this client_id to avoid future lookups
+              await leadsAPI.update(leadId, { client_id: clientId });
+              console.log('✅ Updated lead with client_id:', clientId);
+            } else {
+              console.log('🔍 No existing client found, will create new one');
+            }
           }
         } catch (searchError) {
           console.log('🔍 Error searching for client:', searchError);
@@ -314,6 +467,12 @@ const LeadManagerDashboard = () => {
             university: lead.university || '',
             status: 'active'
           };
+          
+          // CRITICAL: Link user_id if user exists
+          if (existingUser && existingUser._id) {
+            clientData.user_id = existingUser._id;
+            console.log('✅ Linking client to existing user_id:', existingUser._id);
+          }
           
           if (lead.phone && lead.phone.trim()) {
             const cleanPhone = lead.phone.trim();
@@ -363,6 +522,8 @@ const LeadManagerDashboard = () => {
         description: projectData.description || 'Project created from qualified lead',
         priority: projectData.priority || 'medium',
         amount: amount,
+        budget: amount, // Add budget field
+        estimated_duration: projectData.estimated_duration || '', // Add estimated_duration
         assigned_to: projectData.assigned_to,
         created_by: user._id, // Add created_by field for filtering
         start_date: new Date(projectData.start_date),
@@ -384,6 +545,9 @@ const LeadManagerDashboard = () => {
         });
         await loadProjects();
         await loadLeads();
+        
+        // Stop loading before showing alert
+        setProjectCreating(false);
         alert('✅ Project created successfully!');
         setShowLeadModal(false);
       } else {
@@ -393,6 +557,9 @@ const LeadManagerDashboard = () => {
       
     } catch (error) {
       console.error('❌ PROJECT CREATION ERROR:', error);
+      
+      // Stop loading on error
+      setProjectCreating(false);
       
       // If error still mentions 'planning', it's definitely cache
       if (error.message && error.message.includes('planning')) {
@@ -428,8 +595,11 @@ const LeadManagerDashboard = () => {
       total: leads.length,
       new: leads.filter(lead => lead.status === 'new').length,
       contacted: leads.filter(lead => lead.status === 'contacted').length,
-      qualified: leads.filter(lead => lead.status === 'qualified').length,
-      converted: leads.filter(lead => lead.status === 'converted').length
+      // Only count leads qualified by the lead manager (status=qualified AND has lastContact date)
+      // Leads pre-qualified by admin won't have lastContact date set
+      qualified: leads.filter(lead => lead.status === 'qualified' && lead.lastContact).length,
+      converted: leads.filter(lead => lead.status === 'converted').length,
+      disqualified: leads.filter(lead => lead.status === 'lost').length
     };
   };
 
@@ -494,6 +664,22 @@ const LeadManagerDashboard = () => {
     }
   };
 
+  // Helper function to format time ago
+  const formatTimeAgo = (timestamp) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffInMinutes = Math.floor((now - time) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+  };
+
   // Component for statistics cards
   const StatCard = ({ icon, number, label, borderColor, iconColor, onClick }) => (
     <div 
@@ -518,6 +704,189 @@ const LeadManagerDashboard = () => {
       </small>
     </div>
   );
+
+  // Render Dashboard Overview
+  const renderDashboardOverview = () => {
+    const leadStats = getLeadStats();
+    const projectStats = getProjectStats();
+    
+    // Calculate conversion rate
+    const totalLeads = leadStats.total;
+    const convertedLeads = leadStats.converted;
+    const conversionRate = totalLeads > 0 ? ((convertedLeads / totalLeads) * 100).toFixed(1) : 0;
+    
+    return (
+      <div>
+        {/* Header */}
+        <div style={componentStyles.header}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={componentStyles.headerIcon}>
+              <i className="fas fa-chart-line fa-lg"></i>
+            </div>
+            <div>
+              <h4 style={componentStyles.headerTitle}>Lead Manager Dashboard</h4>
+              <p style={componentStyles.headerSubtitle}>Manage your leads, projects, and appointments</p>
+            </div>
+          </div>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: designSystem.colors.success
+            }}
+            onClick={() => {
+              loadAllData();
+            }}
+            {...hoverEffects.button}
+          >
+            <i className="fas fa-sync-alt me-2"></i>Refresh
+          </button>
+        </div>
+
+        {/* Main Statistics Cards */}
+        <div style={componentStyles.statsContainer}>
+          <StatCard
+            icon="fas fa-user-tie"
+            number={totalLeads}
+            label="Total Assigned Leads"
+            borderColor="#3b82f6"
+            iconColor="#3b82f6"
+          />
+          <StatCard
+            icon="fas fa-calendar-check"
+            number={appointments.length}
+            label="Appointments"
+            borderColor="#f59e0b"
+            iconColor="#f59e0b"
+          />
+          <StatCard
+            icon="fas fa-check-double"
+            number={convertedLeads}
+            label="Converted to Projects"
+            borderColor="#10b981"
+            iconColor="#10b981"
+          />
+          <StatCard
+            icon="fas fa-percentage"
+            number={`${conversionRate}%`}
+            label="Conversion Rate"
+            borderColor="#8b5cf6"
+            iconColor="#8b5cf6"
+          />
+        </div>
+
+        {/* Recent Activity */}
+        <div style={{
+          background: 'white',
+          borderRadius: designSystem.borderRadius.card,
+          boxShadow: designSystem.shadows.card,
+          padding: designSystem.spacing.lg,
+          marginTop: designSystem.spacing.xl
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: designSystem.spacing.lg
+          }}>
+            <h5 style={{ 
+              margin: 0,
+              color: designSystem.colors.dark,
+              fontWeight: designSystem.typography.fontWeight.semibold
+            }}>
+              <i className="fas fa-clock me-2" style={{ color: '#3b82f6' }}></i>
+              Recent Activity
+            </h5>
+            <button 
+              onClick={loadRecentActivity}
+              style={{
+                ...componentStyles.secondaryButton,
+                padding: `${designSystem.spacing.xs} ${designSystem.spacing.md}`,
+                fontSize: designSystem.typography.fontSize.sm
+              }}
+              {...hoverEffects.button}
+            >
+              <i className="fas fa-sync-alt me-1"></i>
+              Refresh
+            </button>
+          </div>
+
+          {activityLoading ? (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: designSystem.spacing.xl
+            }}>
+              <i className="fas fa-spinner fa-spin fa-2x" style={{ color: designSystem.colors.primary }}></i>
+              <span style={{ marginLeft: designSystem.spacing.md }}>Loading recent activity...</span>
+            </div>
+          ) : (
+            <div style={{ 
+              border: `1px solid ${designSystem.colors.gray[200]}`,
+              borderRadius: designSystem.borderRadius.button,
+              maxHeight: '400px',
+              overflowY: 'auto'
+            }}>
+              {recentActivity.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: designSystem.spacing.xl,
+                  color: designSystem.colors.gray[500]
+                }}>
+                  <i className="fas fa-clock fa-3x" style={{ marginBottom: designSystem.spacing.md }}></i>
+                  <p>No recent activity found</p>
+                </div>
+              ) : (
+                recentActivity.map((activity, index) => (
+                  <div 
+                    key={activity.id || index}
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      padding: designSystem.spacing.md,
+                      borderBottom: index < recentActivity.length - 1 ? `1px solid ${designSystem.colors.gray[100]}` : 'none',
+                      transition: 'background-color 0.2s ease'
+                    }}
+                    {...hoverEffects.tableRow}
+                  >
+                    <div style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '50%',
+                      background: activity.color || '#3b82f6',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: designSystem.spacing.md,
+                      flexShrink: 0
+                    }}>
+                      <i className={activity.icon || 'fas fa-info'} style={{ color: 'white', fontSize: '16px' }}></i>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ 
+                        margin: 0, 
+                        fontWeight: designSystem.typography.fontWeight.medium,
+                        color: designSystem.colors.dark,
+                        lineHeight: '1.4'
+                      }}>
+                        {activity.message}
+                      </p>
+                      <small style={{ 
+                        color: designSystem.colors.gray[500],
+                        fontSize: designSystem.typography.fontSize.sm
+                      }}>
+                        {formatTimeAgo(activity.timestamp)}
+                      </small>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // Render different sections
   const renderLeadsManagement = () => {
@@ -558,13 +927,6 @@ const LeadManagerDashboard = () => {
             iconColor="#8b5cf6"
           />
           <StatCard
-            icon="fas fa-user-plus"
-            number={leadStats.new}
-            label="New Leads"
-            borderColor="#3b82f6"
-            iconColor="#3b82f6"
-          />
-          <StatCard
             icon="fas fa-phone"
             number={leadStats.contacted}
             label="Contacted"
@@ -577,6 +939,13 @@ const LeadManagerDashboard = () => {
             label="Qualified"
             borderColor="#10b981"
             iconColor="#10b981"
+          />
+          <StatCard
+            icon="fas fa-times-circle"
+            number={leadStats.disqualified}
+            label="Disqualified"
+            borderColor="#ef4444"
+            iconColor="#ef4444"
           />
         </div>
 
@@ -693,13 +1062,15 @@ const LeadManagerDashboard = () => {
                           >
                             <i className="fas fa-eye"></i>
                           </button>
-                          <button 
-                            className="btn btn-outline-info btn-sm"
-                            onClick={() => handleContactLead(lead._id)}
-                            title="Contact Lead"
-                          >
-                            <i className="fas fa-phone"></i>
-                          </button>
+                          {!lead.lastContact && (
+                            <button 
+                              className="btn btn-outline-info btn-sm"
+                              onClick={() => handleContactLead(lead._id)}
+                              title="Contact Lead"
+                            >
+                              <i className="fas fa-phone"></i>
+                            </button>
+                          )}
                           <button 
                             className="btn btn-outline-warning btn-sm"
                             onClick={() => scheduleMeeting(lead)}
@@ -778,9 +1149,9 @@ const LeadManagerDashboard = () => {
             iconColor="#8b5cf6"
           />
           <StatCard
-            icon="fas fa-clock"
-            number={projectStats.pending}
-            label="Pending Assignment"
+            icon="fas fa-pause-circle"
+            number={projectStats.onHold}
+            label="On Hold"
             borderColor="#f59e0b"
             iconColor="#f59e0b"
           />
@@ -1041,41 +1412,30 @@ const LeadManagerDashboard = () => {
 
   const getSourceDisplayName = (source) => {
     const sourceMap = {
-      'profile_assessment': 'Assessment',
-      'contact_form': 'Contact Us',
-      'appointment': 'Appointment',
-      'website': 'Registration',
-      'referral': 'Referral',
-      'social_media': 'Social Media',
-      'advertisement': 'Advertisement',
-      'event': 'Event',
-      'cold_call': 'Cold Call',
-      'email_campaign': 'Email Campaign',
-      'other': 'Other'
+      'profile_assessment': 'ASSESSMENT',
+      'contact_form': 'CONTACT US',
+      'appointment': 'APPOINTMENT',
+      'website': 'REGISTRATION',
+      'register': 'REGISTRATION',
+      'referral': 'REFERRAL',
+      'social_media': 'SOCIAL MEDIA',
+      'advertisement': 'ADVERTISEMENT',
+      'event': 'EVENT',
+      'cold_call': 'COLD CALL',
+      'email_campaign': 'EMAIL CAMPAIGN',
+      'other': 'OTHER'
     };
-    return sourceMap[source] || source || 'Unknown';
+    return sourceMap[source] || (source ? source.toUpperCase() : 'UNKNOWN');
   };
 
   const getSourceColor = (source) => {
-    const colors = {
-      'profile_assessment': '#8b5cf6',
-      'contact_form': '#3b82f6',
-      'appointment': '#10b981',
-      'website': '#f59e0b',
-      'referral': '#ef4444',
-      'social_media': '#06b6d4',
-      'advertisement': '#f97316',
-      'event': '#84cc16',
-      'cold_call': '#6366f1',
-      'email_campaign': '#ec4899',
-      'other': '#6b7280'
-    };
-    return colors[source] || '#6366f1';
+    return '#6366f1'; // Same color for all sources
   };
 
   // Render qualified leads section
   const renderQualifiedLeads = () => {
-    const qualifiedLeads = leads.filter(lead => lead.status === 'qualified');
+    // Only show leads qualified by the lead manager (status=qualified AND has lastContact date)
+    const qualifiedLeads = leads.filter(lead => lead.status === 'qualified' && lead.lastContact);
     
     return (
       <div style={componentStyles.managementCard}>
@@ -1100,31 +1460,6 @@ const LeadManagerDashboard = () => {
           >
             <i className="fas fa-sync-alt me-2"></i>Refresh
           </button>
-        </div>
-
-        {/* Qualified Leads Statistics */}
-        <div style={componentStyles.statsContainer}>
-          <StatCard
-            icon="fas fa-user-check"
-            number={qualifiedLeads.length}
-            label="Qualified Leads"
-            borderColor="#10b981"
-            iconColor="#10b981"
-          />
-          <StatCard
-            icon="fas fa-project-diagram"
-            number={qualifiedLeads.filter(lead => lead.hasProject).length}
-            label="With Projects"
-            borderColor="#3b82f6"
-            iconColor="#3b82f6"
-          />
-          <StatCard
-            icon="fas fa-clock"
-            number={qualifiedLeads.filter(lead => !lead.hasProject).length}
-            label="Awaiting Projects"
-            borderColor="#f59e0b"
-            iconColor="#f59e0b"
-          />
         </div>
 
         {/* Qualified Leads Table */}
@@ -1432,6 +1767,8 @@ const LeadManagerDashboard = () => {
   // Render active section
   const renderActiveSection = () => {
     switch (activeSection) {
+      case 'dashboard':
+        return renderDashboardOverview();
       case 'leads':
         return renderLeadsManagement();
       case 'qualified':
@@ -1441,7 +1778,7 @@ const LeadManagerDashboard = () => {
       case 'meetings':
         return renderMeetingsManagement();
       default:
-        return renderLeadsManagement();
+        return renderDashboardOverview();
     }
   };
 
@@ -1550,21 +1887,28 @@ const LeadManagerDashboard = () => {
           lead={selectedLead}
           onSchedule={async (meetingInfo) => {
             try {
+              // Map meeting type to valid consultation_type
+              const consultationTypeMap = {
+                'video_call': 'video',
+                'phone_call': 'phone',
+                'in_person': 'in-person'
+              };
+              
               // Create appointment in database
               const appointmentData = {
                 name: `${selectedLead.firstName} ${selectedLead.lastName}`,
                 email: selectedLead.email,
-                phone: selectedLead.phone || '',
+                phone: selectedLead.phone || '000-000-0000',
                 visa_category: 'other',
                 timezone: 'EST',
                 preferred_date: meetingInfo.date,
                 preferred_time: meetingInfo.time,
-                consultation_type: meetingInfo.type === 'video_call' ? 'video' : 'phone',
+                consultation_type: consultationTypeMap[meetingInfo.type] || 'video',
                 details: meetingInfo.agenda || meetingInfo.notes || '',
                 status: 'confirmed',
                 priority: 'medium',
                 assigned_to: user._id,
-                created_by: user._id, // Add created_by field for filtering
+                created_by: user._id,
                 scheduled_date: new Date(`${meetingInfo.date}T${meetingInfo.time}`),
                 scheduled_time: meetingInfo.time,
                 duration_minutes: parseInt(meetingInfo.duration) || 60,
@@ -1762,6 +2106,69 @@ const LeadManagerDashboard = () => {
           onHide={() => setShowAppointmentModal(false)}
           appointment={selectedAppointment}
         />
+      )}
+
+      {/* Full-Screen Project Creation Loader */}
+      {projectCreating && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '40px',
+            textAlign: 'center',
+            maxWidth: '400px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+          }}>
+            <div style={{
+              width: '80px',
+              height: '80px',
+              border: '6px solid #e5e7eb',
+              borderTop: '6px solid #3b82f6',
+              borderRadius: '50%',
+              margin: '0 auto 24px',
+              animation: 'spin 1s linear infinite'
+            }}></div>
+            <h3 style={{
+              margin: '0 0 12px 0',
+              color: '#1f2937',
+              fontSize: '20px',
+              fontWeight: '600'
+            }}>
+              Creating Project
+            </h3>
+            <p style={{
+              margin: '0 0 8px 0',
+              color: '#6b7280',
+              fontSize: '15px'
+            }}>
+              Please wait while we set up the project...
+            </p>
+            <p style={{
+              margin: 0,
+              color: '#9ca3af',
+              fontSize: '13px'
+            }}>
+              This may take a few moments
+            </p>
+          </div>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
       )}
     </div>
   );

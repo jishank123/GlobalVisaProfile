@@ -109,11 +109,15 @@ const LeadDetailsModal = ({ show, onHide, lead, type, onContact, onQualify, onSc
       }
     }
     
+    // Auto-fill estimated duration from service duration
+    const durationValue = selectedService && selectedService.duration ? selectedService.duration : '';
+    
     const newProjectData = {
       ...projectData,
       service_id: serviceId,
       service_name: selectedService ? selectedService.name : '',
-      budget: budgetValue
+      budget: budgetValue,
+      estimated_duration: durationValue
     };
     
     setProjectData(newProjectData);

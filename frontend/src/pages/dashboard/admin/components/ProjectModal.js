@@ -7,31 +7,9 @@ const ProjectModal = ({
   type, 
   data, 
   onUpdateStatus, 
-  onUpdateProgress,
-  crmManagers = [],
-  onAssignCrmManager
+  onUpdateProgress
 }) => {
-  const [selectedCrmManager, setSelectedCrmManager] = React.useState('');
-  const [assignLoading, setAssignLoading] = React.useState(false);
-
   if (!show) return null;
-
-  const handleAssignCrmManager = async () => {
-    if (!selectedCrmManager) {
-      alert('Please select a CRM manager');
-      return;
-    }
-
-    setAssignLoading(true);
-    try {
-      await onAssignCrmManager(data._id, selectedCrmManager);
-      setSelectedCrmManager('');
-    } catch (error) {
-      console.error('Error assigning CRM manager:', error);
-    } finally {
-      setAssignLoading(false);
-    }
-  };
 
   const getModalConfig = () => {
     switch (type) {
@@ -130,76 +108,7 @@ const ProjectModal = ({
                   )}
                 </div>
               </div>
-              
-              {/* Assign CRM Manager Section - Show if unassigned OR assigned to a client (not a CRM manager) */}
-              {(!data?.assigned_to || (data?.assigned_to && data?.assigned_to.role === 'client')) && crmManagers.length > 0 && (
-                <div style={{ 
-                  gridColumn: '1 / -1',
-                  background: '#f0fdf4',
-                  padding: designSystem.spacing.md,
-                  borderRadius: designSystem.borderRadius.card,
-                  border: '2px solid #10b981'
-                }}>
-                  <label style={{ 
-                    display: 'block',
-                    fontSize: designSystem.typography.fontSize.sm,
-                    color: designSystem.colors.gray[700],
-                    fontWeight: designSystem.typography.fontWeight.semibold,
-                    marginBottom: designSystem.spacing.sm
-                  }}>
-                    <i className="fas fa-user-plus me-2" style={{ color: '#10b981' }}></i>
-                    Assign CRM Manager
-                  </label>
-                  <div style={{ display: 'flex', gap: designSystem.spacing.sm, alignItems: 'center' }}>
-                    <select
-                      value={selectedCrmManager}
-                      onChange={(e) => setSelectedCrmManager(e.target.value)}
-                      disabled={assignLoading}
-                      style={{
-                        flex: 1,
-                        padding: designSystem.spacing.sm,
-                        borderRadius: designSystem.borderRadius.button,
-                        border: `1px solid ${designSystem.colors.gray[300]}`,
-                        fontSize: designSystem.typography.fontSize.base
-                      }}
-                    >
-                      <option value="">-- Select CRM Manager --</option>
-                      {crmManagers.map(manager => (
-                        <option key={manager._id} value={manager._id}>
-                          {manager.first_name} {manager.last_name} ({manager.email})
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={handleAssignCrmManager}
-                      disabled={assignLoading || !selectedCrmManager}
-                      style={{
-                        padding: `${designSystem.spacing.sm} ${designSystem.spacing.md}`,
-                        background: selectedCrmManager ? '#10b981' : designSystem.colors.gray[300],
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: designSystem.borderRadius.button,
-                        cursor: selectedCrmManager ? 'pointer' : 'not-allowed',
-                        fontWeight: designSystem.typography.fontWeight.semibold,
-                        fontSize: designSystem.typography.fontSize.sm,
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      {assignLoading ? (
-                        <>
-                          <i className="fas fa-spinner fa-spin me-2"></i>
-                          Assigning...
-                        </>
-                      ) : (
-                        <>
-                          <i className="fas fa-check me-2"></i>
-                          Assign
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
+
               
               <div>
                 <label style={{ 

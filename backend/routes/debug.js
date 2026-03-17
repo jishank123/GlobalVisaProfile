@@ -1,7 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const ProfileAssessment = require('../models/ProfileAssessment');
-const ClientAccount = require('../models/ClientAccount');
 
 const router = express.Router();
 
@@ -26,7 +25,10 @@ router.get('/database', async (req, res) => {
     
     // Count documents
     const profileAssessmentCount = await ProfileAssessment.countDocuments();
-    const clientAccountCount = await ClientAccount.countDocuments();
+    const User = require('../models/User');
+    const Client = require('../models/Client');
+    const userCount = await User.countDocuments();
+    const clientCount = await Client.countDocuments();
     
     // Get sample data
     const sampleAssessments = await ProfileAssessment.find()
@@ -34,10 +36,10 @@ router.get('/database', async (req, res) => {
       .limit(3)
       .select('client_name client_email overall_score profile_strength createdAt');
     
-    const sampleClients = await ClientAccount.find()
+    const sampleUsers = await User.find()
       .sort({ createdAt: -1 })
       .limit(3)
-      .select('full_name email account_status createdAt');
+      .select('first_name last_name email role status createdAt');
     
     // Get database stats
     const stats = await mongoose.connection.db.stats();
@@ -48,11 +50,12 @@ router.get('/database', async (req, res) => {
       collections: collectionNames,
       counts: {
         profileAssessments: profileAssessmentCount,
-        clientAccounts: clientAccountCount
+        users: userCount,
+        clients: clientCount
       },
       samples: {
         profileAssessments: sampleAssessments,
-        clientAccounts: sampleClients
+        users: sampleUsers
       },
       stats: {
         dataSize: Math.round(stats.dataSize / 1024 / 1024 * 100) / 100 + ' MB',

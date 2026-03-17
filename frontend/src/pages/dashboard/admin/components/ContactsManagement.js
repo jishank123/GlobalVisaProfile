@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { contactAPI, profileAssessmentsAPI, appointmentsAPI, usersAPI, leadsAPI } from '../../../../services/api';
+import { hoverEffects } from '../../../../styles/designSystem';
 
 const ContactsManagement = () => {
   const [activeTab, setActiveTab] = useState('contact');
@@ -59,17 +60,6 @@ const ContactsManagement = () => {
         setAssessments([]);
       }
 
-      // Load appointments
-      const appointmentsResponse = await appointmentsAPI.getAll();
-      let appointmentsData = [];
-      if (appointmentsResponse.success) {
-        appointmentsData = appointmentsResponse.data?.appointments || appointmentsResponse.data || [];
-        // Filter out converted appointments (check if lead exists with same email and source)
-        setAppointments(Array.isArray(appointmentsData) ? appointmentsData : []);
-      } else {
-        setAppointments([]);
-      }
-
       // Load existing leads to check for duplicates
       const leadsResponse = await leadsAPI.getAll();
       let existingLeadEmails = new Set();
@@ -78,6 +68,21 @@ const ContactsManagement = () => {
         existingLeadEmails = new Set(
           leadsData.map(lead => lead.email?.toLowerCase()).filter(Boolean)
         );
+      }
+
+      // Load appointments
+      const appointmentsResponse = await appointmentsAPI.getAll();
+      let appointmentsData = [];
+      if (appointmentsResponse.success) {
+        appointmentsData = appointmentsResponse.data?.appointments || appointmentsResponse.data || [];
+        // Filter out converted appointments (check if lead exists with same email)
+        appointmentsData = appointmentsData.filter(appointment => {
+          const appointmentEmail = appointment.email?.toLowerCase();
+          return appointmentEmail && !existingLeadEmails.has(appointmentEmail);
+        });
+        setAppointments(Array.isArray(appointmentsData) ? appointmentsData : []);
+      } else {
+        setAppointments([]);
       }
 
       // Load user registrations (clients who registered directly)
@@ -248,25 +253,24 @@ const ContactsManagement = () => {
         priority: convertFormData.priority
       };
 
-      // Only add notes if they're not empty
-      if (convertFormData.notes && convertFormData.notes.trim()) {
-        conversionData.notes = convertFormData.notes.trim();
-      }
-
       // Use appropriate API endpoint based on contact type
       switch (selectedContact.type) {
         case 'contact':
+          // Add "Converted from" prefix to notes
+          conversionData.notes = `Converted from contact form. ${convertFormData.notes || ''}`.trim();
           response = await contactAPI.convertToLead(selectedContact.id, conversionData);
           break;
         
         case 'assessment':
+          // Add "Converted from" prefix to notes
+          conversionData.notes = `Converted from profile assessment. ${convertFormData.notes || ''}`.trim();
           response = await profileAssessmentsAPI.convertToLead(selectedContact.id, conversionData);
           break;
         
         case 'appointment':
           // For appointments, create a new lead since there's no specific convert endpoint
           const appointmentName = selectedContact.data?.name || 'Unknown';
-          const nameParts = appointmentName.split(' ');
+          const nameParts = appointmentName.trim().split(' ');
           const appointmentPhone = selectedContact.data?.phone;
           const appointmentEmail = selectedContact.data?.email;
           
@@ -274,16 +278,34 @@ const ContactsManagement = () => {
             throw new Error('Email is required for appointment conversion');
           }
           
-          response = await leadsAPI.create({
+          // Build lead data object
+          const appointmentLeadData = {
             firstName: nameParts[0] || 'Unknown',
-            lastName: nameParts.slice(1).join(' ') || 'Unknown',
+            lastName: nameParts.slice(1).join(' ') || nameParts[0] || 'Unknown', // Use first name as last name if no last name
             email: appointmentEmail,
-            phone: (appointmentPhone && appointmentPhone.length >= 10) ? appointmentPhone : undefined,
-            source: 'website',
+            source: 'appointment',
             priority: convertFormData.priority,
             notes: `Converted from appointment request. ${convertFormData.notes || ''}`.trim(),
             estimatedValue: 0
-          });
+          };
+          
+          // Only add phone if it's valid (at least 10 digits)
+          if (appointmentPhone && appointmentPhone.replace(/\D/g, '').length >= 10) {
+            appointmentLeadData.phone = appointmentPhone;
+          }
+          
+          // Add country if available
+          if (selectedContact.data?.country) {
+            appointmentLeadData.country = selectedContact.data.country;
+          }
+          
+          // Add university if available
+          if (selectedContact.data?.university) {
+            appointmentLeadData.university = selectedContact.data.university;
+          }
+          
+          console.log('🔄 Converting appointment to lead with data:', appointmentLeadData);
+          response = await leadsAPI.create(appointmentLeadData);
           break;
         
         case 'registration':
@@ -300,9 +322,9 @@ const ContactsManagement = () => {
             lastName: selectedContact.data?.last_name || 'Unknown',
             email: registrationEmail,
             phone: (registrationPhone && registrationPhone.length >= 10) ? registrationPhone : undefined,
-            source: 'website',
+            source: 'register',
             priority: convertFormData.priority,
-            notes: `Converted from user registration. Company: ${selectedContact.data?.company || 'Not specified'}. ${convertFormData.notes || ''}`.trim(),
+            notes: `Converted from user registration. ${convertFormData.notes || ''}`.trim(),
             estimatedValue: 0
           });
           break;
@@ -410,7 +432,11 @@ const ContactsManagement = () => {
       {/* Statistics Cards */}
       <div className="row mb-4">
         <div className="col-md-3">
-          <div className="card border-primary">
+          <div 
+            className="card border-primary"
+            style={{ transition: 'all 0.3s ease' }}
+            {...hoverEffects.card}
+          >
             <div className="card-body text-center">
               <i className="fas fa-user-check fa-2x text-primary mb-2"></i>
               <h4 className="text-primary">{stats.contactForms}</h4>
@@ -419,7 +445,11 @@ const ContactsManagement = () => {
           </div>
         </div>
         <div className="col-md-3">
-          <div className="card border-success">
+          <div 
+            className="card border-success"
+            style={{ transition: 'all 0.3s ease' }}
+            {...hoverEffects.card}
+          >
             <div className="card-body text-center">
               <i className="fas fa-chart-line fa-2x text-success mb-2"></i>
               <h4 className="text-success">{stats.assessments}</h4>
@@ -428,7 +458,11 @@ const ContactsManagement = () => {
           </div>
         </div>
         <div className="col-md-3">
-          <div className="card border-warning">
+          <div 
+            className="card border-warning"
+            style={{ transition: 'all 0.3s ease' }}
+            {...hoverEffects.card}
+          >
             <div className="card-body text-center">
               <i className="fas fa-calendar-check fa-2x text-warning mb-2"></i>
               <h4 className="text-warning">{stats.appointments}</h4>
@@ -437,7 +471,11 @@ const ContactsManagement = () => {
           </div>
         </div>
         <div className="col-md-3">
-          <div className="card border-info">
+          <div 
+            className="card border-info"
+            style={{ transition: 'all 0.3s ease' }}
+            {...hoverEffects.card}
+          >
             <div className="card-body text-center">
               <i className="fas fa-user-plus fa-2x text-info mb-2"></i>
               <h4 className="text-info">{stats.registrations}</h4>
@@ -455,6 +493,7 @@ const ContactsManagement = () => {
             onClick={() => setActiveTab('contact')}
           >
             <i className="fas fa-envelope me-1"></i>Contact Us
+            <span className="badge bg-primary ms-2">{stats.contactForms}</span>
           </button>
         </li>
         <li className="nav-item" role="presentation">
@@ -463,6 +502,7 @@ const ContactsManagement = () => {
             onClick={() => setActiveTab('assessment')}
           >
             <i className="fas fa-chart-line me-1"></i>Profile Assessments
+            <span className="badge bg-success ms-2">{stats.assessments}</span>
           </button>
         </li>
         <li className="nav-item" role="presentation">
@@ -471,6 +511,7 @@ const ContactsManagement = () => {
             onClick={() => setActiveTab('appointment')}
           >
             <i className="fas fa-calendar-check me-1"></i>Appointments
+            <span className="badge bg-warning ms-2">{stats.appointments}</span>
           </button>
         </li>
         <li className="nav-item" role="presentation">
@@ -479,6 +520,7 @@ const ContactsManagement = () => {
             onClick={() => setActiveTab('registration')}
           >
             <i className="fas fa-user-plus me-1"></i>Pure Registrations
+            <span className="badge bg-info ms-2">{stats.registrations}</span>
           </button>
         </li>
       </ul>
@@ -495,7 +537,6 @@ const ContactsManagement = () => {
                     <th>Email</th>
                     <th>Visa Type</th>
                     <th>Status</th>
-                    <th>Priority</th>
                     <th>Submitted</th>
                     <th>Actions</th>
                   </tr>
@@ -503,7 +544,7 @@ const ContactsManagement = () => {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="7" className="text-center">
+                      <td colSpan="6" className="text-center">
                         <div className="spinner-border spinner-border-sm me-2"></div>
                         Loading contact submissions...
                       </td>
@@ -521,11 +562,6 @@ const ContactsManagement = () => {
                         <td>
                           <span className={`badge ${getStatusBadgeClass(contact.status)}`}>
                             {(contact.status || 'new').replace('_', ' ').toUpperCase()}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={getPriorityClass(contact.priority || 'medium')}>
-                            {(contact.priority || 'medium').toUpperCase()}
                           </span>
                         </td>
                         <td>{new Date(contact.createdAt || contact.submitted_at).toLocaleDateString()}</td>
@@ -574,7 +610,15 @@ const ContactsManagement = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {(assessments || []).map(assessment => (
+                  {loading ? (
+                    <tr>
+                      <td colSpan="8" className="text-center">
+                        <div className="spinner-border spinner-border-sm me-2"></div>
+                        Loading profile assessments...
+                      </td>
+                    </tr>
+                  ) : (
+                    (assessments || []).map(assessment => (
                     <tr key={assessment._id || assessment.id}>
                       <td><strong>{assessment.client_name}</strong></td>
                       <td>{assessment.client_email}</td>
@@ -616,7 +660,8 @@ const ContactsManagement = () => {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -641,7 +686,15 @@ const ContactsManagement = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {(appointments || []).map(appointment => (
+                  {loading ? (
+                    <tr>
+                      <td colSpan="8" className="text-center">
+                        <div className="spinner-border spinner-border-sm me-2"></div>
+                        Loading appointment requests...
+                      </td>
+                    </tr>
+                  ) : (
+                    (appointments || []).map(appointment => (
                     <tr key={appointment._id || appointment.id}>
                       <td><strong>{appointment.name}</strong></td>
                       <td>{appointment.email}</td>
@@ -679,7 +732,8 @@ const ContactsManagement = () => {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -689,10 +743,6 @@ const ContactsManagement = () => {
         {/* User Registrations Tab */}
         {activeTab === 'registration' && (
           <div className="tab-pane fade show active">
-            <div className="alert alert-info mb-3">
-              <i className="fas fa-info-circle me-2"></i>
-              <strong>Registrations:</strong> Users who registered directly but have NOT filled any public forms (Contact Us, Profile Assessment, or Appointment).
-            </div>
             <div className="table-responsive">
               <table className="table table-hover">
                 <thead style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white' }}>
@@ -701,8 +751,7 @@ const ContactsManagement = () => {
                     <th>Email</th>
                     <th>Phone</th>
                     <th>Company</th>
-                    <th>Status</th>
-                    <th>Email Verified</th>
+                    <th>Country</th>
                     <th>Registered</th>
                     <th>Actions</th>
                   </tr>
@@ -710,7 +759,7 @@ const ContactsManagement = () => {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="8" className="text-center">
+                      <td colSpan="7" className="text-center">
                         <div className="spinner-border spinner-border-sm me-2"></div>
                         Loading user registrations...
                       </td>
@@ -722,16 +771,7 @@ const ContactsManagement = () => {
                         <td>{registration.email}</td>
                         <td>{registration.phone || 'Not provided'}</td>
                         <td>{registration.company || 'Not specified'}</td>
-                        <td>
-                          <span className={`badge ${getStatusBadgeClass(registration.status || 'active')}`}>
-                            {(registration.status || 'active').toUpperCase()}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`badge ${registration.email_verified ? 'bg-success' : 'bg-warning'}`}>
-                            {registration.email_verified ? 'Verified' : 'Pending'}
-                          </span>
-                        </td>
+                        <td>{registration.country || 'Not specified'}</td>
                         <td>{new Date(registration.createdAt || registration.created_at).toLocaleDateString()}</td>
                         <td>
                           <div className="btn-group btn-group-sm">
@@ -795,18 +835,22 @@ const ContactsManagement = () => {
                         <p className="fw-bold">{selectedContact.data.email}</p>
                       </div>
                     </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Phone</label>
-                        <p className="fw-bold">{selectedContact.data.phone || 'Not provided'}</p>
+                    {selectedContact.data.phone && (
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Phone</label>
+                          <p className="fw-bold">{selectedContact.data.phone}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Visa Type</label>
-                        <p className="fw-bold">{selectedContact.data.visa_type || 'Not specified'}</p>
+                    )}
+                    {selectedContact.data.visa_type && (
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Visa Type</label>
+                          <p className="fw-bold">{selectedContact.data.visa_type}</p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                     <div className="col-md-6">
                       <div className="mb-3">
                         <label className="form-label text-muted">Status</label>
@@ -815,23 +859,33 @@ const ContactsManagement = () => {
                         </span>
                       </div>
                     </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Submitted</label>
-                        <p className="fw-bold">{new Date(selectedContact.data.createdAt || selectedContact.data.submitted_at).toLocaleDateString()}</p>
+                    {(selectedContact.data.createdAt || selectedContact.data.submitted_at) && (
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Submitted</label>
+                          <p className="fw-bold">{new Date(selectedContact.data.createdAt || selectedContact.data.submitted_at).toLocaleDateString()}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-12">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Message</label>
-                        <p className="fw-bold">{selectedContact.data.message || 'No message provided'}</p>
+                    )}
+                    {selectedContact.data.message && (
+                      <div className="col-12">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Message</label>
+                          <p className="fw-bold">{selectedContact.data.message}</p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
                 {selectedContact.type === 'assessment' && (
                   <div className="row">
+                    {/* Basic Information */}
+                    <div className="col-12">
+                      <h6 className="text-primary mb-3">
+                        <i className="fas fa-user me-2"></i>Client Information
+                      </h6>
+                    </div>
                     <div className="col-md-6">
                       <div className="mb-3">
                         <label className="form-label text-muted">Name</label>
@@ -844,50 +898,211 @@ const ContactsManagement = () => {
                         <p className="fw-bold">{selectedContact.data.client_email}</p>
                       </div>
                     </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Overall Score</label>
-                        <p className="fw-bold">{selectedContact.data.overall_score || 'Not calculated'}</p>
+                    {selectedContact.data.client_phone && (
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Phone</label>
+                          <p className="fw-bold">{selectedContact.data.client_phone}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Status</label>
-                        <span className={`badge ${getStatusBadgeClass(selectedContact.data.status)}`}>
-                          {(selectedContact.data.status || 'pending').replace('_', ' ').toUpperCase()}
-                        </span>
+                    )}
+                    {selectedContact.data.current_location && (
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Current Location</label>
+                          <p className="fw-bold">{selectedContact.data.current_location}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Education Score</label>
-                        <p className="fw-bold">{selectedContact.data.education_score || 'N/A'}</p>
+                    )}
+                    {selectedContact.data.field_of_expertise && (
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Field of Expertise</label>
+                          <p className="fw-bold">{selectedContact.data.field_of_expertise}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Experience Score</label>
-                        <p className="fw-bold">{selectedContact.data.experience_score || 'N/A'}</p>
+                    )}
+                    {selectedContact.data.years_of_experience !== undefined && (
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Years of Experience</label>
+                          <p className="fw-bold">{selectedContact.data.years_of_experience} years</p>
+                        </div>
                       </div>
+                    )}
+
+                    {/* Assessment Results */}
+                    <div className="col-12 mt-3">
+                      <h6 className="text-primary mb-3">
+                        <i className="fas fa-chart-line me-2"></i>Assessment Results
+                      </h6>
                     </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Publications Score</label>
-                        <p className="fw-bold">{selectedContact.data.publications_score || 'N/A'}</p>
+                    {selectedContact.data.overall_score !== undefined && (
+                      <div className="col-md-4">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Overall Score</label>
+                          <p className="fw-bold fs-4 text-primary">{selectedContact.data.overall_score}/100</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Awards Score</label>
-                        <p className="fw-bold">{selectedContact.data.awards_score || 'N/A'}</p>
+                    )}
+                    {selectedContact.data.profile_strength && (
+                      <div className="col-md-4">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Profile Strength</label>
+                          <p className="fw-bold">{selectedContact.data.profile_strength}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-12">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Submitted</label>
-                        <p className="fw-bold">{new Date(selectedContact.data.submitted_at).toLocaleDateString()}</p>
+                    )}
+                    {selectedContact.data.criteria_met !== undefined && (
+                      <div className="col-md-4">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Criteria Met</label>
+                          <p className="fw-bold">{selectedContact.data.criteria_met}/10</p>
+                        </div>
                       </div>
+                    )}
+                    {selectedContact.data.strong_criteria_count !== undefined && (
+                      <div className="col-md-4">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Strong Criteria</label>
+                          <p className="fw-bold text-success">{selectedContact.data.strong_criteria_count}</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedContact.data.moderate_criteria_count !== undefined && (
+                      <div className="col-md-4">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Moderate Criteria</label>
+                          <p className="fw-bold text-warning">{selectedContact.data.moderate_criteria_count}</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedContact.data.weak_criteria_count !== undefined && (
+                      <div className="col-md-4">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Weak Criteria</label>
+                          <p className="fw-bold text-danger">{selectedContact.data.weak_criteria_count}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* EB-1A Criteria Scores */}
+                    <div className="col-12 mt-3">
+                      <h6 className="text-primary mb-3">
+                        <i className="fas fa-list-check me-2"></i>EB-1A Criteria Scores
+                      </h6>
                     </div>
+                    {selectedContact.data.criterion_1_awards !== undefined && (
+                      <div className="col-md-6">
+                        <div className="mb-2">
+                          <label className="form-label text-muted small">Awards & Recognition</label>
+                          <p className="fw-bold mb-1">{selectedContact.data.criterion_1_awards}/3</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedContact.data.criterion_2_memberships !== undefined && (
+                      <div className="col-md-6">
+                        <div className="mb-2">
+                          <label className="form-label text-muted small">Professional Memberships</label>
+                          <p className="fw-bold mb-1">{selectedContact.data.criterion_2_memberships}/3</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedContact.data.criterion_3_media !== undefined && (
+                      <div className="col-md-6">
+                        <div className="mb-2">
+                          <label className="form-label text-muted small">Media Coverage</label>
+                          <p className="fw-bold mb-1">{selectedContact.data.criterion_3_media}/3</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedContact.data.criterion_4_judging !== undefined && (
+                      <div className="col-md-6">
+                        <div className="mb-2">
+                          <label className="form-label text-muted small">Judging/Review Work</label>
+                          <p className="fw-bold mb-1">{selectedContact.data.criterion_4_judging}/3</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedContact.data.criterion_5_contributions !== undefined && (
+                      <div className="col-md-6">
+                        <div className="mb-2">
+                          <label className="form-label text-muted small">Original Contributions</label>
+                          <p className="fw-bold mb-1">{selectedContact.data.criterion_5_contributions}/3</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedContact.data.criterion_6_publications !== undefined && (
+                      <div className="col-md-6">
+                        <div className="mb-2">
+                          <label className="form-label text-muted small">Scholarly Publications</label>
+                          <p className="fw-bold mb-1">{selectedContact.data.criterion_6_publications}/3</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedContact.data.criterion_7_exhibitions !== undefined && (
+                      <div className="col-md-6">
+                        <div className="mb-2">
+                          <label className="form-label text-muted small">Exhibitions/Showcases</label>
+                          <p className="fw-bold mb-1">{selectedContact.data.criterion_7_exhibitions}/3</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedContact.data.criterion_8_leadership !== undefined && (
+                      <div className="col-md-6">
+                        <div className="mb-2">
+                          <label className="form-label text-muted small">Leadership Roles</label>
+                          <p className="fw-bold mb-1">{selectedContact.data.criterion_8_leadership}/3</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedContact.data.criterion_9_salary !== undefined && (
+                      <div className="col-md-6">
+                        <div className="mb-2">
+                          <label className="form-label text-muted small">High Salary/Remuneration</label>
+                          <p className="fw-bold mb-1">{selectedContact.data.criterion_9_salary}/3</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedContact.data.criterion_10_commercial !== undefined && (
+                      <div className="col-md-6">
+                        <div className="mb-2">
+                          <label className="form-label text-muted small">Commercial Success</label>
+                          <p className="fw-bold mb-1">{selectedContact.data.criterion_10_commercial}/3</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Status and Follow-up */}
+                    <div className="col-12 mt-3">
+                      <h6 className="text-primary mb-3">
+                        <i className="fas fa-tasks me-2"></i>Status & Follow-up
+                      </h6>
+                    </div>
+                    {selectedContact.data.follow_up_status && (
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Follow-up Status</label>
+                          <span className="badge bg-info">{selectedContact.data.follow_up_status}</span>
+                        </div>
+                      </div>
+                    )}
+                    {selectedContact.data.notes && (
+                      <div className="col-12">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Notes</label>
+                          <p className="fw-bold">{selectedContact.data.notes}</p>
+                        </div>
+                      </div>
+                    )}
+                    {(selectedContact.data.createdAt || selectedContact.data.submitted_at) && (
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Submitted</label>
+                          <p className="fw-bold">{new Date(selectedContact.data.createdAt || selectedContact.data.submitted_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -905,50 +1120,54 @@ const ContactsManagement = () => {
                         <p className="fw-bold">{selectedContact.data.email}</p>
                       </div>
                     </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Phone</label>
-                        <p className="fw-bold">{selectedContact.data.phone || 'Not provided'}</p>
+                    {selectedContact.data.phone && (
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Phone</label>
+                          <p className="fw-bold">{selectedContact.data.phone}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Visa Category</label>
-                        <p className="fw-bold">{selectedContact.data.visa_category || 'Not specified'}</p>
+                    )}
+                    {selectedContact.data.visa_category && (
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Visa Category</label>
+                          <p className="fw-bold">{selectedContact.data.visa_category}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Consultation Type</label>
-                        <p className="fw-bold">{selectedContact.data.consultation_type || 'Video'}</p>
+                    )}
+                    {selectedContact.data.consultation_type && (
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Consultation Type</label>
+                          <p className="fw-bold">{selectedContact.data.consultation_type}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Preferred Date</label>
-                        <p className="fw-bold">{selectedContact.data.preferred_date ? new Date(selectedContact.data.preferred_date).toLocaleDateString() : 'Not specified'}</p>
+                    )}
+                    {(selectedContact.data.createdAt || selectedContact.data.submitted_at) && (
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Submitted</label>
+                          <p className="fw-bold">{new Date(selectedContact.data.createdAt || selectedContact.data.submitted_at).toLocaleDateString()}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Preferred Time</label>
-                        <p className="fw-bold">{selectedContact.data.preferred_time || 'Not specified'}</p>
+                    )}
+                    {selectedContact.data.preferred_date && (
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Preferred Date</label>
+                          <p className="fw-bold">{new Date(selectedContact.data.preferred_date).toLocaleDateString()}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Status</label>
-                        <span className={`badge ${getStatusBadgeClass(selectedContact.data.status)}`}>
-                          {(selectedContact.data.status || 'pending').replace('_', ' ').toUpperCase()}
-                        </span>
+                    )}
+                    {selectedContact.data.preferred_time && (
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label text-muted">Preferred Time</label>
+                          <p className="fw-bold">{selectedContact.data.preferred_time}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Submitted</label>
-                        <p className="fw-bold">{new Date(selectedContact.data.createdAt || selectedContact.data.submitted_at).toLocaleDateString()}</p>
-                      </div>
-                    </div>
+                    )}
                     <div className="col-12">
                       <div className="mb-3">
                         <label className="form-label text-muted">Details</label>
@@ -960,62 +1179,48 @@ const ContactsManagement = () => {
 
                 {selectedContact.type === 'registration' && (
                   <div className="row">
+                    {/* Left Column */}
                     <div className="col-md-6">
                       <div className="mb-3">
                         <label className="form-label text-muted">Name</label>
                         <p className="fw-bold">{selectedContact.data.first_name} {selectedContact.data.last_name}</p>
                       </div>
                     </div>
+                    {/* Right Column */}
                     <div className="col-md-6">
                       <div className="mb-3">
                         <label className="form-label text-muted">Email</label>
                         <p className="fw-bold">{selectedContact.data.email}</p>
                       </div>
                     </div>
+                    
+                    {/* Left Column */}
                     <div className="col-md-6">
                       <div className="mb-3">
                         <label className="form-label text-muted">Phone</label>
                         <p className="fw-bold">{selectedContact.data.phone || 'Not provided'}</p>
                       </div>
                     </div>
+                    {/* Right Column */}
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label text-muted">Registered</label>
+                        <p className="fw-bold">{new Date(selectedContact.data.createdAt || selectedContact.data.created_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Left Column */}
                     <div className="col-md-6">
                       <div className="mb-3">
                         <label className="form-label text-muted">Company</label>
                         <p className="fw-bold">{selectedContact.data.company || 'Not specified'}</p>
                       </div>
                     </div>
+                    {/* Right Column */}
                     <div className="col-md-6">
                       <div className="mb-3">
                         <label className="form-label text-muted">Country</label>
                         <p className="fw-bold">{selectedContact.data.country || 'Not specified'}</p>
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Status</label>
-                        <span className={`badge ${getStatusBadgeClass(selectedContact.data.status)}`}>
-                          {(selectedContact.data.status || 'active').toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Email Verified</label>
-                        <span className={`badge ${selectedContact.data.email_verified ? 'bg-success' : 'bg-warning'}`}>
-                          {selectedContact.data.email_verified ? 'Verified' : 'Pending'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Last Login</label>
-                        <p className="fw-bold">{selectedContact.data.last_login ? new Date(selectedContact.data.last_login).toLocaleDateString() : 'Never'}</p>
-                      </div>
-                    </div>
-                    <div className="col-12">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Registered</label>
-                        <p className="fw-bold">{new Date(selectedContact.data.createdAt || selectedContact.data.created_at).toLocaleDateString()}</p>
                       </div>
                     </div>
                   </div>
@@ -1109,7 +1314,6 @@ const ContactsManagement = () => {
                   <ul className="mb-0 mt-2">
                     <li>System will check if a lead already exists with this email</li>
                     <li>If no duplicate found, contact will be converted to a lead with the specified priority</li>
-                    <li>Lead Manager will be automatically assigned</li>
                     <li>Original contact will be marked as "converted" and removed from this list</li>
                     <li>Lead tracking and follow-up process will begin</li>
                   </ul>

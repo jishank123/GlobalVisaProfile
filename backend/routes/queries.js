@@ -49,55 +49,7 @@ const upload = multer({
 // @route   GET /api/queries
 // @desc    Get queries with filters (supports client access)
 // @access  Private (Admin, CRM Manager, Client)
-router.get('/', (req, res, next) => {
-  // Check if this is a client request by looking at the token
-  const token = req.headers.authorization?.split(' ')[1];
-  if (token) {
-    try {
-      const jwt = require('jsonwebtoken');
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      if (decoded.role === 'client') {
-        // Use client authentication middleware
-        return authenticateClient(req, res, async (err) => {
-          if (err) return next(err);
-          
-          try {
-            // Find client record and get their queries
-            const clientRecord = await Client.findOne({ email: req.client.email });
-            if (!clientRecord) {
-              return res.status(404).json({
-                success: false,
-                message: 'Client record not found'
-              });
-            }
-            
-            const queries = await Query.find({ client: clientRecord._id })
-              .populate('assignedTo', 'first_name last_name email')
-              .populate('responses.user', 'first_name last_name email role')
-              .sort({ createdAt: -1 });
-            
-            res.json({
-              success: true,
-              count: queries.length,
-              data: queries
-            });
-          } catch (error) {
-            console.error('❌ Error fetching client queries:', error);
-            res.status(500).json({
-              success: false,
-              message: 'Server error',
-              error: error.message
-            });
-          }
-        });
-      }
-    } catch (error) {
-      // If token verification fails, fall through to regular auth
-    }
-  }
-  // Use regular auth middleware for admin/crm_manager
-  return auth(['admin', 'crm_manager'])(req, res, next);
-}, queryController.getQueries);
+router.get('/', auth(['admin', 'crm_manager', 'client']), queryController.getQueries);
 
 // @route   GET /api/queries/stats/summary
 // @desc    Get query statistics

@@ -132,9 +132,8 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
           payment_screenshot: null,
           notes: ''
         });
-        // Reload data
-        loadPayments();
-        loadPurchasedServices();
+        // Reload data - load payments first, then pass to loadPurchasedServices
+        await loadData();
       } else {
         throw new Error(response.message || 'Failed to submit payment');
       }
@@ -177,33 +176,33 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
         const services = response.data || [];
         console.log('✅ Purchased services loaded for client:', services.length, 'services');
         
-        // Fetch payment status for each project
-        const servicesWithPaymentStatus = await Promise.all(
-          services.map(async (service) => {
-            try {
-              const paymentResponse = await apiCall(`/payments/by-project/${service._id}`);
-              
-              if (paymentResponse.success && paymentResponse.data && paymentResponse.data.length > 0) {
-                const payment = paymentResponse.data[0];
-                console.log(`💳 Client: Found payment for project ${service._id}:`, payment.status);
-                return {
-                  ...service,
-                  payment_status: payment.status, // Add actual payment status
-                  payment_id: payment._id,
-                  payment_receipt: payment.receipt_screenshot || service.payment_receipt,
-                  receipt_screenshot: payment.receipt_screenshot || service.receipt_screenshot
-                };
-              }
-              
-              // No payment record found, return service as-is
-              console.log(`⚠️ Client: No payment record for project ${service._id}`);
-              return service;
-            } catch (error) {
-              console.error(`❌ Client: Error fetching payment for project ${service._id}:`, error);
-              return service;
-            }
-          })
-        );
+        // Match payment records with projects using already-loaded payment data
+        const servicesWithPaymentStatus = services.map((service) => {
+          // Find payment record for this project from already-loaded payments
+          const payment = loadedPayments.find(p => {
+            const projectId = p.project?._id || p.project;
+            return projectId && projectId.toString() === service._id.toString();
+          });
+          
+          if (payment) {
+            console.log(`💳 Client: Found payment for project ${service._id}:`, payment.status);
+            console.log(`💳 Client: Payment method from payment record:`, payment.paymentMethod);
+            console.log(`💳 Client: Payment method from project:`, service.payment_method);
+            return {
+              ...service,
+              payment_status: payment.status, // Add actual payment status
+              payment_id: payment._id,
+              paymentMethod: payment.paymentMethod || service.payment_method, // Add payment method from payment record
+              payment_receipt: payment.receipt_screenshot || service.payment_receipt,
+              receipt_screenshot: payment.receipt_screenshot || service.receipt_screenshot,
+              admin_notes: payment.admin_notes // Add admin notes for rejected payments
+            };
+          }
+          
+          // No payment record found, return service as-is
+          console.log(`⚠️ Client: No payment record for project ${service._id}`);
+          return service;
+        });
         
         // DETAILED DEBUG: Log each service status for debugging
         console.log('\n========== DETAILED SERVICE STATUS DEBUG ==========');
@@ -232,7 +231,13 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
         setPurchasedServices(servicesWithPaymentStatus);
         
         // Load existing invoices for confirmed services
-        await loadExistingInvoices(servicesWithPaymentStatus);
+        console.log('🔄 About to call loadExistingInvoices with', servicesWithPaymentStatus.length, 'services');
+        try {
+          await loadExistingInvoices(servicesWithPaymentStatus);
+          console.log('✅ loadExistingInvoices completed');
+        } catch (invoiceError) {
+          console.error('❌ Error in loadExistingInvoices:', invoiceError);
+        }
         
         // Calculate stats including payment records - use loadedPayments parameter
         console.log('📊 Calculating stats with payments:', loadedPayments.length);
@@ -256,21 +261,39 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
         // Count projects by their payment status (or project status as fallback)
         const projectsByStatus = {
           due: allProjects.filter(s => {
-            const status = s.payment_status || s.status;
+            // Use same logic as getFilteredServices
+            const status = s.payment_status || (
+              ['due', 'pending_verification', 'completed', 'verified', 'pending', 'failed', 'rejected', 'cancelled'].includes(s.status?.toLowerCase())
+                ? s.status
+                : 'due' // Default to 'due' if project status is not payment-related
+            );
             return status?.toLowerCase().trim() === 'due';
           }).length,
           pending: allProjects.filter(s => {
-            const status = s.payment_status || s.status;
+            const status = s.payment_status || (
+              ['due', 'pending_verification', 'completed', 'verified', 'pending', 'failed', 'rejected', 'cancelled'].includes(s.status?.toLowerCase())
+                ? s.status
+                : 'due'
+            );
             const statusLower = status?.toLowerCase().trim();
             return statusLower === 'pending' || statusLower === 'pending_verification';
           }).length,
           confirmed: allProjects.filter(s => {
-            const status = s.payment_status || s.status;
+            const status = s.payment_status || (
+              ['due', 'pending_verification', 'completed', 'verified', 'pending', 'failed', 'rejected', 'cancelled'].includes(s.status?.toLowerCase())
+                ? s.status
+                : 'due'
+            );
             const statusLower = status?.toLowerCase().trim();
-            return statusLower === 'verified' || statusLower === 'completed' || statusLower === 'active' || statusLower === 'in_progress';
+            // Only count verified/completed as confirmed, NOT active/in_progress (those are project statuses)
+            return statusLower === 'verified' || statusLower === 'completed';
           }).length,
           rejected: allProjects.filter(s => {
-            const status = s.payment_status || s.status;
+            const status = s.payment_status || (
+              ['due', 'pending_verification', 'completed', 'verified', 'pending', 'failed', 'rejected', 'cancelled'].includes(s.status?.toLowerCase())
+                ? s.status
+                : 'due'
+            );
             const statusLower = status?.toLowerCase().trim();
             return statusLower === 'cancelled' || statusLower === 'rejected';
           }).length
@@ -302,7 +325,21 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
           pending: projectsByStatus.pending + paymentsByStatus.pending,
           confirmed: projectsByStatus.confirmed + paymentsByStatus.confirmed,
           rejected: projectsByStatus.rejected + paymentsByStatus.rejected,
-          totalAmount: allProjects.reduce((sum, s) => sum + (s.amount || 0), 0) + standalonePayments.reduce((sum, p) => sum + (p.amount || 0), 0),
+          // Only count confirmed payments in total amount
+          totalAmount: allProjects
+            .filter(s => {
+              const status = s.payment_status || (
+                ['due', 'pending_verification', 'completed', 'verified', 'pending', 'failed', 'rejected', 'cancelled'].includes(s.status?.toLowerCase())
+                  ? s.status
+                  : 'due'
+              );
+              const statusLower = status?.toLowerCase().trim();
+              return statusLower === 'verified' || statusLower === 'completed';
+            })
+            .reduce((sum, s) => sum + (s.amount || 0), 0) + 
+            standalonePayments
+              .filter(p => p.status === 'completed')
+              .reduce((sum, p) => sum + (p.amount || 0), 0),
           paidAmount: (projectsByStatus.confirmed + paymentsByStatus.confirmed) * 1000 // Approximate
         };
         console.log('📊 Final calculated stats:', calculatedStats);
@@ -322,19 +359,23 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
   const loadExistingInvoices = async (servicesData) => {
     try {
       console.log('\n========== INVOICE LOADING DEBUG ==========');
+      console.log('🧾 loadExistingInvoices CALLED with', servicesData.length, 'services');
       console.log('🧾 Loading existing invoices for services:', servicesData.map(s => ({ 
         id: s._id, 
         name: s.service_name,
-        status: s.status 
+        status: s.status,
+        payment_status: s.payment_status
       })));
       const invoicesMap = {};
       
       // Check for existing invoices for confirmed services only
       // Match admin dashboard logic - check all confirmed services without time buffer for client view
       const confirmedServices = servicesData.filter(s => {
-        const statusLower = s.status?.toLowerCase().trim();
-        const isConfirmed = statusLower === 'active' || statusLower === 'in_progress' || statusLower === 'completed';
-        console.log(`🧾 Service ${s._id} (${s.service_name}): status="${s.status}", statusLower="${statusLower}", isConfirmed=${isConfirmed}`);
+        // Use payment_status if available, otherwise fall back to project status
+        const actualStatus = s.payment_status || s.status;
+        const statusLower = actualStatus?.toLowerCase().trim();
+        const isConfirmed = statusLower === 'verified' || statusLower === 'completed' || statusLower === 'active' || statusLower === 'in_progress';
+        console.log(`🧾 Service ${s._id} (${s.service_name}): projectStatus="${s.status}", paymentStatus="${s.payment_status}", actualStatus="${actualStatus}", statusLower="${statusLower}", isConfirmed=${isConfirmed}`);
         return isConfirmed;
       });
       
@@ -378,6 +419,7 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
       // Add cache-busting timestamp to force fresh data
       const timestamp = new Date().getTime();
       console.log(`\n🧾 ========== CHECKING INVOICE FOR PROJECT ${projectId} ==========`);
+      console.log(`🧾 Client email:`, clientData?.email);
       console.log(`🧾 API call: /invoices?project=${projectId}&_t=${timestamp}`);
       const response = await apiCall(`/invoices?project=${projectId}&_t=${timestamp}`);
       console.log(`🧾 Raw API response:`, response);
@@ -519,8 +561,14 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
       _id: s._id,
       service_name: s.service_name,
       amount: s.amount,
-      // Use payment_status if available, otherwise fall back to project status
-      status: s.payment_status || s.status,
+      // CRITICAL: Use payment_status if available, otherwise fall back to project status
+      // But ONLY use project status if it's a payment-related status (due, pending_verification, completed)
+      // Don't use project workflow statuses (active, in_progress) as payment status
+      status: s.payment_status || (
+        ['due', 'pending_verification', 'completed', 'verified', 'pending', 'failed', 'rejected', 'cancelled'].includes(s.status?.toLowerCase())
+          ? s.status
+          : 'due' // Default to 'due' if project status is not payment-related
+      ),
       payment_method: s.payment_method,
       payment_receipt: s.payment_receipt || s.receipt_screenshot,
       purchase_date: s.createdAt,
@@ -583,8 +631,9 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
           console.log(`  → isPending: ${isPending}`);
           return isPending;
         case 'confirmed':
-          // Show confirmed payments - verified, completed, active, in_progress
-          const isConfirmed = itemStatus === 'verified' || itemStatus === 'completed' || itemStatus === 'active' || itemStatus === 'in_progress';
+          // Show confirmed payments - verified, completed
+          // NOTE: Removed 'active' and 'in_progress' as these are project statuses, not payment statuses
+          const isConfirmed = itemStatus === 'verified' || itemStatus === 'completed';
           console.log(`  → isConfirmed: ${isConfirmed}`);
           return isConfirmed;
         case 'rejected':
@@ -614,8 +663,6 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
       'pending_verification': { background: '#f59e0b', color: 'white' },
       'verified': { background: '#10b981', color: 'white' },
       'completed': { background: '#10b981', color: 'white' },
-      'active': { background: '#10b981', color: 'white' },
-      'in_progress': { background: '#3b82f6', color: 'white' },
       'cancelled': { background: '#ef4444', color: 'white' },
       'rejected': { background: '#ef4444', color: 'white' },
       'failed': { background: '#ef4444', color: 'white' },
@@ -634,8 +681,6 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
       'pending_verification': 'Pending Verification',
       'verified': 'Payment Confirmed',
       'completed': 'Payment Confirmed',
-      'active': 'Payment Confirmed',
-      'in_progress': 'In Progress',
       'cancelled': 'Payment Rejected',
       'rejected': 'Payment Rejected',
       'failed': 'Payment Rejected',
@@ -761,18 +806,22 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
             color: designSystem.colors.gray[600],
             marginBottom: designSystem.spacing.sm
           }}>
-            Payment Method: {service.payment_method?.replace('_', ' ').toUpperCase() || 'Not Specified'}
+            Payment Method: {service.paymentMethod?.replace('_', ' ').toUpperCase() || service.payment_method?.replace('_', ' ').toUpperCase() || 'Not Specified'}
           </div>
           
           {service.payment_receipt && (
             <div style={{
               fontSize: designSystem.typography.fontSize.sm,
-              color: designSystem.colors.success.split('(')[0],
+              color: (service.status?.toLowerCase() === 'verified' || service.status?.toLowerCase() === 'completed') 
+                ? designSystem.colors.success.split('(')[0]
+                : (service.status?.toLowerCase() === 'rejected' || service.status?.toLowerCase() === 'failed' || service.status?.toLowerCase() === 'cancelled')
+                ? '#ef4444'
+                : designSystem.colors.success.split('(')[0],
               marginBottom: designSystem.spacing.sm,
               fontWeight: designSystem.typography.fontWeight.semibold
             }}>
-              <i className="fas fa-check-circle me-2"></i>
-              Receipt Uploaded - Awaiting Verification
+              <i className={`${(service.status?.toLowerCase() === 'verified' || service.status?.toLowerCase() === 'completed') ? 'fas fa-check-circle' : (service.status?.toLowerCase() === 'rejected' || service.status?.toLowerCase() === 'failed' || service.status?.toLowerCase() === 'cancelled') ? 'fas fa-times-circle' : 'fas fa-check-circle'} me-2`}></i>
+              Receipt Uploaded - {(service.status?.toLowerCase() === 'verified' || service.status?.toLowerCase() === 'completed') ? 'Confirmed' : (service.status?.toLowerCase() === 'rejected' || service.status?.toLowerCase() === 'failed' || service.status?.toLowerCase() === 'cancelled') ? 'Rejected' : 'Awaiting Verification'}
             </div>
           )}
 
@@ -818,7 +867,12 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
               statusLower: statusLower,
               isConfirmed: isConfirmed,
               hasInvoice: !!hasInvoice,
-              invoiceDetails: hasInvoice ? { id: hasInvoice._id, number: hasInvoice.invoice_number } : null
+              invoiceDetails: hasInvoice ? { id: hasInvoice._id, number: hasInvoice.invoice_number } : null,
+              allInvoiceKeys: Object.keys(existingInvoices),
+              serviceIdType: typeof service._id,
+              serviceIdValue: service._id,
+              projectStatus: service.status,
+              paymentStatus: service.payment_status
             });
             
             return isConfirmed && hasInvoice;
@@ -863,17 +917,6 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
           )}
         </div>
       </div>
-
-      {service.description && (
-        <p style={{
-          fontSize: designSystem.typography.fontSize.sm,
-          color: designSystem.colors.gray[600],
-          margin: 0,
-          fontStyle: 'italic'
-        }}>
-          {service.description}
-        </p>
-      )}
       </div>
     );
   };
@@ -897,8 +940,14 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
           <div className="modal-body" style={componentStyles.modalBody}>
             {selectedService && (
               <>
+                {console.log('🔍 Modal Debug - Selected Service:', {
+                  id: selectedService._id,
+                  paymentMethod: selectedService.paymentMethod,
+                  payment_method: selectedService.payment_method,
+                  allFields: Object.keys(selectedService)
+                })}
                 <div style={{ marginBottom: designSystem.spacing.lg }}>
-                  <h6 style={{ marginBottom: designSystem.spacing.md }}>Service Information</h6>
+                  <h6 style={{ marginBottom: designSystem.spacing.md, color: '#3b82f6', fontWeight: '600' }}>Service Information</h6>
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: '1fr 1fr',
@@ -908,20 +957,16 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
                     borderRadius: designSystem.borderRadius.button
                   }}>
                     <div>
-                      <strong>Service:</strong><br />
-                      {selectedService.service_name}
+                      <strong>Service:</strong> {selectedService.service_name}
                     </div>
                     <div>
-                      <strong>Amount:</strong><br />
-                      ${selectedService.amount?.toLocaleString()}
+                      <strong>Amount:</strong> ${selectedService.amount?.toLocaleString()}
                     </div>
                     <div>
-                      <strong>Payment Method:</strong><br />
-                      {selectedService.payment_method?.replace('_', ' ').toUpperCase()}
+                      <strong>Payment Method:</strong> {selectedService.paymentMethod?.replace('_', ' ').toUpperCase() || selectedService.payment_method?.replace('_', ' ').toUpperCase() || 'Not Specified'}
                     </div>
                     <div>
-                      <strong>Status:</strong><br />
-                      <span style={{
+                      <strong>Status:</strong> <span style={{
                         ...componentStyles.badge,
                         ...getPaymentStatusStyle(selectedService.status)
                       }}>
@@ -929,12 +974,10 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
                       </span>
                     </div>
                     <div>
-                      <strong>Purchase Date:</strong><br />
-                      {new Date(selectedService.purchase_date || selectedService.createdAt).toLocaleDateString()}
+                      <strong>Purchase Date:</strong> {new Date(selectedService.purchase_date || selectedService.createdAt).toLocaleDateString()}
                     </div>
                     <div>
-                      <strong>Receipt:</strong><br />
-                      {selectedService.payment_receipt ? (
+                      <strong>Receipt:</strong> {selectedService.payment_receipt || selectedService.receipt_screenshot ? (
                         <span style={{ color: designSystem.colors.success.split('(')[0] }}>
                           <i className="fas fa-check me-2"></i>Uploaded
                         </span>
@@ -947,48 +990,94 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
                   </div>
                 </div>
 
-                {selectedService.description && (
-                  <div style={{ marginBottom: designSystem.spacing.lg }}>
-                    <h6 style={{ marginBottom: designSystem.spacing.md }}>Description</h6>
-                    <p style={{
-                      padding: designSystem.spacing.md,
+                  {/* Only show info message for non-rejected statuses */}
+                  {!(selectedService.status?.toLowerCase() === 'rejected' || selectedService.status?.toLowerCase() === 'failed' || selectedService.status?.toLowerCase() === 'cancelled') && (
+                    <div style={{
                       background: designSystem.colors.light,
-                      borderRadius: designSystem.borderRadius.button,
-                      margin: 0
+                      padding: designSystem.spacing.md,
+                      borderRadius: designSystem.borderRadius.button
                     }}>
-                      {selectedService.description}
-                    </p>
-                  </div>
-                )}
-
-                  <div style={{
-                    background: designSystem.colors.light,
-                    padding: designSystem.spacing.md,
-                    borderRadius: designSystem.borderRadius.button
-                  }}>
-                    <p style={{ 
-                      margin: 0,
-                      fontSize: designSystem.typography.fontSize.sm,
-                      color: designSystem.colors.gray[600]
-                    }}>
-                      <i className="fas fa-info-circle me-2"></i>
-                      {selectedService.status === 'due'
-                        ? 'This payment is due. Please submit your payment using the payment submission option.'
-                        : selectedService.status === 'pending' || selectedService.status === 'pending_verification'
-                        ? 'Your payment is being reviewed by our team. You will be notified once it is confirmed.'
-                        : selectedService.status === 'active' || selectedService.status === 'in_progress'
-                        ? 'Your payment has been confirmed and the service is being processed.'
-                        : selectedService.status === 'completed'
-                        ? 'Service completed successfully.'
-                        : 'Please contact support for more information about this service.'
-                      }
-                    </p>
-                  </div>
+                      <p style={{ 
+                        margin: 0,
+                        fontSize: designSystem.typography.fontSize.sm,
+                        color: designSystem.colors.gray[600]
+                      }}>
+                        <i className="fas fa-info-circle me-2"></i>
+                        {selectedService.status === 'due'
+                          ? 'This payment is due. Please submit your payment using the payment submission option.'
+                          : selectedService.status === 'pending' || selectedService.status === 'pending_verification'
+                          ? 'Your payment is being reviewed by our team. You will be notified once it is confirmed.'
+                          : selectedService.status === 'active' || selectedService.status === 'in_progress'
+                          ? 'Your payment has been confirmed and the service is being processed.'
+                          : selectedService.status === 'completed'
+                          ? 'Service payment completed successfully.'
+                          : 'Please contact support for more information about this service.'
+                        }
+                      </p>
+                    </div>
+                  )}
               </>
             )}
           </div>
           
-          <div className="modal-footer" style={componentStyles.modalFooter}>
+          {/* Show Admin Notes for Rejected Payments - Above Footer */}
+          {selectedService && (selectedService.status?.toLowerCase() === 'rejected' || selectedService.status?.toLowerCase() === 'failed' || selectedService.status?.toLowerCase() === 'cancelled') && selectedService.admin_notes && (
+            <div style={{
+              padding: '12px 16px',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderTop: 'none',
+              color: '#991b1b',
+              fontSize: '14px'
+            }}>
+              <div style={{
+                fontWeight: '600',
+                marginBottom: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <i className="fas fa-exclamation-circle"></i>
+                Rejection Reason
+              </div>
+              <p style={{
+                margin: 0,
+                lineHeight: '1.5',
+                color: '#7f1d1d'
+              }}>
+                {selectedService.admin_notes}
+              </p>
+            </div>
+          )}
+
+          {/* Show message if receipt already uploaded - Above Footer */}
+          {selectedService && (selectedService.payment_receipt || selectedService.receipt_screenshot) && (
+            <div style={{
+              padding: '8px 16px',
+              background: (selectedService.status?.toLowerCase() === 'verified' || selectedService.status?.toLowerCase() === 'completed') 
+                ? '#d1fae5'
+                : (selectedService.status?.toLowerCase() === 'rejected' || selectedService.status?.toLowerCase() === 'failed' || selectedService.status?.toLowerCase() === 'cancelled')
+                ? '#fee2e2'
+                : designSystem.colors.warning + '20',
+              border: `1px solid ${(selectedService.status?.toLowerCase() === 'verified' || selectedService.status?.toLowerCase() === 'completed') 
+                ? '#10b981'
+                : (selectedService.status?.toLowerCase() === 'rejected' || selectedService.status?.toLowerCase() === 'failed' || selectedService.status?.toLowerCase() === 'cancelled')
+                ? '#ef4444'
+                : designSystem.colors.warning}`,
+              borderTop: 'none',
+              color: (selectedService.status?.toLowerCase() === 'verified' || selectedService.status?.toLowerCase() === 'completed') 
+                ? '#10b981'
+                : (selectedService.status?.toLowerCase() === 'rejected' || selectedService.status?.toLowerCase() === 'failed' || selectedService.status?.toLowerCase() === 'cancelled')
+                ? '#ef4444'
+                : designSystem.colors.warning.split('(')[0],
+              fontSize: '14px'
+            }}>
+              <i className={`${(selectedService.status?.toLowerCase() === 'verified' || selectedService.status?.toLowerCase() === 'completed') ? 'fas fa-check-circle' : (selectedService.status?.toLowerCase() === 'rejected' || selectedService.status?.toLowerCase() === 'failed' || selectedService.status?.toLowerCase() === 'cancelled') ? 'fas fa-times-circle' : 'fas fa-info-circle'} me-2`}></i>
+              Payment receipt submitted - {(selectedService.status?.toLowerCase() === 'verified' || selectedService.status?.toLowerCase() === 'completed') ? 'Confirmed' : (selectedService.status?.toLowerCase() === 'rejected' || selectedService.status?.toLowerCase() === 'failed' || selectedService.status?.toLowerCase() === 'cancelled') ? 'Rejected' : 'Awaiting Verification'}
+            </div>
+          )}
+          
+          <div className="modal-footer" style={{...componentStyles.modalFooter, display: 'flex', justifyContent: 'flex-end', gap: '8px'}}>
             {/* Submit Payment Button for Due Payments */}
             {selectedService && selectedService.status === 'due' && !selectedService.payment_receipt && !selectedService.receipt_screenshot && (
               <button 
@@ -1000,7 +1089,6 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
                   setShowPaymentModal(true);
                 }}
                 style={{ 
-                  marginRight: 'auto',
                   background: '#dc2626',
                   border: 'none'
                 }}
@@ -1009,21 +1097,26 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
                 Submit Payment
               </button>
             )}
-            
-            {/* Show message if receipt already uploaded */}
-            {selectedService && selectedService.status === 'due' && (selectedService.payment_receipt || selectedService.receipt_screenshot) && (
-              <div style={{
-                marginRight: 'auto',
-                padding: '8px 16px',
-                background: designSystem.colors.warning + '20',
-                border: `1px solid ${designSystem.colors.warning}`,
-                borderRadius: '6px',
-                color: designSystem.colors.warning.split('(')[0],
-                fontSize: '14px'
-              }}>
-                <i className="fas fa-info-circle me-2"></i>
-                Payment receipt already submitted. Awaiting verification.
-              </div>
+
+            {/* Resubmit Payment Button for Rejected Payments */}
+            {selectedService && (selectedService.status?.toLowerCase() === 'rejected' || selectedService.status?.toLowerCase() === 'failed' || selectedService.status?.toLowerCase() === 'cancelled') && (
+              <button 
+                type="button" 
+                className="btn btn-warning"
+                onClick={() => {
+                  setShowModal(false);
+                  setSelectedPayment(selectedService);
+                  setShowPaymentModal(true);
+                }}
+                style={{ 
+                  background: '#f59e0b',
+                  border: 'none',
+                  color: 'white'
+                }}
+              >
+                <i className="fas fa-redo me-2"></i>
+                Resubmit Payment
+              </button>
             )}
             
             {/* Invoice Download Button for Confirmed Payments */}
@@ -1043,7 +1136,6 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
                   downloadInvoice(invoiceToDownload._id);
                 }}
                 style={{ 
-                  marginRight: 'auto',
                   background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                   border: 'none',
                   display: 'flex',
@@ -1145,32 +1237,32 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
         marginBottom: designSystem.spacing.xl
       }}>
         <StatsCard
-          icon="fas fa-shopping-bag"
-          number={stats.total}
-          label="Total Purchases"
-          color="#3b82f6"
-          bgColor="#eff6ff"
+          icon="fas fa-dollar-sign"
+          number={`$${stats.totalAmount.toLocaleString()}`}
+          label="Paid Amount"
+          color="#8b5cf6"
+          bgColor="#faf5ff"
+        />
+        <StatsCard
+          icon="fas fa-exclamation-circle"
+          number={stats.due}
+          label="Due Payments"
+          color="#ef4444"
+          bgColor="#fef2f2"
         />
         <StatsCard
           icon="fas fa-clock"
           number={stats.pending}
-          label="Pending Confirmation"
+          label="Pending Payment"
           color="#f59e0b"
           bgColor="#fffbeb"
         />
         <StatsCard
           icon="fas fa-check-circle"
           number={stats.confirmed}
-          label="Confirmed Payments"
+          label="Confirmed Payment"
           color="#10b981"
           bgColor="#ecfdf5"
-        />
-        <StatsCard
-          icon="fas fa-dollar-sign"
-          number={`$${stats.totalAmount.toLocaleString()}`}
-          label="Total Amount"
-          color="#8b5cf6"
-          bgColor="#faf5ff"
         />
       </div>
 
@@ -1186,7 +1278,7 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
             onClick={() => setActiveTab('all')}
             {...hoverEffects.button}
           >
-            All Purchases ({stats.total})
+            All Payments ({stats.total})
           </button>
           <button 
             style={{
@@ -1274,8 +1366,8 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
             <div className="modal-content" style={componentStyles.modalContent}>
               <div className="modal-header" style={componentStyles.modalHeader}>
                 <h5 className="modal-title">
-                  <i className="fas fa-credit-card me-2"></i>
-                  Submit Payment
+                  <i className={`fas ${(selectedPayment.status?.toLowerCase() === 'rejected' || selectedPayment.status?.toLowerCase() === 'failed' || selectedPayment.status?.toLowerCase() === 'cancelled') ? 'fa-redo' : 'fa-credit-card'} me-2`}></i>
+                  {(selectedPayment.status?.toLowerCase() === 'rejected' || selectedPayment.status?.toLowerCase() === 'failed' || selectedPayment.status?.toLowerCase() === 'cancelled') ? 'Resubmit Payment' : 'Submit Payment'}
                 </h5>
                 <button 
                   type="button" 
@@ -1294,6 +1386,38 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
               
               <form onSubmit={handlePaymentSubmit}>
                 <div className="modal-body" style={componentStyles.modalBody}>
+                  
+                  {/* Show rejection reason for resubmissions */}
+                  {(selectedPayment.status?.toLowerCase() === 'rejected' || selectedPayment.status?.toLowerCase() === 'failed' || selectedPayment.status?.toLowerCase() === 'cancelled') && selectedPayment.admin_notes && (
+                    <div style={{
+                      marginBottom: designSystem.spacing.lg,
+                      padding: '12px 16px',
+                      background: '#fef2f2',
+                      border: '1px solid #fecaca',
+                      borderRadius: '6px',
+                      color: '#991b1b'
+                    }}>
+                      <div style={{
+                        fontWeight: '600',
+                        marginBottom: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <i className="fas fa-exclamation-circle"></i>
+                        Previous Rejection Reason
+                      </div>
+                      <p style={{
+                        margin: 0,
+                        lineHeight: '1.5',
+                        color: '#7f1d1d',
+                        fontSize: '14px'
+                      }}>
+                        {selectedPayment.admin_notes}
+                      </p>
+                    </div>
+                  )}
+                  
                   {/* Payment Details */}
                   <div style={{ marginBottom: designSystem.spacing.lg }}>
                     <h6 style={{ marginBottom: designSystem.spacing.md }}>Payment Information</h6>
@@ -1320,8 +1444,8 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
                         </span>
                       </div>
                       <div>
-                        <strong>Due Date:</strong><br />
-                        {new Date(selectedPayment.dueDate).toLocaleDateString()}
+                        <strong>Purchase Date:</strong><br />
+                        {new Date(selectedPayment.purchase_date || selectedPayment.createdAt).toLocaleDateString()}
                       </div>
                       <div>
                         <strong>Status:</strong><br />
@@ -1405,32 +1529,6 @@ const ClientPayments = ({ clientData, apiCall, onRefresh }) => {
                     <small style={{ color: designSystem.colors.gray[600], display: 'block', marginTop: designSystem.spacing.xs }}>
                       Accepted formats: JPEG, PNG, GIF, PDF (Max 10MB)
                     </small>
-                  </div>
-
-                  {/* Notes */}
-                  <div style={{ marginBottom: designSystem.spacing.lg }}>
-                    <label style={{
-                      display: 'block',
-                      marginBottom: designSystem.spacing.sm,
-                      fontWeight: designSystem.typography.fontWeight.semibold,
-                      color: designSystem.colors.dark
-                    }}>
-                      Additional Notes (Optional)
-                    </label>
-                    <textarea
-                      value={paymentFormData.notes}
-                      onChange={(e) => setPaymentFormData(prev => ({ ...prev, notes: e.target.value }))}
-                      rows="3"
-                      placeholder="Add any additional information about your payment..."
-                      style={{
-                        width: '100%',
-                        padding: designSystem.spacing.sm,
-                        borderRadius: designSystem.borderRadius.button,
-                        border: `1px solid ${designSystem.colors.gray[300]}`,
-                        fontSize: designSystem.typography.fontSize.base,
-                        resize: 'vertical'
-                      }}
-                    />
                   </div>
 
                   {/* Info Box */}

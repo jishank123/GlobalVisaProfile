@@ -1,40 +1,119 @@
 const User = require('../models/User');
 const Client = require('../models/Client');
 const emailService = require('./emailService');
+const EncryptionManager = require('../utils/encryptionManager');
 const crypto = require('crypto');
 
 class ClientService {
   /**
+   * Find user by email, handling both encrypted and plain text emails
+   * OPTIMIZED: Uses indexed search first, falls back to encrypted search only if needed
+   * @param {string} email - Email to search for
+   * @returns {Object|null} - User document or null
+   */
+  async findUserByEmail(email) {
+    const normalizedEmail = email.toLowerCase();
+    
+    // First try plain text search (faster, uses index)
+    let user = await User.findOne({ email: normalizedEmail });
+    if (user) {
+      return user;
+    }
+    
+    // If not found and encryption is enabled, try encrypted search
+    // This is slower but necessary for finding encrypted records
+    // OPTIMIZATION: Only do this if we have encrypted data
+    if (!global.ENCRYPTION_DISABLED) {
+      const encryption = require('../middleware/encryptionMiddleware');
+      
+      // Get users created recently (likely to be encrypted)
+      // Limit search to last 1000 users to avoid performance issues
+      const recentUsers = await User.find({})
+        .sort({ createdAt: -1 })
+        .limit(1000);
+      
+      for (const u of recentUsers) {
+        try {
+          const decryptedUser = encryption.decryptDocument(u.toObject());
+          if (decryptedUser.email && decryptedUser.email.toLowerCase() === normalizedEmail) {
+            return u;
+          }
+        } catch (decryptError) {
+          // Skip users that can't be decrypted
+          continue;
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  /**
    * Create or get existing client from form submission
    * @param {Object} formData - Form submission data
    * @param {string} source - Source of registration (profile_assessment, contact_form, appointment)
-   * @returns {Object} - { user, client, isNewUser }
+   * @returns {Object} - { user, client, isNewUser, isNewClient }
    */
   async createOrGetClient(formData, source = 'form_submission') {
     const { name, email, phone, field_of_expertise, current_location, company } = formData;
     
-    console.log(`\n🔄 === CLIENT AUTO-REGISTRATION STARTED ===`);
-    console.log(`📧 Email: ${email}`);
-    console.log(`📝 Source: ${source}`);
+    console.log('👤 === CREATE OR GET CLIENT ===');
+    console.log('👤 Source:', source);
+    console.log('👤 Email:', email);
+    console.log('👤 Name:', name);
     
     try {
-      // Check if user already exists
-      let user = await User.findOne({ email: email.toLowerCase() });
+      // Normalize email to prevent duplicates
+      const normalizedEmail = email.toLowerCase().trim();
+      
+      // Check if user already exists (handles both encrypted and plain text)
+      let user = await this.findUserByEmail(normalizedEmail);
       let client = null;
       let isNewUser = false;
+      let isNewClient = false;
 
       if (user) {
-        console.log('✅ Existing user found');
-        // Find associated client record
+        console.log('👤 Existing user found:', user._id, user.email);
+        // Find associated client record by user_id (most reliable)
         client = await Client.findOne({ user_id: user._id });
         
         if (!client) {
-          console.log('📝 Creating client record for existing user');
+          console.log('👤 No client record found for user_id, searching by email...');
+          // Fallback: search by email (in case user_id wasn't set)
+          const allClients = await Client.find({});
+          for (const c of allClients) {
+            try {
+              const decryptedEmail = c.email.includes(':') 
+                ? require('../middleware/encryptionMiddleware').decrypt(c.email)
+                : c.email;
+              if (decryptedEmail.toLowerCase() === normalizedEmail) {
+                client = c;
+                // Update client with user_id if missing
+                if (!client.user_id) {
+                  client.user_id = user._id;
+                  await client.save();
+                  console.log('✅ Updated client record with user_id:', user._id);
+                }
+                break;
+              }
+            } catch (err) {
+              continue;
+            }
+          }
+        }
+        
+        if (!client) {
+          console.log('👤 No client record found, creating new client for existing user...');
           client = await this.createClientRecord(user, formData, source);
+          isNewClient = true;
+          console.log('✅ New client record created:', client._id);
+        } else {
+          console.log('👤 Existing client record found:', client._id);
         }
       } else {
-        console.log('🆕 Creating new user account');
+        console.log('👤 No existing user found, creating new user and client...');
         isNewUser = true;
+        isNewClient = true;
         
         // Parse name
         const nameParts = name.trim().split(' ');
@@ -44,11 +123,12 @@ class ClientService {
         // Generate temporary password
         const tempPassword = crypto.randomBytes(8).toString('hex');
         
-        // Create user account
+        console.log('👤 Creating user account...');
+        // Create user account (without encryption - will be encrypted later by deferred system)
         user = await User.create({
           first_name,
           last_name,
-          email: email.toLowerCase(),
+          email: normalizedEmail,
           password: tempPassword,
           role: 'client',
           phone: phone || '',
@@ -57,40 +137,49 @@ class ClientService {
           is_temp_password: true,
           email_verified: false
         });
+        console.log('✅ User created:', user._id, user.email);
         
-        console.log('✅ User account created');
-        
-        // Create client record
+        console.log('👤 Creating client record...');
+        // Create client record (without encryption - will be encrypted later by deferred system)
         client = await this.createClientRecord(user, formData, source);
+        console.log('✅ Client created:', client._id);
         
         // Generate email verification token
         const verificationToken = user.generateEmailVerificationToken();
         await user.save();
+        console.log('✅ Email verification token generated');
         
         // Send verification email
         try {
           await emailService.sendPasswordSetup(user, verificationToken);
-          console.log('📧 Password setup email sent');
+          console.log('✅ Password setup email sent');
         } catch (emailError) {
           console.error('❌ Failed to send email:', emailError.message);
-          // Don't fail the registration if email fails
         }
       }
       
-      console.log('✅ Client auto-registration completed');
-      return { user, client, isNewUser };
+      console.log('✅ createOrGetClient completed successfully');
+      console.log('👤 Result:', { isNewUser, isNewClient, userId: user._id, clientId: client._id });
+      
+      return { user, client, isNewUser, isNewClient };
       
     } catch (error) {
       console.error('❌ Client auto-registration failed:', error);
+      console.error('❌ Error stack:', error.stack);
       throw error;
     }
   }
 
   /**
-   * Create client record linked to user
+   * Create client record linked to user (without encryption - will be encrypted later by deferred system)
    */
   async createClientRecord(user, formData, source) {
     const { field_of_expertise, current_location, company } = formData;
+    
+    console.log('👤 === CREATE CLIENT RECORD ===');
+    console.log('👤 User ID:', user._id);
+    console.log('👤 User Email:', user.email);
+    console.log('👤 User Name:', user.first_name, user.last_name);
     
     const clientData = {
       user_id: user._id,
@@ -113,8 +202,21 @@ class ClientService {
       clientData.notes += `\nLocation: ${current_location}`;
     }
     
+    console.log('👤 Client data to create:', {
+      user_id: clientData.user_id,
+      name: clientData.name,
+      email: clientData.email,
+      phone: clientData.phone
+    });
+    
     const client = await Client.create(clientData);
-    console.log('✅ Client record created');
+    
+    console.log('✅ Client record created:', {
+      clientId: client._id,
+      userId: client.user_id,
+      email: client.email,
+      name: client.name
+    });
     
     return client;
   }
@@ -171,37 +273,97 @@ class ClientService {
     console.log(`👤 User ID: ${userId}`);
     
     try {
-      const { first_name, last_name, phone, company, country, profile_picture, linkedin_url } = profileData;
+      const { 
+        first_name, 
+        last_name, 
+        phone, 
+        company, 
+        country, 
+        university,
+        profile_picture, 
+        linkedin_url,
+        portfolio_url,
+        website_url,
+        bio
+      } = profileData;
       
-      // Update user record
-      const user = await User.findByIdAndUpdate(
-        userId,
-        {
-          first_name,
-          last_name,
-          phone,
-          company,
-          country,
-          profile_picture,
-          linkedin_url
-        },
-        { new: true, runValidators: true }
-      );
+      // Validate field lengths BEFORE encryption
+      if (first_name && first_name.length > 50) {
+        throw new Error('First name cannot exceed 50 characters');
+      }
+      if (last_name && last_name.length > 50) {
+        throw new Error('Last name cannot exceed 50 characters');
+      }
+      if (bio && bio.length > 1000) {
+        throw new Error('Bio cannot exceed 1000 characters');
+      }
+      
+      // Build update object with only provided fields
+      const userUpdate = {
+        first_name,
+        last_name
+      };
+      
+      // Add optional fields if provided
+      if (phone !== undefined) userUpdate.phone = phone;
+      if (company !== undefined) userUpdate.company = company;
+      if (country !== undefined) userUpdate.country = country;
+      if (university !== undefined) userUpdate.university = university;
+      if (profile_picture !== undefined && profile_picture !== null) userUpdate.profile_picture = profile_picture;
+      if (linkedin_url !== undefined) userUpdate.linkedin_url = linkedin_url;
+      if (portfolio_url !== undefined) userUpdate.portfolio_url = portfolio_url;
+      if (website_url !== undefined) userUpdate.website_url = website_url;
+      if (bio !== undefined) userUpdate.bio = bio;
+      
+      // Update user record - use find and save to ensure pre-save hooks fire
+      const user = await User.findById(userId);
       
       if (!user) {
         throw new Error('User not found');
       }
       
-      // Update client record
-      const client = await Client.findOneAndUpdate(
-        { user_id: userId },
-        {
-          name: `${first_name} ${last_name}`,
-          phone,
-          university: company
-        },
-        { new: true }
-      );
+      // Decrypt role and status if they were encrypted (fix for legacy data)
+      const encryption = require('../middleware/encryptionMiddleware');
+      if (user.role && typeof user.role === 'string' && user.role.includes(':')) {
+        console.log('🔧 Fixing encrypted role field...');
+        user.role = encryption.decrypt(user.role) || 'client';
+      }
+      if (user.status && typeof user.status === 'string' && user.status.includes(':')) {
+        console.log('🔧 Fixing encrypted status field...');
+        user.status = encryption.decrypt(user.status) || 'active';
+      }
+      
+      // Update fields
+      user.first_name = first_name;
+      user.last_name = last_name;
+      if (phone !== undefined) user.phone = phone;
+      if (company !== undefined) user.company = company;
+      if (country !== undefined) user.country = country;
+      
+      // Handle university field - clear if empty string, otherwise update
+      if (university !== undefined) {
+        user.university = university.trim() === '' ? '' : university;
+      }
+      
+      if (profile_picture !== undefined && profile_picture !== null) user.profile_picture = profile_picture;
+      if (linkedin_url !== undefined) user.linkedin_url = linkedin_url;
+      if (portfolio_url !== undefined) user.portfolio_url = portfolio_url;
+      if (website_url !== undefined) user.website_url = website_url;
+      if (bio !== undefined) user.bio = bio;
+      
+      // Save with encryption
+      await user.save();
+      
+      // Update client record if it exists
+      let client = await Client.findOne({ user_id: userId });
+      
+      if (client) {
+        client.name = `${first_name} ${last_name}`;
+        if (phone !== undefined) client.phone = phone;
+        if (university !== undefined) client.university = university;
+        
+        await client.save();
+      }
       
       console.log('✅ Profile updated successfully');
       return { user, client };
@@ -256,21 +418,26 @@ class ClientService {
     console.log(`📧 Email: ${email}`);
     
     try {
-      const user = await User.findOne({ email: email.toLowerCase() });
+      // Use findUserByEmail to handle encrypted emails
+      const user = await this.findUserByEmail(email);
       
       if (!user) {
         // Don't reveal if email exists
+        console.log('⚠️ User not found, but returning success message for security');
         return { success: true, message: 'If the email exists, a reset link has been sent' };
       }
+      
+      console.log(`✅ User found: ${user.first_name} ${user.last_name}`);
       
       // Generate reset token
       const resetToken = user.generatePasswordResetToken();
       await user.save();
+      console.log(`✅ Reset token generated (expires in 1 hour)`);
       
       // Send reset email
       try {
         await emailService.sendPasswordReset(user, resetToken);
-        console.log('📧 Password reset email sent');
+        console.log('✅ Password reset email sent successfully');
       } catch (emailError) {
         console.error('❌ Failed to send reset email:', emailError.message);
         throw new Error('Failed to send reset email');
@@ -290,28 +457,40 @@ class ClientService {
   async resetPassword(email, token, newPassword) {
     console.log(`\n🔐 === PASSWORD RESET ===`);
     console.log(`📧 Email: ${email}`);
+    console.log(`🔑 Token: ${token.substring(0, 20)}...`);
     
     try {
-      const user = await User.findOne({
-        email: email.toLowerCase(),
-        password_reset_token: token,
-        password_reset_expires: { $gt: Date.now() }
-      });
+      // First find user by email (handles encryption)
+      const userByEmail = await this.findUserByEmail(email);
       
-      if (!user) {
+      if (!userByEmail) {
+        console.log('❌ User not found');
         throw new Error('Invalid or expired reset token');
       }
       
-      // Update password
-      user.password = newPassword;
-      user.is_temp_password = false;
-      user.password_reset_token = undefined;
-      user.password_reset_expires = undefined;
+      // Then verify the token and expiration
+      if (userByEmail.password_reset_token !== token) {
+        console.log('❌ Token mismatch');
+        throw new Error('Invalid or expired reset token');
+      }
       
-      await user.save();
+      if (!userByEmail.password_reset_expires || userByEmail.password_reset_expires < Date.now()) {
+        console.log('❌ Token expired');
+        throw new Error('Invalid or expired reset token');
+      }
+      
+      console.log(`✅ Token valid for user: ${userByEmail.first_name} ${userByEmail.last_name}`);
+      
+      // Update password
+      userByEmail.password = newPassword;
+      userByEmail.is_temp_password = false;
+      userByEmail.password_reset_token = undefined;
+      userByEmail.password_reset_expires = undefined;
+      
+      await userByEmail.save();
       
       console.log('✅ Password reset successfully');
-      return user;
+      return userByEmail;
       
     } catch (error) {
       console.error('❌ Password reset failed:', error);

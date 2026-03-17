@@ -31,6 +31,12 @@ const logActivity = async (userId, action, resourceType, description, ipAddress,
 // @route   GET /api/projects
 // @access  Private (Admin, Managers, Clients)
 exports.getProjects = async (req, res) => {
+  console.log('\n📋 === GET PROJECTS REQUEST ===');
+  console.log('🔍 User Role:', req.user?.role);
+  console.log('🔍 User ID:', req.user?._id || req.user?.user_id || req.user?.id);
+  console.log('🔍 User Email:', req.user?.email);
+  console.log('🔍 Query Params:', req.query);
+  
   try {
     const { search, status, service, client, page = 1, limit = 20 } = req.query;
     
@@ -48,13 +54,74 @@ exports.getProjects = async (req, res) => {
       query.created_by = req.user._id;
     } else if (req.user.role === 'client') {
       // Clients can only see their own projects
-      // Find client record by email since there's no direct user link
-      const clientRecord = await Client.findOne({ email: req.user.email });
+      // Find client record by user_id ONLY (email comparison won't work due to potential encryption)
+      const userId = req.user._id || req.user.user_id || req.user.id;
+      
+      console.log('🔍 === CLIENT PROJECT LOOKUP DEBUG ===');
+      console.log('🔍 User object:', {
+        _id: req.user._id,
+        user_id: req.user.user_id,
+        id: req.user.id,
+        email: req.user.email,
+        role: req.user.role
+      });
+      console.log('🔍 Extracted userId:', userId);
+      
+      // CRITICAL: Search by user_id ONLY, not email (email may not match due to encryption/formatting)
+      const clientRecord = await Client.findOne({ user_id: userId });
+      
+      console.log('🔍 Project Controller - Client lookup:', {
+        userId: userId,
+        userEmail: req.user.email,
+        clientFound: !!clientRecord,
+        clientId: clientRecord?._id,
+        clientUserId: clientRecord?.user_id,
+        clientEmail: clientRecord?.email,
+        clientName: clientRecord?.name
+      });
+      
       if (clientRecord) {
         query.client = clientRecord._id;
-        console.log('🔍 Client query:', { clientId: clientRecord._id, email: req.user.email });
+        console.log('✅ Client record found - will search for projects with client:', clientRecord._id);
+        
+        // DEBUG: Check if there are multiple client records for this user
+        const allClientsForUser = await Client.find({ user_id: userId });
+        console.log('🔍 DEBUG: All client records for this user_id:', allClientsForUser.length);
+        allClientsForUser.forEach((c, idx) => {
+          console.log(`  Client ${idx + 1}:`, {
+            clientId: c._id,
+            name: c.name,
+            email: c.email,
+            user_id: c.user_id
+          });
+        });
+        
+        // DEBUG: Check if there are ANY projects with this user's email in the client field
+        const allProjects = await Project.find({}).populate('client', 'name email user_id').limit(10);
+        console.log('🔍 DEBUG: Sample of ALL projects in database:');
+        allProjects.forEach((p, idx) => {
+          console.log(`  Project ${idx + 1}:`, {
+            projectId: p._id,
+            serviceName: p.service_name,
+            clientId: p.client?._id,
+            clientName: p.client?.name,
+            clientEmail: p.client?.email,
+            clientUserId: p.client?.user_id
+          });
+        });
       } else {
-        console.log('❌ No client record found for email:', req.user.email);
+        console.log('❌ No client record found for user_id:', userId, 'or email:', req.user.email);
+        console.log('❌ Searching all clients to debug...');
+        
+        // Debug: Find all clients and log them
+        const allClients = await Client.find({}).select('_id name email user_id').limit(10);
+        console.log('❌ Sample clients in database:', allClients.map(c => ({
+          _id: c._id,
+          name: c.name,
+          email: c.email,
+          user_id: c.user_id
+        })));
+        
         // No client record found, return empty result
         return res.json({
           success: true,
@@ -62,7 +129,8 @@ exports.getProjects = async (req, res) => {
           total: 0,
           page: parseInt(page),
           totalPages: 0,
-          data: []
+          data: [],
+          message: 'No client record found for this user'
         });
       }
     }
@@ -82,16 +150,29 @@ exports.getProjects = async (req, res) => {
     const projects = await Project.find(query)
       .populate('client', 'name email company')
       .populate('service', 'name category price')
-      .populate('assigned_to', 'first_name last_name email')
+      .populate('assigned_to', 'first_name last_name email role') // Add role to check if it's a CRM manager
+      .populate('created_by', 'first_name last_name email role')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
     
-    console.log('🔍 Query executed:', query);
-    console.log('📊 Projects found:', projects.length);
-    
     const count = await Project.countDocuments(query);
-    console.log('📊 Total count:', count);
+    
+    console.log('📋 Projects query executed:', JSON.stringify(query, null, 2));
+    console.log('📋 Projects found:', projects.length, 'Total:', count);
+    
+    // Sample project data for debugging
+    if (projects.length > 0) {
+      console.log('📋 Sample project data:', {
+        id: projects[0]._id,
+        service_name: projects[0].service_name,
+        client_id: projects[0].client?._id,
+        client_email: projects[0].client?.email,
+        status: projects[0].status
+      });
+    } else {
+      console.log('📋 Sample project data: No projects found');
+    }
     
     // Log activity
     await logActivity(
@@ -331,6 +412,49 @@ exports.createProject = async (req, res) => {
       { path: 'assigned_to', select: 'first_name last_name email' }
     ]);
     
+    // **Automatically create a DUE payment record for this project**
+    try {
+      const Payment = require('../models/Payment');
+      
+      const paymentData = {
+        client: client,
+        project: project._id,
+        service_id: service.toString(),
+        service_name: service_name || serviceRecord.name,
+        amount: Number(amount),
+        currency: 'USD',
+        status: 'due', // Payment is DUE - client needs to submit payment
+        paymentMethod: 'online', // Default, client can change when submitting
+        dueDate: new Date(due_date),
+        notes: `Payment due for project: ${service_name || serviceRecord.name}. Created by ${req.user.role} on project creation.`,
+        verification_status: null // Will be set to 'pending' when client uploads receipt
+      };
+      
+      const payment = await Payment.create(paymentData);
+      
+      console.log('💳 Due payment created automatically:', {
+        paymentId: payment._id,
+        projectId: project._id,
+        clientId: client,
+        amount: amount,
+        service: service_name || serviceRecord.name,
+        status: 'due'
+      });
+      
+      // Log activity for payment creation
+      await logActivity(
+        req.user._id,
+        'create',
+        'Payment',
+        `Auto-created due payment for project: ${project.service_name} (Amount: $${amount})`,
+        req.ip,
+        payment._id
+      );
+    } catch (paymentError) {
+      console.error('⚠️ Failed to create due payment (non-critical):', paymentError);
+      // Don't fail the project creation if payment creation fails
+    }
+    
     // Log activity
     await logActivity(
       req.user._id,
@@ -343,7 +467,7 @@ exports.createProject = async (req, res) => {
     
     res.status(201).json({
       success: true,
-      message: 'Project created successfully',
+      message: 'Project created successfully with due payment',
       data: project
     });
   } catch (error) {
@@ -392,16 +516,23 @@ exports.purchaseServices = async (req, res) => {
       });
     }
     
-    // Find client record - either by provided ID or by user email
+    // Find client record - use user_id since the frontend sends user ID, not client ID
     let clientRecord;
     if (client) {
-      clientRecord = await Client.findById(client);
+      // Try to find by user_id first (most common case)
+      clientRecord = await Client.findOne({ user_id: client });
+      
+      // If not found, try by client _id as fallback
+      if (!clientRecord) {
+        clientRecord = await Client.findById(client);
+      }
     } else {
       // If no client ID provided, find by user email
       clientRecord = await Client.findOne({ email: req.user.email });
     }
     
     if (!clientRecord) {
+      console.log('❌ Client record not found for:', { client, userEmail: req.user.email });
       return res.status(400).json({
         success: false,
         error: {
@@ -411,22 +542,41 @@ exports.purchaseServices = async (req, res) => {
       });
     }
     
-    console.log('🛒 Found client record:', { id: clientRecord._id, name: clientRecord.name, email: clientRecord.email });
+    console.log('🛒 Found client record:', { id: clientRecord._id, name: clientRecord.name, user_id: clientRecord.user_id });
     
     // Security check - clients can only purchase for themselves
-    if (req.user.role === 'client' && clientRecord.email !== req.user.email) {
-      return res.status(403).json({
-        success: false,
-        error: {
-          code: 'FORBIDDEN',
-          message: 'You can only purchase services for yourself'
-        }
-      });
+    // Compare by user_id instead of email since email is encrypted
+    if (req.user.role === 'client') {
+      const userId = req.user._id || req.user.user_id || req.user.id;
+      if (clientRecord.user_id.toString() !== userId.toString()) {
+        console.log('❌ User ID mismatch:', {
+          clientUserId: clientRecord.user_id.toString(),
+          requestUserId: userId.toString()
+        });
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You can only purchase services for yourself'
+          }
+        });
+      }
     }
     
-    // Verify all services exist
-    const serviceRecords = await Service.find({ _id: { $in: services }, isActive: true, isDeleted: false });
+    // Verify all services exist (use $ne to handle undefined fields)
+    console.log('🛒 Validating services:', services);
+    const serviceRecords = await Service.find({ 
+      _id: { $in: services }, 
+      isActive: { $ne: false },  // Handles true and undefined
+      isDeleted: { $ne: true }   // Handles false and undefined
+    });
+    console.log('🛒 Found service records:', serviceRecords.length, 'Expected:', services.length);
+    
     if (serviceRecords.length !== services.length) {
+      console.log('❌ Service validation failed');
+      console.log('   Requested services:', services);
+      console.log('   Found services:', serviceRecords.map(s => s._id.toString()));
+      
       return res.status(400).json({
         success: false,
         error: {
@@ -455,7 +605,7 @@ exports.purchaseServices = async (req, res) => {
         start_date: currentDate,
         due_date: dueDate,
         deadline: dueDate,
-        assigned_to: clientRecord.crm_manager || req.user._id, // Ensure assigned_to is always set
+        assigned_to: clientRecord.crm_manager || null, // Leave unassigned if no CRM manager
         created_by: req.user._id,
         status: 'pending',
         payment_method: payment_method || 'card',
@@ -473,6 +623,38 @@ exports.purchaseServices = async (req, res) => {
       ]);
       
       createdProjects.push(project);
+      
+      // Create payment record for this project
+      const Payment = require('../models/Payment');
+      
+      // Determine payment status based on whether receipt was uploaded
+      const hasReceipt = !!req.file;
+      const paymentStatus = hasReceipt ? 'pending_verification' : 'due';
+      const verificationStatus = hasReceipt ? 'pending' : null;
+      
+      const paymentData = {
+        client: clientRecord._id,
+        project: project._id,
+        service_id: serviceId,
+        service_name: serviceRecord.name,
+        amount: serviceRecord.pricing?.minPrice || 0,
+        currency: 'USD',
+        status: paymentStatus, // 'pending_verification' if receipt uploaded, 'due' otherwise
+        paymentMethod: payment_method || 'card',
+        dueDate: dueDate,
+        verification_status: verificationStatus, // 'pending' if receipt uploaded, null otherwise
+        receipt_screenshot: req.file ? req.file.filename : null,
+        receipt_path: req.file ? req.file.path : null,
+        submitted_by: hasReceipt ? req.user.email : null,
+        submitted_at: hasReceipt ? new Date() : null,
+        paymentDate: hasReceipt ? new Date() : null,
+        notes: hasReceipt 
+          ? `Payment submitted with receipt during service purchase: ${serviceRecord.name}. Awaiting verification.`
+          : `Payment due for service purchase: ${serviceRecord.name}. Client must submit payment proof.`
+      };
+      
+      const payment = await Payment.create(paymentData);
+      console.log('✅ Payment created:', payment._id, 'Status:', payment.status, 'Has receipt:', hasReceipt);
       
       // Log activity
       await logActivity(
@@ -565,19 +747,44 @@ exports.updateProject = async (req, res) => {
           }
         });
       }
+    } else if (req.user.role === 'project_manager') {
+      console.log('🔒 Update Security check - Project Manager:', req.user.email);
+      console.log('🔒 Project project_manager:', project.project_manager);
+      console.log('🔒 Current user ID:', req.user._id);
+      
+      // Check if project manager is assigned to this project
+      const hasProjectAccess = project.project_manager && 
+                               project.project_manager.toString() === req.user._id.toString();
+      
+      console.log('🔒 Has project access:', hasProjectAccess);
+      
+      if (!hasProjectAccess) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You can only update projects assigned to you'
+          }
+        });
+      }
     }
     
     // Define allowed fields based on role
     let allowedFields = ['title', 'description', 'status', 'progress', 'priority', 'deadline', 'notes'];
     
     if (req.user.role === 'admin') {
-      // Admins can update payment verification fields
-      allowedFields.push('verification_status', 'admin_notes', 'verified_at', 'verified_by');
+      // Admins can update payment verification fields and assignment
+      allowedFields.push('verification_status', 'admin_notes', 'verified_at', 'verified_by', 'assigned_to');
     }
     
     if (req.user.role === 'crm_manager') {
       // CRM managers can update progress, status, and payment verification fields
       allowedFields = ['status', 'progress', 'notes', 'verification_status', 'admin_notes', 'verified_at', 'verified_by'];
+    }
+    
+    if (req.user.role === 'project_manager') {
+      // Project managers can update status, progress, priority, and notes
+      allowedFields = ['status', 'progress', 'priority', 'notes'];
     }
     
     // Update only allowed fields
@@ -603,13 +810,13 @@ exports.updateProject = async (req, res) => {
     
     // Auto-update status based on progress
     if (updateData.progress !== undefined) {
-      if (updateData.progress === 0) {
-        updateData.status = 'planning';
-      } else if (updateData.progress === 100) {
+      if (updateData.progress === 0 && !updateData.status) {
+        updateData.status = 'pending';
+      } else if (updateData.progress === 100 && !updateData.status) {
         updateData.status = 'completed';
-        updateData.completed_at = new Date();
-      } else {
-        updateData.status = 'in_progress';
+        updateData.completion_date = new Date();
+      } else if (updateData.progress > 0 && updateData.progress < 100 && !updateData.status) {
+        updateData.status = 'active';
       }
     }
     
@@ -751,7 +958,8 @@ exports.generateProjectInvoice = async (req, res) => {
       notes: project.admin_notes || '',
       payment_instructions: 'Please pay within 30 days of invoice date.',
       created_by: req.user._id,
-      status: 'sent'
+      status: 'paid',
+      paid_at: new Date() // Set the paid date since payment is confirmed
     };
     
     // Generate invoice number manually as fallback
@@ -949,17 +1157,7 @@ exports.getProjectStats = async (req, res) => {
 // @access  Private (CRM Manager only)
 exports.getMyProjects = async (req, res) => {
   try {
-    console.log('📊 === GET MY PROJECTS REQUEST ===');
-    console.log('📊 User object:', JSON.stringify(req.user, null, 2));
-    console.log('📊 User email:', req.user?.email);
-    console.log('📊 User role:', req.user?.role);
-    console.log('📊 User ID from req.user._id:', req.user?._id);
-    console.log('📊 User ID from req.user._id:', req.user?._id);
-    console.log('📊 User ID from req.user.id:', req.user?.id);
-    console.log('📊 Sample project assigned_to for comparison: "697ec40613b779c47c5cd4cd"');
-    
     if (req.user.role !== 'crm_manager') {
-      console.log('❌ Access denied - not a CRM manager. Role:', req.user.role);
       return res.status(403).json({
         success: false,
         error: {
@@ -972,81 +1170,29 @@ exports.getMyProjects = async (req, res) => {
     const { status, page = 1, limit = 20 } = req.query;
     const crmManagerId = req.user._id || req.user.id;
     
-    console.log('📊 Final CRM Manager ID used for query:', crmManagerId);
-    console.log('📊 CRM Manager ID type:', typeof crmManagerId);
-    console.log('📊 CRM Manager ID toString():', crmManagerId.toString());
-    
     // Build query for projects directly assigned to this CRM manager
-    // Use both ObjectId and string comparison to handle different data types
     let query = {
-      $or: [
-        { assigned_to: crmManagerId },
-        { assigned_to: crmManagerId.toString() }
-      ],
-      status: { $ne: 'deleted' } // Exclude deleted projects
+      assigned_to: crmManagerId,
+      status: { $ne: 'deleted' }
     };
     
     if (status && status !== 'all') {
       query.status = status;
     }
     
-    console.log('📊 MongoDB Query:', JSON.stringify(query, null, 2));
-    
-    // First, let's check if there are ANY projects with this assigned_to value
-    const allProjectsWithThisAssignedTo = await Project.find({ 
-      $or: [
-        { assigned_to: crmManagerId },
-        { assigned_to: crmManagerId.toString() }
-      ]
-    }).lean();
-    console.log('📊 ALL projects with assigned_to matching CRM ID:', allProjectsWithThisAssignedTo.length);
-    
-    // Let's also check what assigned_to values exist in the database
-    const distinctAssignedTo = await Project.distinct('assigned_to');
-    console.log('📊 All distinct assigned_to values in database:', distinctAssignedTo);
-    console.log('📊 Checking if CRM ID matches any assigned_to values:');
-    distinctAssignedTo.forEach(assignedId => {
-      const matches = assignedId.toString() === crmManagerId.toString();
-      console.log(`📊   ${assignedId} (${typeof assignedId}) === ${crmManagerId} (${typeof crmManagerId}) ? ${matches}`);
-    });
-    
-    // Check specifically for the sample project
-    const sampleProject = await Project.findOne({ project_id: "PRJ-0003" }).lean();
-    if (sampleProject) {
-      console.log('📊 Sample project PRJ-0003 found:');
-      console.log('📊   assigned_to:', sampleProject.assigned_to);
-      console.log('📊   assigned_to type:', typeof sampleProject.assigned_to);
-      console.log('📊   assigned_to toString():', sampleProject.assigned_to.toString());
-      console.log('📊   Does it match CRM ID?', sampleProject.assigned_to.toString() === crmManagerId.toString());
-    } else {
-      console.log('📊 Sample project PRJ-0003 not found in database');
-    }
-    
     const projects = await Project.find(query)
-      .populate('client', 'name firstName lastName email company')
-      .populate('service', 'name category price')
+      .populate('client', 'name email phone')
+      .populate('service', 'name category')
       .populate('assigned_to', 'first_name last_name email')
       .populate('created_by', 'first_name last_name email')
+      .populate('project_manager', 'first_name last_name email')
+      .populate('final_files.uploaded_by', 'first_name last_name email')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
-      .skip((page - 1) * limit);
+      .skip((page - 1) * limit)
+      .lean();
     
     const count = await Project.countDocuments(query);
-    
-    console.log('📊 Found assigned projects:', projects.length, 'Total:', count);
-    
-    // Log each project for debugging
-    projects.forEach((project, index) => {
-      console.log(`📊 Project ${index + 1}:`, {
-        id: project._id,
-        project_id: project.project_id,
-        assigned_to: project.assigned_to?._id || project.assigned_to,
-        assigned_to_type: typeof project.assigned_to,
-        client: project.client?.name || `${project.client?.firstName} ${project.client?.lastName}`,
-        service: project.service?.name || project.service_name,
-        status: project.status
-      });
-    });
     
     res.json({
       success: true,
@@ -1062,6 +1208,155 @@ exports.getMyProjects = async (req, res) => {
       success: false,
       error: {
         code: 'FETCH_CRM_PROJECTS_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Assign project to project manager
+// @route   POST /api/projects/:id/assign-pm
+// @access  Private (CRM Manager, Admin)
+exports.assignProjectToProjectManager = async (req, res) => {
+  try {
+    console.log('👤 === ASSIGN PROJECT TO PROJECT MANAGER ===');
+    console.log('👤 User:', req.user?.email, 'Role:', req.user?.role);
+    console.log('👤 Project ID:', req.params.id);
+    console.log('👤 Request body:', req.body);
+    console.log('👤 Files:', req.files);
+    
+    const { project_manager_id, assignment_notes, file_count } = req.body;
+    
+    if (!project_manager_id) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_PROJECT_MANAGER',
+          message: 'Project manager ID is required'
+        }
+      });
+    }
+    
+    // Verify project exists
+    const project = await Project.findById(req.params.id);
+    
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'PROJECT_NOT_FOUND',
+          message: 'Project not found'
+        }
+      });
+    }
+    
+    // Verify project manager exists and has correct role
+    const User = require('../models/User');
+    const projectManager = await User.findById(project_manager_id);
+    
+    if (!projectManager) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'PROJECT_MANAGER_NOT_FOUND',
+          message: 'Project manager not found'
+        }
+      });
+    }
+    
+    // Check if user has project_manager role (handle encrypted role)
+    const encryption = require('../middleware/encryptionMiddleware');
+    let pmRole;
+    try {
+      pmRole = encryption.decrypt(projectManager.role);
+    } catch (error) {
+      pmRole = projectManager.role;
+    }
+    
+    if (pmRole !== 'project_manager') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_ROLE',
+          message: 'Selected user is not a project manager'
+        }
+      });
+    }
+    
+    // Security check - CRM managers can only assign their own projects
+    if (req.user.role === 'crm_manager') {
+      if (!project.assigned_to || project.assigned_to.toString() !== req.user._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You can only assign projects that are assigned to you'
+          }
+        });
+      }
+    }
+    
+    // Update project with project manager assignment
+    project.project_manager = project_manager_id;
+    project.pm_assignment_notes = assignment_notes || '';
+    project.assigned_to_pm_at = new Date();
+    project.assigned_to_pm_by = req.user._id;
+    
+    // Handle uploaded task files
+    if (req.files && req.files.length > 0) {
+      const taskFiles = req.files.map((file, index) => ({
+        filename: file.filename,
+        originalname: file.originalname,
+        path: file.path,
+        size: file.size,
+        mimetype: file.mimetype,
+        uploaded_by: req.user._id,
+        uploaded_by_role: req.user.role,
+        uploaded_at: new Date(),
+        note: req.body[`file_notes_${index}`] || ''
+      }));
+      
+      // Initialize task_files array if it doesn't exist
+      if (!project.task_files) {
+        project.task_files = [];
+      }
+      
+      // Add new files to existing task_files
+      project.task_files.push(...taskFiles);
+      console.log(`✅ Added ${taskFiles.length} task files to project`);
+    }
+    
+    await project.save();
+    
+    // Log activity
+    const ActivityLog = require('../models/ActivityLog');
+    try {
+      const activityLog = await ActivityLog.create({
+        user: req.user._id,
+        action: 'update',
+        resourceType: 'Project',
+        resourceId: project._id,
+        description: `Assigned project ${project.project_id} to project manager ${projectManager.email}`,
+        ipAddress: req.ip
+      });
+      console.log('✅ Activity logged:', activityLog._id);
+    } catch (activityError) {
+      console.error('❌ Failed to log activity:', activityError.message);
+    }
+    
+    console.log('✅ Project assigned to project manager successfully');
+    
+    res.json({
+      success: true,
+      message: 'Project assigned to project manager successfully',
+      data: project
+    });
+  } catch (error) {
+    console.error('❌ Error assigning project to project manager:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'ASSIGN_PROJECT_FAILED',
         message: error.message
       }
     });
@@ -1608,13 +1903,36 @@ exports.getMyCreatedProjects = async (req, res) => {
     
     const projects = await Project.find(query)
       .populate('client', 'name email company')
-      .populate('service', 'name category price')
+      .populate({
+        path: 'service',
+        select: 'name category pricing duration'
+      })
       .populate('assigned_to', 'first_name last_name email')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
     
     const count = await Project.countDocuments(query);
+    
+    // Add estimated_duration from service if not present in project
+    const projectsWithDuration = await Promise.all(projects.map(async (project) => {
+      const projectObj = project.toObject();
+      
+      // Log for debugging
+      console.log('📊 Project:', projectObj._id, 'has estimated_duration:', projectObj.estimated_duration);
+      console.log('📊 Service data:', projectObj.service);
+      
+      // If no estimated_duration, try to get it from service
+      if (!projectObj.estimated_duration && projectObj.service) {
+        // Fetch the full service to ensure we get the duration
+        const fullService = await Service.findById(projectObj.service._id);
+        if (fullService && fullService.duration) {
+          projectObj.estimated_duration = fullService.duration;
+          console.log('📊 Setting estimated_duration from full service:', fullService.duration);
+        }
+      }
+      return projectObj;
+    }));
     
     console.log('📊 Found lead manager created projects:', projects.length, 'Total:', count);
     
@@ -1624,7 +1942,7 @@ exports.getMyCreatedProjects = async (req, res) => {
       total: count,
       page: parseInt(page),
       totalPages: Math.ceil(count / limit),
-      data: projects
+      data: projectsWithDuration
     });
   } catch (error) {
     console.error('❌ Get lead manager created projects error:', error);
@@ -1639,3 +1957,474 @@ exports.getMyCreatedProjects = async (req, res) => {
 };
 
 module.exports = exports;
+
+// @desc    Purchase services (for clients)
+// @route   POST /api/projects/purchase
+// @access  Private (Client)
+
+
+// @desc    Get projects assigned to current project manager
+// @route   GET /api/projects/my-pm-projects
+// @access  Private (Project Manager only)
+exports.getMyPMProjects = async (req, res) => {
+  try {
+    console.log('📊 === GET MY PM PROJECTS REQUEST ===');
+    console.log('📊 User:', req.user?.email, 'Role:', req.user?.role);
+    
+    if (req.user.role !== 'project_manager') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only project managers can access this endpoint'
+        }
+      });
+    }
+    
+    const { status, page = 1, limit = 20 } = req.query;
+    const projectManagerId = req.user._id || req.user.id;
+    
+    // Build query for projects assigned to this project manager
+    let query = {
+      project_manager: projectManagerId,
+      status: { $ne: 'deleted' }
+    };
+    
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+    
+    console.log('📊 Query:', JSON.stringify(query, null, 2));
+    
+    const projects = await Project.find(query)
+      .populate({
+        path: 'client',
+        select: 'name email phone university status satisfaction_rating tags notes createdAt updatedAt user_id',
+        populate: {
+          path: 'user_id',
+          select: 'first_name last_name email phone company country university bio profile_picture avatar'
+        }
+      })
+      .populate('service', 'name category price')
+      .populate('assigned_to', 'first_name last_name email')
+      .populate('created_by', 'first_name last_name email')
+      .populate('project_manager', 'first_name last_name email phone')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+    
+    const count = await Project.countDocuments(query);
+    
+    console.log('📊 Found PM assigned projects:', projects.length, 'Total:', count);
+    
+    res.json({
+      success: true,
+      count: projects.length,
+      total: count,
+      page: parseInt(page),
+      totalPages: Math.ceil(count / limit),
+      data: projects
+    });
+  } catch (error) {
+    console.error('❌ Get PM projects error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'FETCH_PM_PROJECTS_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Upload final file to project (Project Manager only)
+// @route   POST /api/projects/:id/final-files
+// @access  Private (Project Manager)
+exports.uploadFinalFile = async (req, res) => {
+  try {
+    console.log('📤 === UPLOAD FINAL FILE REQUEST ===');
+    console.log('📤 User:', req.user?.email, 'Role:', req.user?.role);
+    console.log('📤 Project ID:', req.params.id);
+    console.log('📤 File:', req.file);
+    console.log('📤 Body:', req.body);
+    
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'NO_FILE_UPLOADED',
+          message: 'Please upload a file'
+        }
+      });
+    }
+    
+    const { notes, remarks } = req.body;
+    
+    // Verify project exists
+    const project = await Project.findById(req.params.id);
+    
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'PROJECT_NOT_FOUND',
+          message: 'Project not found'
+        }
+      });
+    }
+    
+    // Security check - only assigned project manager can upload final files
+    if (!project.project_manager || project.project_manager.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only the assigned project manager can upload final files'
+        }
+      });
+    }
+    
+    // Create final file object
+    const finalFile = {
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      path: req.file.path,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+      uploaded_by: req.user._id,
+      uploaded_at: new Date(),
+      notes: notes || '',
+      remarks: remarks || ''
+    };
+    
+    // Add to project's final_files array
+    project.final_files = project.final_files || [];
+    project.final_files.push(finalFile);
+    
+    await project.save();
+    
+    // Populate the uploaded_by field
+    await project.populate('final_files.uploaded_by', 'first_name last_name email');
+    
+    // Log activity
+    await logActivity(
+      req.user._id,
+      'create',
+      'Project',
+      `Uploaded final file "${req.file.originalname}" to project ${project.project_id}`,
+      req.ip,
+      project._id
+    );
+    
+    console.log('📤 Final file uploaded successfully:', {
+      projectId: project.project_id,
+      filename: req.file.originalname,
+      uploadedBy: req.user.email
+    });
+    
+    res.status(201).json({
+      success: true,
+      message: 'Final file uploaded successfully',
+      data: {
+        file: finalFile,
+        project: project
+      }
+    });
+  } catch (error) {
+    console.error('📤 Upload final file error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'UPLOAD_FINAL_FILE_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Delete final file from project
+// @route   DELETE /api/projects/:id/final-files/:fileId
+// @access  Private (Project Manager, Admin)
+exports.deleteFinalFile = async (req, res) => {
+  try {
+    console.log('🗑️ === DELETE FINAL FILE REQUEST ===');
+    console.log('🗑️ User:', req.user?.email, 'Role:', req.user?.role);
+    console.log('🗑️ Project ID:', req.params.id);
+    console.log('🗑️ File ID:', req.params.fileId);
+    
+    const project = await Project.findById(req.params.id);
+    
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'PROJECT_NOT_FOUND',
+          message: 'Project not found'
+        }
+      });
+    }
+    
+    // Security check - only assigned project manager or admin can delete final files
+    if (req.user.role !== 'admin' && 
+        (!project.project_manager || project.project_manager.toString() !== req.user._id.toString())) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only the assigned project manager or admin can delete final files'
+        }
+      });
+    }
+    
+    // Find and remove the file
+    const fileIndex = project.final_files.findIndex(
+      file => file._id.toString() === req.params.fileId
+    );
+    
+    if (fileIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'FILE_NOT_FOUND',
+          message: 'Final file not found'
+        }
+      });
+    }
+    
+    const deletedFile = project.final_files[fileIndex];
+    
+    // Remove file from filesystem
+    const fs = require('fs');
+    const filePath = deletedFile.path;
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      console.log('🗑️ File deleted from filesystem:', filePath);
+    }
+    
+    // Remove from array
+    project.final_files.splice(fileIndex, 1);
+    await project.save();
+    
+    // Log activity
+    await logActivity(
+      req.user._id,
+      'delete',
+      'Project',
+      `Deleted final file "${deletedFile.originalName}" from project ${project.project_id}`,
+      req.ip,
+      project._id
+    );
+    
+    console.log('🗑️ Final file deleted successfully:', {
+      projectId: project.project_id,
+      filename: deletedFile.originalName,
+      deletedBy: req.user.email
+    });
+    
+    res.json({
+      success: true,
+      message: 'Final file deleted successfully'
+    });
+  } catch (error) {
+    console.error('🗑️ Delete final file error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'DELETE_FINAL_FILE_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Approve final file (CRM Manager only)
+// @route   PATCH /api/projects/:id/final-files/:fileId/approve
+// @access  Private (CRM Manager, Admin)
+exports.approveFinalFile = async (req, res) => {
+  try {
+    console.log('✅ === APPROVE FINAL FILE REQUEST ===');
+    console.log('✅ User:', req.user?.email, 'Role:', req.user?.role);
+    console.log('✅ Project ID:', req.params.id);
+    console.log('✅ File ID:', req.params.fileId);
+    
+    const project = await Project.findById(req.params.id);
+    
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'PROJECT_NOT_FOUND',
+          message: 'Project not found'
+        }
+      });
+    }
+    
+    // Security check - only assigned CRM manager or admin can approve
+    if (req.user.role === 'crm_manager' && 
+        (!project.assigned_to || project.assigned_to.toString() !== req.user._id.toString())) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only the assigned CRM manager can approve final files'
+        }
+      });
+    }
+    
+    // Find the file
+    const file = project.final_files.id(req.params.fileId);
+    
+    if (!file) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'FILE_NOT_FOUND',
+          message: 'Final file not found'
+        }
+      });
+    }
+    
+    // Update approval status
+    file.approval_status = 'approved';
+    file.approved_by = req.user._id;
+    file.approved_at = new Date();
+    file.rejection_reason = undefined; // Clear any previous rejection reason
+    
+    await project.save();
+    
+    // Populate the approved_by field
+    await project.populate('final_files.approved_by', 'first_name last_name email');
+    
+    // Log activity
+    await logActivity(
+      req.user._id,
+      'update',
+      'Project',
+      `Approved final file "${file.originalName}" for project ${project.project_id}`,
+      req.ip,
+      project._id
+    );
+    
+    console.log('✅ Final file approved successfully:', {
+      projectId: project.project_id,
+      filename: file.originalName,
+      approvedBy: req.user.email
+    });
+    
+    res.json({
+      success: true,
+      message: 'Final file approved successfully',
+      data: {
+        file: file,
+        project: project
+      }
+    });
+  } catch (error) {
+    console.error('✅ Approve final file error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'APPROVE_FINAL_FILE_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Reject final file (CRM Manager only)
+// @route   PATCH /api/projects/:id/final-files/:fileId/reject
+// @access  Private (CRM Manager, Admin)
+exports.rejectFinalFile = async (req, res) => {
+  try {
+    console.log('❌ === REJECT FINAL FILE REQUEST ===');
+    console.log('❌ User:', req.user?.email, 'Role:', req.user?.role);
+    console.log('❌ Project ID:', req.params.id);
+    console.log('❌ File ID:', req.params.fileId);
+    console.log('❌ Request body:', req.body);
+    
+    const { rejection_reason } = req.body;
+    
+    const project = await Project.findById(req.params.id);
+    
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'PROJECT_NOT_FOUND',
+          message: 'Project not found'
+        }
+      });
+    }
+    
+    // Security check - only assigned CRM manager or admin can reject
+    if (req.user.role === 'crm_manager' && 
+        (!project.assigned_to || project.assigned_to.toString() !== req.user._id.toString())) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only the assigned CRM manager can reject final files'
+        }
+      });
+    }
+    
+    // Find the file
+    const file = project.final_files.id(req.params.fileId);
+    
+    if (!file) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'FILE_NOT_FOUND',
+          message: 'Final file not found'
+        }
+      });
+    }
+    
+    // Update rejection status
+    file.approval_status = 'rejected';
+    file.approved_by = req.user._id;
+    file.approved_at = new Date();
+    file.rejection_reason = rejection_reason || 'No reason provided';
+    
+    await project.save();
+    
+    // Populate the approved_by field
+    await project.populate('final_files.approved_by', 'first_name last_name email');
+    
+    // Log activity
+    await logActivity(
+      req.user._id,
+      'update',
+      'Project',
+      `Rejected final file "${file.originalName}" for project ${project.project_id}. Reason: ${rejection_reason || 'No reason provided'}`,
+      req.ip,
+      project._id
+    );
+    
+    console.log('❌ Final file rejected successfully:', {
+      projectId: project.project_id,
+      filename: file.originalName,
+      rejectedBy: req.user.email,
+      reason: rejection_reason
+    });
+    
+    res.json({
+      success: true,
+      message: 'Final file rejected successfully',
+      data: {
+        file: file,
+        project: project
+      }
+    });
+  } catch (error) {
+    console.error('❌ Reject final file error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'REJECT_FINAL_FILE_FAILED',
+        message: error.message
+      }
+    });
+  }
+};

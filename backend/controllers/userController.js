@@ -31,50 +31,266 @@ exports.getUsers = async (req, res) => {
   try {
     const { search, role, status, page = 1, limit = 20 } = req.query;
     
+    console.log('\n👥 === GET USERS REQUEST ===');
+    console.log('👥 Requesting user role:', req.user.role);
+    console.log('👥 Requested role filter:', role);
+    console.log('👥 Requested status filter:', status);
+    console.log('👥 Query params:', req.query);
+    console.log('👥 Full URL:', req.originalUrl);
+    
+    // Special logging for CRM manager requests
+    if (role === 'crm_manager') {
+      console.log('🔍 ========== CRM MANAGER REQUEST DETECTED ==========');
+      console.log('🔍 This is a request for CRM managers');
+    }
+    
     // Build query with security filters
     let query = {};
     
-    // Always exclude deleted users from the main list
-    query.status = { $ne: 'deleted' };
+    // Handle status filter - if status is explicitly provided, use it; otherwise exclude deleted
+    // Note: Status field is encrypted, so we need to handle this differently
+    // We'll fetch all users and filter by status after decryption
+    const requestedStatus = status;
+    
+    console.log('👥 Requested status for filtering:', requestedStatus);
+    
+    // Don't add status to MongoDB query since it's encrypted
+    // We'll filter after fetching and decrypting
+    
+    // For encrypted role queries, we need to handle this differently
+    let roleFilteredUsers = [];
+    let shouldFilterByRole = false;
+    let targetRoles = [];
     
     // Role-based access control
     if (req.user.role === 'lead_manager') {
       // Lead managers can see clients, other lead managers, and CRM managers (for assignment)
-      query.role = { $in: ['client', 'lead_manager', 'crm_manager'] };
+      targetRoles = ['client', 'lead_manager', 'crm_manager'];
+      shouldFilterByRole = true;
+      console.log('👥 Lead manager access - target roles:', targetRoles);
     } else if (req.user.role === 'crm_manager') {
-      // CRM managers can only see other CRM managers (for handover purposes)
-      if (role === 'crm_manager') {
-        query.role = 'crm_manager';
+      // CRM managers can see other CRM managers (for handover) and project managers (for assignment)
+      console.log('👥 CRM manager requesting role:', role);
+      if (role === 'crm_manager' || role === 'project_manager') {
+        targetRoles = role === 'crm_manager' ? ['crm_manager'] : ['project_manager'];
+        shouldFilterByRole = true;
+        console.log('👥 CRM manager access granted - target roles:', targetRoles);
       } else {
+        console.log('❌ CRM manager access denied - invalid role requested:', role);
         return res.status(403).json({
           success: false,
           error: {
             code: 'FORBIDDEN',
-            message: 'CRM managers can only access other CRM managers for handover purposes'
+            message: 'CRM managers can only access CRM managers and project managers'
+          }
+        });
+      }
+    } else if (req.user.role === 'project_manager') {
+      // Project managers can see employees (for task assignment)
+      console.log('👥 Project manager requesting role:', role);
+      if (role === 'employee') {
+        targetRoles = ['employee'];
+        shouldFilterByRole = true;
+        console.log('👥 Project manager access granted - target roles:', targetRoles);
+      } else {
+        console.log('❌ Project manager access denied - invalid role requested:', role);
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Project managers can only access employees'
           }
         });
       }
     }
     
-    // Apply filters
-    if (search) {
-      query.$or = [
-        { first_name: { $regex: search, $options: 'i' } },
-        { last_name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
-      ];
+    // If a specific role is requested, add it to target roles
+    if (role && !shouldFilterByRole) {
+      targetRoles = [role];
+      shouldFilterByRole = true;
+      console.log('👥 Admin/other role access - target roles:', targetRoles);
+    } else if (role && shouldFilterByRole && !targetRoles.includes(role)) {
+      targetRoles = [role];
+      console.log('👥 Overriding target roles with requested role:', targetRoles);
     }
     
-    if (role) query.role = role;
-    if (status) query.status = status;
+    let users;
+    let count;
     
-    const users = await User.find(query)
-      .select('-password') // Never return passwords
-      .sort({ created_at: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-    
-    const count = await User.countDocuments(query);
+    if (shouldFilterByRole) {
+      // Get all users matching the base query (without role filter)
+      const allUsers = await User.find(query).select('-password');
+      console.log('👥 Total users found (before role filter):', allUsers.length);
+      
+      // Filter by role using decryption
+      const encryption = require('../middleware/encryptionMiddleware');
+      roleFilteredUsers = allUsers.filter(user => {
+        try {
+          const decryptedRole = encryption.decrypt(user.role);
+          const matches = targetRoles.includes(decryptedRole);
+          if (matches) {
+            console.log('✅ User matched:', user.email, 'Role:', decryptedRole);
+          }
+          return matches;
+        } catch (error) {
+          // If decryption fails, check if it's already plain text
+          const matches = targetRoles.includes(user.role);
+          if (matches) {
+            console.log('✅ User matched (plain):', user.email, 'Role:', user.role);
+          }
+          return matches;
+        }
+      });
+      
+      console.log('👥 Users after role filter:', roleFilteredUsers.length);
+      
+      // Filter by status after decryption
+      if (requestedStatus) {
+        console.log('👥 Filtering by requested status:', requestedStatus);
+        roleFilteredUsers = roleFilteredUsers.filter(user => {
+          try {
+            const decryptedStatus = encryption.decrypt(user.status);
+            console.log(`  - User ${user.email}: status="${decryptedStatus}" (encrypted: ${user.status.substring(0, 20)}...)`);
+            const matches = decryptedStatus === requestedStatus;
+            if (matches) {
+              console.log(`    ✅ MATCHED! User has status="${decryptedStatus}"`);
+            }
+            return matches;
+          } catch (error) {
+            console.log(`  - User ${user.email}: status="${user.status}" (plain text)`);
+            return user.status === requestedStatus;
+          }
+        });
+        console.log('👥 Users after status filter:', roleFilteredUsers.length);
+      } else {
+        // Exclude deleted users when no specific status is requested
+        console.log('👥 No status requested, excluding deleted users');
+        roleFilteredUsers = roleFilteredUsers.filter(user => {
+          try {
+            const decryptedStatus = encryption.decrypt(user.status);
+            return decryptedStatus !== 'deleted';
+          } catch (error) {
+            return user.status !== 'deleted';
+          }
+        });
+        console.log('👥 Users after excluding deleted:', roleFilteredUsers.length);
+      }
+      
+      // Apply search filter if provided
+      if (search) {
+        roleFilteredUsers = roleFilteredUsers.filter(user => {
+          try {
+            const decryptedUser = encryption.decryptDocument(user.toObject());
+            const searchLower = search.toLowerCase();
+            return (
+              (decryptedUser.first_name && decryptedUser.first_name.toLowerCase().includes(searchLower)) ||
+              (decryptedUser.last_name && decryptedUser.last_name.toLowerCase().includes(searchLower)) ||
+              (decryptedUser.email && decryptedUser.email.toLowerCase().includes(searchLower))
+            );
+          } catch (error) {
+            // Fallback to plain text search if decryption fails
+            const searchLower = search.toLowerCase();
+            return (
+              (user.first_name && user.first_name.toLowerCase().includes(searchLower)) ||
+              (user.last_name && user.last_name.toLowerCase().includes(searchLower)) ||
+              (user.email && user.email.toLowerCase().includes(searchLower))
+            );
+          }
+        });
+      }
+
+      // Apply email filter if provided (exact match)
+      if (req.query.email) {
+        const searchEmail = req.query.email.toLowerCase().trim();
+        console.log('👥 Filtering by email:', searchEmail);
+        roleFilteredUsers = roleFilteredUsers.filter(user => {
+          try {
+            const decryptedEmail = encryption.decrypt(user.email);
+            const matches = decryptedEmail.toLowerCase() === searchEmail;
+            if (matches) {
+              console.log('✅ Email matched:', decryptedEmail);
+            }
+            return matches;
+          } catch (error) {
+            // Fallback to plain text comparison if decryption fails
+            const matches = user.email.toLowerCase() === searchEmail;
+            if (matches) {
+              console.log('✅ Email matched (plain):', user.email);
+            }
+            return matches;
+          }
+        });
+        console.log('👥 Users after email filter:', roleFilteredUsers.length);
+      }
+      
+      // Apply pagination
+      count = roleFilteredUsers.length;
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + parseInt(limit);
+      users = roleFilteredUsers.slice(startIndex, endIndex);
+      
+      console.log('👥 Final users count after pagination:', users.length);
+      
+    } else {
+      // No role filtering needed, fetch all users and filter by status after decryption
+      const encryption = require('../middleware/encryptionMiddleware');
+      
+      if (search) {
+        query.$or = [
+          { first_name: { $regex: search, $options: 'i' } },
+          { last_name: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } }
+        ];
+      }
+      
+      // Fetch all users without status filter (since status is encrypted)
+      const allUsers = await User.find(query)
+        .select('-password')
+        .sort({ created_at: -1 });
+      
+      console.log('👥 Total users found (before status filter):', allUsers.length);
+      
+      // Filter by status after decryption
+      let statusFilteredUsers = allUsers;
+      if (requestedStatus) {
+        console.log('👥 Filtering by requested status:', requestedStatus);
+        statusFilteredUsers = allUsers.filter(user => {
+          try {
+            const decryptedStatus = encryption.decrypt(user.status);
+            console.log(`  - User ${user.email}: status="${decryptedStatus}" (encrypted: ${user.status.substring(0, 20)}...)`);
+            const matches = decryptedStatus === requestedStatus;
+            if (matches) {
+              console.log(`    ✅ MATCHED! User has status="${decryptedStatus}"`);
+            }
+            return matches;
+          } catch (error) {
+            console.log(`  - User ${user.email}: status="${user.status}" (plain text)`);
+            return user.status === requestedStatus;
+          }
+        });
+        console.log('👥 Users after status filter:', statusFilteredUsers.length);
+      } else {
+        // Exclude deleted users when no specific status is requested
+        console.log('👥 No status requested, excluding deleted users');
+        statusFilteredUsers = allUsers.filter(user => {
+          try {
+            const decryptedStatus = encryption.decrypt(user.status);
+            return decryptedStatus !== 'deleted';
+          } catch (error) {
+            return user.status !== 'deleted';
+          }
+        });
+        console.log('👥 Users after excluding deleted:', statusFilteredUsers.length);
+      }
+      
+      // Apply pagination
+      count = statusFilteredUsers.length;
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + parseInt(limit);
+      users = statusFilteredUsers.slice(startIndex, endIndex);
+      
+      console.log('👥 Final users count after pagination:', users.length);
+    }
     
     // Log activity
     await logActivity(
@@ -85,13 +301,36 @@ exports.getUsers = async (req, res) => {
       req.ip
     );
     
+    // Convert users to display format (decrypted)
+    const displayUsers = users.map(user => {
+      if (typeof user.toDisplayJSON === 'function') {
+        return user.toDisplayJSON();
+      } else {
+        // Fallback for plain objects
+        const encryption = require('../middleware/encryptionMiddleware');
+        try {
+          return encryption.decryptDocument(user);
+        } catch (error) {
+          return user;
+        }
+      }
+    });
+    
+    console.log('👥 Returning users:', displayUsers.length);
+    console.log('👥 Sample user data:', displayUsers[0] ? {
+      email: displayUsers[0].email,
+      first_name: displayUsers[0].first_name,
+      last_name: displayUsers[0].last_name,
+      role: displayUsers[0].role
+    } : 'No users');
+    
     res.json({
       success: true,
-      count: users.length,
+      count: displayUsers.length,
       total: count,
       page: parseInt(page),
       totalPages: Math.ceil(count / limit),
-      data: users
+      data: displayUsers
     });
   } catch (error) {
     res.status(500).json({
@@ -385,6 +624,7 @@ exports.deleteUser = async (req, res) => {
     console.log('User ID to delete:', req.params.id);
     console.log('Requesting user:', req.user.email, 'Role:', req.user.role);
     
+    const encryption = require('../middleware/encryptionMiddleware');
     const user = await User.findById(req.params.id);
     
     if (!user) {
@@ -412,8 +652,15 @@ exports.deleteUser = async (req, res) => {
       });
     }
     
-    // Prevent deleting other admins
-    if (user.role === 'admin') {
+    // Prevent deleting other admins (decrypt role first)
+    let decryptedRole;
+    try {
+      decryptedRole = encryption.decrypt(user.role);
+    } catch (error) {
+      decryptedRole = user.role; // Fallback to plain text
+    }
+    
+    if (decryptedRole === 'admin') {
       console.log('❌ Admin deletion attempt blocked');
       return res.status(403).json({
         success: false,
@@ -426,11 +673,21 @@ exports.deleteUser = async (req, res) => {
     
     // Soft delete - change status instead of actual deletion
     console.log('🔄 Performing soft delete...');
-    user.status = 'deleted';
-    user.deleted_at = new Date();
-    user.deleted_by = req.user.user_id;
     
-    await user.save();
+    // Encrypt the status value before saving
+    const encryptedStatus = encryption.encrypt('deleted');
+    
+    // Use findByIdAndUpdate to avoid validation issues with encrypted fields
+    await User.findByIdAndUpdate(
+      req.params.id,
+      {
+        status: encryptedStatus,
+        deleted_at: new Date(),
+        deleted_by: req.user.user_id
+      },
+      { runValidators: false } // Skip validation since fields are encrypted
+    );
+    
     console.log('✅ User soft deleted successfully');
     
     // Log activity
@@ -583,6 +840,224 @@ exports.assignManager = async (req, res) => {
       success: false,
       error: {
         code: 'ASSIGN_MANAGER_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Restore deleted user
+// @route   PATCH /api/users/:id/restore
+// @access  Private (Admin only)
+exports.restoreUser = async (req, res) => {
+  try {
+    console.log('\n🔄 === RESTORE USER REQUEST ===');
+    console.log('User ID to restore:', req.params.id);
+    console.log('Requesting user:', req.user.email, 'Role:', req.user.role);
+    
+    const encryption = require('../middleware/encryptionMiddleware');
+    const user = await User.findById(req.params.id);
+    
+    if (!user) {
+      console.log('❌ User not found:', req.params.id);
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: 'User not found'
+        }
+      });
+    }
+    
+    console.log('👤 Found user to restore:', user.email, 'Status:', user.status);
+    
+    // Check if user is actually deleted (decrypt status first)
+    let decryptedStatus;
+    try {
+      decryptedStatus = encryption.decrypt(user.status);
+    } catch (error) {
+      decryptedStatus = user.status; // Fallback to plain text
+    }
+    
+    if (decryptedStatus !== 'deleted') {
+      console.log('❌ User is not deleted, cannot restore. Status:', decryptedStatus);
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'USER_NOT_DELETED',
+          message: 'User is not deleted and cannot be restored'
+        }
+      });
+    }
+    
+    // Restore user
+    console.log('🔄 Restoring user...');
+    
+    // Encrypt the status value before saving
+    const encryptedStatus = encryption.encrypt('active');
+    
+    // Use findByIdAndUpdate to avoid validation issues with encrypted fields
+    const restoredUser = await User.findByIdAndUpdate(
+      req.params.id,
+      {
+        status: encryptedStatus,
+        $unset: { deleted_at: 1, deleted_by: 1 }
+      },
+      { runValidators: false, new: true } // Skip validation, return updated doc
+    );
+    
+    console.log('✅ User restored successfully');
+    
+    // Log activity
+    await logActivity(
+      req.user.user_id,
+      'restore',
+      'User',
+      `Restored user: ${user.email}`,
+      req.ip,
+      user._id
+    );
+    
+    res.json({
+      success: true,
+      message: 'User restored successfully',
+      data: restoredUser
+    });
+  } catch (error) {
+    console.error('💥 Restore user error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'RESTORE_USER_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Permanently delete user
+// @route   DELETE /api/users/:id/permanent
+// @access  Private (Admin only)
+exports.permanentDeleteUser = async (req, res) => {
+  try {
+    console.log('\n🗑️ === PERMANENT DELETE USER REQUEST ===');
+    console.log('User ID to permanently delete:', req.params.id);
+    console.log('Requesting user:', req.user.email, 'Role:', req.user.role);
+    
+    const user = await User.findById(req.params.id);
+    
+    if (!user) {
+      console.log('❌ User not found:', req.params.id);
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: 'User not found'
+        }
+      });
+    }
+    
+    console.log('👤 Found user to permanently delete:', user.email, 'Status:', user.status);
+    
+    // Prevent self-deletion
+    if (req.params.id === req.user.user_id.toString()) {
+      console.log('❌ Self-deletion attempt blocked');
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'SELF_DELETE_FORBIDDEN',
+          message: 'You cannot permanently delete your own account'
+        }
+      });
+    }
+    
+    // Prevent deleting other admins (decrypt role first)
+    const encryption = require('../middleware/encryptionMiddleware');
+    let decryptedRole;
+    try {
+      decryptedRole = encryption.decrypt(user.role);
+    } catch (error) {
+      decryptedRole = user.role; // Fallback to plain text
+    }
+    
+    if (decryptedRole === 'admin') {
+      console.log('❌ Admin deletion attempt blocked');
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'ADMIN_DELETE_FORBIDDEN',
+          message: 'Cannot permanently delete admin accounts'
+        }
+      });
+    }
+    
+    // Check if user is soft deleted first (decrypt status)
+    let decryptedStatus;
+    try {
+      decryptedStatus = encryption.decrypt(user.status);
+    } catch (error) {
+      decryptedStatus = user.status; // Fallback to plain text
+    }
+    
+    if (decryptedStatus !== 'deleted') {
+      console.log('❌ User is not soft deleted, cannot permanently delete. Status:', decryptedStatus);
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'USER_NOT_SOFT_DELETED',
+          message: 'User must be soft deleted before permanent deletion'
+        }
+      });
+    }
+    
+    // Log activity before deletion
+    await logActivity(
+      req.user.user_id,
+      'permanent_delete',
+      'User',
+      `Permanently deleted user: ${user.email}`,
+      req.ip,
+      user._id
+    );
+    
+    // Delete associated client record if exists
+    console.log('🔍 Checking for associated client record...');
+    const Client = require('../models/Client');
+    const associatedClient = await Client.findOne({ email: user.email });
+    
+    if (associatedClient) {
+      console.log('👥 Found associated client record:', associatedClient._id);
+      await Client.findByIdAndDelete(associatedClient._id);
+      console.log('✅ Associated client record deleted');
+      
+      // Log client deletion
+      await logActivity(
+        req.user.user_id,
+        'permanent_delete',
+        'Client',
+        `Permanently deleted client record associated with user: ${user.email}`,
+        req.ip,
+        associatedClient._id
+      );
+    } else {
+      console.log('ℹ️ No associated client record found');
+    }
+    
+    // Permanently delete user
+    console.log('🔄 Performing permanent user deletion...');
+    await User.findByIdAndDelete(req.params.id);
+    console.log('✅ User permanently deleted successfully');
+    
+    res.json({
+      success: true,
+      message: 'User and associated records permanently deleted successfully'
+    });
+  } catch (error) {
+    console.error('💥 Permanent delete user error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'PERMANENT_DELETE_USER_FAILED',
         message: error.message
       }
     });

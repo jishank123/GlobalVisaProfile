@@ -101,11 +101,15 @@ const ServicesManagement = () => {
     if (!formData.min_price || isNaN(minPrice) || minPrice <= 0) {
       errors.min_price = 'Valid minimum price is required';
     }
-    if (!formData.max_price || isNaN(maxPrice) || maxPrice <= 0) {
-      errors.max_price = 'Valid maximum price is required';
-    }
-    if (!isNaN(minPrice) && !isNaN(maxPrice) && minPrice > maxPrice) {
-      errors.max_price = 'Maximum price must be greater than minimum price';
+    
+    // Only validate max_price for 'range' pricing type
+    if (formData.pricing_type === 'range') {
+      if (!formData.max_price || isNaN(maxPrice) || maxPrice <= 0) {
+        errors.max_price = 'Valid maximum price is required';
+      }
+      if (!isNaN(minPrice) && !isNaN(maxPrice) && minPrice > maxPrice) {
+        errors.max_price = 'Maximum price must be greater than minimum price';
+      }
     }
 
     setFormErrors(errors);
@@ -115,10 +119,19 @@ const ServicesManagement = () => {
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    // If pricing type is changed to 'fixed', set max_price to 0
+    if (name === 'pricing_type' && value === 'fixed') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        max_price: '0'
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
     
     // Clear error for this field when user starts typing
     if (formErrors[name]) {
@@ -137,7 +150,7 @@ const ServicesManagement = () => {
       description: '',
       pricing_type: 'fixed',
       min_price: '',
-      max_price: '',
+      max_price: '0',
       duration: '',
       isActive: true,
       features: ''
@@ -215,7 +228,7 @@ const ServicesManagement = () => {
         pricing: {
           type: formData.pricing_type,
           minPrice: parseFloat(formData.min_price),
-          maxPrice: parseFloat(formData.max_price),
+          maxPrice: formData.pricing_type === 'fixed' ? parseFloat(formData.min_price) : parseFloat(formData.max_price),
           currency: 'USD'
         },
         duration: formData.duration,
@@ -256,7 +269,7 @@ const ServicesManagement = () => {
         pricing: {
           type: formData.pricing_type,
           minPrice: parseFloat(formData.min_price),
-          maxPrice: parseFloat(formData.max_price),
+          maxPrice: formData.pricing_type === 'fixed' ? parseFloat(formData.min_price) : parseFloat(formData.max_price),
           currency: 'USD'
         },
         duration: formData.duration,
@@ -453,13 +466,6 @@ const ServicesManagement = () => {
                         title={service.isActive !== false ? 'Deactivate Service' : 'Activate Service'}
                       >
                         <i className={`fas ${service.isActive !== false ? 'fa-pause' : 'fa-play'}`}></i>
-                      </button>
-                      <button 
-                        className="btn btn-outline-danger btn-sm"
-                        onClick={() => deleteService(service)}
-                        title="Delete Service"
-                      >
-                        <i className="fas fa-trash"></i>
                       </button>
                     </div>
                   </td>

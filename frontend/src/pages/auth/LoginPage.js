@@ -168,16 +168,27 @@ const LoginPage = () => {
         } catch (loginError) {
           console.error('❌ Login API error:', loginError);
           setIsLoginAttempt(false); // Reset flag
-          // Check if it's a password error specifically
+          
+          // Check for specific error codes and messages from backend
           const errorMessage = loginError.message || 'Login failed';
-          if (errorMessage.toLowerCase().includes('password') || 
-              errorMessage.toLowerCase().includes('invalid') || 
-              errorMessage.toLowerCase().includes('incorrect') ||
-              errorMessage.toLowerCase().includes('wrong') ||
-              errorMessage.toLowerCase().includes('credentials')) {
-            setError('Password entered is wrong, please check password.');
+          const errorCode = loginError.code;
+          
+          // Handle specific backend error codes
+          if (errorCode === 'ACCOUNT_INACTIVE') {
+            setError('Your account is inactive. Please contact support to reactivate your account.');
+          } else if (errorCode === 'INVALID_CREDENTIALS') {
+            setError('Invalid email or password. Please check your credentials and try again.');
+          } else if (errorCode === 'ACCESS_DENIED') {
+            setError('This login is for clients only. Managers should use the manager login.');
+          } else if (errorCode === 'USER_NOT_FOUND') {
+            setError('No account found with this email address.');
+          } else if (errorCode === 'MISSING_CREDENTIALS') {
+            setError('Please provide email and password.');
+          } else if (errorCode === 'INVALID_EMAIL') {
+            setError('Please provide a valid email address.');
           } else {
-            setError('Login failed. Please try again.');
+            // Display the actual error message from backend
+            setError(errorMessage);
           }
           // Prevent any automatic redirects by stopping here
           return;
@@ -214,7 +225,23 @@ const LoginPage = () => {
           }
         } catch (setupError) {
           console.error('Password setup error:', setupError);
-          setError('Password setup failed. Please try again.');
+          
+          // Check for specific error codes and messages from backend
+          const errorMessage = setupError.message || 'Password setup failed';
+          const errorCode = setupError.code;
+          
+          // Handle specific backend error codes
+          if (errorCode === 'WEAK_PASSWORD') {
+            // Display the specific password validation error from backend
+            setError(errorMessage);
+          } else if (errorCode === 'ACCOUNT_INACTIVE') {
+            setError('Your account is inactive. Please contact support to reactivate your account.');
+          } else if (errorCode === 'PASSWORD_SETUP_REQUIRED') {
+            setError('Password setup is required for this account.');
+          } else {
+            // Display the actual error message from backend
+            setError(errorMessage);
+          }
         }
       }
     } catch (error) {

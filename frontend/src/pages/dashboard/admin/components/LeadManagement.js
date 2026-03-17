@@ -18,6 +18,7 @@ const LeadManagement = () => {
     totalLeads: 0,
     unassignedLeads: 0,
     qualifiedLeads: 0,
+    assignedLeads: 0,
     conversionRate: 0
   });
 
@@ -44,26 +45,61 @@ const LeadManagement = () => {
       
       // Load leads
       const leadsResponse = await leadsAPI.getAll();
+      console.log('📊 Leads API Response:', leadsResponse);
       if (leadsResponse.success) {
-        setLeads(leadsResponse.data || []);
+        const leadsData = leadsResponse.data || [];
+        console.log('📊 Leads data:', leadsData);
+        console.log('📊 Lead priorities:', leadsData.map(l => ({ 
+          name: `${l.firstName} ${l.lastName}`, 
+          priority: l.priority,
+          email: l.email 
+        })));
+        setLeads(leadsData);
+        
+        // Calculate assigned leads count
+        const assignedCount = leadsData.filter(lead => 
+          lead.assignedTo && 
+          (typeof lead.assignedTo === 'object' 
+            ? (lead.assignedTo._id || lead.assignedTo.id)
+            : lead.assignedTo
+          )
+        ).length;
+        
+        // Calculate qualified but not assigned leads
+        const qualifiedNotAssignedCount = leadsData.filter(lead => 
+          lead.status === 'qualified' && 
+          !(lead.assignedTo && 
+            (typeof lead.assignedTo === 'object' 
+              ? (lead.assignedTo._id || lead.assignedTo.id)
+              : lead.assignedTo
+            )
+          )
+        ).length;
+        
+        // Update stats with assigned leads count
+        setStats(prev => ({
+          ...prev,
+          totalLeads: leadsData.length,
+          assignedLeads: assignedCount,
+          qualifiedLeads: qualifiedNotAssignedCount
+        }));
       }
 
       // Load lead statistics
       const statsResponse = await leadsAPI.getStats();
       if (statsResponse.success) {
-        setStats({
-          totalLeads: statsResponse.data.total || 0,
+        setStats(prev => ({
+          ...prev,
           unassignedLeads: statsResponse.data.byStatus?.find(s => s._id === 'new')?.count || 0,
-          qualifiedLeads: statsResponse.data.qualifiedCount || 0,
           conversionRate: statsResponse.data.conversionRate || 0
-        });
+        }));
       }
 
     } catch (error) {
       console.error('Error loading leads data:', error);
       // Set empty state on error
       setLeads([]);
-      setStats({ totalLeads: 0, unassignedLeads: 0, qualifiedLeads: 0, conversionRate: 0 });
+      setStats({ totalLeads: 0, unassignedLeads: 0, qualifiedLeads: 0, assignedLeads: 0, conversionRate: 0 });
     } finally {
       setLoading(false);
     }
@@ -80,19 +116,20 @@ const LeadManagement = () => {
 
   const getSourceDisplayName = (source) => {
     const sourceMap = {
-      'profile_assessment': 'Assessment',
-      'contact_form': 'Contact Us',
-      'appointment': 'Appointment',
-      'website': 'Registration',
-      'referral': 'Referral',
-      'social_media': 'Social Media',
-      'advertisement': 'Advertisement',
-      'event': 'Event',
-      'cold_call': 'Cold Call',
-      'email_campaign': 'Email Campaign',
-      'other': 'Other'
+      'profile_assessment': 'ASSESSMENT',
+      'contact_form': 'CONTACT US',
+      'appointment': 'APPOINTMENT',
+      'website': 'REGISTRATION',
+      'register': 'REGISTRATION',
+      'referral': 'REFERRAL',
+      'social_media': 'SOCIAL MEDIA',
+      'advertisement': 'ADVERTISEMENT',
+      'event': 'EVENT',
+      'cold_call': 'COLD CALL',
+      'email_campaign': 'EMAIL CAMPAIGN',
+      'other': 'OTHER'
     };
-    return sourceMap[source] || source;
+    return sourceMap[source] || (source ? source.toUpperCase() : 'OTHER');
   };
 
   const viewLeadDetails = (lead) => {
@@ -593,11 +630,18 @@ const LeadManagement = () => {
           iconColor="#10b981"
         />
         <StatCard
+          icon="fas fa-user-tie"
+          number={stats.assignedLeads}
+          label="Assigned"
+          borderColor="#8b5cf6"
+          iconColor="#8b5cf6"
+        />
+        <StatCard
           icon="fas fa-percentage"
           number={`${stats.conversionRate}%`}
           label="Conversion Rate"
-          borderColor="#8b5cf6"
-          iconColor="#8b5cf6"
+          borderColor="#ec4899"
+          iconColor="#ec4899"
         />
       </div>
 
@@ -713,14 +757,16 @@ const LeadManagement = () => {
                         >
                           <i className="fas fa-eye"></i>
                         </button>
-                        <button 
-                          className="btn btn-outline-success btn-sm"
-                          onClick={() => qualifyLead(lead)}
-                          title="Qualify Lead"
-                          disabled={lead.status === 'qualified'}
-                        >
-                          <i className="fas fa-star"></i>
-                        </button>
+                        {!isAssigned && (
+                          <button 
+                            className="btn btn-outline-success btn-sm"
+                            onClick={() => qualifyLead(lead)}
+                            title="Qualify Lead"
+                            disabled={lead.status === 'qualified'}
+                          >
+                            <i className="fas fa-star"></i>
+                          </button>
+                        )}
                         {!isAssigned && (
                           lead.status === 'qualified' ? (
                             <button 

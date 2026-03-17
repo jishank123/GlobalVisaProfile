@@ -37,28 +37,61 @@ exports.getInvoices = async (req, res) => {
     
     // Role-based access control
     if (req.user.role === 'crm_manager') {
-      // CRM managers can only see invoices for their assigned clients
+      // CRM managers can see invoices for their assigned clients OR assigned projects
       const assignedClients = await Client.find({ crm_manager: req.user.user_id }).select('_id');
       const clientIds = assignedClients.map(client => client._id);
-      query.client = { $in: clientIds };
+      
+      // Also get projects assigned to this CRM manager
+      const assignedProjects = await Project.find({ assigned_to: req.user.user_id }).select('_id');
+      const projectIds = assignedProjects.map(project => project._id);
+      
+      // Query for invoices where client is assigned OR project is assigned
+      query.$or = [
+        { client: { $in: clientIds } },
+        { project: { $in: projectIds } }
+      ];
     } else if (req.user.role === 'lead_manager') {
       // Lead managers can see invoices they created
       query.created_by = req.user.user_id;
     } else if (req.user.role === 'client') {
       // Clients can only see their own invoices
-      const clientRecord = await Client.findOne({ email: req.user.email });
-      if (clientRecord) {
-        query.client = clientRecord._id;
+      console.log(`\n🧾 ========== CLIENT INVOICE QUERY DEBUG ==========`);
+      console.log(`🧾 Client role detected, user email: ${req.user.email}`);
+      
+      // If filtering by project, just use the project filter
+      // The authorization will be handled by checking if the project belongs to this client
+      if (req.query.project) {
+        console.log(`🧾 Project filter detected: ${req.query.project}`);
+        console.log(`🧾 Will verify project belongs to client after query`);
+        // Don't set any additional filters here, just use the project filter
+        // We'll verify ownership after fetching
       } else {
-        return res.json({
-          success: true,
-          count: 0,
-          total: 0,
-          page: parseInt(page),
-          totalPages: 0,
-          data: []
-        });
+        // If no project filter, find client record and filter by client
+        console.log(`🧾 No project filter, looking for client record with email: ${req.user.email}`);
+        
+        // Since email is encrypted, we need to fetch all clients and filter in memory
+        const allClients = await Client.find({});
+        const clientRecord = allClients.find(c => c.email === req.user.email);
+        
+        console.log(`🧾 Client record found:`, clientRecord ? { id: clientRecord._id, email: clientRecord.email } : 'NOT FOUND');
+        
+        if (clientRecord) {
+          query.client = clientRecord._id;
+          console.log(`🧾 Client query set: client=${clientRecord._id}`);
+        } else {
+          console.log(`🧾 No client record found, returning empty array`);
+          console.log(`🧾 ========== END CLIENT INVOICE QUERY DEBUG ==========\n`);
+          return res.json({
+            success: true,
+            count: 0,
+            total: 0,
+            page: parseInt(page),
+            totalPages: 0,
+            data: []
+          });
+        }
       }
+      console.log(`🧾 ========== END CLIENT INVOICE QUERY DEBUG ==========\n`);
     }
     
     // Apply filters
@@ -73,6 +106,14 @@ exports.getInvoices = async (req, res) => {
     if (status) query.status = status;
     if (client && req.user.role !== 'client') query.client = client;
     
+    // Add project filter support
+    if (req.query.project) {
+      console.log(`🧾 Invoice query: Filtering by project=${req.query.project}`);
+      query.project = req.query.project;
+    }
+    
+    console.log(`🧾 Invoice query object:`, JSON.stringify(query, null, 2));
+    
     const invoices = await Invoice.find(query)
       .populate('client', 'name email company')
       .populate('project', 'project_id service_name status')
@@ -82,7 +123,53 @@ exports.getInvoices = async (req, res) => {
       .limit(limit * 1)
       .skip((page - 1) * limit);
     
+    console.log(`🧾 Invoices found: ${invoices.length}`);
+    if (invoices.length > 0) {
+      console.log(`🧾 First invoice:`, {
+        id: invoices[0]._id,
+        invoice_number: invoices[0].invoice_number,
+        project: invoices[0].project
+      });
+    }
+    
+    // For clients querying by project, verify the project belongs to them
+    if (req.user.role === 'client' && req.query.project && invoices.length > 0) {
+      console.log(`🧾 Verifying project ${req.query.project} belongs to client ${req.user.email}`);
+      const project = await Project.findById(req.query.project).populate('client');
+      if (project && project.client) {
+        // Compare user_id instead of encrypted email
+        const projectClientUserId = project.client.user_id ? project.client.user_id.toString() : null;
+        const currentUserId = req.user.user_id ? req.user.user_id.toString() : req.user._id.toString();
+        
+        console.log(`🧾 Comparing user IDs:`, {
+          projectClientUserId,
+          currentUserId,
+          match: projectClientUserId === currentUserId
+        });
+        
+        if (projectClientUserId !== currentUserId) {
+          console.log(`🧾 ❌ Project does not belong to this client, returning empty array`);
+          return res.json({
+            success: true,
+            count: 0,
+            total: 0,
+            page: parseInt(page),
+            totalPages: 0,
+            data: []
+          });
+        }
+        console.log(`🧾 ✅ Project belongs to client, returning invoices`);
+      }
+    }
+    
     const count = await Invoice.countDocuments(query);
+    
+    console.log(`🧾 Sending response: count=${invoices.length}, total=${count}`);
+    console.log(`🧾 Response data:`, invoices.map(inv => ({
+      id: inv._id,
+      invoice_number: inv.invoice_number,
+      project: inv.project?._id || inv.project
+    })));
     
     res.json({
       success: true,
@@ -387,6 +474,10 @@ exports.viewInvoice = async (req, res) => {
       }
     }
     
+    // Decrypt client data for display
+    const encryption = require('../middleware/encryptionMiddleware');
+    const decryptedClient = encryption.decryptDocument(invoice.client.toObject());
+    
     // Generate HTML invoice
     const invoiceHTML = `
     <!DOCTYPE html>
@@ -519,19 +610,18 @@ exports.viewInvoice = async (req, res) => {
             </div>
             <div class="invoice-info">
                 <h2 class="invoice-number">Invoice ${invoice.invoice_number}</h2>
-                <p>Date: ${new Date(invoice.createdAt).toLocaleDateString()}<br>
-                Due Date: ${new Date(invoice.due_date).toLocaleDateString()}</p>
-                <span class="status-badge status-${invoice.status}">${invoice.status}</span>
+                <p>Date: ${new Date(invoice.createdAt).toLocaleDateString()}</p>
+                <span class="status-badge status-paid">PAID</span>
             </div>
         </div>
 
         <div class="client-info">
             <h3>Bill To:</h3>
-            <p><strong>${invoice.client.name}</strong><br>
-            ${invoice.client.company ? invoice.client.company + '<br>' : ''}
-            Email: ${invoice.client.email}<br>
-            ${invoice.client.phone ? 'Phone: ' + invoice.client.phone + '<br>' : ''}
-            ${invoice.client.address || ''}</p>
+            <p><strong>${decryptedClient.name}</strong><br>
+            ${decryptedClient.company ? decryptedClient.company + '<br>' : ''}
+            Email: ${decryptedClient.email}<br>
+            ${decryptedClient.phone ? 'Phone: ' + decryptedClient.phone + '<br>' : ''}
+            ${decryptedClient.address || ''}</p>
         </div>
 
         <div class="invoice-details">
@@ -541,8 +631,8 @@ exports.viewInvoice = async (req, res) => {
                 ${invoice.project ? 'Project: ' + invoice.project.project_id : ''}</p>
             </div>
             <div>
-                <h4>Payment Instructions:</h4>
-                <p>${invoice.payment_instructions || 'Please pay within 30 days of invoice date.'}</p>
+                <h4>Payment Status:</h4>
+                <p><strong style="color: #059669;">PAID</strong></p>
             </div>
         </div>
 
@@ -640,9 +730,11 @@ exports.downloadInvoice = async (req, res) => {
 
     // Verify token
     const jwt = require('jsonwebtoken');
+    const User = require('../models/User');
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('📄 Token decoded:', decoded);
     } catch (error) {
       return res.status(401).json({
         success: false,
@@ -653,13 +745,32 @@ exports.downloadInvoice = async (req, res) => {
       });
     }
 
+    // Get user ID from token (handle both formats)
+    const userId = decoded.user_id || decoded._id || decoded.id;
+    console.log('📄 User ID from token:', userId);
+
+    // Find user account
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: 'User account not found. Please login again.'
+        }
+      });
+    }
+
+    console.log('📄 User found:', { id: user._id, email: user.email, role: user.role });
+
     // Set user info for authorization checks
     req.user = {
-      _id: decoded.user_id || decoded._id || decoded.id,
-      user_id: decoded.user_id || decoded._id || decoded.id,
-      id: decoded.user_id || decoded._id || decoded.id,
-      email: decoded.email,
-      role: decoded.role
+      _id: user._id,
+      user_id: user._id,
+      id: user._id,
+      email: user.email,
+      role: user.role
     };
     
     const invoice = await Invoice.findById(req.params.id)
@@ -676,11 +787,62 @@ exports.downloadInvoice = async (req, res) => {
         }
       });
     }
+
+    console.log('📄 Invoice found:', { id: invoice._id, client: invoice.client.email });
     
     // Role-based access control
     if (req.user.role === 'client') {
-      const clientRecord = await Client.findOne({ email: req.user.email });
-      if (!clientRecord || invoice.client._id.toString() !== clientRecord._id.toString()) {
+      console.log('📄 Client access check:', { 
+        userId: req.user._id.toString(), 
+        userEmail: req.user.email 
+      });
+      
+      // Check if invoice has a project and verify the project belongs to this client
+      if (invoice.project && invoice.project._id) {
+        const Project = require('../models/Project');
+        const project = await Project.findById(invoice.project._id).populate('client');
+        
+        console.log('📄 Project found:', project ? { 
+          id: project._id, 
+          clientId: project.client?._id,
+          clientUserId: project.client?.user_id 
+        } : 'Not found');
+        
+        // Check if the project's client user_id matches the logged-in user's ID
+        if (project && project.client && project.client.user_id) {
+          const projectClientUserId = project.client.user_id.toString();
+          const currentUserId = req.user._id.toString();
+          
+          console.log('📄 Comparing user IDs:', { 
+            projectClientUserId, 
+            currentUserId, 
+            match: projectClientUserId === currentUserId 
+          });
+          
+          if (projectClientUserId === currentUserId) {
+            console.log('📄 Client access granted via project ownership (user_id match)');
+          } else {
+            console.log('📄 Access denied - Project client user_id does not match');
+            return res.status(403).json({
+              success: false,
+              error: {
+                code: 'FORBIDDEN',
+                message: 'You can only download your own invoices'
+              }
+            });
+          }
+        } else {
+          console.log('📄 Access denied - Project or client user_id not found');
+          return res.status(403).json({
+            success: false,
+            error: {
+              code: 'FORBIDDEN',
+              message: 'You can only download your own invoices'
+            }
+          });
+        }
+      } else {
+        console.log('📄 Access denied - No project associated with invoice');
         return res.status(403).json({
           success: false,
           error: {
@@ -738,6 +900,10 @@ exports.downloadInvoice = async (req, res) => {
         });
       }
     }
+    
+    // Decrypt client data for display
+    const encryption = require('../middleware/encryptionMiddleware');
+    const decryptedClient = encryption.decryptDocument(invoice.client.toObject());
     
     // Generate HTML invoice with auto-download functionality
     const invoiceHTML = `
@@ -859,18 +1025,6 @@ exports.downloadInvoice = async (req, res) => {
                 body { margin: 0; padding: 15px; }
             }
         </style>
-        <script>
-            // Auto-trigger print dialog and close after printing
-            window.onload = function() {
-                setTimeout(function() {
-                    window.print();
-                    // Close the window after print dialog
-                    setTimeout(function() {
-                        window.close();
-                    }, 1000);
-                }, 500);
-            };
-        </script>
     </head>
     <body>
         <div class="header">
@@ -882,19 +1036,18 @@ exports.downloadInvoice = async (req, res) => {
             </div>
             <div class="invoice-info">
                 <h2 class="invoice-number">Invoice ${invoice.invoice_number}</h2>
-                <p>Date: ${new Date(invoice.createdAt).toLocaleDateString()}<br>
-                Due Date: ${new Date(invoice.due_date).toLocaleDateString()}</p>
-                <span class="status-badge status-${invoice.status}">${invoice.status}</span>
+                <p>Date: ${new Date(invoice.createdAt).toLocaleDateString()}</p>
+                <span class="status-badge status-paid">PAID</span>
             </div>
         </div>
 
         <div class="client-info">
             <h3>Bill To:</h3>
-            <p><strong>${invoice.client.name}</strong><br>
-            ${invoice.client.company ? invoice.client.company + '<br>' : ''}
-            Email: ${invoice.client.email}<br>
-            ${invoice.client.phone ? 'Phone: ' + invoice.client.phone + '<br>' : ''}
-            ${invoice.client.address || ''}</p>
+            <p><strong>${decryptedClient.name}</strong><br>
+            ${decryptedClient.company ? decryptedClient.company + '<br>' : ''}
+            Email: ${decryptedClient.email}<br>
+            ${decryptedClient.phone ? 'Phone: ' + decryptedClient.phone + '<br>' : ''}
+            ${decryptedClient.address || ''}</p>
         </div>
 
         <div class="invoice-details">
@@ -904,8 +1057,8 @@ exports.downloadInvoice = async (req, res) => {
                 ${invoice.project ? 'Project: ' + invoice.project.project_id : ''}</p>
             </div>
             <div>
-                <h4>Payment Instructions:</h4>
-                <p>${invoice.payment_instructions || 'Please pay within 30 days of invoice date.'}</p>
+                <h4>Payment Status:</h4>
+                <p><strong style="color: #059669;">PAID</strong></p>
             </div>
         </div>
 
@@ -965,8 +1118,9 @@ exports.downloadInvoice = async (req, res) => {
     `;
     
     // Set headers for download
-    res.setHeader('Content-Type', 'text/html');
-    res.setHeader('Content-Disposition', `inline; filename="Invoice-${invoice.invoice_number}.html"`);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoice_number}.html"`);
+    res.setHeader('Cache-Control', 'no-cache');
     res.send(invoiceHTML);
     
   } catch (error) {

@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -6,9 +6,16 @@ const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const mime = require('mime-types');
 
 // Load environment variables from the correct path
 require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+// Import and apply DEFERRED global encryption plugin
+const mongooseEncryptionPlugin = require('./middleware/mongooseEncryptionDeferred');
+console.log('🔐 Applying DEFERRED global document encryption...');
+mongoose.plugin(mongooseEncryptionPlugin);
+console.log('✅ Deferred encryption plugin applied successfully');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -29,7 +36,7 @@ const activityRoutes = require('./routes/activity');
 const profileAssessmentRoutes = require('./routes/profileAssessments');
 const appointmentRoutes = require('./routes/appointments');
 const contactRoutes = require('./routes/contact');
-const clientAccountRoutes = require('./routes/clientAccounts');
+const newsletterRoutes = require('./routes/newsletter');
 const debugRoutes = require('./routes/debug');
 const dashboardRoutes = require('./routes/dashboard');
 
@@ -42,26 +49,42 @@ app.set('trust proxy', 1);
 // Security middleware
 app.use(helmet());
 
-// CORS configuration
-const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'https://immigrationprofile.com',
-    'https://www.immigrationprofile.com'
-];
+// Manual CORS middleware - handles preflight and actual requests FIRST
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'https://immigrationprofile.com',
+  'http://immigrationprofile.com'
+].filter(Boolean);
 
+  console.log('🌐 Request:', req.method, req.path, 'Origin:', origin);
+
+  // Check if origin is allowed
+  if (!origin || allowedOrigins.includes(origin) || (origin && origin.includes('localhost') && (process.env.NODE_ENV === 'development' || process.env.ALLOW_LOCALHOST === 'true'))) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+    res.setHeader('Access-Control-Max-Age', '3600');
+    console.log('✅ CORS headers set');
+  }
+
+  // Handle preflight OPTIONS request
+  if (req.method === 'OPTIONS') {
+    console.log('✅ Handling OPTIONS preflight');
+    return res.status(204).end();
+  }
+
+  next();
+});
+
+// CORS configuration - using environment variables
 app.use(cors({
-    origin: function (origin, callback) {
-        // Allow requests without origin (Postman, curl)
-        if (!origin) return callback(null, true);
-
-        if (allowedOrigins.includes(origin)) {
-            return callback(null, true);
-        }
-
-        return callback(new Error(`CORS blocked for origin: ${origin}`));
-    },
-    credentials: true
+  origin: true,        // allow same-origin via proxy
+  credentials: true
 }));
 
 
@@ -96,36 +119,204 @@ if (process.env.NODE_ENV === 'development') {
     app.use(morgan('combined'));
 }
 
-// Static files for uploads
-app.use('/uploads', express.static('uploads'));
+// Static files for uploads with proper headers
+app.use('/uploads', express.static('uploads', {
+  setHeaders: (res, path) => {
+    // Set proper content type for images with specific MIME types
+    if (path.match(/\.(jpg|jpeg)$/i)) {
+      res.setHeader('Content-Type', 'image/jpeg');
+      res.setHeader('Content-Disposition', 'inline');
+    } else if (path.match(/\.jfif$/i)) {
+      res.setHeader('Content-Type', 'image/jpeg'); // JFIF is a JPEG format
+      res.setHeader('Content-Disposition', 'inline');
+    } else if (path.match(/\.png$/i)) {
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Disposition', 'inline');
+    } else if (path.match(/\.gif$/i)) {
+      res.setHeader('Content-Type', 'image/gif');
+      res.setHeader('Content-Disposition', 'inline');
+    } else if (path.match(/\.webp$/i)) {
+      res.setHeader('Content-Type', 'image/webp');
+      res.setHeader('Content-Disposition', 'inline');
+    } else if (path.match(/\.avif$/i)) {
+      res.setHeader('Content-Type', 'image/avif');
+      res.setHeader('Content-Disposition', 'inline');
+    } else if (path.match(/\.(jpg|jpeg|png|gif|webp|avif|jfif)$/i)) {
+      res.setHeader('Content-Type', 'image/*');
+      res.setHeader('Content-Disposition', 'inline');
+    }
+    // Add CORS headers for static files
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    // Add cache headers for better performance
+    res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year
+  }
+}));
+
+// Debug endpoint to check if file exists
+app.get('/api/debug/file-exists/:type/:filename', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  
+  const { type, filename } = req.params;
+  const filePath = path.join(__dirname, 'uploads', type, filename);
+  
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    res.json({
+      success: true,
+      exists: !err,
+      path: filePath,
+      filename: filename,
+      type: type,
+      error: err ? err.message : null,
+      staticUrl: `${req.protocol}://${req.get('host')}/uploads/${type}/${filename}`
+    });
+  });
+});
+
+// Test endpoint to serve image directly with proper headers
+app.get('/api/debug/serve-image/:type/:filename', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const mime = require('mime-types');
+  
+  const { type, filename } = req.params;
+  const filePath = path.join(__dirname, 'uploads', type, filename);
+  
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({
+      success: false,
+      error: 'File not found',
+      path: filePath
+    });
+  }
+  
+  // Get file stats
+  const stats = fs.statSync(filePath);
+  const mimeType = mime.lookup(filePath) || 'application/octet-stream';
+  
+  // Set proper headers for inline viewing
+  res.setHeader('Content-Type', mimeType);
+  res.setHeader('Content-Length', stats.size);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Cache-Control', 'public, max-age=31536000');
+  res.setHeader('Content-Disposition', 'inline'); // Force inline viewing instead of download
+  
+  // Stream the file
+  const fileStream = fs.createReadStream(filePath);
+  fileStream.pipe(res);
+});
+
+// Endpoint to force download of image
+app.get('/api/debug/download-image/:type/:filename', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const mime = require('mime-types');
+  
+  const { type, filename } = req.params;
+  const filePath = path.join(__dirname, 'uploads', type, filename);
+  
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({
+      success: false,
+      error: 'File not found',
+      path: filePath
+    });
+  }
+  
+  // Get file stats
+  const stats = fs.statSync(filePath);
+  const mimeType = mime.lookup(filePath) || 'application/octet-stream';
+  
+  // Set proper headers for download
+  res.setHeader('Content-Type', mimeType);
+  res.setHeader('Content-Length', stats.size);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'public, max-age=31536000');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`); // Force download
+  
+  // Stream the file
+  const fileStream = fs.createReadStream(filePath);
+  fileStream.pipe(res);
+});
+
+// Endpoint to clean up missing file references
+app.post('/api/admin/cleanup-missing-files', async (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const Project = require('./models/Project');
+    const Payment = require('./models/Payment');
+    
+    const uploadsDir = path.join(__dirname, 'uploads', 'payment-receipts');
+    let cleaned = 0;
+    
+    // Check projects
+    const projects = await Project.find({ payment_receipt: { $ne: null, $ne: '' } });
+    for (const project of projects) {
+      if (!project.payment_receipt) continue; // Skip null/empty values
+      
+      const filePath = path.join(uploadsDir, project.payment_receipt);
+      if (!fs.existsSync(filePath)) {
+        await Project.findByIdAndUpdate(project._id, { 
+          $unset: { payment_receipt: 1 } 
+        });
+        cleaned++;
+      }
+    }
+    
+    // Check payments
+    const payments = await Payment.find({ receipt_screenshot: { $ne: null, $ne: '' } });
+    for (const payment of payments) {
+      if (!payment.receipt_screenshot) continue; // Skip null/empty values
+      
+      const filePath = path.join(uploadsDir, payment.receipt_screenshot);
+      if (!fs.existsSync(filePath)) {
+        await Payment.findByIdAndUpdate(payment._id, { 
+          $unset: { receipt_screenshot: 1, receipt_path: 1 } 
+        });
+        cleaned++;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Cleaned up ${cleaned} missing file references`,
+      cleaned: cleaned
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 // MongoDB Connection
-console.log('ðŸ”Œ Attempting to connect to MongoDB...');
+console.log('📌 Attempting to connect to MongoDB...');
 const mongoUri = process.env.MONGODB_URI;
-console.log('ðŸ”Œ MongoDB URI:', mongoUri);
+console.log('📌 MongoDB URI:', mongoUri);
 
 mongoose.connect(mongoUri).then(() => {
-    console.log('âœ… MongoDB Connected Successfully');
-    console.log(`ðŸ“Š Database: ${
-        mongoose.connection.name
-    }`);
-    console.log(`ðŸ  Host: ${
-        mongoose.connection.host
-    }`);
-    console.log(`ðŸ”Œ Port: ${
-        mongoose.connection.port
-    }`);
-    console.log(`ðŸ“Š Ready State: ${
-        mongoose.connection.readyState
-    }`); // 1 = connected
+    console.log('✅ MongoDB Connected Successfully');
+    console.log(`📊 Database: ${mongoose.connection.name}`);
+    console.log(`🏠 Host: ${mongoose.connection.host}`);
+    console.log(`📌 Port: ${mongoose.connection.port}`);
+    console.log(`📊 Ready State: ${mongoose.connection.readyState}`); // 1 = connected
 }).catch((err) => {
-    console.error('âŒ MongoDB Connection Error:', err.message);
-    console.error('âŒ Full error:', err);
+    console.error('❌ MongoDB Connection Error:', err.message);
+    console.error('❌ Full error:', err);
     process.exit(1);
 });
 
 // API Routes
-console.log('ðŸ›£ï¸ Setting up API routes...');
+console.log('🛣️ Setting up API routes...');
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/leads', leadRoutes);
@@ -134,24 +325,16 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/queries', queryRoutes);
 app.use('/api/tasks', (req, res, next) => {
-    console.log(`ðŸ›£ï¸ Tasks route hit: ${req.method} ${req.path}`);
+    console.log(`🛣️ Tasks route hit: ${req.method} ${req.path}`);
     next();
 }, tasksRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/services', (req, res, next) => {
-    console.log(`ðŸ›£ï¸ Services route hit: ${
-        req.method
-    } ${
-        req.path
-    }`);
+    console.log(`🛣️ Services route hit: ${req.method} ${req.path}`);
     next();
 }, serviceRoutes);
 app.use('/api/invoices', (req, res, next) => {
-    console.log(`ðŸ›£ï¸ Invoices route hit: ${
-        req.method
-    } ${
-        req.path
-    }`);
+    console.log(`🛣️ Invoices route hit: ${req.method} ${req.path}`);
     next();
 }, invoiceRoutes);
 // app.use('/api/documents', documentRoutes);
@@ -159,52 +342,34 @@ app.use('/api/analytics', analyticsRoutes);
 
 // New form API routes
 app.use('/api/profile-assessments', (req, res, next) => {
-    console.log(`ðŸ›£ï¸ Profile assessments route hit: ${
-        req.method
-    } ${
-        req.path
-    }`);
+    console.log(`🛣️ Profile assessments route hit: ${req.method} ${req.path}`);
     next();
 }, profileAssessmentRoutes);
 app.use('/api/appointments', (req, res, next) => {
-    console.log(`ðŸ›£ï¸ Appointments route hit: ${
-        req.method
-    } ${
-        req.path
-    }`);
+    console.log(`🛣️ Appointments route hit: ${req.method} ${req.path}`);
     next();
 }, appointmentRoutes);
 app.use('/api/contact', (req, res, next) => {
-    console.log(`ðŸ›£ï¸ Contact form route hit: ${
-        req.method
-    } ${
-        req.path
-    }`);
+    console.log(`🛣️ Contact form route hit: ${req.method} ${req.path}`);
     next();
 }, contactRoutes);
-app.use('/api/client-accounts', (req, res, next) => {
-    console.log(`ðŸ›£ï¸ Client accounts route hit: ${
-        req.method
-    } ${
-        req.path
-    }`);
+
+// Newsletter routes
+app.use('/api/newsletter', (req, res, next) => {
+    console.log(`🛣️ Newsletter route hit: ${req.method} ${req.path}`);
     next();
-}, clientAccountRoutes);
+}, newsletterRoutes);
 
 // Dashboard routes
 app.use('/api/dashboard', (req, res, next) => {
-    console.log(`ðŸ›£ï¸ Dashboard route hit: ${
-        req.method
-    } ${
-        req.path
-    }`);
+    console.log(`🛣️ Dashboard route hit: ${req.method} ${req.path}`);
     next();
 }, dashboardRoutes);
 
 // Debug routes (remove in production)
 app.use('/api/debug', debugRoutes);
 
-console.log('âœ… All API routes configured');
+console.log('✅ All API routes configured');
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -240,7 +405,7 @@ app.get('/', (req, res) => {
             profileAssessments: '/api/profile-assessments',
             appointments: '/api/appointments',
             contact: '/api/contact',
-            clientAccounts: '/api/client-accounts'
+            newsletter: '/api/newsletter'
         }
     });
 });
@@ -251,11 +416,7 @@ app.use((req, res) => {
         success: false,
         error: {
             code: 'NOT_FOUND',
-            message: `Cannot ${
-                req.method
-            } ${
-                req.path
-            }`
+            message: `Cannot ${req.method} ${req.path}`
         }
     });
 });

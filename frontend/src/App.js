@@ -27,6 +27,11 @@ import ContactPage from './pages/public/ContactPage';
 import FormSuccessPage from './pages/public/FormSuccessPage';
 import PrivacyPolicyPage from './pages/public/PrivacyPolicyPage';
 import TermsConditionsPage from './pages/public/TermsConditionsPage';
+import AboutPage from './pages/public/AboutPage';
+import CareerCoachingPage from './pages/public/CareerCoachingPage';
+import GCEB1Page from './pages/public/GCEB1Page';
+import PersonalizedPage from './pages/public/PersonalizedPage';
+
 
 // Dashboard Pages
 import AdminDashboard from './pages/dashboard/admin/AdminDashboard';
@@ -37,9 +42,12 @@ import EmployeeDashboard from './pages/dashboard/employee/EmployeeDashboard';
 import ClientProfileDashboard from './pages/dashboard/client/ClientProfileDashboard';
 
 function App() {
+  // Get basename from environment variable or default to "/CRM"
+  const basename = process.env.REACT_APP_BASE_PATH || '/CRM';
+
   return (
     <AuthProvider>
-      <Router basename={process.env.REACT_APP_BASE_PATH || "/CRM"}>
+      <Router basename={basename}>
         <div className="App">
           <DisclaimerPopup />
           <Routes>
@@ -62,15 +70,20 @@ function App() {
             <Route path="/eb1a" element={<Navigate to="/eb1a-eligibility" replace />} />
             <Route path="/eb2-niw" element={<Layout><EB2NIWPage /></Layout>} />
             <Route path="/o1-visa" element={<Layout><O1VisaPage /></Layout>} />
+            <Route path="/career-coaching" element={<Layout><CareerCoachingPage /></Layout>} />
             <Route path="/profile-building" element={<Layout><ProfileBuildingPage /></Layout>} />
             <Route path="/attorney-referrals" element={<Layout><AttorneyReferralsPage /></Layout>} />
             <Route path="/attorneys" element={<Navigate to="/attorney-referrals" replace />} />
             <Route path="/faq" element={<Layout><FAQPage /></Layout>} />
             <Route path="/pricing" element={<Layout><PricingPage /></Layout>} />
             <Route path="/contact" element={<Layout><ContactPage /></Layout>} />
+            <Route path="/about" element={<Layout><AboutPage /></Layout>} />
             <Route path="/privacy-policy" element={<Layout><PrivacyPolicyPage /></Layout>} />
             <Route path="/terms-conditions" element={<Layout><TermsConditionsPage /></Layout>} />
             <Route path="/form-success" element={<Layout showFooter={false}><FormSuccessPage /></Layout>} />
+
+            <Route path="/gceb1" element={<Layout><GCEB1Page /></Layout>} />
+            <Route path="/personalized" element={<Layout><PersonalizedPage /></Layout>} />
 
             {/* Protected Dashboard Routes - Role-based routing */}
             <Route path="/dashboard" element={<DashboardRedirect />} />

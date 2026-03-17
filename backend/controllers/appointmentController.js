@@ -1,6 +1,7 @@
 const AppointmentRequest = require('../models/AppointmentRequest');
 const ActivityLog = require('../models/ActivityLog');
 const clientService = require('../services/clientService');
+const EncryptionManager = require('../utils/encryptionManager');
 const { validationResult } = require('express-validator');
 
 /**
@@ -66,125 +67,147 @@ const submitAppointmentRequest = async (req, res) => {
       isCreatedByStaff
     });
 
-    // Check for duplicate recent submissions (prevent spam) - only for public submissions
-    if (!isCreatedByStaff) {
-      const recentSubmission = await AppointmentRequest.findOne({
-        email: email.toLowerCase(),
-        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours
+    // Use deferred encryption for the entire process
+    const result = await EncryptionManager.bulkOperationWithDeferredEncryption(async () => {
+      // Check for duplicate recent submissions (prevent spam) - only for public submissions
+      if (!isCreatedByStaff) {
+        const recentSubmission = await AppointmentRequest.findOne({
+          email: email.toLowerCase(),
+          createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours
+        });
+
+        if (recentSubmission) {
+          console.log('❌ Duplicate submission detected for:', email);
+          return { error: 'DUPLICATE_SUBMISSION' };
+        }
+      }
+
+      // Create appointment request (without encryption)
+      const appointment = new AppointmentRequest({
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        phone: phone.trim(),
+        visa_category,
+        timezone,
+        preferred_date: preferred_date?.trim(),
+        preferred_time: preferred_time?.trim(),
+        consultation_type: consultation_type || 'video',
+        details: details?.trim(),
+        status: status || 'pending',
+        priority: priority || 'medium',
+        assigned_to: assigned_to || null,
+        created_by: isCreatedByStaff ? (created_by || req.user._id) : null,
+        scheduled_date: scheduled_date ? new Date(scheduled_date) : null,
+        scheduled_time: scheduled_time || null,
+        duration_minutes: duration_minutes || 30,
+        meeting_link: meeting_link || null,
+        consultation_notes: consultation_notes || null,
+        ip_address: req.ip,
+        user_agent: req.get('User-Agent'),
+        source: isCreatedByStaff ? 'staff' : 'website'
       });
 
-      if (recentSubmission) {
-        console.log('❌ Duplicate submission detected for:', email);
-        return res.status(429).json({
-          success: false,
-          error: {
-            code: 'DUPLICATE_SUBMISSION',
-            message: 'You have already submitted an appointment request in the last 24 hours. Please check your email or contact us directly.'
+      const savedAppointment = await appointment.save();
+      const documentsToEncrypt = [savedAppointment];
+
+      // Auto-register client account - only for public submissions (without encryption)
+      let user = null;
+      let client = null;
+      if (!isCreatedByStaff) {
+        console.log('🔄 Auto-registering client account...');
+        try {
+          const autoRegResult = await clientService.createOrGetClient({
+            name,
+            email,
+            phone,
+            company: '',
+            current_location: ''
+          }, 'appointment_request');
+
+          user = autoRegResult.user;
+          client = autoRegResult.client;
+
+          // Add to documents to encrypt - only newly created ones
+          if (autoRegResult.isNewUser) {
+            documentsToEncrypt.push(user);
           }
-        });
+          if (autoRegResult.isNewClient) {
+            documentsToEncrypt.push(client);
+          }
+
+          // Link appointment to user (without encryption)
+          savedAppointment.user_id = user._id;
+          savedAppointment.client_id = client._id;
+          await savedAppointment.save();
+          
+        } catch (autoRegError) {
+          console.error('⚠️ Auto-registration failed (non-critical):', autoRegError.message);
+        }
       }
-    }
 
-    // Create appointment request
-    const appointment = new AppointmentRequest({
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      phone: phone.trim(),
-      visa_category,
-      timezone,
-      preferred_date: preferred_date?.trim(),
-      preferred_time: preferred_time?.trim(),
-      consultation_type: consultation_type || 'video',
-      details: details?.trim(),
-      status: status || 'pending',
-      priority: priority || 'medium',
-      assigned_to: assigned_to || null,
-      created_by: isCreatedByStaff ? (created_by || req.user._id) : null, // Only set for staff-created appointments
-      scheduled_date: scheduled_date ? new Date(scheduled_date) : null,
-      scheduled_time: scheduled_time || null,
-      duration_minutes: duration_minutes || 30,
-      meeting_link: meeting_link || null,
-      consultation_notes: consultation_notes || null,
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent'),
-      source: isCreatedByStaff ? 'staff' : 'website' // Distinguish between staff and public submissions
-    });
-
-    console.log('🔍 Appointment data before save:', {
-      name: appointment.name,
-      email: appointment.email,
-      created_by: appointment.created_by,
-      source: appointment.source,
-      status: appointment.status,
-      isCreatedByStaff
-    });
-
-    await appointment.save();
-    console.log('✅ Appointment saved successfully with ID:', appointment._id);
-
-    // Auto-register client account - only for public submissions
-    if (!isCreatedByStaff) {
-      console.log('🔄 Auto-registering client account...');
+      // Log activity for security audit (without encryption)
       try {
-        const { user, client, isNewUser } = await clientService.createOrGetClient({
-          name,
-          email,
-          phone,
-          company: '',
-          current_location: ''
-        }, 'appointment_request');
-
-        console.log(`✅ Client ${isNewUser ? 'created' : 'found'}:`, user.email);
+        const activityLog = await ActivityLog.create({
+          user: req.user?._id || null,
+          action: 'create',
+          resourceType: 'AppointmentRequest',
+          resourceId: savedAppointment._id,
+          description: `Appointment request ${isCreatedByStaff ? 'created by staff' : 'submitted'} for ${email}`,
+          metadata: {
+            email,
+            visa_category,
+            consultation_type,
+            timezone,
+            preferred_date,
+            preferred_time,
+            created_by_staff: isCreatedByStaff,
+            staff_role: req.user?.role
+          },
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent')
+        });
         
-        // Link appointment to user
-        appointment.user_id = user._id;
-        appointment.client_id = client._id;
-        await appointment.save();
-        
-      } catch (autoRegError) {
-        console.error('⚠️ Auto-registration failed (non-critical):', autoRegError.message);
-        // Continue with appointment submission even if auto-registration fails
+        documentsToEncrypt.push(activityLog);
+      } catch (logError) {
+        console.log('⚠️ Activity log creation failed (non-critical):', logError.message);
       }
-    }
 
-    // Log activity for security audit
-    await ActivityLog.create({
-      user: req.user?._id || null, // Use authenticated user ID if available
-      action: 'create',
-      resourceType: 'AppointmentRequest',
-      resourceId: appointment._id,
-      description: `Appointment request ${isCreatedByStaff ? 'created by staff' : 'submitted'} for ${email}`,
-      metadata: {
-        email,
-        visa_category,
-        consultation_type,
-        timezone,
-        preferred_date,
-        preferred_time,
-        created_by_staff: isCreatedByStaff,
-        staff_role: req.user?.role
-      },
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      return {
+        appointment: savedAppointment,
+        user,
+        client,
+        documents: documentsToEncrypt
+      };
     });
 
-    // Return success response (excluding sensitive data)
+    // Handle duplicate submission error
+    if (result.error === 'DUPLICATE_SUBMISSION') {
+      return res.status(429).json({
+        success: false,
+        error: {
+          code: 'DUPLICATE_SUBMISSION',
+          message: 'You have already submitted an appointment request in the last 24 hours. Please check your email or contact us directly.'
+        }
+      });
+    }
+
+    // Return success response (excluding sensitive data) - encryption happens in background
     res.status(201).json({
       success: true,
       message: isCreatedByStaff 
         ? 'Appointment created successfully by staff member.' 
         : 'Appointment request submitted successfully. We will contact you within 24 hours to confirm your consultation.',
       data: {
-        appointment_id: appointment._id,
-        name: appointment.name,
-        email: appointment.email,
-        visa_category: appointment.visa_category_display,
-        status: appointment.status_display,
-        submission_date: appointment.createdAt,
-        reference_number: `APT-${appointment._id.toString().slice(-8).toUpperCase()}`,
+        appointment_id: result.appointment._id,
+        name: result.appointment.name,
+        email: result.appointment.email,
+        visa_category: result.appointment.visa_category_display,
+        status: result.appointment.status_display,
+        submission_date: result.appointment.createdAt,
+        reference_number: `APT-${result.appointment._id.toString().slice(-8).toUpperCase()}`,
         created_by_staff: isCreatedByStaff,
-        created_by: appointment.created_by,
-        source: appointment.source
+        created_by: result.appointment.created_by,
+        source: result.appointment.source
       }
     });
 
@@ -296,9 +319,16 @@ const getAllAppointmentRequests = async (req, res) => {
       // Lead managers can only see appointments they created
       filter.created_by = req.user._id;
     } else if (req.user.role === 'client') {
-      // Clients can only see appointments with their email
-      filter.email = req.user.email.toLowerCase();
-      console.log('📅 Client filter applied:', { email: req.user.email });
+      // Clients can only see appointments linked to their user ID
+      const userId = req.user._id || req.user.user_id || req.user.id;
+      filter.$or = [
+        { user_id: userId },
+        { email: req.user.email.toLowerCase() } // Fallback for older appointments
+      ];
+      console.log('📅 Client filter applied:', { 
+        user_id: userId, 
+        email_fallback: req.user.email 
+      });
     }
 
     // Date range filter
@@ -678,52 +708,128 @@ const getMyAppointments = async (req, res) => {
 // @access  Private (Client/Admin/Manager)
 const getClientAppointments = async (req, res) => {
   try {
-    console.log('📅 === GET CLIENT APPOINTMENTS REQUEST ===');
-    console.log('📅 Client Email:', req.params.email);
-    console.log('📅 Requested by:', req.user?.email, 'Role:', req.user?.role);
-    console.log('📅 User ID:', req.user?._id || req.user?.id);
-    
+    console.log('\n📅 === GET CLIENT APPOINTMENTS - COMPREHENSIVE SEARCH ===');
     const clientEmail = req.params.email;
+    const userRole = req.user.role;
+    const userId = req.user._id || req.user.user_id || req.user.id;
     
-    // Security check: clients can only access their own appointments
-    if (req.user.role === 'client' && req.user.email !== clientEmail) {
-      console.log('❌ Security check failed: client trying to access other client\'s appointments');
+    console.log('📅 Searching for:', clientEmail);
+    console.log('📅 Requested by:', req.user?.email, 'Role:', userRole);
+    
+    // Security check
+    if (userRole === 'client' && req.user.email !== clientEmail) {
       return res.status(403).json({
         success: false,
-        error: {
-          code: 'FORBIDDEN',
-          message: 'You can only access your own appointments'
-        }
+        error: { code: 'FORBIDDEN', message: 'You can only access your own appointments' }
       });
     }
     
-    const { status, page = 1, limit = 20 } = req.query;
+    const { status, page = 1, limit = 100 } = req.query;
     
-    // Build query for appointments for this client
-    let query = {
-      email: clientEmail.toLowerCase()
-    };
+    // STEP 1: Get User and Client records
+    const User = require('../models/User');
+    const Client = require('../models/Client');
     
-    if (status) query.status = status;
+    const targetUser = await User.findOne({ email: clientEmail });
+    console.log('📅 User found:', targetUser ? `ID: ${targetUser._id}` : 'NO');
     
-    console.log('📅 Query for appointments:', query);
+    let clientRecord = null;
+    if (targetUser) {
+      clientRecord = await Client.findOne({ user_id: targetUser._id });
+      console.log('📅 Client by user_id:', clientRecord ? `ID: ${clientRecord._id}` : 'NO');
+    }
     
-    const appointments = await AppointmentRequest.find(query)
+    if (!clientRecord) {
+      clientRecord = await Client.findOne({ email: clientEmail });
+      console.log('📅 Client by email:', clientRecord ? `ID: ${clientRecord._id}` : 'NO');
+    }
+    
+    // STEP 2: Fetch ALL appointments (we'll filter in memory after decryption)
+    console.log('📅 Fetching all appointments...');
+    const allAppointments = await AppointmentRequest.find({})
       .populate('assigned_to', 'first_name last_name email')
       .sort({ scheduled_date: -1, createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .select('-ip_address -user_agent'); // Exclude sensitive data
+      .select('-ip_address -user_agent');
     
-    const count = await AppointmentRequest.countDocuments(query);
+    console.log('📅 Total appointments in DB:', allAppointments.length);
+    console.log('\n📅 === ALL APPOINTMENTS DETAILS ===');
+    allAppointments.forEach((apt, index) => {
+      console.log(`\n📅 Appointment ${index + 1}:`);
+      console.log('   ID:', apt._id);
+      console.log('   Email (decrypted):', apt.email);
+      console.log('   Name:', apt.name);
+      console.log('   user_id:', apt.user_id);
+      console.log('   client_id:', apt.client_id);
+      console.log('   Status:', apt.status);
+      console.log('   Created by:', apt.created_by);
+    });
+    console.log('\n📅 === COMPARISON VALUES ===');
+    console.log('Looking for email:', clientEmail);
+    console.log('Looking for user_id:', targetUser ? targetUser._id.toString() : 'N/A');
+    console.log('Looking for client_id:', clientRecord ? clientRecord._id.toString() : 'N/A');
     
-    console.log('📅 Found client appointments:', appointments.length, 'Total:', count);
-    console.log('📅 Sample appointment data:', appointments.length > 0 ? {
-      id: appointments[0]._id,
-      email: appointments[0].email,
-      status: appointments[0].status,
-      scheduled_date: appointments[0].scheduled_date
-    } : 'No appointments found');
+    // STEP 3: Filter appointments by ANY matching criteria
+    console.log('\n📅 === FILTERING APPOINTMENTS ===');
+    const matchingAppointments = allAppointments.filter(apt => {
+      console.log(`\n📅 Checking appointment ${apt._id}:`);
+      
+      // Check 1: Email match (case-insensitive)
+      const emailMatch = apt.email && apt.email.toLowerCase() === clientEmail.toLowerCase();
+      console.log(`   Email check: "${apt.email}" === "${clientEmail}" ? ${emailMatch}`);
+      if (emailMatch) {
+        console.log('   ✅ MATCHED BY EMAIL');
+        return true;
+      }
+      
+      // Check 2: user_id match
+      if (targetUser && apt.user_id) {
+        const userIdMatch = apt.user_id.toString() === targetUser._id.toString();
+        console.log(`   user_id check: "${apt.user_id}" === "${targetUser._id}" ? ${userIdMatch}`);
+        if (userIdMatch) {
+          console.log('   ✅ MATCHED BY USER_ID');
+          return true;
+        }
+      } else {
+        console.log('   user_id check: SKIPPED (no user_id on appointment or no target user)');
+      }
+      
+      // Check 3: client_id match
+      if (clientRecord && apt.client_id) {
+        const clientIdMatch = apt.client_id.toString() === clientRecord._id.toString();
+        console.log(`   client_id check: "${apt.client_id}" === "${clientRecord._id}" ? ${clientIdMatch}`);
+        if (clientIdMatch) {
+          console.log('   ✅ MATCHED BY CLIENT_ID');
+          return true;
+        }
+      } else {
+        console.log('   client_id check: SKIPPED (no client_id on appointment or no client record)');
+      }
+      
+      console.log('   ❌ NO MATCH');
+      return false;
+    });
+    
+    console.log('📅 Matching appointments found:', matchingAppointments.length);
+    
+    // STEP 4: Apply status filter if provided
+    let filteredAppointments = matchingAppointments;
+    if (status) {
+      filteredAppointments = matchingAppointments.filter(apt => apt.status === status);
+      console.log('📅 After status filter:', filteredAppointments.length);
+    }
+    
+    // STEP 5: Apply pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedAppointments = filteredAppointments.slice(startIndex, endIndex);
+    
+    console.log('📅 ✅ RETURNING:', paginatedAppointments.length, 'appointments');
+    if (paginatedAppointments.length > 0) {
+      paginatedAppointments.forEach(apt => {
+        console.log('📅   -', apt._id, '|', apt.email, '|', apt.status, '|', apt.scheduled_date);
+      });
+    }
+    console.log('📅 === END ===\n');
     
     // Log access for audit
     await ActivityLog.create({
@@ -733,7 +839,8 @@ const getClientAppointments = async (req, res) => {
       description: `Client appointments viewed for ${clientEmail}`,
       metadata: { 
         client_email: clientEmail,
-        appointments_count: appointments.length,
+        appointments_count: paginatedAppointments.length,
+        total_matches: filteredAppointments.length,
         requested_by: req.user.email,
         user_role: req.user.role
       },
@@ -743,11 +850,11 @@ const getClientAppointments = async (req, res) => {
     
     res.json({
       success: true,
-      count: appointments.length,
-      total: count,
+      count: paginatedAppointments.length,
+      total: filteredAppointments.length,
       page: parseInt(page),
-      totalPages: Math.ceil(count / limit),
-      data: appointments
+      totalPages: Math.ceil(filteredAppointments.length / limit),
+      data: paginatedAppointments
     });
     
   } catch (error) {

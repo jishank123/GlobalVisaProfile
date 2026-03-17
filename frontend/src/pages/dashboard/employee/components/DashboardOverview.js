@@ -4,10 +4,10 @@ import { designSystem, componentStyles, hoverEffects } from '../../../../styles/
 
 const DashboardOverview = () => {
   const [stats, setStats] = useState({
-    myTasks: 0,
     completedTasks: 0,
     pendingTasks: 0,
-    inProgressTasks: 0
+    inProgressTasks: 0,
+    overdueTasks: 0
   });
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -31,35 +31,42 @@ const DashboardOverview = () => {
         const tasks = response.data;
         
         // Calculate stats from tasks
-        const myTasks = tasks.length;
         const completedTasks = tasks.filter(t => t.status === 'completed').length;
         const pendingTasks = tasks.filter(t => t.status === 'pending').length;
         const inProgressTasks = tasks.filter(t => t.status === 'in_progress').length;
         
-        console.log('📊 Calculated stats:', { myTasks, completedTasks, pendingTasks, inProgressTasks });
+        // Calculate overdue tasks (tasks with due_date in the past and not completed)
+        const now = new Date();
+        const overdueTasks = tasks.filter(t => {
+          if (t.status === 'completed') return false;
+          if (!t.due_date) return false;
+          return new Date(t.due_date) < now;
+        }).length;
+        
+        console.log('📊 Calculated stats:', { completedTasks, pendingTasks, inProgressTasks, overdueTasks });
         
         setStats({
-          myTasks,
           completedTasks,
           pendingTasks,
-          inProgressTasks
+          inProgressTasks,
+          overdueTasks
         });
       } else {
         console.log('⚠️ No tasks data received');
         setStats({
-          myTasks: 0,
           completedTasks: 0,
           pendingTasks: 0,
-          inProgressTasks: 0
+          inProgressTasks: 0,
+          overdueTasks: 0
         });
       }
     } catch (error) {
       console.error('❌ Error loading dashboard stats:', error);
       setStats({
-        myTasks: 0,
         completedTasks: 0,
         pendingTasks: 0,
-        inProgressTasks: 0
+        inProgressTasks: 0,
+        overdueTasks: 0
       });
     } finally {
       setLoading(false);
@@ -143,19 +150,11 @@ const DashboardOverview = () => {
       {/* Overview Stats */}
       <div style={componentStyles.statsContainer}>
         <StatCard 
-          icon="fas fa-tasks" 
-          number={stats.myTasks} 
-          label="My Tasks" 
-          borderColor="#20c997"
-          iconColor="#20c997"
-        />
-
-        <StatCard 
-          icon="fas fa-check-circle" 
-          number={stats.completedTasks} 
-          label="Completed Tasks" 
-          borderColor="#10b981"
-          iconColor="#10b981"
+          icon="fas fa-hourglass-half" 
+          number={stats.pendingTasks} 
+          label="Pending Tasks" 
+          borderColor="#f59e0b"
+          iconColor="#f59e0b"
         />
 
         <StatCard 
@@ -167,11 +166,19 @@ const DashboardOverview = () => {
         />
 
         <StatCard 
-          icon="fas fa-hourglass-half" 
-          number={stats.pendingTasks} 
-          label="Pending Tasks" 
-          borderColor="#f59e0b"
-          iconColor="#f59e0b"
+          icon="fas fa-check-circle" 
+          number={stats.completedTasks} 
+          label="Completed Tasks" 
+          borderColor="#10b981"
+          iconColor="#10b981"
+        />
+
+        <StatCard 
+          icon="fas fa-exclamation-triangle" 
+          number={stats.overdueTasks} 
+          label="Overdue Tasks" 
+          borderColor="#ef4444"
+          iconColor="#ef4444"
         />
       </div>
 
@@ -297,7 +304,7 @@ const DashboardOverview = () => {
                       onMouseLeave={(e) => e.target.style.color = designSystem.colors.gray[400]}
                       title="View details"
                     >
-                      <i className="fas fa-chevron-right"></i>
+                      {/* <i className="fas fa-chevron-right"></i> */}
                     </button>
                   </div>
                 </div>

@@ -7,6 +7,7 @@ const {
   getProfileAssessment,
   getAllProfileAssessments,
   getClientAssessments,
+  getAssessmentByEmail,
   updateAssessmentStatus,
   convertAssessmentToLead,
   deleteProfileAssessment
@@ -143,6 +144,13 @@ router.post('/',
   publicRateLimit,
   validateProfileAssessment,
   submitProfileAssessment
+);
+
+// @route   POST /api/profile-assessments/by-email
+// @desc    Get assessment by email and ID (for download button)
+// @access  Public
+router.post('/by-email',
+  getAssessmentByEmail
 );
 
 // Private Routes (require authentication)

@@ -1,29 +1,25 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 const AttorneyReferralsPage = () => {
+  // Scroll to top on component mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+  
   return (
     <div>
       
       {/* Hero Section */}
-      <section className="pt-28 pb-12 md:pt-32 md:pb-16 bg-gradient-to-br from-blue-50 to-indigo-100">
+      <section className="pt-28 pb-20 bg-gradient-to-br from-green-600 to-blue-700">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-block bg-blue-100 text-primary px-4 py-2 rounded-full text-sm font-semibold mb-4">
-              <i className="fas fa-balance-scale mr-2"></i>LEGAL REPRESENTATION
-            </div>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+          <div className="text-center text-white mb-12">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">
               Attorney Referrals & Legal Partners
             </h1>
-            <p className="text-xl text-gray-700 mb-6">
+            <p className="text-xl opacity-90 max-w-3xl mx-auto">
               Connect with experienced immigration attorneys for legal representation and advice
             </p>
-            <div className="bg-blue-50 border-l-4 border-blue-500 p-6 mb-6 max-w-3xl mx-auto">
-              <p className="text-gray-700 text-left">
-                <i className="fas fa-info-circle text-blue-600 mr-2"></i>
-                <strong>Important:</strong> While we provide profile building and application preparation services, we strongly recommend working with a licensed immigration attorney for legal representation, advice, and petition filing. Below are resources to help you find qualified legal counsel.
-              </p>
-            </div>
           </div>
         </div>
       </section>
@@ -218,7 +214,6 @@ const AttorneyReferralsPage = () => {
                     <div>
                       <h4 className="font-semibold text-gray-900">American Immigration Lawyers Association (AILA)</h4>
                       <p className="text-gray-700 text-sm">Use AILA's lawyer referral service to find attorneys specializing in employment-based immigration</p>
-                      <a href="https://www.aila.org/lawyer-referral" target="_blank" rel="noopener noreferrer" className="text-primary underline text-sm">Visit AILA Referral Service</a>
                     </div>
                   </li>
                   

@@ -30,7 +30,11 @@ const logActivity = async (userId, action, resourceType, description, ipAddress,
 // @access  Private (Admin, Managers)
 exports.getClients = async (req, res) => {
   try {
-    const { search, status, country, manager, page = 1, limit = 20 } = req.query;
+    const { search, email, status, country, manager, page = 1, limit = 20 } = req.query;
+    
+    console.log('👥 === GET CLIENTS REQUEST ===');
+    console.log('👥 Query params:', req.query);
+    console.log('👥 User role:', req.user.role);
     
     // Build query with security filters
     let query = {};
@@ -41,29 +45,67 @@ exports.getClients = async (req, res) => {
       query.crm_manager = req.user._id;
     }
     
-    // Apply filters
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-        { company: { $regex: search, $options: 'i' } }
-      ];
-    }
-    
+    // Apply non-encrypted filters first
     if (status) query.status = status;
     if (country) query.country = country;
     if (manager && req.user.role !== 'crm_manager') {
       query.crm_manager = manager;
     }
     
-    const clients = await Client.find(query)
-      .populate('crm_manager', 'first_name last_name email phone')
-      .sort({ created_at: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+    console.log('👥 Initial query (before email filter):', JSON.stringify(query, null, 2));
     
-    const count = await Client.countDocuments(query);
+    // Fetch all clients matching the base query
+    let clients = await Client.find(query)
+      .populate('crm_manager', 'first_name last_name email phone')
+      .sort({ created_at: -1 });
+    
+    console.log('👥 Clients fetched before email filter:', clients.length);
+    
+    // If email filter is provided, filter in memory after decryption
+    if (email) {
+      const searchEmail = email.toLowerCase().trim();
+      console.log('👥 Filtering by email in memory:', searchEmail);
+      
+      clients = clients.filter(client => {
+        const clientEmail = client.email ? client.email.toLowerCase().trim() : '';
+        const matches = clientEmail === searchEmail;
+        if (matches) {
+          console.log('👥 Found matching client:', {
+            id: client._id,
+            name: client.name,
+            email: client.email
+          });
+        }
+        return matches;
+      });
+      
+      console.log('👥 Clients after email filter:', clients.length);
+    }
+    
+    // Apply search filter in memory if provided
+    if (search && !email) {
+      const searchLower = search.toLowerCase();
+      clients = clients.filter(client => {
+        return (
+          (client.name && client.name.toLowerCase().includes(searchLower)) ||
+          (client.email && client.email.toLowerCase().includes(searchLower)) ||
+          (client.phone && client.phone.toLowerCase().includes(searchLower)) ||
+          (client.company && client.company.toLowerCase().includes(searchLower))
+        );
+      });
+    }
+    
+    // Apply pagination in memory
+    const total = clients.length;
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + parseInt(limit);
+    const paginatedClients = clients.slice(startIndex, endIndex);
+    
+    console.log('👥 Final result:', {
+      total: total,
+      page: page,
+      returned: paginatedClients.length
+    });
     
     // Log activity
     await logActivity(
@@ -76,13 +118,14 @@ exports.getClients = async (req, res) => {
     
     res.json({
       success: true,
-      count: clients.length,
-      total: count,
+      count: paginatedClients.length,
+      total: total,
       page: parseInt(page),
-      totalPages: Math.ceil(count / limit),
-      data: clients
+      totalPages: Math.ceil(total / limit),
+      data: paginatedClients
     });
   } catch (error) {
+    console.error('👥 Get clients error:', error);
     res.status(500).json({
       success: false,
       error: {
@@ -99,7 +142,8 @@ exports.getClients = async (req, res) => {
 exports.getClient = async (req, res) => {
   try {
     const client = await Client.findById(req.params.id)
-      .populate('crm_manager', 'first_name last_name email phone');
+      .populate('crm_manager', 'first_name last_name email phone')
+      .populate('user_id', 'first_name last_name email phone company country university bio profile_picture avatar');
     
     if (!client) {
       return res.status(404).json({
@@ -163,9 +207,14 @@ exports.getClient = async (req, res) => {
 // @access  Private (Admin, Lead Manager)
 exports.createClient = async (req, res) => {
   try {
+    console.log('👥 === CREATE CLIENT REQUEST ===');
+    console.log('👥 Request body:', req.body);
+    console.log('👥 User:', req.user.email, 'Role:', req.user.role);
+    
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.error('👥 Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         error: {
@@ -181,7 +230,9 @@ exports.createClient = async (req, res) => {
       created_by: req.user._id
     };
     
+    console.log('👥 Creating client with data:', clientData);
     const client = await Client.create(clientData);
+    console.log('👥 Client created successfully:', client._id);
     
     // Log activity
     await logActivity(
@@ -199,6 +250,7 @@ exports.createClient = async (req, res) => {
       data: client
     });
   } catch (error) {
+    console.error('👥 Create client error:', error);
     res.status(500).json({
       success: false,
       error: {

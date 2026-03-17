@@ -19,6 +19,11 @@ const ConvertToProjectModal = ({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Debug logging for submitting state
+  useEffect(() => {
+    console.log('🔄 Submitting state changed:', submitting);
+  }, [submitting]);
+
   const loadQualifiedLeads = useCallback(async () => {
     setLoading(true);
     try {
@@ -88,6 +93,9 @@ const ConvertToProjectModal = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('🚀 Submit button clicked - starting conversion...');
     
     if (!formData.serviceId) {
       alert('Please select a service');
@@ -99,8 +107,11 @@ const ConvertToProjectModal = ({
       return;
     }
 
+    console.log('✅ Validation passed, setting submitting to true');
     setSubmitting(true);
+    
     try {
+      console.log('📤 Sending API request...');
       const response = await apiCall('/leads/bulk/convert-to-project', {
         method: 'POST',
         body: JSON.stringify({
@@ -112,6 +123,8 @@ const ConvertToProjectModal = ({
         })
       });
 
+      console.log('📥 API response received:', response);
+
       if (response.success) {
         const successCount = response.data.successful.length;
         const failedCount = response.data.failed.length;
@@ -121,21 +134,31 @@ const ConvertToProjectModal = ({
           message += `\n\nNote: ${failedCount} lead(s) could not be converted.`;
         }
         
+        console.log('✅ Conversion successful, stopping loader');
+        setSubmitting(false);
         alert(message);
         onSuccess();
         handleClose();
       } else {
+        console.log('❌ API returned error');
+        setSubmitting(false);
         throw new Error(response.error?.message || 'Conversion failed');
       }
     } catch (error) {
-      console.error('Error converting leads:', error);
-      alert('Error converting leads to projects: ' + error.message);
-    } finally {
+      console.error('❌ Error converting leads:', error);
       setSubmitting(false);
+      alert('Error converting leads to projects: ' + error.message);
     }
   };
 
   const handleClose = () => {
+    // Prevent closing while submitting
+    if (submitting) {
+      console.log('⚠️ Cannot close modal while submitting');
+      return;
+    }
+    
+    console.log('🔒 Closing modal and resetting form');
     setSelectedLeads([]);
     setFormData({
       serviceId: '',
@@ -146,10 +169,25 @@ const ConvertToProjectModal = ({
     onClose();
   };
 
-  if (!isOpen) return null;
+  if (!isOpen && !submitting) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <>
+      {/* Full-screen loading overlay - shows even if modal closes */}
+      {submitting && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-8 text-center max-w-md">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">Converting Leads to Projects</h3>
+            <p className="text-gray-600">Please wait while we process your request...</p>
+            <p className="text-sm text-gray-500 mt-2">This may take a few moments</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Modal */}
+      {isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-screen overflow-y-auto">
         <div className="bg-blue-600 text-white p-4 rounded-t-lg">
           <h3 className="text-lg font-semibold">
@@ -158,7 +196,8 @@ const ConvertToProjectModal = ({
           </h3>
           <button 
             onClick={handleClose}
-            className="absolute top-4 right-4 text-white hover:text-gray-200"
+            disabled={submitting}
+            className="absolute top-4 right-4 text-white hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <i className="fas fa-times"></i>
           </button>
@@ -316,7 +355,8 @@ const ConvertToProjectModal = ({
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              disabled={submitting}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
@@ -340,7 +380,8 @@ const ConvertToProjectModal = ({
           </div>
         </form>
       </div>
-    </div>
+      )}
+    </>
   );
 };
 

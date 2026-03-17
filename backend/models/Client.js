@@ -78,4 +78,27 @@ clientSchema.index({ email: 1 }, { unique: true });
 clientSchema.index({ crm_manager: 1 });
 clientSchema.index({ status: 1 });
 
+// Method to get decrypted client data for display
+clientSchema.methods.toDisplayJSON = function() {
+  // Get decrypted version of the document
+  const decryptedDoc = this.toObject();
+  
+  return {
+    _id: this._id,
+    name: decryptedDoc.name,
+    email: decryptedDoc.email,
+    phone: decryptedDoc.phone,
+    university: decryptedDoc.university,
+    status: decryptedDoc.status,
+    user_id: this.user_id,
+    crm_manager: this.crm_manager,
+    satisfaction_rating: this.satisfaction_rating,
+    lead_source: this.lead_source,
+    tags: decryptedDoc.tags,
+    notes: decryptedDoc.notes,
+    createdAt: this.createdAt,
+    updatedAt: this.updatedAt
+  };
+};
+
 module.exports = mongoose.model('Client', clientSchema);

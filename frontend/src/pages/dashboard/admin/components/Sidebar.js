@@ -6,9 +6,8 @@ const Sidebar = ({ activeSection, setActiveSection, sidebarOpen, setSidebarOpen 
     { id: 'users', icon: 'fas fa-users', label: 'User Management' },
     { id: 'services', icon: 'fas fa-briefcase', label: 'Services Management' },
     { id: 'projects', icon: 'fas fa-project-diagram', label: 'Projects Management' },
-    { id: 'payments', icon: 'fas fa-credit-card', label: 'Payments & Invoices' },
-    { id: 'analytics', icon: 'fas fa-chart-line', label: 'Enhanced Analytics' },
-    { id: 'deleted', icon: 'fas fa-trash-alt', label: 'Deleted Records' }
+    { id: 'payments', icon: 'fas fa-credit-card', label: 'Payments & Invoices' }
+    // { id: 'analytics', icon: 'fas fa-chart-line', label: 'Enhanced Analytics' }
   ];
 
   const getSidebarStyle = () => {

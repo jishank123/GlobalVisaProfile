@@ -249,7 +249,14 @@ const PaymentsManagement = () => {
         const statusLower = status?.toLowerCase().trim();
         return statusLower === 'rejected' || statusLower === 'cancelled';
       }).length,
-      totalAmount: projectsData.reduce((sum, p) => sum + (p.amount || 0), 0)
+      totalAmount: projectsData
+        .filter(p => {
+          const status = p.payment_status || p.status;
+          const statusLower = status?.toLowerCase().trim();
+          // Only count completed/verified payments in total revenue
+          return statusLower === 'verified' || statusLower === 'completed';
+        })
+        .reduce((sum, p) => sum + (p.amount || 0), 0)
     };
     
     console.log('📊 Final stats:', stats);
@@ -764,13 +771,6 @@ const PaymentsManagement = () => {
       {/* Payment Statistics */}
       <div style={componentStyles.statsContainer}>
         <StatCard
-          icon="fas fa-shopping-bag"
-          number={stats.total}
-          label="Total Service Purchases"
-          borderColor="#3b82f6"
-          iconColor="#3b82f6"
-        />
-        <StatCard
           icon="fas fa-clock"
           number={stats.pending}
           label="Pending Verification"
@@ -983,7 +983,19 @@ const PaymentsManagement = () => {
                           fontWeight: '600',
                           textTransform: 'uppercase'
                         }}>
-                          {project.payment_method || 'N/A'}
+                          {(() => {
+                            const paymentStatus = project.payment_status || project.status;
+                            const statusLower = paymentStatus?.toLowerCase().trim();
+                            const isDue = statusLower === 'due';
+                            
+                            // If payment is due (not yet paid), show "Pending" instead of payment method
+                            if (isDue) {
+                              return 'Pending';
+                            }
+                            
+                            // Otherwise show the payment method
+                            return project.payment_method || 'N/A';
+                          })()}
                         </span>
                       </td>
                       <td style={componentStyles.tableCell}>
@@ -1607,7 +1619,22 @@ const PaymentsManagement = () => {
                     )}
                   </button>
                 )}
-                {modalType === 'view' && (selectedPayment.status === 'active' || selectedPayment.status === 'completed') && (
+                {modalType === 'view' && (() => {
+                  // Check payment status, not project status
+                  const paymentStatus = selectedPayment.payment_status || selectedPayment.verification_status;
+                  const statusLower = paymentStatus?.toLowerCase().trim();
+                  const isVerified = statusLower === 'verified' || statusLower === 'completed';
+                  
+                  console.log('🧾 Invoice button check:', {
+                    paymentStatus: paymentStatus,
+                    statusLower: statusLower,
+                    isVerified: isVerified,
+                    projectStatus: selectedPayment.status
+                  });
+                  
+                  // Only show invoice buttons if payment is verified/completed
+                  return isVerified;
+                })() && (
                   <>
                     {/* Show Generate Invoice button if no invoice exists */}
                     {!existingInvoices[selectedPayment._id] && (

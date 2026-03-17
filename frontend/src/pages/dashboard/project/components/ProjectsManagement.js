@@ -6,7 +6,7 @@ import { designSystem, componentStyles, hoverEffects } from '../../../../styles/
 const getStatusBadgeStyle = (status) => {
   const statusStyles = {
     'pending': { background: '#f59e0b', color: 'white' },
-    'in_progress': { background: '#3b82f6', color: 'white' },
+    'active': { background: '#3b82f6', color: 'white' },
     'on_hold': { background: '#ef4444', color: 'white' },
     'completed': { background: '#10b981', color: 'white' },
     'cancelled': { background: '#6b7280', color: 'white' }
@@ -21,6 +21,12 @@ const ProjectsManagement = ({ user }) => {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('');
   const [modalData, setModalData] = useState(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedProjectForUpload, setSelectedProjectForUpload] = useState(null);
+  const [uploadFormData, setUploadFormData] = useState({
+    files: [{ file: null, notes: '' }]
+  });
+  const [uploadLoading, setUploadLoading] = useState(false);
 
   useEffect(() => {
     loadAssignedProjects();
@@ -67,7 +73,7 @@ const ProjectsManagement = ({ user }) => {
     return projects.filter(project => {
       switch (status) {
         case 'active':
-          return project.status === 'in_progress';
+          return project.status === 'active';
         case 'pending':
           return project.status === 'pending';
         case 'completed':
@@ -84,7 +90,7 @@ const ProjectsManagement = ({ user }) => {
   const getProjectCounts = () => {
     return {
       total: projects.length,
-      active: projects.filter(project => project.status === 'in_progress').length,
+      active: projects.filter(project => project.status === 'active').length,
       pending: projects.filter(project => project.status === 'pending').length,
       completed: projects.filter(project => project.status === 'completed').length,
       onHold: projects.filter(project => project.status === 'on_hold').length
@@ -119,86 +125,153 @@ const ProjectsManagement = ({ user }) => {
     setShowModal(true);
   };
 
-  const viewClientDetails = async (project) => {
+  const handleUpdateProjectStatus = async (projectId, newStatus, newProgress) => {
     try {
-      // Fetch full client details from the clients collection
-      if (project.client?._id || project.client?.id || project.client_id) {
-        const clientId = project.client?._id || project.client?.id || project.client_id;
-        console.log('🔄 Fetching full client details for ID:', clientId);
-        
-        const response = await clientsAPI.getById(clientId);
-        
-        if (response.success && response.data) {
-          console.log('✅ Full client details fetched:', response.data);
-          // Merge the full client data with the project data
-          setModalData({
-            ...project,
-            client: response.data
-          });
-        } else {
-          console.warn('⚠️ Could not fetch full client details, using basic info');
-          setModalData(project);
-        }
-      } else {
-        console.warn('⚠️ No client ID found in project');
-        setModalData(project);
-      }
+      console.log('🔄 Updating project:', projectId);
+      console.log('🔄 New status (before sending):', newStatus);
+      console.log('🔄 New progress:', newProgress);
       
-      setModalType('client');
-      setShowModal(true);
+      // Ensure we're not sending in_progress
+      const statusToSend = newStatus === 'in_progress' ? 'active' : newStatus;
+      console.log('🔄 Status to send:', statusToSend);
+      
+      // Update both status and progress using the general update endpoint
+      const response = await projectsAPI.update(projectId, {
+        status: statusToSend,
+        progress: newProgress
+      });
+      
+      if (response.success) {
+        console.log('✅ Project updated successfully');
+        await loadAssignedProjects(); // Refresh the list
+        alert('Project status and progress updated successfully!');
+      } else {
+        throw new Error(response.error?.message || 'Failed to update project');
+      }
     } catch (error) {
-      console.error('❌ Error fetching client details:', error);
-      // Still show the modal with whatever data we have
-      setModalData(project);
-      setModalType('client');
-      setShowModal(true);
+      console.error('❌ Error updating project:', error);
+      alert(`Error updating project: ${error.message}`);
     }
   };
 
-  const handleUpdateProjectStatus = async (projectId, newStatus, newProgress) => {
+  const openUploadModal = (project) => {
+    setSelectedProjectForUpload(project);
+    setUploadFormData({
+      files: [{ file: null, notes: '' }]
+    });
+    setShowUploadModal(true);
+  };
+
+  const closeUploadModal = () => {
+    setShowUploadModal(false);
+    setSelectedProjectForUpload(null);
+    setUploadFormData({
+      files: [{ file: null, notes: '' }]
+    });
+  };
+
+  const handleFileChange = (index, e) => {
+    if (e.target.files && e.target.files[0]) {
+      const newFiles = [...uploadFormData.files];
+      newFiles[index].file = e.target.files[0];
+      setUploadFormData({
+        ...uploadFormData,
+        files: newFiles
+      });
+    }
+  };
+
+  const handleNotesChange = (index, value) => {
+    const newFiles = [...uploadFormData.files];
+    newFiles[index].notes = value;
+    setUploadFormData({
+      ...uploadFormData,
+      files: newFiles
+    });
+  };
+
+  const addMoreFile = () => {
+    setUploadFormData({
+      ...uploadFormData,
+      files: [...uploadFormData.files, { file: null, notes: '' }]
+    });
+  };
+
+  const removeFile = (index) => {
+    const newFiles = uploadFormData.files.filter((_, i) => i !== index);
+    setUploadFormData({
+      ...uploadFormData,
+      files: newFiles.length > 0 ? newFiles : [{ file: null, notes: '' }]
+    });
+  };
+
+  const handleUploadFinalFile = async (e) => {
+    e.preventDefault();
+    
+    // Check if at least one file is selected
+    const hasFiles = uploadFormData.files.some(item => item.file !== null);
+    if (!hasFiles) {
+      alert('Please select at least one file to upload');
+      return;
+    }
+    
+    setUploadLoading(true);
+    
     try {
-      // Use the progress update endpoint which has better security logic
-      // and automatically updates status based on progress
-      if (newProgress !== undefined) {
-        const response = await projectsAPI.updateProgress(projectId, newProgress);
+      const { getApiEndpoint } = await import('../../../../utils/apiConfig');
+      let successCount = 0;
+      let errorCount = 0;
+      
+      // Upload each file separately
+      for (const fileItem of uploadFormData.files) {
+        if (!fileItem.file) continue; // Skip empty file slots
         
-        if (response.success) {
-          loadAssignedProjects(); // Refresh the list
-          alert('Project status and progress updated successfully!');
-        } else {
-          throw new Error(response.error?.message || 'Failed to update project');
-        }
-      } else {
-        // If only status is being updated, we still need to use the general update
-        // but we'll set a progress value that matches the status
-        let progressValue;
-        switch (newStatus) {
-          case 'pending':
-            progressValue = 0;
-            break;
-          case 'in_progress':
-          case 'active':
-            progressValue = 50; // Default to 50% for active projects
-            break;
-          case 'completed':
-            progressValue = 100;
-            break;
-          default:
-            progressValue = 25; // Default progress
-        }
-        
-        const response = await projectsAPI.updateProgress(projectId, progressValue);
-        
-        if (response.success) {
-          loadAssignedProjects(); // Refresh the list
-          alert('Project status and progress updated successfully!');
-        } else {
-          throw new Error(response.error?.message || 'Failed to update project');
+        try {
+          const formData = new FormData();
+          formData.append('file', fileItem.file);
+          formData.append('notes', fileItem.notes);
+          
+          const endpoint = getApiEndpoint(`/projects/${selectedProjectForUpload._id}/final-files`);
+          
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: formData
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            successCount++;
+          } else {
+            errorCount++;
+            console.error(`Failed to upload ${fileItem.file.name}:`, data.error?.message);
+          }
+        } catch (error) {
+          errorCount++;
+          console.error(`Error uploading ${fileItem.file.name}:`, error);
         }
       }
+      
+      // Show result message
+      if (successCount > 0 && errorCount === 0) {
+        alert(`Successfully uploaded ${successCount} file(s)!`);
+        closeUploadModal();
+        loadAssignedProjects(); // Refresh the list
+      } else if (successCount > 0 && errorCount > 0) {
+        alert(`Uploaded ${successCount} file(s) successfully, but ${errorCount} file(s) failed.`);
+        closeUploadModal();
+        loadAssignedProjects(); // Refresh the list
+      } else {
+        alert('Failed to upload files. Please try again.');
+      }
     } catch (error) {
-      console.error('Error updating project:', error);
-      alert(`Error updating project: ${error.message}`);
+      console.error('Error uploading files:', error);
+      alert(`Failed to upload files: ${error.message}`);
+    } finally {
+      setUploadLoading(false);
     }
   };
 
@@ -282,19 +355,13 @@ const ProjectsManagement = ({ user }) => {
                     </span>
                   </td>
                   <td style={componentStyles.tableCell}>
-                    <div>
-                      <div style={{ 
-                        fontWeight: designSystem.typography.fontWeight.medium,
-                        marginBottom: '2px'
-                      }}>
-                        {project.client?.name || 
-                         (project.client?.firstName && project.client?.lastName ? 
-                          `${project.client.firstName} ${project.client.lastName}` : 
-                          'Unknown Client')}
-                      </div>
-                      <small style={{ color: designSystem.colors.gray[500] }}>
-                        {project.client?.email || 'No email'}
-                      </small>
+                    <div style={{ 
+                      fontWeight: designSystem.typography.fontWeight.medium
+                    }}>
+                      {project.client?.name || 
+                       (project.client?.firstName && project.client?.lastName ? 
+                        `${project.client.firstName} ${project.client.lastName}` : 
+                        'Unknown Client')}
                     </div>
                   </td>
                   <td style={componentStyles.tableCell}>
@@ -383,11 +450,11 @@ const ProjectsManagement = ({ user }) => {
                         <i className="fas fa-eye"></i>
                       </button>
                       <button 
-                        className="btn btn-outline-info btn-sm"
-                        onClick={() => viewClientDetails(project)}
-                        title="View Client Details"
+                        className="btn btn-outline-success btn-sm"
+                        onClick={() => openUploadModal(project)}
+                        title="Upload Final File"
                       >
-                        <i className="fas fa-user"></i>
+                        <i className="fas fa-upload"></i>
                       </button>
                     </div>
                   </td>
@@ -428,13 +495,6 @@ const ProjectsManagement = ({ user }) => {
       {/* Overview Statistics */}
       <div style={componentStyles.statsContainer}>
         <StatCard
-          icon="fas fa-project-diagram"
-          number={getProjectCounts().total}
-          label="Total Assigned"
-          borderColor="#0dcaf0"
-          iconColor="#0dcaf0"
-        />
-        <StatCard
           icon="fas fa-play-circle"
           number={getProjectCounts().active}
           label="Active Projects"
@@ -447,6 +507,13 @@ const ProjectsManagement = ({ user }) => {
           label="Pending Projects"
           borderColor="#f59e0b"
           iconColor="#f59e0b"
+        />
+        <StatCard
+          icon="fas fa-pause-circle"
+          number={getProjectCounts().onHold}
+          label="On Hold"
+          borderColor="#ef4444"
+          iconColor="#ef4444"
         />
         <StatCard
           icon="fas fa-check-circle"
@@ -550,8 +617,9 @@ const ProjectsManagement = ({ user }) => {
       )}
 
       {/* Project Details Modal */}
-      {showModal && (
+      {showModal && modalData && (
         <ProjectDetailsModal
+          key={`${modalData._id}-${modalData.status}-${modalData.progress}`}
           show={showModal}
           onHide={handleModalClose}
           type={modalType}
@@ -560,22 +628,236 @@ const ProjectsManagement = ({ user }) => {
           user={user}
         />
       )}
+
+      {/* Upload Final File Modal */}
+      {showUploadModal && selectedProjectForUpload && (
+        <div 
+          className="modal fade show" 
+          style={{ 
+            display: 'block', 
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            zIndex: 1050
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              closeUploadModal();
+            }
+          }}
+        >
+          <div className="modal-dialog modal-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content">
+              <div className="modal-header" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white' }}>
+                <h5 className="modal-title">
+                  <i className="fas fa-upload me-2"></i>
+                  Upload Final Deliverable
+                </h5>
+                <button type="button" className="btn-close btn-close-white" onClick={closeUploadModal}></button>
+              </div>
+              
+              <div className="modal-body">
+                <div style={{ 
+                  background: designSystem.colors.gray[50], 
+                  padding: designSystem.spacing.md,
+                  borderRadius: designSystem.borderRadius.button,
+                  marginBottom: designSystem.spacing.lg
+                }}>
+                  <h6 style={{ 
+                    color: designSystem.colors.dark, 
+                    marginBottom: designSystem.spacing.sm,
+                    fontWeight: designSystem.typography.fontWeight.bold
+                  }}>
+                    Project Details
+                  </h6>
+                  <div className="row">
+                    <div className="col-md-4">
+                      <small style={{ color: designSystem.colors.gray[600] }}>Project ID:</small>
+                      <p style={{ fontWeight: designSystem.typography.fontWeight.medium }}>
+                        {selectedProjectForUpload.project_id || `#${selectedProjectForUpload._id.slice(-8).toUpperCase()}`}
+                      </p>
+                    </div>
+                    <div className="col-md-4">
+                      <small style={{ color: designSystem.colors.gray[600] }}>Service Name:</small>
+                      <p style={{ fontWeight: designSystem.typography.fontWeight.medium }}>
+                        {selectedProjectForUpload.service_name || 'N/A'}
+                      </p>
+                    </div>
+                    <div className="col-md-4">
+                      <small style={{ color: designSystem.colors.gray[600] }}>Client Name:</small>
+                      <p style={{ fontWeight: designSystem.typography.fontWeight.medium }}>
+                        {selectedProjectForUpload.client?.name || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <form onSubmit={handleUploadFinalFile}>
+                  {uploadFormData.files.map((fileItem, index) => (
+                    <div key={index} style={{
+                      border: `1px solid ${designSystem.colors.gray[300]}`,
+                      borderRadius: designSystem.borderRadius.button,
+                      padding: designSystem.spacing.md,
+                      marginBottom: designSystem.spacing.sm,
+                      background: 'white'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: designSystem.spacing.sm }}>
+                        <h6 style={{ margin: 0, color: designSystem.colors.dark, fontSize: '14px' }}>
+                          <i className="fas fa-file me-2"></i>
+                          File {index + 1}
+                        </h6>
+                        {uploadFormData.files.length > 1 && (
+                          <button 
+                            type="button"
+                            className="btn btn-sm btn-outline-danger"
+                            onClick={() => removeFile(index)}
+                            style={{ padding: '2px 8px', fontSize: '11px' }}
+                          >
+                            <i className="fas fa-times"></i>
+                          </button>
+                        )}
+                      </div>
+                      
+                      <div className="mb-2">
+                        <label className="form-label" style={{ fontSize: '13px', marginBottom: '4px' }}>
+                          <strong>Select File *</strong>
+                        </label>
+                        <input 
+                          type="file"
+                          className="form-control form-control-sm"
+                          onChange={(e) => handleFileChange(index, e)}
+                          required
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.txt,image/*"
+                        />
+                        {index === 0 && (
+                          <small className="text-muted" style={{ fontSize: '11px' }}>
+                            <i className="fas fa-info-circle me-1"></i>
+                            PDF, Word, Excel, ZIP, Text, Images (Max 10MB)
+                          </small>
+                        )}
+                        {fileItem.file && (
+                          <small className="text-success d-block mt-1" style={{ fontSize: '11px' }}>
+                            <i className="fas fa-check-circle me-1"></i>
+                            {fileItem.file.name} ({(fileItem.file.size / 1024).toFixed(2)} KB)
+                          </small>
+                        )}
+                      </div>
+                      
+                      <div className="mb-0">
+                        <label className="form-label" style={{ fontSize: '13px', marginBottom: '4px' }}>
+                          <strong>Notes</strong>
+                        </label>
+                        <textarea 
+                          className="form-control form-control-sm"
+                          rows="2"
+                          value={fileItem.notes}
+                          onChange={(e) => handleNotesChange(index, e.target.value)}
+                          placeholder="Add any notes about this file..."
+                          style={{ fontSize: '13px' }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <button 
+                    type="button"
+                    className="btn btn-sm btn-outline-primary"
+                    onClick={addMoreFile}
+                    style={{ fontSize: '11px', padding: '4px 10px' }}
+                  >
+                    <i className="fas fa-plus me-1"></i>
+                    Add More
+                  </button>
+                </form>
+              </div>
+              
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={closeUploadModal}
+                  disabled={uploadLoading}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-success" 
+                  onClick={handleUploadFinalFile}
+                  disabled={uploadLoading || !uploadFormData.files.some(f => f.file !== null)}
+                >
+                  {uploadLoading ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin me-2"></i>
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-upload me-2"></i>
+                      Upload {uploadFormData.files.filter(f => f.file !== null).length} File(s)
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 // Project Details Modal Component
 const ProjectDetailsModal = ({ show, onHide, type, data, onUpdateStatus, user }) => {
-  const [newStatus, setNewStatus] = useState(data?.status || '');
+  const [newStatus, setNewStatus] = useState(data?.status || 'pending');
   const [newProgress, setNewProgress] = useState(data?.progress || 0);
 
+  // Debug: Log the data to see what fields are available
+  useEffect(() => {
+    console.log('📋 Project Details Modal Data:', {
+      pm_assignment_notes: data?.pm_assignment_notes,
+      assignment_notes: data?.assignment_notes,
+      task_files: data?.task_files,
+      task_files_count: data?.task_files?.length || 0
+    });
+  }, [data]);
+
+  // Auto-set progress to 100% when status is completed
+  useEffect(() => {
+    if (newStatus === 'completed' && newProgress !== 100) {
+      console.log('📊 Auto-setting progress to 100% for completed status');
+      setNewProgress(100);
+    }
+  }, [newStatus]);
+
   if (!show || !data) return null;
+
+  console.log('📊 Rendering modal with status:', newStatus, 'progress:', newProgress);
+
+  // Auto-update progress when status changes
+  const handleStatusChange = (status) => {
+    setNewStatus(status);
+    
+    // Auto-set progress based on status
+    if (status === 'completed') {
+      setNewProgress(100);
+    } else if (status === 'pending') {
+      setNewProgress(0);
+    } else if (status === 'active' && newProgress === 0) {
+      setNewProgress(25); // Set to 25% if starting from 0
+    }
+  };
 
   const handleStatusUpdate = () => {
     if (newStatus !== data.status || newProgress !== data.progress) {
       onUpdateStatus(data._id, newStatus, newProgress);
+      onHide();
+    } else {
+      onHide();
     }
-    onHide();
   };
 
   return (
@@ -712,15 +994,19 @@ const ProjectDetailsModal = ({ show, onHide, type, data, onUpdateStatus, user })
                   <div className="col-md-6">
                     <p><strong>Project ID:</strong> {data.project_id || `#${data._id.slice(-8).toUpperCase()}`}</p>
                     <p><strong>Service:</strong> {data.service?.name || data.service_name || 'N/A'}</p>
+                    <p><strong>Priority:</strong> <span style={{
+                      color: data.priority === 'high' ? '#ef4444' : data.priority === 'medium' ? '#f59e0b' : '#10b981',
+                      fontWeight: 'bold',
+                      textTransform: 'uppercase'
+                    }}>● {data.priority || 'Medium'}</span></p>
+                    <p><strong>Due Date:</strong> {data.due_date ? new Date(data.due_date).toLocaleDateString() : 'Not set'}</p>
+                  </div>
+                  <div className="col-md-6">
                     <p><strong>Status:</strong> <span style={{
                       ...componentStyles.badge,
                       background: getStatusBadgeStyle(data.status).background,
                       color: getStatusBadgeStyle(data.status).color
                     }}>{data.status.replace('_', ' ').toUpperCase()}</span></p>
-                  </div>
-                  <div className="col-md-6">
-                    <p><strong>Amount:</strong> ${data.amount || 0}</p>
-                    <p><strong>Paid Amount:</strong> ${data.paid_amount || 0}</p>
                     <p><strong>Progress:</strong> {data.progress || 0}%</p>
                   </div>
                 </div>
@@ -735,8 +1021,15 @@ const ProjectDetailsModal = ({ show, onHide, type, data, onUpdateStatus, user })
                     <p><strong>Project ID:</strong> {data.project_id || `#${data._id.slice(-8).toUpperCase()}`}</p>
                     <p><strong>Service:</strong> {data.service?.name || data.service_name || 'N/A'}</p>
                     <p><strong>Client:</strong> {data.client?.name || `${data.client?.firstName || ''} ${data.client?.lastName || ''}`.trim() || 'N/A'}</p>
-                    <p><strong>Amount:</strong> ${data.amount || 0}</p>
-                    <p><strong>Paid Amount:</strong> ${data.paid_amount || 0}</p>
+                    <p><strong>Priority:</strong> <span style={{
+                      color: data.priority === 'high' ? '#ef4444' : data.priority === 'medium' ? '#f59e0b' : '#10b981',
+                      fontWeight: 'bold',
+                      textTransform: 'uppercase'
+                    }}>● {data.priority || 'Medium'}</span></p>
+                    {data.start_date && (
+                      <p><strong>Start Date:</strong> {new Date(data.start_date).toLocaleDateString()}</p>
+                    )}
+                    <p><strong>Due Date:</strong> {data.due_date ? new Date(data.due_date).toLocaleDateString() : 'Not set'}</p>
                   </div>
                   <div className="col-md-6">
                     <h6 style={{ color: designSystem.colors.dark, marginBottom: designSystem.spacing.md }}>
@@ -747,10 +1040,10 @@ const ProjectDetailsModal = ({ show, onHide, type, data, onUpdateStatus, user })
                       <select 
                         className="form-select"
                         value={newStatus}
-                        onChange={(e) => setNewStatus(e.target.value)}
+                        onChange={(e) => handleStatusChange(e.target.value)}
                       >
                         <option value="pending">Pending</option>
-                        <option value="in_progress">In Progress</option>
+                        <option value="active">Active</option>
                         <option value="on_hold">On Hold</option>
                         <option value="completed">Completed</option>
                         <option value="cancelled">Cancelled</option>
@@ -772,11 +1065,284 @@ const ProjectDetailsModal = ({ show, onHide, type, data, onUpdateStatus, user })
                         <small className="text-muted">100%</small>
                       </div>
                     </div>
-                    <p><strong>Priority:</strong> {data.priority || 'Medium'}</p>
-                    <p><strong>Due Date:</strong> {data.due_date ? new Date(data.due_date).toLocaleDateString() : 'Not set'}</p>
                   </div>
                 </div>
                 
+                {/* Assignment Notes from CRM Manager */}
+                {data.pm_assignment_notes && (
+                  <div style={{ marginTop: designSystem.spacing.lg }}>
+                    <h6 style={{ 
+                      color: designSystem.colors.dark, 
+                      marginBottom: designSystem.spacing.md,
+                      borderBottom: `2px solid #3b82f6`,
+                      paddingBottom: designSystem.spacing.xs
+                    }}>
+                      <i className="fas fa-clipboard-list me-2"></i>Assignment Notes from CRM Manager
+                    </h6>
+                    <div style={{
+                      padding: designSystem.spacing.md,
+                      background: '#eff6ff',
+                      borderRadius: designSystem.borderRadius.button,
+                      border: '1px solid #93c5fd',
+                      fontSize: '14px',
+                      lineHeight: '1.6',
+                      color: designSystem.colors.dark
+                    }}>
+                      {data.pm_assignment_notes}
+                    </div>
+                  </div>
+                )}
+
+                {/* Task Files from CRM Manager */}
+                {data.task_files && data.task_files.length > 0 && (
+                  <div style={{ marginTop: designSystem.spacing.lg }}>
+                    <h6 style={{ 
+                      color: designSystem.colors.dark, 
+                      marginBottom: designSystem.spacing.md,
+                      borderBottom: `2px solid #1565c0`,
+                      paddingBottom: designSystem.spacing.xs
+                    }}>
+                      <i className="fas fa-folder-open me-2"></i>Task Files from CRM Manager
+                    </h6>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: designSystem.spacing.sm }}>
+                      {data.task_files
+                        .filter(file => file.uploaded_by_role === 'crm_manager')
+                        .map((file, index) => (
+                          <div key={index} style={{
+                            padding: designSystem.spacing.sm,
+                            background: '#e3f2fd',
+                            borderRadius: designSystem.borderRadius.button,
+                            border: `1px solid #90caf9`,
+                            borderLeft: `4px solid #1976d2`
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                                  <i className="fas fa-file me-2" style={{ color: '#1976d2', fontSize: '14px' }}></i>
+                                  <strong style={{ fontSize: '14px', color: '#1565c0' }}>
+                                    {file.originalname}
+                                  </strong>
+                                </div>
+                                {file.note && (
+                                  <div style={{ marginBottom: '6px', fontSize: '13px' }}>
+                                    <small style={{ color: designSystem.colors.gray[600], fontWeight: '600' }}>Notes: </small>
+                                    <small style={{ color: designSystem.colors.gray[600] }}>{file.note}</small>
+                                  </div>
+                                )}
+                                <div style={{ display: 'flex', gap: designSystem.spacing.md, fontSize: '11px' }}>
+                                  <span style={{ color: designSystem.colors.gray[500] }}>
+                                    <i className="fas fa-calendar me-1"></i>
+                                    {new Date(file.uploaded_at).toLocaleDateString()}
+                                  </span>
+                                  <span style={{ color: designSystem.colors.gray[500] }}>
+                                    <i className="fas fa-clock me-1"></i>
+                                    {new Date(file.uploaded_at).toLocaleTimeString()}
+                                  </span>
+                                  {file.size && (
+                                    <span style={{ color: designSystem.colors.gray[500] }}>
+                                      <i className="fas fa-file-alt me-1"></i>
+                                      {(file.size / 1024).toFixed(2)} KB
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                <a
+                                  href={`${process.env.REACT_APP_API_URL?.replace('/api', '')}/${file.path}`}
+                                  download={file.originalname}
+                                  style={{
+                                    background: '#1976d2',
+                                    color: 'white',
+                                    padding: '3px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '10px',
+                                    fontWeight: '600',
+                                    textTransform: 'uppercase',
+                                    textDecoration: 'none',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    cursor: 'pointer'
+                                  }}
+                                  title="Download file"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    const fileUrl = `${process.env.REACT_APP_API_URL?.replace('/api', '')}/${file.path}`;
+                                    fetch(fileUrl)
+                                      .then(response => response.blob())
+                                      .then(blob => {
+                                        const url = window.URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.style.display = 'none';
+                                        a.href = url;
+                                        a.download = file.originalname;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        window.URL.revokeObjectURL(url);
+                                        document.body.removeChild(a);
+                                      })
+                                      .catch(err => {
+                                        console.error('Download error:', err);
+                                        alert('Failed to download file. Opening in new tab instead.');
+                                        window.open(fileUrl, '_blank');
+                                      });
+                                  }}
+                                >
+                                  <i className="fas fa-download"></i>
+                                  Download
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                    
+                    <div style={{
+                      marginTop: designSystem.spacing.sm,
+                      padding: designSystem.spacing.sm,
+                      background: '#e3f2fd',
+                      borderRadius: designSystem.borderRadius.button,
+                      border: '1px solid #1976d2'
+                    }}>
+                      <small style={{ color: '#0d47a1', fontSize: '12px' }}>
+                        <i className="fas fa-info-circle me-1"></i>
+                        <strong>Total Task Files:</strong> {data.task_files.filter(f => f.uploaded_by_role === 'crm_manager').length} file(s) provided by CRM Manager for this project
+                      </small>
+                    </div>
+                  </div>
+                )}
+
+                {/* Final Files History */}
+                {data.final_files && data.final_files.length > 0 && (
+                  <div style={{ marginTop: designSystem.spacing.lg }}>
+                    <h6 style={{ 
+                      color: designSystem.colors.dark, 
+                      marginBottom: designSystem.spacing.md,
+                      borderBottom: `2px solid #10b981`,
+                      paddingBottom: designSystem.spacing.xs
+                    }}>
+                      <i className="fas fa-file-download me-2"></i>Final Files Sent to CRM
+                    </h6>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: designSystem.spacing.sm }}>
+                      {data.final_files.map((file, index) => {
+                        const getStatusColor = (status) => {
+                          switch (status) {
+                            case 'approved': return '#10b981';
+                            case 'rejected': return '#ef4444';
+                            case 'pending': return '#f59e0b';
+                            default: return '#6b7280';
+                          }
+                        };
+
+                        const getStatusText = (status) => {
+                          switch (status) {
+                            case 'approved': return 'Approved';
+                            case 'rejected': return 'Rejected';
+                            case 'pending': return 'Pending';
+                            default: return 'Sent';
+                          }
+                        };
+
+                        return (
+                        <div key={index} style={{
+                          padding: designSystem.spacing.sm,
+                          background: '#f0fdf4',
+                          borderRadius: designSystem.borderRadius.button,
+                          border: `1px solid #86efac`,
+                          borderLeft: `4px solid ${getStatusColor(file.approval_status || 'pending')}`
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                                <i className="fas fa-file me-2" style={{ color: '#10b981', fontSize: '14px' }}></i>
+                                <strong style={{ fontSize: '14px', color: designSystem.colors.dark }}>
+                                  {file.originalName}
+                                </strong>
+                              </div>
+                              {file.notes && (
+                                <div style={{ marginBottom: '6px', fontSize: '13px' }}>
+                                  <small style={{ color: designSystem.colors.gray[600], fontWeight: '600' }}>Notes: </small>
+                                  <small style={{ color: designSystem.colors.gray[600] }}>{file.notes}</small>
+                                </div>
+                              )}
+                              {file.rejection_reason && (
+                                <div style={{ marginBottom: '6px', padding: '6px', background: '#fee2e2', borderRadius: '4px' }}>
+                                  <small style={{ color: '#991b1b', fontWeight: '600' }}>Rejection Reason: </small>
+                                  <small style={{ color: '#991b1b' }}>{file.rejection_reason}</small>
+                                </div>
+                              )}
+                              <div style={{ display: 'flex', gap: designSystem.spacing.md, fontSize: '11px' }}>
+                                <span style={{ color: designSystem.colors.gray[500] }}>
+                                  <i className="fas fa-calendar me-1"></i>
+                                  {new Date(file.uploaded_at).toLocaleDateString()}
+                                </span>
+                                <span style={{ color: designSystem.colors.gray[500] }}>
+                                  <i className="fas fa-clock me-1"></i>
+                                  {new Date(file.uploaded_at).toLocaleTimeString()}
+                                </span>
+                                <span style={{ color: designSystem.colors.gray[500] }}>
+                                  <i className="fas fa-file-alt me-1"></i>
+                                  {(file.size / 1024).toFixed(2)} KB
+                                </span>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                              <a
+                                href={`${process.env.REACT_APP_API_URL?.replace('/api', '')}/${file.path}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  background: '#0ea5e9',
+                                  color: 'white',
+                                  padding: '3px 8px',
+                                  borderRadius: '4px',
+                                  fontSize: '10px',
+                                  fontWeight: '600',
+                                  textTransform: 'uppercase',
+                                  textDecoration: 'none',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                                title="Preview file"
+                              >
+                                <i className="fas fa-eye"></i>
+                                Preview
+                              </a>
+                              <span style={{
+                                background: getStatusColor(file.approval_status || 'pending'),
+                                color: 'white',
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                fontWeight: '600',
+                                textTransform: 'uppercase'
+                              }}>
+                                {getStatusText(file.approval_status || 'pending')}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                      })}
+                    </div>
+                    
+                    <div style={{
+                      marginTop: designSystem.spacing.sm,
+                      padding: designSystem.spacing.sm,
+                      background: '#e0f2fe',
+                      borderRadius: designSystem.borderRadius.button,
+                      border: '1px solid #0ea5e9'
+                    }}>
+                      <small style={{ color: '#0369a1', fontSize: '12px' }}>
+                        <i className="fas fa-info-circle me-1"></i>
+                        <strong>Total Files Sent:</strong> {data.final_files.length} file(s) uploaded and shared with CRM Manager
+                      </small>
+                    </div>
+                  </div>
+                )}
 
               </div>
             )}

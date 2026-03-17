@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { validateRegistrationForm } from '../../utils/validation';
 import { ValidatedInput, PasswordInput, PhoneInputWithCountry, CountrySelect } from '../../components/FormComponents';
+import { authAPI } from '../../services/api';
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
@@ -23,6 +24,8 @@ const RegisterPage = () => {
   const [formValidation, setFormValidation] = useState({ isValid: false, errors: [], warnings: [] });
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [emailExists, setEmailExists] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
   
   const { register, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
@@ -59,6 +62,44 @@ const RegisterPage = () => {
     const validation = validateRegistrationForm(formData);
     setFormValidation(validation);
   }, [formData]);
+
+  // Check if email exists with debouncing
+  useEffect(() => {
+    const checkEmailExists = async () => {
+      const email = formData.email;
+      
+      // Only check if email is valid format
+      const emailPattern = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+      if (!email || !emailPattern.test(email)) {
+        setEmailExists(false);
+        return;
+      }
+
+      setCheckingEmail(true);
+      try {
+        const response = await authAPI.checkEmail(email);
+        if (response.success && response.exists) {
+          setEmailExists(true);
+        } else {
+          setEmailExists(false);
+        }
+      } catch (error) {
+        console.error('Error checking email:', error);
+        setEmailExists(false);
+      } finally {
+        setCheckingEmail(false);
+      }
+    };
+
+    // Debounce the email check
+    const timeoutId = setTimeout(() => {
+      if (formData.email) {
+        checkEmailExists();
+      }
+    }, 800);
+
+    return () => clearTimeout(timeoutId);
+  }, [formData.email]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -197,6 +238,8 @@ const RegisterPage = () => {
               required={true}
               placeholder="Enter your email address"
               disabled={isLoading}
+              emailExists={emailExists}
+              checkingEmail={checkingEmail}
             />
 
             <div className="row">
@@ -349,11 +392,12 @@ const RegisterPage = () => {
             <button 
               type="submit" 
               className="btn-login"
-              disabled={isLoading || !formValidation.isValid || !formData.acceptTerms}
+              disabled={isLoading || !formValidation.isValid || !formData.acceptTerms || emailExists}
               style={{
-                opacity: isLoading || !formValidation.isValid || !formData.acceptTerms ? 0.6 : 1,
-                cursor: isLoading || !formValidation.isValid || !formData.acceptTerms ? 'not-allowed' : 'pointer'
+                opacity: isLoading || !formValidation.isValid || !formData.acceptTerms || emailExists ? 0.6 : 1,
+                cursor: isLoading || !formValidation.isValid || !formData.acceptTerms || emailExists ? 'not-allowed' : 'pointer'
               }}
+              title={emailExists ? 'This email is already registered. Please use a different email.' : ''}
             >
               {isLoading ? (
                 <>
@@ -431,14 +475,7 @@ const RegisterPage = () => {
                 </section>
               </div>
             </div>
-            <div className="flex justify-end p-6 border-t bg-gray-50">
-              <button
-                onClick={() => setShowTermsModal(false)}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Close
-              </button>
-            </div>
+            
           </div>
         </div>
       )}
@@ -509,14 +546,7 @@ const RegisterPage = () => {
                 </section>
               </div>
             </div>
-            <div className="flex justify-end p-6 border-t bg-gray-50">
-              <button
-                onClick={() => setShowPrivacyModal(false)}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Close
-              </button>
-            </div>
+            
           </div>
         </div>
       )}

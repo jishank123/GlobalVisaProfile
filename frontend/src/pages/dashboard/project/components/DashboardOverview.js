@@ -4,10 +4,10 @@ import { designSystem, componentStyles, hoverEffects } from '../../../../styles/
 
 const DashboardOverview = () => {
   const [stats, setStats] = useState({
-    totalProjects: 0,
+    activeProjects: 0,
+    completedProjects: 0,
     activeTasks: 0,
-    completedTasks: 0,
-    teamMembers: 0
+    completedTasks: 0
   });
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -33,10 +33,10 @@ const DashboardOverview = () => {
         console.warn('⚠️ No projects assigned to you as Project Manager!');
         console.warn('⚠️ Ask a CRM Manager to assign projects to you first.');
         setStats({
-          totalProjects: 0,
+          activeProjects: 0,
+          completedProjects: 0,
           activeTasks: 0,
-          completedTasks: 0,
-          teamMembers: 0
+          completedTasks: 0
         });
         setLoading(false);
         return;
@@ -56,32 +56,24 @@ const DashboardOverview = () => {
         console.log('   - Projects:', projects.length);
         console.log('   - Tasks:', tasks.length);
         
-        // Calculate stats
+        // Calculate project stats
+        const activeProjects = projects.filter(p => p.status === 'active' || p.status === 'in_progress').length;
+        const completedProjects = projects.filter(p => p.status === 'completed').length;
+        
+        // Calculate task stats
         const activeTasks = tasks.filter(t => t.status === 'in_progress').length;
         const completedTasks = tasks.filter(t => t.status === 'completed').length;
         
+        console.log('   - Active projects:', activeProjects);
+        console.log('   - Completed projects:', completedProjects);
         console.log('   - Active tasks:', activeTasks);
         console.log('   - Completed tasks:', completedTasks);
         
-        // Get unique employees from tasks
-        const employeeIds = new Set();
-        tasks.forEach(task => {
-          if (task.assigned_to) {
-            const empId = task.assigned_to._id || task.assigned_to;
-            if (empId) {
-              employeeIds.add(empId.toString());
-              console.log('   - Found employee:', empId.toString());
-            }
-          }
-        });
-        
-        console.log('   - Unique employees:', employeeIds.size);
-        
         const statsData = {
-          totalProjects: projects.length,
+          activeProjects: activeProjects,
+          completedProjects: completedProjects,
           activeTasks: activeTasks,
-          completedTasks: completedTasks,
-          teamMembers: employeeIds.size
+          completedTasks: completedTasks
         };
         
         console.log('✅ Stats calculated:', statsData);
@@ -89,10 +81,10 @@ const DashboardOverview = () => {
       } else {
         console.error('❌ Failed to load stats');
         setStats({
-          totalProjects: 0,
+          activeProjects: 0,
+          completedProjects: 0,
           activeTasks: 0,
-          completedTasks: 0,
-          teamMembers: 0
+          completedTasks: 0
         });
       }
     } catch (error) {
@@ -100,10 +92,10 @@ const DashboardOverview = () => {
       console.error('❌ Error details:', error.message);
       console.error('❌ Error stack:', error.stack);
       setStats({
-        totalProjects: 0,
+        activeProjects: 0,
+        completedProjects: 0,
         activeTasks: 0,
-        completedTasks: 0,
-        teamMembers: 0
+        completedTasks: 0
       });
     } finally {
       setLoading(false);
@@ -115,34 +107,110 @@ const DashboardOverview = () => {
       setActivityLoading(true);
       console.log('🔄 Loading recent activity...');
       
-      // Fetch recent tasks as activity
-      const tasksResponse = await projectsAPI.getMyTasks();
+      // Fetch recent activity logs from the activity API
+      const { activityAPI } = await import('../../../../services/api');
+      const activityResponse = await activityAPI.getRecent(10);
       
-      if (tasksResponse.success) {
-        const tasks = tasksResponse.data || [];
-        
-        // Convert tasks to activity items (show last 10)
-        const activities = tasks
-          .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
-          .slice(0, 10)
-          .map(task => ({
-            id: task._id,
-            message: `Task "${task.title}" ${task.status === 'completed' ? 'completed' : task.status === 'in_progress' ? 'in progress' : 'created'}`,
-            timestamp: task.updatedAt || task.createdAt,
-            icon: task.status === 'completed' ? 'fas fa-check-circle' : 
-                  task.status === 'in_progress' ? 'fas fa-spinner' : 'fas fa-plus-circle',
-            color: task.status === 'completed' ? '#10b981' : 
-                   task.status === 'in_progress' ? '#3b82f6' : '#f59e0b'
-          }));
+      if (activityResponse.success && activityResponse.data) {
+        const activities = activityResponse.data.map(activity => {
+          // Map activity to display format based on resource type and action
+          let icon = 'fas fa-info-circle';
+          let color = '#0dcaf0';
+          let message = activity.description;
+          
+          // Determine icon and color based on resource type and action
+          if (activity.resourceType === 'Task' || activity.resourceType === 'Milestone') {
+            switch (activity.action) {
+              case 'create':
+                icon = 'fas fa-plus-circle';
+                color = '#f59e0b';
+                break;
+              case 'update':
+                icon = 'fas fa-edit';
+                color = '#3b82f6';
+                break;
+              case 'complete':
+                icon = 'fas fa-check-circle';
+                color = '#10b981';
+                break;
+              default:
+                icon = 'fas fa-tasks';
+                color = '#3b82f6';
+            }
+          } else if (activity.resourceType === 'Project') {
+            switch (activity.action) {
+              case 'create':
+                icon = 'fas fa-folder-plus';
+                color = '#8b5cf6';
+                break;
+              case 'update':
+                icon = 'fas fa-project-diagram';
+                color = '#3b82f6';
+                break;
+              case 'complete':
+                icon = 'fas fa-check-double';
+                color = '#10b981';
+                break;
+              default:
+                icon = 'fas fa-project-diagram';
+                color = '#3b82f6';
+            }
+          }
+          
+          return {
+            id: activity._id,
+            message: message,
+            timestamp: activity.createdAt,
+            icon: icon,
+            color: color,
+            resourceType: activity.resourceType,
+            action: activity.action
+          };
+        });
         
         console.log('✅ Recent activity loaded:', activities.length);
+        console.log('✅ Activities:', activities);
         setRecentActivity(activities);
       } else {
+        console.log('⚠️ No activity data returned');
         setRecentActivity([]);
       }
     } catch (error) {
       console.error('❌ Error loading recent activity:', error);
-      setRecentActivity([]);
+      console.error('❌ Error details:', error.message);
+      
+      // Fallback to task-based activity if activity API fails
+      try {
+        console.log('🔄 Falling back to task-based activity...');
+        const tasksResponse = await projectsAPI.getMyTasks();
+        
+        if (tasksResponse.success) {
+          const tasks = tasksResponse.data || [];
+          
+          // Convert tasks to activity items (show last 10)
+          const activities = tasks
+            .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
+            .slice(0, 10)
+            .map(task => ({
+              id: task._id,
+              message: `Task "${task.title}" ${task.status === 'completed' ? 'completed' : task.status === 'in_progress' ? 'in progress' : 'created'}`,
+              timestamp: task.updatedAt || task.createdAt,
+              icon: task.status === 'completed' ? 'fas fa-check-circle' : 
+                    task.status === 'in_progress' ? 'fas fa-spinner' : 'fas fa-plus-circle',
+              color: task.status === 'completed' ? '#10b981' : 
+                     task.status === 'in_progress' ? '#3b82f6' : '#f59e0b',
+              resourceType: 'Task'
+            }));
+          
+          console.log('✅ Fallback activity loaded:', activities.length);
+          setRecentActivity(activities);
+        } else {
+          setRecentActivity([]);
+        }
+      } catch (fallbackError) {
+        console.error('❌ Fallback also failed:', fallbackError);
+        setRecentActivity([]);
+      }
     } finally {
       setActivityLoading(false);
     }
@@ -191,14 +259,6 @@ const DashboardOverview = () => {
       {/* Overview Stats */}
       <div style={componentStyles.statsContainer}>
         <StatCard 
-          icon="fas fa-project-diagram" 
-          number={stats.totalProjects} 
-          label="Total Projects" 
-          borderColor="#0dcaf0"
-          iconColor="#0dcaf0"
-        />
-
-        <StatCard 
           icon="fas fa-tasks" 
           number={stats.activeTasks} 
           label="Active Tasks" 
@@ -215,11 +275,19 @@ const DashboardOverview = () => {
         />
 
         <StatCard 
-          icon="fas fa-users" 
-          number={stats.teamMembers} 
-          label="Team Members" 
-          borderColor="#f59e0b"
-          iconColor="#f59e0b"
+          icon="fas fa-project-diagram" 
+          number={stats.activeProjects} 
+          label="Active Projects" 
+          borderColor="#3b82f6"
+          iconColor="#3b82f6"
+        />
+
+        <StatCard 
+          icon="fas fa-check-double" 
+          number={stats.completedProjects} 
+          label="Completed Projects" 
+          borderColor="#0dcaf0"
+          iconColor="#0dcaf0"
         />
       </div>
 
@@ -345,7 +413,7 @@ const DashboardOverview = () => {
                       onMouseLeave={(e) => e.target.style.color = designSystem.colors.gray[400]}
                       title="View details"
                     >
-                      <i className="fas fa-chevron-right"></i>
+                      {/* <i className="fas fa-chevron-right"></i> */}
                     </button>
                   </div>
                 </div>

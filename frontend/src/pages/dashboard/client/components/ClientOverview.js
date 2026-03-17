@@ -5,8 +5,7 @@ const ClientOverview = ({ clientData, apiCall, onRefresh }) => {
   const [stats, setStats] = useState({
     projects: { total: 0, active: 0, completed: 0, pending: 0 },
     payments: { total: 0, paid: 0, pending: 0, amount: 0 },
-    appointments: { total: 0, upcoming: 0, completed: 0 },
-    tasks: { total: 0, pending: 0, completed: 0, overdue: 0 }
+    appointments: { total: 0, upcoming: 0, completed: 0 }
   });
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,17 +23,15 @@ const ClientOverview = ({ clientData, apiCall, onRefresh }) => {
       const apiCalls = [
         apiCall('/projects?client=' + clientData?.email).catch(err => ({ error: err.message, data: [] })),
         apiCall('/payments?client=' + clientData?.email).catch(err => ({ error: err.message, data: [] })),
-        apiCall('/appointments/client/' + clientData?.email).catch(err => ({ error: err.message, data: [] })),
-        apiCall('/tasks?client=' + clientData?.email).catch(err => ({ error: err.message, data: [] }))
+        apiCall('/appointments/client/' + clientData?.email).catch(err => ({ error: err.message, data: [] }))
       ];
 
-      const [projectsRes, paymentsRes, appointmentsRes, tasksRes] = await Promise.all(apiCalls);
+      const [projectsRes, paymentsRes, appointmentsRes] = await Promise.all(apiCalls);
 
       // Log any errors but continue processing
       if (projectsRes.error) console.warn('Projects API error:', projectsRes.error);
       if (paymentsRes.error) console.warn('Payments API error:', paymentsRes.error);
       if (appointmentsRes.error) console.warn('Appointments API error:', appointmentsRes.error);
-      if (tasksRes.error) console.warn('Tasks API error:', tasksRes.error);
 
       // Process projects data
       const projects = projectsRes?.data || [];
@@ -62,24 +59,10 @@ const ClientOverview = ({ clientData, apiCall, onRefresh }) => {
         completed: appointments.filter(a => a.status === 'completed').length
       };
 
-      // Process tasks data
-      const tasks = tasksRes?.data || [];
-      const now = new Date();
-      const taskStats = {
-        total: tasks.length,
-        pending: tasks.filter(t => t.status === 'pending' || t.status === 'in_progress').length,
-        completed: tasks.filter(t => t.status === 'completed').length,
-        overdue: tasks.filter(t => {
-          const dueDate = new Date(t.due_date);
-          return t.status !== 'completed' && dueDate < now;
-        }).length
-      };
-
       setStats({
         projects: projectStats,
         payments: paymentStats,
-        appointments: appointmentStats,
-        tasks: taskStats
+        appointments: appointmentStats
       });
 
       // Create recent activity from all data
@@ -107,14 +90,6 @@ const ClientOverview = ({ clientData, apiCall, onRefresh }) => {
           date: a.createdAt,
           icon: 'fas fa-calendar-alt',
           color: designSystem.colors.info
-        })),
-        ...tasks.slice(0, 2).map(t => ({
-          type: 'task',
-          title: `Task: ${t.title || t.name}`,
-          description: `Status: ${t.status} ${t.due_date ? '• Due: ' + new Date(t.due_date).toLocaleDateString() : ''}`,
-          date: t.updated_at || t.createdAt,
-          icon: 'fas fa-tasks',
-          color: '#f59e0b'
         }))
       ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
 
@@ -245,12 +220,12 @@ const ClientOverview = ({ clientData, apiCall, onRefresh }) => {
           onClick={() => window.location.hash = '#appointments'}
         />
         <StatCard
-          icon="fas fa-tasks"
-          title="My Tasks"
-          value={stats.tasks.pending}
-          subtitle={`${stats.tasks.overdue} overdue • ${stats.tasks.completed} completed`}
+          icon="fas fa-check-circle"
+          title="Completed Projects"
+          value={stats.projects.completed}
+          subtitle={`${stats.projects.total} total projects`}
           color="#f59e0b"
-          onClick={() => window.location.hash = '#tasks'}
+          onClick={() => window.location.hash = '#projects'}
         />
       </div>
 

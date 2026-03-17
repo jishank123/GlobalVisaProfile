@@ -41,6 +41,19 @@ const ClientTimeline = ({ clientData, apiCall, onRefresh }) => {
       // Process projects
       if (projectsRes?.data) {
         projectsRes.data.forEach(project => {
+          // Add service purchase activity
+          allActivities.push({
+            id: `service-${project._id}`,
+            type: 'service',
+            title: 'Service Purchased',
+            description: `Purchased service: ${project.service?.name || project.service_name}`,
+            date: project.createdAt || project.created_at,
+            icon: 'fas fa-shopping-cart',
+            color: '#10b981',
+            data: project
+          });
+
+          // Add project activity
           allActivities.push({
             id: `project-${project._id}`,
             type: 'project',
@@ -153,6 +166,7 @@ const ClientTimeline = ({ clientData, apiCall, onRefresh }) => {
   const getActivityCounts = () => {
     return {
       total: activities.length,
+      service: activities.filter(a => a.type === 'service').length,
       project: activities.filter(a => a.type === 'project').length,
       payment: activities.filter(a => a.type === 'payment').length,
       appointment: activities.filter(a => a.type === 'appointment').length,
@@ -253,6 +267,17 @@ const ClientTimeline = ({ clientData, apiCall, onRefresh }) => {
             <button 
               style={{
                 ...componentStyles.primaryButton,
+                background: activeFilter === 'service' ? '#10b981' : designSystem.colors.gray[100],
+                color: activeFilter === 'service' ? 'white' : designSystem.colors.gray[600]
+              }}
+              onClick={() => setActiveFilter('service')}
+              {...hoverEffects.button}
+            >
+              Services
+            </button>
+            <button 
+              style={{
+                ...componentStyles.primaryButton,
                 background: activeFilter === 'project' ? '#8b5cf6' : designSystem.colors.gray[100],
                 color: activeFilter === 'project' ? 'white' : designSystem.colors.gray[600]
               }}
@@ -282,17 +307,6 @@ const ClientTimeline = ({ clientData, apiCall, onRefresh }) => {
               {...hoverEffects.button}
             >
               Appointments
-            </button>
-            <button 
-              style={{
-                ...componentStyles.primaryButton,
-                background: activeFilter === 'query' ? '#ef4444' : designSystem.colors.gray[100],
-                color: activeFilter === 'query' ? 'white' : designSystem.colors.gray[600]
-              }}
-              onClick={() => setActiveFilter('query')}
-              {...hoverEffects.button}
-            >
-              Queries
             </button>
           </div>
         </div>
@@ -363,6 +377,17 @@ const ClientTimeline = ({ clientData, apiCall, onRefresh }) => {
           <button 
             style={{
               ...componentStyles.primaryButton,
+              background: activeFilter === 'service' ? '#10b981' : designSystem.colors.gray[100],
+              color: activeFilter === 'service' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveFilter('service')}
+            {...hoverEffects.button}
+          >
+            Services
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
               background: activeFilter === 'project' ? '#8b5cf6' : designSystem.colors.gray[100],
               color: activeFilter === 'project' ? 'white' : designSystem.colors.gray[600]
             }}
@@ -392,17 +417,6 @@ const ClientTimeline = ({ clientData, apiCall, onRefresh }) => {
             {...hoverEffects.button}
           >
             Appointments
-          </button>
-          <button 
-            style={{
-              ...componentStyles.primaryButton,
-              background: activeFilter === 'query' ? '#ef4444' : designSystem.colors.gray[100],
-              color: activeFilter === 'query' ? 'white' : designSystem.colors.gray[600]
-            }}
-            onClick={() => setActiveFilter('query')}
-            {...hoverEffects.button}
-          >
-            Queries
           </button>
         </div>
       </div>

@@ -313,4 +313,25 @@ contactFormSchema.methods.convertToLead = function(leadData) {
   return this.save();
 };
 
+// Method to get decrypted contact data for display
+contactFormSchema.methods.toDisplayJSON = function() {
+  // Get decrypted version of the document
+  const decryptedDoc = this.toObject();
+  
+  return {
+    _id: this._id,
+    name: decryptedDoc.name,
+    email: decryptedDoc.email,
+    phone: decryptedDoc.phone,
+    visa_type: this.visa_type,
+    message: decryptedDoc.message,
+    inquiry_type: this.inquiry_type,
+    priority: this.priority,
+    status: this.status,
+    source: this.source,
+    createdAt: this.createdAt,
+    updatedAt: this.updatedAt
+  };
+};
+
 module.exports = mongoose.model('ContactForm', contactFormSchema);

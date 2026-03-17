@@ -8,8 +8,8 @@ const { body } = require('express-validator');
 const validateClientCreation = [
   body('name').notEmpty().withMessage('Name is required'),
   body('email').isEmail().withMessage('Valid email is required'),
-  body('phone').optional().isMobilePhone().withMessage('Valid phone number is required'),
-  body('country').notEmpty().withMessage('Country is required')
+  body('phone').optional().isLength({ min: 7 }).withMessage('Valid phone number is required (minimum 7 digits)'),
+  body('country').optional().notEmpty().withMessage('Country cannot be empty if provided')
 ];
 
 const validateClientUpdate = [

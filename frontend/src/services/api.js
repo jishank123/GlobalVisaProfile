@@ -38,7 +38,7 @@ apiClient.interceptors.response.use((response) => {
     return response.data;
 }, (error) => {
     // Only redirect on 401 if it's NOT a login attempt
-    if (error.response ?. status === 401) {
+    if (error.response?.status === 401) {
         const isLoginAttempt = error.config?.url?.includes('/auth/login') || 
                               error.config?.url?.includes('/auth/manager') ||
                               error.config?.url?.includes('/auth/email-login');
@@ -52,9 +52,15 @@ apiClient.interceptors.response.use((response) => {
         }
     }
 
-    const errorMessage = error.response ?. data ?. error ?. message || error.response ?. data ?. message || error.message || 'An error occurred';
+    const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || error.message || 'An error occurred';
+    const errorCode = error.response?.data?.error?.code || null;
+    
+    // Create error object with both message and code, and preserve full response
+    const errorObj = new Error(errorMessage);
+    errorObj.code = errorCode;
+    errorObj.response = error.response; // Preserve full response for detailed error handling
 
-    return Promise.reject(new Error(errorMessage));
+    return Promise.reject(errorObj);
 });
 
 // Authentication API
@@ -71,6 +77,7 @@ export const authAPI = {
     updateProfile: (data) => apiClient.put('/auth/profile', data),
     changePassword: (data) => apiClient.put('/auth/change-password', data),
     checkUser: (email) => apiClient.post('/auth/check-user', {email}),
+    checkEmail: (email) => apiClient.post('/auth/check-email', {email}),
     setupPassword: (email, password, isNewUser) => apiClient.post('/auth/setup-password', {email, password, isNewUser})
 };
 
@@ -92,7 +99,9 @@ export const dashboardAPI = {
     getData: () => apiClient.get('/dashboard/stats'),
     getFinancialOverview: () => apiClient.get('/dashboard/financial'),
     getActivity: () => apiClient.get('/dashboard/activity'),
-    getRecentActivity: () => apiClient.get('/dashboard/activity')
+    getRecentActivity: () => apiClient.get('/dashboard/activity'),
+    getCrmStats: () => apiClient.get('/dashboard/crm-stats'),
+    getCrmActivity: () => apiClient.get('/dashboard/crm-activity')
 };
 
 // Services API
@@ -202,6 +211,8 @@ export const profileAssessmentsAPI = {
     submit: (data) => apiClient.post('/profile-assessments', data),
     getAll: (params) => apiClient.get('/profile-assessments', {params}),
     getById: (id) => apiClient.get(`/profile-assessments/${id}`),
+    getByEmail: (email, assessmentId) => apiClient.post('/profile-assessments/by-email', {email, assessmentId}),
+    getClientAssessments: () => apiClient.get('/profile-assessments/client'),
     updateStatus: (id, data) => apiClient.patch(`/profile-assessments/${id}/status`, data),
     addNotes: (id, notes) => apiClient.patch(`/profile-assessments/${id}/notes`, {notes}),
     convertToLead: (id, data) => apiClient.post(`/profile-assessments/${id}/convert-to-lead`, data)
@@ -229,6 +240,14 @@ export const contactAPI = {
     convertToLeads: (data) => apiClient.post('/contact/convert-to-leads', data)
 };
 
+// Newsletter API
+export const newsletterAPI = {
+    subscribe: (email) => apiClient.post('/newsletter/subscribe', {email}),
+    unsubscribe: (email) => apiClient.post('/newsletter/unsubscribe', {email}),
+    getSubscribers: (params) => apiClient.get('/newsletter/subscribers', {params}),
+    getCount: () => apiClient.get('/newsletter/count')
+};
+
 // Tasks API
 export const tasksAPI = {
     getAll: (params) => apiClient.get('/tasks', {params}),
@@ -238,7 +257,10 @@ export const tasksAPI = {
     delete: (id) => apiClient.delete(`/tasks/${id}`),
     updateStatus: (id, status) => apiClient.patch(`/tasks/${id}/status`, {status}),
     assign: (id, assignedTo) => apiClient.patch(`/tasks/${id}/assign`, {assignedTo}),
-    getStats: () => apiClient.get('/tasks/stats')
+    getStats: () => apiClient.get('/tasks/stats'),
+    uploadFiles: (taskId, formData) => apiClient.post(`/tasks/${taskId}/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    })
 };
 
 // Analytics API
@@ -252,7 +274,8 @@ export const analyticsAPI = {
 // Activity API
 export const activityAPI = {
     getAll: (params) => apiClient.get('/activity', {params}),
-    getUserActivities: (userId) => apiClient.get(`/activity/user/${userId}`)
+    getUserActivities: (userId) => apiClient.get(`/activity/user/${userId}`),
+    getRecent: (limit = 10) => apiClient.get('/activity/recent', { params: { limit } })
 };
 
 // Utility functions
@@ -378,6 +401,7 @@ projectsAPI.getMyTasks = crmAPI.getMyTasks;
 projectsAPI.createTask = crmAPI.createTask;
 projectsAPI.updateTask = crmAPI.updateTask;
 projectsAPI.updateTaskStatus = crmAPI.updateTaskStatus;
+projectsAPI.uploadTaskFiles = tasksAPI.uploadFiles;
 
 queriesAPI.getMyQueries = crmAPI.getMyQueries;
 queriesAPI.addResponse = crmAPI.respondToQuery;

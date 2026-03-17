@@ -2,57 +2,57 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const clientService = require('../services/clientService');
 
-// Password validation function according to documentation
-const validatePassword = (password, email, firstName, lastName) => {
-  // Minimum 8 characters
-  if (password.length < 8) {
+// Credential strength verification utility
+const verifyCredentialStrength = (credential, emailAddr, givenName, familyName) => {
+  // Enforce minimum length requirement
+  if (credential.length < 8) {
     return { isValid: false, message: 'Password must be at least 8 characters long' };
   }
 
-  // At least 1 uppercase letter
-  if (!/[A-Z]/.test(password)) {
+  // Require uppercase character presence
+  if (!/[A-Z]/.test(credential)) {
     return { isValid: false, message: 'Password must contain at least 1 uppercase letter' };
   }
 
-  // At least 1 lowercase letter
-  if (!/[a-z]/.test(password)) {
+  // Require lowercase character presence
+  if (!/[a-z]/.test(credential)) {
     return { isValid: false, message: 'Password must contain at least 1 lowercase letter' };
   }
 
-  // At least 1 number
-  if (!/\d/.test(password)) {
+  // Require numeric character presence
+  if (!/\d/.test(credential)) {
     return { isValid: false, message: 'Password must contain at least 1 number' };
   }
 
-  // At least 1 special character (@#$%!)
-  if (!/[@#$%!]/.test(password)) {
+  // Require special character presence (@#$%!)
+  if (!/[@#$%!]/.test(credential)) {
     return { isValid: false, message: 'Password must contain at least 1 special character (@#$%!)' };
   }
 
-  // No spaces
-  if (/\s/.test(password)) {
+  // Prohibit whitespace characters
+  if (/\s/.test(credential)) {
     return { isValid: false, message: 'Password cannot contain spaces' };
   }
 
-  // Cannot contain email or username
-  const lowerPassword = password.toLowerCase();
-  const lowerEmail = email.toLowerCase();
-  const lowerFirstName = firstName ? firstName.toLowerCase() : '';
-  const lowerLastName = lastName ? lastName.toLowerCase() : '';
+  // Prevent personal information inclusion
+  const normalizedCredential = credential.toLowerCase();
+  const normalizedEmail = emailAddr.toLowerCase();
+  const normalizedGivenName = givenName ? givenName.toLowerCase() : '';
+  const normalizedFamilyName = familyName ? familyName.toLowerCase() : '';
 
-  if (lowerPassword.includes(lowerEmail.split('@')[0]) || 
-      (lowerFirstName && lowerPassword.includes(lowerFirstName)) ||
-      (lowerLastName && lowerPassword.includes(lowerLastName))) {
+  if (normalizedCredential.includes(normalizedEmail.split('@')[0]) || 
+      (normalizedGivenName && normalizedCredential.includes(normalizedGivenName)) ||
+      (normalizedFamilyName && normalizedCredential.includes(normalizedFamilyName))) {
     return { isValid: false, message: 'Password cannot contain your email or name' };
   }
 
   return { isValid: true, message: 'Password is valid' };
 };
 
-// Generate JWT Token
-const generateToken = (userId, role) => {
+// Create authentication token
+const createAuthToken = (accountId, accountRole) => {
   return jwt.sign(
-    { user_id: userId, role: role },
+    { user_id: accountId, role: accountRole },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
   );
@@ -65,7 +65,7 @@ exports.register = async (req, res) => {
   try {
     const { first_name, last_name, email, password, phone, company, country, terms_accepted } = req.body;
 
-    // Validate required fields
+    // Verify mandatory input fields
     if (!first_name || !last_name || !email || !password) {
       return res.status(400).json({
         success: false,
@@ -76,7 +76,7 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Validate terms acceptance
+    // Confirm terms agreement
     if (!terms_accepted) {
       return res.status(400).json({
         success: false,
@@ -87,7 +87,7 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Validate names - no numerics allowed
+    // Verify name format - prohibit numeric characters
     if (/\d/.test(first_name)) {
       return res.status(400).json({
         success: false,
@@ -108,7 +108,7 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Validate organization/company - no numerics allowed
+    // Verify organization format - prohibit numeric characters
     if (company && /\d/.test(company)) {
       return res.status(400).json({
         success: false,
@@ -119,9 +119,9 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Validate email format
-    const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
-    if (!emailRegex.test(email)) {
+    // Verify email address format
+    const emailPattern = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+    if (!emailPattern.test(email)) {
       return res.status(400).json({
         success: false,
         error: {
@@ -131,21 +131,21 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Validate password strength - must meet documentation requirements
-    const passwordValidation = validatePassword(password, email, first_name, last_name);
-    if (!passwordValidation.isValid) {
+    // Verify credential strength requirements
+    const credentialCheck = verifyCredentialStrength(password, email, first_name, last_name);
+    if (!credentialCheck.isValid) {
       return res.status(400).json({
         success: false,
         error: {
           code: 'WEAK_PASSWORD',
-          message: passwordValidation.message
+          message: credentialCheck.message
         }
       });
     }
 
-    // Check if user exists
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
+    // Verify account uniqueness
+    const duplicateAccount = await clientService.findUserByEmail(email);
+    if (duplicateAccount) {
       return res.status(400).json({
         success: false,
         error: {
@@ -155,13 +155,13 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Create client user only (no role parameter accepted)
-    const user = await User.create({
+    // Initialize client account with restricted permissions
+    const newAccount = await User.create({
       first_name: first_name.trim(),
       last_name: last_name.trim(),
       email: email.toLowerCase().trim(),
       password,
-      role: 'client', // Force client role for public registration
+      role: 'client', // Enforce client role for public registration
       phone: phone?.trim(),
       company: company?.trim(),
       country: country?.trim(),
@@ -169,38 +169,33 @@ exports.register = async (req, res) => {
       terms_accepted_at: new Date()
     });
 
-    // Automatically add client to Contacts Management for lead conversion
+    // Initialize corresponding CRM customer record
     try {
-      const ContactForm = require('../models/ContactForm');
-      await ContactForm.create({
+      const Client = require('../models/Client');
+      const customerRecord = await Client.create({
         name: `${first_name.trim()} ${last_name.trim()}`,
         email: email.toLowerCase().trim(),
         phone: phone?.trim(),
-        visa_type: 'other', // Default visa type for registration
-        message: 'Client registered through website registration form',
-        inquiry_type: 'consultation',
-        priority: 'medium',
-        status: 'new',
-        user_id: user._id,
-        source: 'client_registration',
-        ip_address: req.ip,
-        user_agent: req.get('User-Agent')
+        university: company?.trim(),
+        status: 'active',
+        user_id: newAccount._id,
+        tags: ['self_registered'],
+        created_at: new Date()
       });
       
-      console.log(`✅ Client automatically added to Contacts Management: ${email}`);
-    } catch (contactError) {
-      console.error('⚠️ Failed to add client to Contacts Management:', contactError);
-      // Don't fail registration if contact creation fails
+      console.log(`✅ Customer record initialized: ${email} (ID: ${customerRecord._id})`);
+    } catch (customerError) {
+      console.error('⚠️ Customer record initialization failed:', customerError);
     }
 
-    // Generate token
-    const token = generateToken(user._id, user.role);
+    // Issue authentication token
+    const authToken = createAuthToken(newAccount._id, newAccount.role);
 
     res.status(201).json({
       success: true,
       message: 'Client account registered successfully',
-      data: user.toAuthJSON(),
-      token,
+      data: newAccount.toAuthJSON(),
+      token: authToken,
       expires_in: 86400
     });
   } catch (error) {
@@ -221,7 +216,7 @@ exports.login = async (req, res) => {
   try {
     const { email, password, isPasswordSetup } = req.body;
 
-    // Validate input
+    // Verify input presence
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -232,7 +227,7 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Validate email format
+    // Verify email format structure
     if (!email.includes('@')) {
       return res.status(400).json({
         success: false,
@@ -243,10 +238,10 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Find user and include password
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+    // Locate account by email address
+    const foundAccount = await clientService.findUserByEmail(email);
     
-    if (!user) {
+    if (!foundAccount) {
       return res.status(401).json({
         success: false,
         error: {
@@ -255,9 +250,33 @@ exports.login = async (req, res) => {
         }
       });
     }
+    
+    // Retrieve credentials separately
+    const accountWithCredentials = await User.findById(foundAccount._id).select('+password');
 
-    // Only allow client login through this endpoint
-    if (user.role !== 'client') {
+    // Log raw database information
+    console.log('🔐 Client authentication - Raw account data from DB:');
+    console.log('  - role:', accountWithCredentials.role);
+    console.log('  - email:', accountWithCredentials.email);
+    console.log('  - first_name:', accountWithCredentials.first_name);
+    
+    // Decrypt complete account object
+    const encryption = require('../middleware/encryptionMiddleware');
+    const decryptedAccount = encryption.decryptDocument(accountWithCredentials.toObject());
+    
+    // Extract role and state from decrypted information
+    const accountRole = decryptedAccount.role;
+    const accountState = decryptedAccount.status;
+    
+    console.log('🔐 Client authentication - After decryption:');
+    console.log('  - role:', accountRole, 'Type:', typeof accountRole);
+    console.log('  - status:', accountState);
+    console.log('  - email:', decryptedAccount.email);
+    console.log('  - first_name:', decryptedAccount.first_name);
+    
+    // Restrict access to client accounts only
+    if (accountRole !== 'client') {
+      console.log('🔐 Client authentication - Access denied for role:', accountRole);
       return res.status(403).json({
         success: false,
         error: {
@@ -267,8 +286,9 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check if user is active
-    if (user.status !== 'active') {
+    // Verify account is in active state
+    if (accountState !== 'active') {
+      console.log('🔐 Client authentication - Account inactive, status:', accountState);
       return res.status(401).json({
         success: false,
         error: {
@@ -278,8 +298,8 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check if user needs to set password
-    if (user.is_temp_password || !user.password) {
+    // Handle credential initialization requirement
+    if (accountWithCredentials.is_temp_password || !accountWithCredentials.password) {
       if (!isPasswordSetup) {
         return res.status(400).json({
           success: false,
@@ -290,45 +310,60 @@ exports.login = async (req, res) => {
         });
       }
 
-      // Validate password strength for new password
-      const passwordValidation = validatePassword(password, email, user.first_name, user.last_name);
-      if (!passwordValidation.isValid) {
+      // Retrieve decrypted account information for validation
+      const encryption = require('../middleware/encryptionMiddleware');
+      const decryptedAccount = encryption.decryptDocument(accountWithCredentials.toObject());
+      
+      console.log('🔐 Credential setup - Decrypted first_name:', decryptedAccount.first_name);
+      console.log('🔐 Credential setup - Decrypted last_name:', decryptedAccount.last_name);
+      
+      // Verify new credential strength
+      const credentialCheck = verifyCredentialStrength(
+        password, 
+        email, 
+        decryptedAccount.first_name, 
+        decryptedAccount.last_name
+      );
+      
+      if (!credentialCheck.isValid) {
         return res.status(400).json({
           success: false,
           error: {
             code: 'WEAK_PASSWORD',
-            message: passwordValidation.message
+            message: credentialCheck.message
           }
         });
       }
 
-      // Set the new password
-      user.password = password;
-      user.is_temp_password = false;
-      user.email_verified = true;
-      user.last_login = new Date();
-      await user.save();
+      // Initialize new credential
+      accountWithCredentials.password = password;
+      accountWithCredentials.is_temp_password = false;
+      accountWithCredentials.email_verified = true;
+      accountWithCredentials.last_login = new Date();
+      
+      // Save without modifying encrypted fields (role and status remain encrypted)
+      await accountWithCredentials.save();
 
-      // Generate token
-      const token = generateToken(user._id, user.role);
+      // Issue authentication token
+      const authToken = createAuthToken(accountWithCredentials._id, decryptedAccount.role);
 
       return res.json({
         success: true,
         message: 'Password set successfully and logged in',
         isNewPassword: true,
         data: {
-          ...user.toAuthJSON(),
+          ...accountWithCredentials.toAuthJSON(),
           redirectTo: '/dashboard/client'
         },
-        token,
+        token: authToken,
         expires_in: 86400
       });
     }
 
-    // User has existing password - validate it
-    const isPasswordValid = await user.comparePassword(password);
+    // Verify existing credential
+    const credentialMatches = await accountWithCredentials.comparePassword(password);
     
-    if (!isPasswordValid) {
+    if (!credentialMatches) {
       return res.status(401).json({
         success: false,
         error: {
@@ -338,21 +373,23 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Update last login
-    user.last_login = new Date();
-    await user.save();
+    // Update last authentication timestamp
+    accountWithCredentials.last_login = new Date();
+    
+    // Save without modifying encrypted fields (role and status remain encrypted)
+    await accountWithCredentials.save();
 
-    // Generate token
-    const token = generateToken(user._id, user.role);
+    // Issue authentication token
+    const authToken = createAuthToken(accountWithCredentials._id, decryptedAccount.role);
 
     res.json({
       success: true,
       message: 'Login successful',
       data: {
-        ...user.toAuthJSON(),
+        ...accountWithCredentials.toAuthJSON(),
         redirectTo: '/dashboard/client'
       },
-      token,
+      token: authToken,
       expires_in: 86400
     });
   } catch (error) {
@@ -373,7 +410,7 @@ exports.managerLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validate input
+    // Verify input presence
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -384,7 +421,7 @@ exports.managerLogin = async (req, res) => {
       });
     }
 
-    // Validate email format
+    // Verify email format structure
     if (!email.includes('@')) {
       return res.status(400).json({
         success: false,
@@ -395,10 +432,11 @@ exports.managerLogin = async (req, res) => {
       });
     }
 
-    // Find user and include password
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+    // Locate account with credentials
+    const allAccounts = await User.find({}).select('+password');
+    const foundAccount = allAccounts.find(acc => acc.email === email.toLowerCase());
     
-    if (!user) {
+    if (!foundAccount) {
       return res.status(401).json({
         success: false,
         error: {
@@ -408,9 +446,9 @@ exports.managerLogin = async (req, res) => {
       });
     }
 
-    // Only allow manager roles through this endpoint
-    const managerRoles = ['admin', 'lead_manager', 'crm_manager'];
-    if (!managerRoles.includes(user.role)) {
+    // Restrict to supervisor roles only
+    const supervisorRoles = ['admin', 'lead_manager', 'crm_manager', 'project_manager', 'employee'];
+    if (!supervisorRoles.includes(foundAccount.role)) {
       return res.status(403).json({
         success: false,
         error: {
@@ -420,8 +458,8 @@ exports.managerLogin = async (req, res) => {
       });
     }
 
-    // Check if user is active
-    if (user.status !== 'active') {
+    // Verify account is in active state
+    if (foundAccount.status !== 'active') {
       return res.status(401).json({
         success: false,
         error: {
@@ -431,10 +469,10 @@ exports.managerLogin = async (req, res) => {
       });
     }
 
-    // Verify password
-    const isPasswordValid = await user.comparePassword(password);
+    // Verify credential match
+    const credentialMatches = await foundAccount.comparePassword(password);
     
-    if (!isPasswordValid) {
+    if (!credentialMatches) {
       return res.status(401).json({
         success: false,
         error: {
@@ -444,37 +482,59 @@ exports.managerLogin = async (req, res) => {
       });
     }
 
-    // Update last login
-    user.last_login = new Date();
-    await user.save();
+    // Update last authentication timestamp
+    foundAccount.last_login = new Date();
+    await foundAccount.save();
 
-    // Generate token
-    const token = generateToken(user._id, user.role);
+    // Issue authentication token
+    const authToken = createAuthToken(foundAccount._id, foundAccount.role);
 
-    // Determine redirect URL based on role
-    let redirectTo = '/dashboard/admin'; // default
-    switch (user.role) {
+    // Retrieve decrypted account information
+    const accountPayload = foundAccount.toAuthJSON();
+    const accountRole = accountPayload.role;
+    console.log('🔐 Backend - Decrypted account role:', accountRole);
+    console.log('🔐 Backend - account role type:', typeof accountRole);
+    
+    // Determine navigation path based on role
+    let navigationPath = '/';
+    switch (accountRole) {
       case 'admin':
-        redirectTo = '/dashboard/admin';
+        console.log('🔐 Backend - Matched admin case');
+        navigationPath = '/dashboard/admin';
         break;
       case 'lead_manager':
-        redirectTo = '/dashboard/lead-manager';
+        console.log('🔐 Backend - Matched lead_manager case');
+        navigationPath = '/dashboard/lead-manager';
         break;
       case 'crm_manager':
-        redirectTo = '/dashboard/crm-manager';
+        console.log('🔐 Backend - Matched crm_manager case');
+        navigationPath = '/dashboard/crm-manager';
+        break;
+      case 'project_manager':
+        console.log('🔐 Backend - Matched project_manager case');
+        navigationPath = '/dashboard/project-manager';
+        break;
+      case 'employee':
+        console.log('🔐 Backend - Matched employee case');
+        navigationPath = '/dashboard/employee';
         break;
       default:
-        redirectTo = '/dashboard/admin';
+        console.log('🔐 Backend - No match, using default redirect');
+        navigationPath = '/';
     }
+    console.log('🔐 Backend - Final redirect path:', navigationPath);
+
+    const responsePayload = {
+      ...accountPayload,
+      redirectTo: navigationPath
+    };
+    console.log('🔐 Backend - Response data redirectTo:', responsePayload.redirectTo);
 
     res.json({
       success: true,
-      message: `${user.role.replace('_', ' ')} login successful`,
-      data: {
-        ...user.toAuthJSON(),
-        redirectTo: redirectTo
-      },
-      token,
+      message: `${accountRole.replace('_', ' ')} login successful`,
+      data: responsePayload,
+      token: authToken,
       expires_in: 86400
     });
   } catch (error) {
@@ -493,9 +553,9 @@ exports.managerLogin = async (req, res) => {
 // @access  Private
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.user_id);
+    const accountRecord = await User.findById(req.user.user_id);
     
-    if (!user) {
+    if (!accountRecord) {
       return res.status(404).json({
         success: false,
         error: {
@@ -507,7 +567,7 @@ exports.getMe = async (req, res) => {
 
     res.json({
       success: true,
-      data: user
+      data: accountRecord
     });
   } catch (error) {
     res.status(500).json({
@@ -538,10 +598,10 @@ exports.changePassword = async (req, res) => {
   try {
     const { current_password, new_password } = req.body;
 
-    // Find user with password
-    const user = await User.findById(req.user.user_id).select('+password');
+    // Locate account with credentials
+    const accountRecord = await User.findById(req.user.user_id).select('+password');
     
-    if (!user) {
+    if (!accountRecord) {
       return res.status(404).json({
         success: false,
         error: {
@@ -551,10 +611,10 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    // Verify current password
-    const isPasswordValid = await user.comparePassword(current_password);
+    // Verify current credential
+    const credentialMatches = await accountRecord.comparePassword(current_password);
     
-    if (!isPasswordValid) {
+    if (!credentialMatches) {
       return res.status(401).json({
         success: false,
         error: {
@@ -564,9 +624,9 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    // Update password
-    user.password = new_password;
-    await user.save();
+    // Update credential
+    accountRecord.password = new_password;
+    await accountRecord.save();
 
     res.json({
       success: true,
@@ -750,7 +810,18 @@ exports.resetPassword = async (req, res) => {
 // @access  Private
 exports.updateProfile = async (req, res) => {
   try {
-    const { first_name, last_name, phone, company, country, profile_picture, linkedin_url } = req.body;
+    const { 
+      first_name, 
+      last_name, 
+      phone, 
+      company, 
+      country, 
+      university,
+      linkedin_url,
+      portfolio_url,
+      website_url,
+      bio
+    } = req.body;
 
     // Validate required fields
     if (!first_name || !last_name) {
@@ -763,15 +834,26 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
-    // Update profile
+    // Handle profile picture from file upload
+    let profile_picture = null;
+    if (req.file) {
+      // File was uploaded via multer
+      profile_picture = `/uploads/profile-pictures/${req.file.filename}`;
+    }
+
+    // Update profile with all fields
     const { user, client } = await clientService.updateProfile(req.user.user_id, {
       first_name,
       last_name,
       phone,
       company,
       country,
+      university,
       profile_picture,
-      linkedin_url
+      linkedin_url,
+      portfolio_url,
+      website_url,
+      bio
     });
 
     res.json({
@@ -783,10 +865,127 @@ exports.updateProfile = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Profile update error:', error);
     res.status(500).json({
       success: false,
       error: {
         code: 'PROFILE_UPDATE_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Check if email already exists (for profile assessment)
+// @route   POST /api/auth/check-email
+// @access  Public
+exports.checkEmailExists = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'EMAIL_REQUIRED',
+          message: 'Email is required'
+        }
+      });
+    }
+
+    // Verify email format structure
+    const emailPattern = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+    if (!emailPattern.test(email)) {
+      return res.json({
+        success: true,
+        exists: false,
+        hasAssessment: false
+      });
+    }
+
+    const foundAccount = await clientService.findUserByEmail(email);
+    
+    if (!foundAccount) {
+      return res.json({
+        success: true,
+        exists: false,
+        hasAssessment: false
+      });
+    }
+
+    // Check if user has any profile assessments
+    const ProfileAssessment = require('../models/ProfileAssessment');
+    
+    console.log('🔍 Searching for assessments for user:', foundAccount._id, 'email:', email);
+    
+    // Try to find by user_id first, then fallback to email
+    let assessments = await ProfileAssessment.find({ 
+      user_id: foundAccount._id 
+    })
+    .sort({ createdAt: -1 })
+    .limit(1)
+    .select('_id client_name client_email client_phone overall_score profile_strength criteria_met createdAt');
+
+    console.log('📊 Assessments found by user_id:', assessments.length);
+
+    // If no assessment found by user_id, try searching by email (for assessments created before user linking)
+    if (assessments.length === 0) {
+      console.log('🔍 Trying to find by email...');
+      // Get all assessments and check email after decryption
+      const allAssessments = await ProfileAssessment.find({})
+        .sort({ createdAt: -1 })
+        .select('_id client_name client_email client_phone overall_score profile_strength criteria_met createdAt user_id');
+      
+      const encryption = require('../middleware/encryptionMiddleware');
+      
+      // Find assessment with matching email
+      for (const assessment of allAssessments) {
+        const decrypted = encryption.decryptDocument(assessment.toObject());
+        if (decrypted.client_email && decrypted.client_email.toLowerCase() === email.toLowerCase()) {
+          assessments = [assessment];
+          console.log('✅ Found assessment by email:', assessment._id);
+          break;
+        }
+      }
+    }
+
+    const hasAssessment = assessments.length > 0;
+    const latestAssessment = hasAssessment ? assessments[0] : null;
+    
+    console.log('📊 Final result - hasAssessment:', hasAssessment);
+    
+    // Decrypt the assessment data if found
+    let assessmentData = null;
+    if (latestAssessment) {
+      const encryption = require('../middleware/encryptionMiddleware');
+      const decryptedAssessment = encryption.decryptDocument(latestAssessment.toObject());
+      
+      assessmentData = {
+        id: decryptedAssessment._id,
+        client_name: decryptedAssessment.client_name,
+        client_email: decryptedAssessment.client_email,
+        client_phone: decryptedAssessment.client_phone,
+        overall_score: decryptedAssessment.overall_score,
+        profile_strength: decryptedAssessment.profile_strength,
+        criteria_met: decryptedAssessment.criteria_met,
+        createdAt: decryptedAssessment.createdAt
+      };
+      
+      console.log('✅ Returning assessment data:', assessmentData);
+    }
+    
+    res.json({
+      success: true,
+      exists: true,
+      hasAssessment,
+      assessment: assessmentData
+    });
+  } catch (error) {
+    console.error('Check email error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'CHECK_EMAIL_FAILED',
         message: error.message
       }
     });
@@ -810,9 +1009,9 @@ exports.checkUser = async (req, res) => {
       });
     }
 
-    // Validate email format
-    const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
-    if (!emailRegex.test(email)) {
+    // Verify email format structure
+    const emailPattern = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+    if (!emailPattern.test(email)) {
       return res.status(400).json({
         success: false,
         error: {
@@ -822,9 +1021,9 @@ exports.checkUser = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+    const foundAccount = await clientService.findUserByEmail(email);
     
-    if (!user) {
+    if (!foundAccount) {
       return res.json({
         success: true,
         exists: false,
@@ -834,17 +1033,28 @@ exports.checkUser = async (req, res) => {
       });
     }
 
-    // Check if user has a real password (not temporary)
-    const hasRealPassword = user.password && !user.is_temp_password;
+    // Retrieve credential status separately
+    const accountWithCredentials = await User.findById(foundAccount._id).select('+password');
+
+    // Decrypt account information before returning
+    const encryption = require('../middleware/encryptionMiddleware');
+    const decryptedAccount = encryption.decryptDocument(accountWithCredentials.toObject());
+    
+    console.log('🔐 checkUser - Decrypted first_name:', decryptedAccount.first_name);
+    console.log('🔐 checkUser - Decrypted last_name:', decryptedAccount.last_name);
+    console.log('🔐 checkUser - Role:', decryptedAccount.role);
+
+    // Verify credential status
+    const hasRealCredential = accountWithCredentials.password && !accountWithCredentials.is_temp_password;
     
     res.json({
       success: true,
       exists: true,
-      hasPassword: hasRealPassword,
-      needsPasswordSetup: user.is_temp_password || !user.password,
-      role: user.role,
-      first_name: user.first_name,
-      last_name: user.last_name
+      hasPassword: hasRealCredential,
+      needsPasswordSetup: accountWithCredentials.is_temp_password || !accountWithCredentials.password,
+      role: decryptedAccount.role,
+      first_name: decryptedAccount.first_name,
+      last_name: decryptedAccount.last_name
     });
   } catch (error) {
     res.status(500).json({
@@ -864,7 +1074,7 @@ exports.setupPassword = async (req, res) => {
   try {
     const { email, password, isNewUser } = req.body;
 
-    // Validate input
+    // Verify input presence
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -875,9 +1085,9 @@ exports.setupPassword = async (req, res) => {
       });
     }
 
-    // Validate email format
-    const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
-    if (!emailRegex.test(email)) {
+    // Verify email format structure
+    const emailPattern = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+    if (!emailPattern.test(email)) {
       return res.status(400).json({
         success: false,
         error: {
@@ -887,31 +1097,30 @@ exports.setupPassword = async (req, res) => {
       });
     }
 
-    let user;
+    let accountRecord;
 
     if (isNewUser) {
-      // Create new user
-      // Extract first and last name from email if not provided
+      // Initialize new account
       const emailUsername = email.split('@')[0];
       const nameParts = emailUsername.split(/[._-]/);
-      const firstName = nameParts[0] || 'User';
-      const lastName = nameParts[1] || '';
+      const givenName = nameParts[0] || 'User';
+      const familyName = nameParts[1] || '';
 
-      // Validate password strength
-      const passwordValidation = validatePassword(password, email, firstName, lastName);
-      if (!passwordValidation.isValid) {
+      // Verify credential strength
+      const credentialCheck = verifyCredentialStrength(password, email, givenName, familyName);
+      if (!credentialCheck.isValid) {
         return res.status(400).json({
           success: false,
           error: {
             code: 'WEAK_PASSWORD',
-            message: passwordValidation.message
+            message: credentialCheck.message
           }
         });
       }
 
-      // Check if user already exists
-      const existingUser = await User.findOne({ email: email.toLowerCase() });
-      if (existingUser) {
+      // Verify account uniqueness
+      const duplicateAccount = await clientService.findUserByEmail(email);
+      if (duplicateAccount) {
         return res.status(400).json({
           success: false,
           error: {
@@ -921,10 +1130,10 @@ exports.setupPassword = async (req, res) => {
         });
       }
 
-      // Create new user
-      user = await User.create({
-        first_name: firstName,
-        last_name: lastName,
+      // Initialize new account
+      accountRecord = await User.create({
+        first_name: givenName,
+        last_name: familyName,
         email: email.toLowerCase().trim(),
         password,
         role: 'client',
@@ -932,10 +1141,10 @@ exports.setupPassword = async (req, res) => {
         status: 'active'
       });
     } else {
-      // Update existing user's password
-      user = await User.findOne({ email: email.toLowerCase() });
+      // Update existing account credential
+      accountRecord = await clientService.findUserByEmail(email);
       
-      if (!user) {
+      if (!accountRecord) {
         return res.status(404).json({
           success: false,
           error: {
@@ -945,29 +1154,29 @@ exports.setupPassword = async (req, res) => {
         });
       }
 
-      // Validate password strength
-      const passwordValidation = validatePassword(password, email, user.first_name, user.last_name);
-      if (!passwordValidation.isValid) {
+      // Verify credential strength
+      const credentialCheck = verifyCredentialStrength(password, email, accountRecord.first_name, accountRecord.last_name);
+      if (!credentialCheck.isValid) {
         return res.status(400).json({
           success: false,
           error: {
             code: 'WEAK_PASSWORD',
-            message: passwordValidation.message
+            message: credentialCheck.message
           }
         });
       }
 
-      // Update password
-      user.password = password;
-      user.is_temp_password = false;
-      await user.save();
+      // Update credential
+      accountRecord.password = password;
+      accountRecord.is_temp_password = false;
+      await accountRecord.save();
     }
 
     res.json({
       success: true,
       message: isNewUser ? 'Account created successfully' : 'Password set successfully',
       data: {
-        user: user.toAuthJSON(),
+        user: accountRecord.toAuthJSON(),
         isNewUser
       }
     });
@@ -990,7 +1199,7 @@ exports.emailLogin = async (req, res) => {
   try {
     const { email, formData, source } = req.body;
 
-    // Validate input
+    // Verify input presence
     if (!email) {
       return res.status(400).json({
         success: false,
@@ -1001,9 +1210,9 @@ exports.emailLogin = async (req, res) => {
       });
     }
 
-    // Validate email format
-    const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
-    if (!emailRegex.test(email)) {
+    // Verify email format structure
+    const emailPattern = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+    if (!emailPattern.test(email)) {
       return res.status(400).json({
         success: false,
         error: {
@@ -1013,14 +1222,14 @@ exports.emailLogin = async (req, res) => {
       });
     }
 
-    // Use clientService to create or get existing client
-    const result = await clientService.createOrGetClient(formData, source);
-    const { user, client, isNewUser } = result;
+    // Initialize or retrieve customer record
+    const operationResult = await clientService.createOrGetClient(formData, source);
+    const { user, client, isNewUser } = operationResult;
 
-    // Generate token for immediate login
-    const token = generateToken(user._id, user.role);
+    // Issue authentication token for immediate access
+    const authToken = createAuthToken(user._id, user.role);
 
-    // Update last login
+    // Update last authentication timestamp
     user.last_login = new Date();
     await user.save();
 
@@ -1034,7 +1243,7 @@ exports.emailLogin = async (req, res) => {
         needsPasswordSetup: user.is_temp_password,
         redirectTo: '/dashboard/client'
       },
-      token,
+      token: authToken,
       expires_in: 86400
     });
   } catch (error) {
@@ -1043,6 +1252,67 @@ exports.emailLogin = async (req, res) => {
       success: false,
       error: {
         code: 'EMAIL_LOGIN_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// @desc    Get current user profile
+// @route   GET /api/auth/me
+// @access  Private
+exports.getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.user_id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: 'User not found'
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      data: user.toAuthJSON()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'GET_PROFILE_FAILED',
+        message: error.message
+      }
+    });
+  }
+};
+
+// Duplicate updateProfile removed - using the comprehensive one above at line 751
+
+// @desc    Logout user
+// @route   POST /api/auth/logout
+// @access  Private
+exports.logout = async (req, res) => {
+  try {
+    // Update last logout time
+    const user = await User.findById(req.user.user_id);
+    if (user) {
+      user.last_logout = new Date();
+      await user.save();
+    }
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'LOGOUT_FAILED',
         message: error.message
       }
     });
@@ -1079,7 +1349,7 @@ exports.changePasswordEnhanced = async (req, res) => {
 
     // Validate password strength - get user email for validation
     const user = await User.findById(req.user.user_id);
-    const passwordValidation = validatePassword(new_password, user.email, user.first_name, user.last_name);
+    const passwordValidation = verifyCredentialStrength(new_password, user.email, user.first_name, user.last_name);
     if (!passwordValidation.isValid) {
       return res.status(400).json({
         success: false,

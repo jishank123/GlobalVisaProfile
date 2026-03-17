@@ -1,6 +1,7 @@
 const ContactForm = require('../models/ContactForm');
 const ActivityLog = require('../models/ActivityLog');
 const clientService = require('../services/clientService');
+const EncryptionManager = require('../utils/encryptionManager');
 const { validationResult } = require('express-validator');
 
 /**
@@ -59,17 +60,114 @@ const submitContactForm = async (req, res) => {
       utm_medium: utm_medium || 'Not provided'
     });
 
-    // Check for duplicate recent submissions (prevent spam)
-    console.log('🔍 Step 3: Checking for duplicate submissions...');
-    const recentSubmission = await ContactForm.findOne({
-      email: email.toLowerCase(),
-      createdAt: { $gte: new Date(Date.now() - 1 * 60 * 1000) } // Last 1 minute (for testing)
+    // Use deferred encryption for the entire process
+    const result = await EncryptionManager.bulkOperationWithDeferredEncryption(async () => {
+      // Check for duplicate recent submissions (prevent spam)
+      console.log('🔍 Step 3: Checking for duplicate submissions...');
+      const recentSubmission = await ContactForm.findOne({
+        email: email.toLowerCase(),
+        createdAt: { $gte: new Date(Date.now() - 1 * 60 * 1000) } // Last 1 minute (for testing)
+      });
+
+      if (recentSubmission) {
+        console.log('⚠️ DUPLICATE SUBMISSION DETECTED:');
+        console.log('⚠️ Recent submission found for email:', email);
+        console.log('⚠️ Previous submission time:', recentSubmission.createdAt);
+        return { error: 'DUPLICATE_SUBMISSION' };
+      }
+      console.log('✅ No duplicate submissions found');
+
+      // Create contact form submission (without encryption)
+      console.log('💾 Step 4: Creating database record...');
+      const contactSubmissionData = {
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        phone: phone?.trim(),
+        visa_type,
+        message: message.trim(),
+        utm_source: utm_source?.trim(),
+        utm_medium: utm_medium?.trim(),
+        utm_campaign: utm_campaign?.trim(),
+        referrer_url: referrer_url?.trim(),
+        ip_address: req.ip,
+        user_agent: req.get('User-Agent'),
+        source: 'website_contact'
+      };
+
+      const contactSubmission = new ContactForm(contactSubmissionData);
+      const savedContactSubmission = await contactSubmission.save();
+      console.log('✅ DATABASE SAVE SUCCESSFUL!');
+      console.log('✅ Contact Submission ID:', savedContactSubmission._id);
+
+      const documentsToEncrypt = [savedContactSubmission];
+
+      // Auto-register client account (without encryption)
+      console.log('🔄 Step 5: Auto-registering client account...');
+      try {
+        const autoRegResult = await clientService.createOrGetClient({
+          name,
+          email,
+          phone,
+          company: '',
+          current_location: ''
+        }, 'contact_form');
+
+        const { user, client, isNewUser, isNewClient } = autoRegResult;
+        console.log(`✅ Client ${isNewUser ? 'created' : 'found'}:`, user.email);
+        
+        // Add to documents to encrypt - only newly created ones
+        if (isNewUser) {
+          documentsToEncrypt.push(user);
+        }
+        if (isNewClient) {
+          documentsToEncrypt.push(client);
+        }
+        
+        // Link contact form to user (without encryption)
+        savedContactSubmission.user_id = user._id;
+        savedContactSubmission.client_id = client._id;
+        await savedContactSubmission.save();
+        
+      } catch (autoRegError) {
+        console.error('⚠️ Auto-registration failed (non-critical):', autoRegError.message);
+      }
+
+      // Log activity for security audit (without encryption)
+      console.log('📝 Step 7: Creating activity log...');
+      try {
+        const activityLog = await ActivityLog.create({
+          user: null, // Anonymous submission
+          action: 'create',
+          resourceType: 'ContactForm',
+          resourceId: savedContactSubmission._id,
+          description: `Contact form submitted by ${email}`,
+          metadata: {
+            email,
+            visa_type,
+            inquiry_type: savedContactSubmission.inquiry_type,
+            priority: savedContactSubmission.priority,
+            message_length: message.length,
+            utm_source,
+            utm_medium
+          },
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent')
+        });
+        
+        documentsToEncrypt.push(activityLog);
+        console.log('✅ Activity log created successfully');
+      } catch (logError) {
+        console.log('⚠️ Activity log creation failed (non-critical):', logError.message);
+      }
+
+      return {
+        contactSubmission: savedContactSubmission,
+        documents: documentsToEncrypt
+      };
     });
 
-    if (recentSubmission) {
-      console.log('⚠️ DUPLICATE SUBMISSION DETECTED:');
-      console.log('⚠️ Recent submission found for email:', email);
-      console.log('⚠️ Previous submission time:', recentSubmission.createdAt);
+    // Handle duplicate submission error
+    if (result.error === 'DUPLICATE_SUBMISSION') {
       return res.status(429).json({
         success: false,
         error: {
@@ -78,126 +176,28 @@ const submitContactForm = async (req, res) => {
         }
       });
     }
-    console.log('✅ No duplicate submissions found');
-
-    // Create contact form submission
-    console.log('💾 Step 4: Creating database record...');
-    const contactSubmissionData = {
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      phone: phone?.trim(),
-      visa_type,
-      message: message.trim(),
-      utm_source: utm_source?.trim(),
-      utm_medium: utm_medium?.trim(),
-      utm_campaign: utm_campaign?.trim(),
-      referrer_url: referrer_url?.trim(),
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent'),
-      source: 'website_contact'
-    };
-
-    console.log('💾 Contact submission data prepared for database:', {
-      ...contactSubmissionData,
-      user_agent: '[TRUNCATED]' // Don't log full user agent
-    });
-
-    const contactSubmission = new ContactForm(contactSubmissionData);
-
-    console.log('💾 Attempting to save to database...');
-    const savedContactSubmission = await contactSubmission.save();
-    console.log('✅ DATABASE SAVE SUCCESSFUL!');
-    console.log('✅ Contact Submission ID:', savedContactSubmission._id);
-    console.log('✅ Created At:', savedContactSubmission.createdAt);
-    console.log('✅ Status:', savedContactSubmission.status);
-    console.log('✅ Priority:', savedContactSubmission.priority);
-
-    // Auto-register client account
-    console.log('🔄 Step 5: Auto-registering client account...');
-    try {
-      const { user, client, isNewUser } = await clientService.createOrGetClient({
-        name,
-        email,
-        phone,
-        company: '',
-        current_location: ''
-      }, 'contact_form');
-
-      console.log(`✅ Client ${isNewUser ? 'created' : 'found'}:`, user.email);
-      
-      // Link contact form to user
-      savedContactSubmission.user_id = user._id;
-      savedContactSubmission.client_id = client._id;
-      await savedContactSubmission.save();
-      
-    } catch (autoRegError) {
-      console.error('⚠️ Auto-registration failed (non-critical):', autoRegError.message);
-      // Continue with contact form submission even if auto-registration fails
-    }
 
     // Verify the save by counting documents
     console.log('🔍 Step 6: Verifying database storage...');
     const totalContactForms = await ContactForm.countDocuments();
     console.log('📊 Total contact forms in database:', totalContactForms);
 
-    // Double-check by finding the just-saved record
-    const verifyRecord = await ContactForm.findById(savedContactSubmission._id);
-    if (verifyRecord) {
-      console.log('✅ VERIFICATION SUCCESSFUL: Record found in database');
-      console.log('✅ Verified data:', {
-        id: verifyRecord._id,
-        name: verifyRecord.name,
-        email: verifyRecord.email,
-        visa_type: verifyRecord.visa_type,
-        status: verifyRecord.status,
-        inquiry_type: verifyRecord.inquiry_type
-      });
-    } else {
-      console.log('❌ VERIFICATION FAILED: Record not found in database');
-    }
-
-    // Log activity for security audit
-    console.log('📝 Step 7: Creating activity log...');
-    try {
-      await ActivityLog.create({
-        user: null, // Anonymous submission
-        action: 'create',
-        resourceType: 'ContactForm',
-        resourceId: savedContactSubmission._id,
-        description: `Contact form submitted by ${email}`,
-        metadata: {
-          email,
-          visa_type,
-          inquiry_type: savedContactSubmission.inquiry_type,
-          priority: savedContactSubmission.priority,
-          message_length: message.length,
-          utm_source,
-          utm_medium
-        },
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent')
-      });
-      console.log('✅ Activity log created successfully');
-    } catch (logError) {
-      console.log('⚠️ Activity log creation failed (non-critical):', logError.message);
-    }
-
-    // Return success response (excluding sensitive data)
+    // Return success response (excluding sensitive data) - encryption happens in background
     console.log('📤 Step 8: Sending response to client...');
     const responseData = {
       success: true,
       message: 'Thank you for contacting us! We will respond to your inquiry within 24-48 hours.',
       data: {
-        submission_id: savedContactSubmission._id,
-        name: savedContactSubmission.name,
-        email: savedContactSubmission.email,
-        visa_type: savedContactSubmission.visa_type_display,
-        inquiry_type: savedContactSubmission.inquiry_type,
-        priority: savedContactSubmission.priority,
-        status: savedContactSubmission.status,
-        submission_date: savedContactSubmission.createdAt,
-        reference_number: `CNT-${savedContactSubmission._id.toString().slice(-8).toUpperCase()}`,
-        response_deadline: savedContactSubmission.response_deadline
+        submission_id: result.contactSubmission._id,
+        name: result.contactSubmission.name,
+        email: result.contactSubmission.email,
+        visa_type: result.contactSubmission.visa_type_display,
+        inquiry_type: result.contactSubmission.inquiry_type,
+        priority: result.contactSubmission.priority,
+        status: result.contactSubmission.status,
+        submission_date: result.contactSubmission.createdAt,
+        reference_number: `CNT-${result.contactSubmission._id.toString().slice(-8).toUpperCase()}`,
+        response_deadline: result.contactSubmission.response_deadline
       }
     };
 
@@ -208,10 +208,10 @@ const submitContactForm = async (req, res) => {
     console.log('🎉 Summary:');
     console.log('  - Client:', name, '(' + email + ')');
     console.log('  - Visa Type:', visa_type);
-    console.log('  - Inquiry Type:', savedContactSubmission.inquiry_type);
-    console.log('  - Priority:', savedContactSubmission.priority);
-    console.log('  - Database ID:', savedContactSubmission._id);
-    console.log('  - Reference:', `CNT-${savedContactSubmission._id.toString().slice(-8).toUpperCase()}`);
+    console.log('  - Inquiry Type:', result.contactSubmission.inquiry_type);
+    console.log('  - Priority:', result.contactSubmission.priority);
+    console.log('  - Database ID:', result.contactSubmission._id);
+    console.log('  - Reference:', `CNT-${result.contactSubmission._id.toString().slice(-8).toUpperCase()}`);
     console.log('  - Total Contact Forms:', totalContactForms);
     console.log('🎉 ===============================================\n');
 
@@ -612,11 +612,22 @@ const addCommunication = async (req, res) => {
 // @route   POST /api/contact/:id/convert-to-lead
 // @access  Private (Admin/Manager only)
 const convertToLead = async (req, res) => {
+  console.log('\n🔄 ========== CONVERT CONTACT TO LEAD START ==========');
+  console.log('⏰ Start Time:', new Date().toISOString());
+  console.log('👤 User:', req.user?.email, 'Role:', req.user?.role);
+  console.log('🆔 Contact ID:', req.params.id);
+  console.log('📝 Request Body:', req.body);
+  
   try {
     const { service_interest, priority, assigned_to, notes } = req.body;
     
+    console.log('🔍 Step 1: Finding contact form...');
+    const startFind = Date.now();
     const contactForm = await ContactForm.findById(req.params.id);
+    console.log(`✅ Step 1 completed in ${Date.now() - startFind}ms`);
+    
     if (!contactForm) {
+      console.log('❌ Contact form not found');
       return res.status(404).json({
         success: false,
         error: {
@@ -625,8 +636,40 @@ const convertToLead = async (req, res) => {
         }
       });
     }
+    
+    console.log('🔍 Step 1.5: Decrypting contact form data...');
+    const startDecrypt = Date.now();
+    // Decrypt the contact form data before using it
+    const encryption = require('../middleware/encryptionMiddleware');
+    
+    // Decrypt individual fields
+    contactForm.name = encryption.decrypt(contactForm.name);
+    contactForm.email = encryption.decrypt(contactForm.email);
+    if (contactForm.phone) {
+      contactForm.phone = encryption.decrypt(contactForm.phone);
+    }
+    if (contactForm.message) {
+      contactForm.message = encryption.decrypt(contactForm.message);
+    }
+    // Decrypt enum fields to avoid validation errors
+    if (contactForm.visa_type) {
+      contactForm.visa_type = encryption.decrypt(contactForm.visa_type);
+    }
+    if (contactForm.inquiry_type) {
+      contactForm.inquiry_type = encryption.decrypt(contactForm.inquiry_type);
+    }
+    if (contactForm.source) {
+      contactForm.source = encryption.decrypt(contactForm.source);
+    }
+    if (contactForm.priority) {
+      contactForm.priority = encryption.decrypt(contactForm.priority);
+    }
+    
+    console.log(`✅ Step 1.5 completed in ${Date.now() - startDecrypt}ms`);
+    console.log('✅ Contact form found (decrypted):', contactForm.name, contactForm.email);
 
     if (contactForm.converted_to_lead) {
+      console.log('⚠️ Already converted to lead:', contactForm.converted_to_lead);
       return res.status(400).json({
         success: false,
         error: {
@@ -636,10 +679,14 @@ const convertToLead = async (req, res) => {
       });
     }
 
-    // Create lead from contact form
+    console.log('🔍 Step 2: Loading Lead model...');
+    const startLoadModel = Date.now();
     const Lead = require('../models/Lead');
     const User = require('../models/User');
+    console.log(`✅ Step 2 completed in ${Date.now() - startLoadModel}ms`);
     
+    console.log('🔍 Step 3: Preparing lead data...');
+    const startPrepare = Date.now();
     // Prepare lead data
     const nameParts = contactForm.name.trim().split(' ');
     const firstName = nameParts[0] || contactForm.name;
@@ -652,23 +699,40 @@ const convertToLead = async (req, res) => {
       phone: contactForm.phone,
       university: 'Unknown',
       country: 'Unknown',
-      source: 'contact_form', // Now this is a valid enum value
-      notes: notes || contactForm.message,
+      source: 'contact_us',
+      notes: notes || '',
       priority: priority || contactForm.priority || 'medium',
       estimatedValue: 0,
       status: 'new'
-      // Removed auto-assignment - leads should be manually assigned after qualification
     };
+    console.log(`✅ Step 3 completed in ${Date.now() - startPrepare}ms`);
+    console.log('📊 Lead data prepared:', { firstName, lastName, email: contactForm.email, priority: leadData.priority });
     
+    console.log('🔍 Step 4: Creating lead in database...');
+    const startCreate = Date.now();
     const lead = new Lead(leadData);
     await lead.save();
+    console.log(`✅ Step 4 completed in ${Date.now() - startCreate}ms`);
+    console.log('✅ Lead created with ID:', lead._id);
     
+    console.log('🔍 Step 5: Populating lead data...');
+    const startPopulate = Date.now();
     // Populate the created lead
     await lead.populate('assignedTo', 'first_name last_name email');
+    console.log(`✅ Step 5 completed in ${Date.now() - startPopulate}ms`);
 
-    // Update contact form with conversion
-    await contactForm.convertToLead(lead);
+    console.log('🔍 Step 6: Updating contact form...');
+    const startUpdate = Date.now();
+    // Update contact form with conversion - direct update to avoid potential method issues
+    contactForm.converted_to_lead = lead._id;
+    contactForm.conversion_date = new Date();
+    contactForm.status = 'resolved';
+    // Save with validation disabled to avoid enum validation on encrypted fields
+    await contactForm.save({ validateBeforeSave: false });
+    console.log(`✅ Step 6 completed in ${Date.now() - startUpdate}ms`);
 
+    console.log('🔍 Step 7: Logging activity...');
+    const startLog = Date.now();
     // Log conversion
     await ActivityLog.create({
       user: req.user._id,
@@ -684,7 +748,11 @@ const convertToLead = async (req, res) => {
       ipAddress: req.ip,
       userAgent: req.get('User-Agent')
     });
+    console.log(`✅ Step 7 completed in ${Date.now() - startLog}ms`);
 
+    console.log('🎉 ========== CONVERT CONTACT TO LEAD SUCCESS ==========');
+    console.log('⏰ Total Time:', Date.now() - startFind, 'ms');
+    
     res.json({
       success: true,
       message: 'Contact form converted to lead successfully',
@@ -695,8 +763,11 @@ const convertToLead = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Convert to Lead Error:', error);
-    console.error('Error details:', {
+    console.error('❌ ========== CONVERT CONTACT TO LEAD ERROR ==========');
+    console.error('❌ Error Type:', error.name);
+    console.error('❌ Error Message:', error.message);
+    console.error('❌ Error Stack:', error.stack);
+    console.error('❌ Error details:', {
       message: error.message,
       stack: error.stack,
       name: error.name

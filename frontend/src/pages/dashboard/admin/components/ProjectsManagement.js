@@ -75,6 +75,8 @@ const ProjectsManagement = () => {
           return project.status === 'completed';
         case 'on_hold':
           return project.status === 'on_hold';
+        case 'cancelled':
+          return project.status === 'cancelled';
         default:
           return true;
       }
@@ -89,7 +91,8 @@ const ProjectsManagement = () => {
       active: projects.filter(project => project.status === 'active' || project.status === 'in_progress').length,
       pending: projects.filter(project => project.status === 'pending').length,
       completed: projects.filter(project => project.status === 'completed').length,
-      onHold: projects.filter(project => project.status === 'on_hold').length
+      onHold: projects.filter(project => project.status === 'on_hold').length,
+      cancelled: projects.filter(project => project.status === 'cancelled').length
     };
   };
 
@@ -233,18 +236,17 @@ const ProjectsManagement = () => {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead style={componentStyles.tableHeader}>
             <tr>
-              <th style={componentStyles.tableHeaderCell}>Project ID</th>
-              <th style={componentStyles.tableHeaderCell}>Client</th>
-              <th style={componentStyles.tableHeaderCell}>Lead Manager</th>
-              <th style={componentStyles.tableHeaderCell}>CRM Manager</th>
-              <th style={componentStyles.tableHeaderCell}>Service</th>
-              <th style={componentStyles.tableHeaderCell}>Status</th>
-              <th style={componentStyles.tableHeaderCell}>Priority</th>
-              <th style={componentStyles.tableHeaderCell}>Progress</th>
-              <th style={componentStyles.tableHeaderCell}>Actions</th>
+              <th style={{...componentStyles.tableHeaderCell, flex: 1, minWidth: '100px'}}>Project ID</th>
+              <th style={{...componentStyles.tableHeaderCell, flex: 1, minWidth: '120px'}}>Client</th>
+              <th style={{...componentStyles.tableHeaderCell, flex: 1, minWidth: '120px'}}>Lead Manager</th>
+              <th style={{...componentStyles.tableHeaderCell, flex: 1, minWidth: '120px'}}>CRM Manager</th>
+              <th style={{...componentStyles.tableHeaderCell, flex: 1, minWidth: '110px'}}>Service</th>
+              <th style={{...componentStyles.tableHeaderCell, flex: 1, minWidth: '90px'}}>Status</th>
+              <th style={{...componentStyles.tableHeaderCell, flex: 1, minWidth: '90px'}}>Progress</th>
+              <th style={{...componentStyles.tableHeaderCell, flex: 1, minWidth: '100px'}}>Actions</th>
             </tr>
           </thead>
-          <tbody>
+            <tbody>
             {filteredProjects.map(project => {
               const statusStyle = getStatusBadgeStyle(project.status);
               const priorityStyle = getPriorityStyle(project.priority || 'medium');
@@ -263,26 +265,35 @@ const ProjectsManagement = () => {
                         background: designSystem.colors.primary,
                         color: 'white',
                         fontFamily: 'monospace',
-                        fontSize: '13px',
+                        fontSize: '11px',
                         fontWeight: '600',
-                        padding: '6px 12px'
+                        padding: '4px 8px',
+                        display: 'inline-block',
+                        maxWidth: '100%',
+                        wordBreak: 'break-word'
                       }}
                     >
                       {project.project_id || `#${project._id.slice(-8).toUpperCase()}`}
                     </span>
                   </td>
-                  <td style={componentStyles.tableCell}>
+                  <td style={{
+                    ...componentStyles.tableCell,
+                    wordBreak: 'break-word',
+                    whiteSpace: 'normal',
+                    maxWidth: '200px'
+                  }}>
                     <div>
                       <div style={{ 
                         fontWeight: designSystem.typography.fontWeight.medium,
-                        marginBottom: '2px'
+                        marginBottom: '2px',
+                        wordBreak: 'break-word'
                       }}>
                         {project.client?.name || 
                          (project.client?.firstName && project.client?.lastName ? 
                           `${project.client.firstName} ${project.client.lastName}` : 
                           'Unknown Client')}
                       </div>
-                      <small style={{ color: designSystem.colors.gray[500] }}>
+                      <small style={{ color: designSystem.colors.gray[500], wordBreak: 'break-word' }}>
                         {project.client?.email || 'No email'}
                       </small>
                     </div>
@@ -337,8 +348,11 @@ const ProjectsManagement = () => {
                       color: 'white',
                       padding: '4px 8px',
                       borderRadius: '4px',
-                      fontSize: '12px',
-                      fontWeight: '600'
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      display: 'inline-block',
+                      maxWidth: '100%',
+                      wordBreak: 'break-word'
                     }}>
                       {project.service?.name || project.service_name || 'Unknown Service'}
                     </span>
@@ -353,16 +367,6 @@ const ProjectsManagement = () => {
                       fontWeight: '600'
                     }}>
                       {project.status.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td style={componentStyles.tableCell}>
-                    <span style={{
-                      ...priorityStyle,
-                      fontWeight: designSystem.typography.fontWeight.bold,
-                      textTransform: 'uppercase',
-                      fontSize: '12px'
-                    }}>
-                      {(project.priority || 'medium')}
                     </span>
                   </td>
                   <td style={componentStyles.tableCell}>
@@ -469,11 +473,11 @@ const ProjectsManagement = () => {
           iconColor="#3b82f6"
         />
         <StatCard
-          icon="fas fa-clock"
-          number={getProjectCounts().pending}
-          label="Pending Projects"
-          borderColor="#f59e0b"
-          iconColor="#f59e0b"
+          icon="fas fa-pause-circle"
+          number={getProjectCounts().onHold}
+          label="Hold Projects"
+          borderColor="#ef4444"
+          iconColor="#ef4444"
         />
         <StatCard
           icon="fas fa-check-circle"
@@ -556,6 +560,18 @@ const ProjectsManagement = () => {
                 {...hoverEffects.button}
               >
                 On Hold ({getProjectCounts().onHold})
+              </button>
+              <button 
+                style={{
+                  ...componentStyles.primaryButton,
+                  background: activeTab === 'cancelled' ? '#6b7280' : designSystem.colors.gray[100],
+                  color: activeTab === 'cancelled' ? 'white' : designSystem.colors.gray[600],
+                  boxShadow: activeTab === 'cancelled' ? designSystem.shadows.button : 'none'
+                }}
+                onClick={() => setActiveTab('cancelled')}
+                {...hoverEffects.button}
+              >
+                Cancelled ({getProjectCounts().cancelled})
               </button>
             </div>
           </div>

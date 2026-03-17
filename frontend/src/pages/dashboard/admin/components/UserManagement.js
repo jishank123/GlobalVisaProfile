@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { usersAPI } from '../../../../services/api';
 import { designSystem, componentStyles, hoverEffects, getStatusBadgeStyle } from '../../../../styles/designSystem';
+import { validateEmail, validatePassword, validatePhone } from '../../../../utils/validation';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -21,14 +22,47 @@ const UserManagement = () => {
     country: ''
   });
   const [formErrors, setFormErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     loadUserManagement();
   }, []);
 
   const validateEmail = (email) => {
+    // Check if email contains @
+    if (!email.includes('@')) {
+      return { isValid: false, message: 'Email must contain @' };
+    }
+    
+    // Check if email has text before @
+    const parts = email.split('@');
+    if (parts[0].length === 0) {
+      return { isValid: false, message: 'Email must have text before @' };
+    }
+    
+    // Check if email has domain after @
+    if (parts.length < 2 || parts[1].length === 0) {
+      return { isValid: false, message: 'Email must have domain after @' };
+    }
+    
+    // Check if domain contains a dot
+    if (!parts[1].includes('.')) {
+      return { isValid: false, message: 'Email domain must contain a dot (e.g., .com, .org)' };
+    }
+    
+    // Check if there's text after the last dot
+    const domainParts = parts[1].split('.');
+    if (domainParts[domainParts.length - 1].length < 2) {
+      return { isValid: false, message: 'Email must have valid extension (e.g., .com, .org, .net)' };
+    }
+    
+    // Full email regex validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    if (!emailRegex.test(email)) {
+      return { isValid: false, message: 'Please enter a valid email address' };
+    }
+    
+    return { isValid: true, message: '' };
   };
 
   const validatePassword = (password) => {
@@ -56,22 +90,34 @@ const UserManagement = () => {
     // Required field validation
     if (!formData.first_name.trim()) errors.first_name = 'First name is required';
     if (!formData.last_name.trim()) errors.last_name = 'Last name is required';
-    if (!formData.email.trim()) errors.email = 'Email is required';
-    if (!formData.password) errors.password = 'Password is required';
-    if (!formData.role) errors.role = 'Role is required';
-
-    // Email validation
-    if (formData.email && !validateEmail(formData.email)) {
-      errors.email = 'Please enter a valid email address';
-    }
-
-    // Password validation
-    if (formData.password) {
-      const passwordValidation = validatePassword(formData.password);
-      if (!passwordValidation.isValid) {
-        errors.password = 'Password does not meet requirements';
+    
+    if (!formData.email.trim()) {
+      errors.email = 'Email is required';
+    } else {
+      // Email validation using utility function
+      const emailValidation = validateEmail(formData.email);
+      if (!emailValidation.isValid && emailValidation.errors && emailValidation.errors.length > 0) {
+        errors.email = emailValidation.errors[0]; // Show first error
+      } else if (emailValidation.isValid) {
+        // Check if email already exists
+        const existingUser = users.find(user => user.email.toLowerCase() === formData.email.toLowerCase().trim());
+        if (existingUser) {
+          errors.email = 'Email already exists. Please use a different email address.';
+        }
       }
     }
+    
+    if (!formData.password) {
+      errors.password = 'Password is required';
+    } else {
+      // Password validation using utility function
+      const passwordValidation = validatePassword(formData.password);
+      if (!passwordValidation.isValid && passwordValidation.errors && passwordValidation.errors.length > 0) {
+        errors.password = passwordValidation.errors[0]; // Show first error
+      }
+    }
+    
+    if (!formData.role) errors.role = 'Role is required';
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -105,15 +151,15 @@ const UserManagement = () => {
     
     switch (type) {
       case 'clients':
-        return activeUsers.filter(user => user.role === 'client');
+        return activeUsers.filter(user => user.role === 'client' && user.status !== 'inactive');
       case 'managers':
-        return activeUsers.filter(user => ['lead_manager', 'crm_manager'].includes(user.role));
-      case 'project_managers':
-        return activeUsers.filter(user => user.role === 'project_manager');
+        return activeUsers.filter(user => ['lead_manager', 'crm_manager', 'project_manager'].includes(user.role) && user.status !== 'inactive');
       case 'employees':
-        return activeUsers.filter(user => user.role === 'employee');
+        return activeUsers.filter(user => user.role === 'employee' && user.status !== 'inactive');
       case 'admins':
-        return activeUsers.filter(user => user.role === 'admin');
+        return activeUsers.filter(user => user.role === 'admin' && user.status !== 'inactive');
+      case 'inactive':
+        return activeUsers.filter(user => user.status === 'inactive');
       default:
         return activeUsers;
     }
@@ -124,10 +170,10 @@ const UserManagement = () => {
     const activeUsers = users.filter(user => user.status !== 'deleted');
     return {
       clients: activeUsers.filter(user => user.role === 'client').length,
-      managers: activeUsers.filter(user => ['lead_manager', 'crm_manager'].includes(user.role)).length,
-      project_managers: activeUsers.filter(user => user.role === 'project_manager').length,
+      managers: activeUsers.filter(user => ['lead_manager', 'crm_manager', 'project_manager'].includes(user.role)).length,
       employees: activeUsers.filter(user => user.role === 'employee').length,
       admins: activeUsers.filter(user => user.role === 'admin').length,
+      inactive: activeUsers.filter(user => user.status === 'inactive').length,
       total: activeUsers.length
     };
   };
@@ -163,7 +209,7 @@ const UserManagement = () => {
         color: 'white'
       },
       'project_manager': {
-        background: '#0dcaf0',
+        background: '#e83e8c',
         color: 'white'
       },
       'employee': {
@@ -180,17 +226,77 @@ const UserManagement = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    
+    // Enforce 20-character limit for password
+    if (name === 'password' && value.length > 20) {
+      return;
+    }
+    
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
     
-    // Clear error for this field when user starts typing
-    if (formErrors[name]) {
+    // Real-time validation for email
+    if (name === 'email' && value.trim()) {
+      const emailValidation = validateEmail(value);
+      if (!emailValidation.isValid && emailValidation.errors && emailValidation.errors.length > 0) {
+        setFormErrors(prev => ({
+          ...prev,
+          email: emailValidation.errors[0]
+        }));
+      } else if (emailValidation.isValid) {
+        // Check if email already exists
+        const existingUser = users.find(user => user.email.toLowerCase() === value.toLowerCase().trim());
+        if (existingUser) {
+          setFormErrors(prev => ({
+            ...prev,
+            email: 'Email already exists. Please use a different email address.'
+          }));
+        } else {
+          // Clear error if validation passes
+          setFormErrors(prev => ({
+            ...prev,
+            email: ''
+          }));
+        }
+      }
+    } else if (name === 'email' && !value.trim()) {
+      // Clear error when field is empty
       setFormErrors(prev => ({
         ...prev,
         [name]: ''
       }));
+    } 
+    // Real-time validation for phone
+    else if (name === 'phone' && value.trim()) {
+      const phoneValidation = validatePhone(value);
+      if (!phoneValidation.isValid && phoneValidation.errors && phoneValidation.errors.length > 0) {
+        setFormErrors(prev => ({
+          ...prev,
+          phone: phoneValidation.errors[0]
+        }));
+      } else {
+        // Clear error if validation passes
+        setFormErrors(prev => ({
+          ...prev,
+          phone: ''
+        }));
+      }
+    } else if (name === 'phone' && !value.trim()) {
+      // Clear error when field is empty
+      setFormErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    } else {
+      // Clear error for other fields when user starts typing
+      if (formErrors[name]) {
+        setFormErrors(prev => ({
+          ...prev,
+          [name]: ''
+        }));
+      }
     }
   };
 
@@ -252,6 +358,25 @@ const UserManagement = () => {
     setModalData({ user, userEmail });
     setModalType('delete');
     setShowModal(true);
+  };
+
+  const toggleUserStatus = async (user) => {
+    try {
+      console.log('Toggling user status for:', user.email, 'Current status:', user.status);
+      
+      const newStatus = (user.status === 'active' || !user.status) ? 'inactive' : 'active';
+      const response = await usersAPI.update(user._id, { status: newStatus });
+      
+      if (response.success) {
+        alert(`✅ User ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
+        loadUserManagement();
+      } else {
+        throw new Error(response.error?.message || 'Failed to toggle user status');
+      }
+    } catch (error) {
+      console.error('Error toggling user status:', error);
+      alert(`❌ Error toggling user status: ${error.message}`);
+    }
   };
 
   const handleModalClose = () => {
@@ -377,37 +502,7 @@ const UserManagement = () => {
                     color: designSystem.colors.gray[500],
                     marginBottom: designSystem.spacing.xs
                   }}>Member Since</label>
-                  <div style={{ fontWeight: designSystem.typography.fontWeight.semibold }}>{new Date(data.created_at).toLocaleDateString()}</div>
-                </div>
-                <div>
-                  <label style={{ 
-                    display: 'block',
-                    fontSize: designSystem.typography.fontSize.sm,
-                    color: designSystem.colors.gray[500],
-                    marginBottom: designSystem.spacing.xs
-                  }}>Last Login</label>
-                  <div style={{ fontWeight: designSystem.typography.fontWeight.semibold }}>
-                    {data.last_login ? new Date(data.last_login).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    }) : 'Never'}
-                  </div>
-                </div>
-                <div>
-                  <label style={{ 
-                    display: 'block',
-                    fontSize: designSystem.typography.fontSize.sm,
-                    color: designSystem.colors.gray[500],
-                    marginBottom: designSystem.spacing.xs
-                  }}>User ID</label>
-                  <div style={{ 
-                    fontWeight: designSystem.typography.fontWeight.semibold,
-                    fontFamily: 'monospace',
-                    fontSize: designSystem.typography.fontSize.sm
-                  }}>{data._id}</div>
+                  <div style={{ fontWeight: designSystem.typography.fontWeight.semibold }}>{new Date(data.createdAt).toLocaleDateString()}</div>
                 </div>
               </div>
             )
@@ -711,11 +806,11 @@ const UserManagement = () => {
                           <i className="fas fa-user-cog"></i>
                         </button>
                         <button 
-                          className="btn btn-outline-danger btn-sm"
-                          onClick={() => deleteUser(user._id, user.email)}
-                          title="Delete User"
+                          className={`btn btn-sm ${(user.status === 'active' || !user.status) ? 'btn-outline-secondary' : 'btn-outline-success'}`}
+                          onClick={() => toggleUserStatus(user)}
+                          title={(user.status === 'active' || !user.status) ? 'Deactivate User' : 'Activate User'}
                         >
-                          <i className="fas fa-trash"></i>
+                          <i className={`fas ${(user.status === 'active' || !user.status) ? 'fa-pause' : 'fa-play'}`}></i>
                         </button>
                       </div>
                     )}
@@ -780,12 +875,6 @@ const UserManagement = () => {
       {/* Enhanced Overview Stats */}
       <div style={componentStyles.statsContainer}>
         <StatCard 
-          number={getUserCounts().total}
-          label="Total Users"
-          borderColor="#3b82f6"
-          iconColor="#3b82f6"
-        />
-        <StatCard 
           number={getUserCounts().clients}
           label="Clients"
           borderColor="#10b981"
@@ -798,16 +887,22 @@ const UserManagement = () => {
           iconColor="#f59e0b"
         />
         <StatCard 
-          number={getUserCounts().project_managers}
-          label="Project Managers"
-          borderColor="#0dcaf0"
-          iconColor="#0dcaf0"
-        />
-        <StatCard 
           number={getUserCounts().employees}
           label="Employees"
           borderColor="#20c997"
           iconColor="#20c997"
+        />
+        <StatCard 
+          number={getUserCounts().admins}
+          label="Admins"
+          borderColor="#dc3545"
+          iconColor="#dc3545"
+        />
+        <StatCard 
+          number={getUserCounts().inactive}
+          label="Inactive Users"
+          borderColor="#6c757d"
+          iconColor="#6c757d"
         />
       </div>
 
@@ -829,7 +924,7 @@ const UserManagement = () => {
                 <button 
                   style={{
                     ...componentStyles.primaryButton,
-                    background: activeTab === 'clients' ? designSystem.colors.success : designSystem.colors.gray[100],
+                    background: activeTab === 'clients' ? '#10b981' : designSystem.colors.gray[100],
                     color: activeTab === 'clients' ? 'white' : designSystem.colors.gray[600],
                     boxShadow: activeTab === 'clients' ? designSystem.shadows.button : 'none'
                   }}
@@ -841,7 +936,7 @@ const UserManagement = () => {
                 <button 
                   style={{
                     ...componentStyles.primaryButton,
-                    background: activeTab === 'managers' ? designSystem.colors.warning : designSystem.colors.gray[100],
+                    background: activeTab === 'managers' ? '#f59e0b' : designSystem.colors.gray[100],
                     color: activeTab === 'managers' ? 'white' : designSystem.colors.gray[600],
                     boxShadow: activeTab === 'managers' ? designSystem.shadows.button : 'none'
                   }}
@@ -849,18 +944,6 @@ const UserManagement = () => {
                   {...hoverEffects.button}
                 >
                   Managers ({getUserCounts().managers})
-                </button>
-                <button 
-                  style={{
-                    ...componentStyles.primaryButton,
-                    background: activeTab === 'project_managers' ? '#0dcaf0' : designSystem.colors.gray[100],
-                    color: activeTab === 'project_managers' ? 'white' : designSystem.colors.gray[600],
-                    boxShadow: activeTab === 'project_managers' ? designSystem.shadows.button : 'none'
-                  }}
-                  onClick={() => setActiveTab('project_managers')}
-                  {...hoverEffects.button}
-                >
-                  Project Managers ({getUserCounts().project_managers})
                 </button>
                 <button 
                   style={{
@@ -877,7 +960,7 @@ const UserManagement = () => {
                 <button 
                   style={{
                     ...componentStyles.primaryButton,
-                    background: activeTab === 'admins' ? designSystem.colors.danger : designSystem.colors.gray[100],
+                    background: activeTab === 'admins' ? '#dc3545' : designSystem.colors.gray[100],
                     color: activeTab === 'admins' ? 'white' : designSystem.colors.gray[600],
                     boxShadow: activeTab === 'admins' ? designSystem.shadows.button : 'none'
                   }}
@@ -885,6 +968,18 @@ const UserManagement = () => {
                   {...hoverEffects.button}
                 >
                   Admins ({getUserCounts().admins})
+                </button>
+                <button 
+                  style={{
+                    ...componentStyles.primaryButton,
+                    background: activeTab === 'inactive' ? '#6c757d' : designSystem.colors.gray[100],
+                    color: activeTab === 'inactive' ? 'white' : designSystem.colors.gray[600],
+                    boxShadow: activeTab === 'inactive' ? designSystem.shadows.button : 'none'
+                  }}
+                  onClick={() => setActiveTab('inactive')}
+                  {...hoverEffects.button}
+                >
+                  Inactive ({getUserCounts().inactive})
                 </button>
               </div>
               <button 
@@ -1013,7 +1108,7 @@ const UserManagement = () => {
                         fontSize: designSystem.typography.fontSize.sm,
                         fontWeight: designSystem.typography.fontWeight.bold
                       }}>
-                        Email Address <span style={{ color: designSystem.colors.danger.split(' ')[0].split('(')[1] }}>*</span>
+                        Email Address <span style={{ color: '#dc3545' }}>*</span>
                       </label>
                       <input 
                         type="email" 
@@ -1023,32 +1118,119 @@ const UserManagement = () => {
                         placeholder="Email Address"
                         style={{
                           ...componentStyles.formInput,
-                          borderColor: formErrors.email ? designSystem.colors.danger.split(' ')[0].split('(')[1] : componentStyles.formInput.borderColor
+                          borderColor: formErrors.email ? '#dc3545' : componentStyles.formInput.borderColor
                         }}
                         required 
                       />
                       {formErrors.email && (
-                        <small style={{ color: designSystem.colors.danger.split(' ')[0].split('(')[1], fontSize: designSystem.typography.fontSize.xs }}>
+                        <small style={{ 
+                          display: 'block',
+                          color: '#dc3545', 
+                          fontSize: designSystem.typography.fontSize.xs,
+                          marginTop: '4px'
+                        }}>
                           {formErrors.email}
                         </small>
                       )}
+                      {formData.email && (
+                        <div style={{ marginTop: designSystem.spacing.xs }}>
+                          <small style={{ fontSize: designSystem.typography.fontSize.xs, color: designSystem.colors.gray[500] }}>
+                            Email Requirements:
+                          </small>
+                          <div style={{ marginTop: '2px' }}>
+                            {(() => {
+                              const hasAtSymbol = formData.email.includes('@');
+                              const parts = formData.email.split('@');
+                              const hasTextBeforeAt = parts[0] && parts[0].length > 0;
+                              const hasDomainAfterAt = parts.length > 1 && parts[1].length > 0;
+                              const hasDotCom = formData.email.toLowerCase().includes('.com');
+                              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                              const isValidFormat = emailRegex.test(formData.email);
+                              
+                              return (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                                  <small style={{ 
+                                    fontSize: '10px', 
+                                    color: hasAtSymbol ? '#28a745' : '#dc3545'
+                                  }}>
+                                    <i className={`fas ${hasAtSymbol ? 'fa-check' : 'fa-times'} me-1`}></i>
+                                    Must contain @ symbol
+                                  </small>
+                                  <small style={{ 
+                                    fontSize: '10px', 
+                                    color: hasTextBeforeAt ? '#28a745' : '#dc3545'
+                                  }}>
+                                    <i className={`fas ${hasTextBeforeAt ? 'fa-check' : 'fa-times'} me-1`}></i>
+                                    Must have text before @
+                                  </small>
+                                  <small style={{ 
+                                    fontSize: '10px', 
+                                    color: hasDomainAfterAt ? '#28a745' : '#dc3545'
+                                  }}>
+                                    <i className={`fas ${hasDomainAfterAt ? 'fa-check' : 'fa-times'} me-1`}></i>
+                                    Must have domain after @
+                                  </small>
+                                  <small style={{ 
+                                    fontSize: '10px', 
+                                    color: hasDotCom ? '#28a745' : '#dc3545'
+                                  }}>
+                                    <i className={`fas ${hasDotCom ? 'fa-check' : 'fa-times'} me-1`}></i>
+                                    Must contain .com domain
+                                  </small>
+                                  <small style={{ 
+                                    fontSize: '10px', 
+                                    color: isValidFormat ? '#28a745' : '#dc3545'
+                                  }}>
+                                    <i className={`fas ${isValidFormat ? 'fa-check' : 'fa-times'} me-1`}></i>
+                                    Valid email format
+                                  </small>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div>
-                      <label style={{ 
-                        display: 'block', 
-                        marginBottom: designSystem.spacing.xs,
-                        color: designSystem.colors.gray[600],
-                        fontSize: designSystem.typography.fontSize.sm,
-                        fontWeight: designSystem.typography.fontWeight.bold
-                      }}>
-                        Password <span style={{ color: designSystem.colors.danger.split(' ')[0].split('(')[1] }}>*</span>
-                      </label>
+                      <div style={{ display: 'flex', alignItems: 'center', marginBottom: designSystem.spacing.xs }}>
+                        <label style={{ 
+                          display: 'block', 
+                          color: designSystem.colors.gray[600],
+                          fontSize: designSystem.typography.fontSize.sm,
+                          fontWeight: designSystem.typography.fontWeight.bold,
+                          margin: 0
+                        }}>
+                          Password <span style={{ color: designSystem.colors.danger.split(' ')[0].split('(')[1] }}>*</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: designSystem.colors.gray[500],
+                            padding: '4px 8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'color 0.2s ease',
+                            marginLeft: '8px'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.color = designSystem.colors.primary}
+                          onMouseLeave={(e) => e.currentTarget.style.color = designSystem.colors.gray[500]}
+                          title={showPassword ? "Hide password" : "Show password"}
+                        >
+                          <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} style={{ fontSize: '16px' }}></i>
+                        </button>
+                      </div>
                       <input 
-                        type="password" 
+                        type={showPassword ? "text" : "password"}
                         name="password"
                         value={formData.password}
                         onChange={handleInputChange}
                         placeholder="Password"
+                        maxLength="20"
                         style={{
                           ...componentStyles.formInput,
                           borderColor: formErrors.password ? designSystem.colors.danger.split(' ')[0].split('(')[1] : componentStyles.formInput.borderColor
@@ -1068,41 +1250,47 @@ const UserManagement = () => {
                           <div style={{ marginTop: '2px' }}>
                             {(() => {
                               const validation = validatePassword(formData.password);
+                              const hasMinLength = formData.password.length >= 8;
+                              const hasUpperCase = /[A-Z]/.test(formData.password);
+                              const hasLowerCase = /[a-z]/.test(formData.password);
+                              const hasNumbers = /\d/.test(formData.password);
+                              const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(formData.password);
+                              
                               return (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
                                   <small style={{ 
                                     fontSize: '10px', 
-                                    color: validation.errors.minLength ? designSystem.colors.danger.split(' ')[0].split('(')[1] : designSystem.colors.success 
+                                    color: hasMinLength ? designSystem.colors.success : designSystem.colors.danger.split(' ')[0].split('(')[1]
                                   }}>
-                                    <i className={`fas ${validation.errors.minLength ? 'fa-times' : 'fa-check'} me-1`}></i>
+                                    <i className={`fas ${hasMinLength ? 'fa-check' : 'fa-times'} me-1`}></i>
                                     At least 8 characters
                                   </small>
                                   <small style={{ 
                                     fontSize: '10px', 
-                                    color: validation.errors.hasUpperCase ? designSystem.colors.danger.split(' ')[0].split('(')[1] : designSystem.colors.success 
+                                    color: hasUpperCase ? designSystem.colors.success : designSystem.colors.danger.split(' ')[0].split('(')[1]
                                   }}>
-                                    <i className={`fas ${validation.errors.hasUpperCase ? 'fa-times' : 'fa-check'} me-1`}></i>
+                                    <i className={`fas ${hasUpperCase ? 'fa-check' : 'fa-times'} me-1`}></i>
                                     One uppercase letter
                                   </small>
                                   <small style={{ 
                                     fontSize: '10px', 
-                                    color: validation.errors.hasLowerCase ? designSystem.colors.danger.split(' ')[0].split('(')[1] : designSystem.colors.success 
+                                    color: hasLowerCase ? designSystem.colors.success : designSystem.colors.danger.split(' ')[0].split('(')[1]
                                   }}>
-                                    <i className={`fas ${validation.errors.hasLowerCase ? 'fa-times' : 'fa-check'} me-1`}></i>
+                                    <i className={`fas ${hasLowerCase ? 'fa-check' : 'fa-times'} me-1`}></i>
                                     One lowercase letter
                                   </small>
                                   <small style={{ 
                                     fontSize: '10px', 
-                                    color: validation.errors.hasNumbers ? designSystem.colors.danger.split(' ')[0].split('(')[1] : designSystem.colors.success 
+                                    color: hasNumbers ? designSystem.colors.success : designSystem.colors.danger.split(' ')[0].split('(')[1]
                                   }}>
-                                    <i className={`fas ${validation.errors.hasNumbers ? 'fa-times' : 'fa-check'} me-1`}></i>
+                                    <i className={`fas ${hasNumbers ? 'fa-check' : 'fa-times'} me-1`}></i>
                                     One number
                                   </small>
                                   <small style={{ 
                                     fontSize: '10px', 
-                                    color: validation.errors.hasSpecialChar ? designSystem.colors.danger.split(' ')[0].split('(')[1] : designSystem.colors.success 
+                                    color: hasSpecialChar ? designSystem.colors.success : designSystem.colors.danger.split(' ')[0].split('(')[1]
                                   }}>
-                                    <i className={`fas ${validation.errors.hasSpecialChar ? 'fa-times' : 'fa-check'} me-1`}></i>
+                                    <i className={`fas ${hasSpecialChar ? 'fa-check' : 'fa-times'} me-1`}></i>
                                     One special character
                                   </small>
                                 </div>
@@ -1169,9 +1357,64 @@ const UserManagement = () => {
                         name="phone"
                         value={formData.phone}
                         onChange={handleInputChange}
-                        placeholder="Phone Number"
-                        style={componentStyles.formInput}
+                        placeholder="Phone Number (10 digits)"
+                        maxLength={10}
+                        style={{
+                          ...componentStyles.formInput,
+                          borderColor: formErrors.phone ? '#dc3545' : componentStyles.formInput.borderColor
+                        }}
                       />
+                      {formErrors.phone && (
+                        <small style={{ 
+                          display: 'block',
+                          color: '#dc3545', 
+                          fontSize: designSystem.typography.fontSize.xs,
+                          marginTop: '4px'
+                        }}>
+                          {formErrors.phone}
+                        </small>
+                      )}
+                      {formData.phone && (
+                        <div style={{ marginTop: designSystem.spacing.xs }}>
+                          <small style={{ fontSize: designSystem.typography.fontSize.xs, color: designSystem.colors.gray[500] }}>
+                            Phone Requirements:
+                          </small>
+                          <div style={{ marginTop: '2px' }}>
+                            {(() => {
+                              const digitsOnly = formData.phone.replace(/\D/g, '');
+                              const hasExactly10Digits = digitsOnly.length === 10;
+                              const startsWithValid = digitsOnly.length > 0 && /^[2-9]/.test(digitsOnly);
+                              const isAllDigits = /^\d+$/.test(digitsOnly);
+                              
+                              return (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                                  <small style={{ 
+                                    fontSize: '10px', 
+                                    color: hasExactly10Digits ? '#28a745' : '#dc3545'
+                                  }}>
+                                    <i className={`fas ${hasExactly10Digits ? 'fa-check' : 'fa-times'} me-1`}></i>
+                                    Must be exactly 10 digits
+                                  </small>
+                                  <small style={{ 
+                                    fontSize: '10px', 
+                                    color: startsWithValid ? '#28a745' : '#dc3545'
+                                  }}>
+                                    <i className={`fas ${startsWithValid ? 'fa-check' : 'fa-times'} me-1`}></i>
+                                    Must start with 2-9
+                                  </small>
+                                  <small style={{ 
+                                    fontSize: '10px', 
+                                    color: isAllDigits ? '#28a745' : '#dc3545'
+                                  }}>
+                                    <i className={`fas ${isAllDigits ? 'fa-check' : 'fa-times'} me-1`}></i>
+                                    Only numbers allowed
+                                  </small>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                   

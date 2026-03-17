@@ -69,7 +69,7 @@ const validateUserCreation = [
   body('last_name').notEmpty().withMessage('Last name is required'),
   body('email').isEmail().withMessage('Valid email is required'),
   body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
-  body('role').isIn(['admin', 'lead_manager', 'crm_manager', 'client']).withMessage('Invalid role')
+  body('role').isIn(['admin', 'lead_manager', 'crm_manager', 'project_manager', 'employee', 'client']).withMessage('Invalid role')
 ];
 
 const validateUserUpdate = [
@@ -80,8 +80,8 @@ const validateUserUpdate = [
 
 // @route   GET /api/users
 // @desc    Get all users with filters
-// @access  Private (Admin, Lead Manager, CRM Manager for handover)
-router.get('/', auth(['admin', 'lead_manager', 'crm_manager']), userController.getUsers);
+// @access  Private (Admin, Lead Manager, CRM Manager, Project Manager)
+router.get('/', auth(['admin', 'lead_manager', 'crm_manager', 'project_manager']), userController.getUsers);
 
 // @route   GET /api/users/stats
 // @desc    Get user statistics
@@ -108,9 +108,19 @@ router.patch('/:id', adminAuth, validateUserUpdate, userController.updateUser);
 // @access  Private (Admin only)
 router.patch('/:id/assign-manager', adminAuth, userController.assignManager);
 
+// @route   PATCH /api/users/:id/restore
+// @desc    Restore deleted user
+// @access  Private (Admin only)
+router.patch('/:id/restore', adminAuth, userController.restoreUser);
+
 // @route   DELETE /api/users/:id
 // @desc    Delete user (soft delete)
 // @access  Private (Admin only)
 router.delete('/:id', adminAuth, userController.deleteUser);
+
+// @route   DELETE /api/users/:id/permanent
+// @desc    Permanently delete user (hard delete)
+// @access  Private (Admin only)
+router.delete('/:id/permanent', adminAuth, userController.permanentDeleteUser);
 
 module.exports = router;

@@ -1,5 +1,6 @@
 const Sidebar = ({ activeSection, setActiveSection, sidebarOpen, setSidebarOpen }) => {
   const sidebarItems = [
+    { id: 'dashboard', icon: 'fas fa-chart-line', label: 'Dashboard' },
     { id: 'leads', icon: 'fas fa-user-tie', label: 'Assigned Leads' },
     { id: 'qualified', icon: 'fas fa-user-check', label: 'Qualified Leads' },
     { id: 'projects', icon: 'fas fa-project-diagram', label: 'Active Projects' },

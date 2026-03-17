@@ -2,7 +2,7 @@ import { designSystem } from '../../../../styles/designSystem';
 
 const Sidebar = ({ activeSection, setActiveSection, sidebarOpen, setSidebarOpen }) => {
   const sidebarItems = [
-    { id: 'overview', icon: 'fas fa-tachometer-alt', label: 'Dashboard Overview' },
+    { id: 'overview', icon: 'fas fa-tachometer-alt', label: 'Dashboard' },
     { id: 'services', icon: 'fas fa-concierge-bell', label: 'Browse Services' },
     { id: 'projects', icon: 'fas fa-project-diagram', label: 'My Projects' },
     { id: 'payments', icon: 'fas fa-credit-card', label: 'Payments & Billing' },

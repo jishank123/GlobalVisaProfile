@@ -11,6 +11,7 @@ const ClientProjects = ({ clientData, apiCall, onRefresh }) => {
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
+    onHold: 0,
     pending: 0,
     completed: 0,
     cancelled: 0
@@ -62,6 +63,7 @@ const ClientProjects = ({ clientData, apiCall, onRefresh }) => {
             const stats = {
               total: clientProjects.length,
               active: clientProjects.filter(p => p.status === 'active').length,
+              onHold: clientProjects.filter(p => p.status === 'on_hold').length,
               pending: clientProjects.filter(p => p.status === 'pending').length,
               completed: clientProjects.filter(p => p.status === 'completed').length,
               cancelled: clientProjects.filter(p => p.status === 'cancelled').length
@@ -215,7 +217,7 @@ const ClientProjects = ({ clientData, apiCall, onRefresh }) => {
               }}>
                 {project.status}
               </span>
-              <span style={{
+              {/* <span style={{
                 ...componentStyles.badge,
                 ...getPriorityStyle(project.priority),
                 textTransform: 'uppercase',
@@ -223,7 +225,7 @@ const ClientProjects = ({ clientData, apiCall, onRefresh }) => {
                 fontWeight: '600'
               }}>
                 {project.priority} Priority
-              </span>
+              </span> */}
             </div>
             
             <h6 style={{
@@ -320,26 +322,10 @@ const ClientProjects = ({ clientData, apiCall, onRefresh }) => {
             Milestones: {project.milestones?.length || 0}
           </div>
           <div>
-            <i className="fas fa-sticky-note me-2"></i>
-            Notes: {project.notes?.length || 0}
+            <i className="fas fa-file me-2"></i>
+            Files: {project.final_files?.filter(f => f.approval_status === 'approved').length || 0}
           </div>
         </div>
-
-        {/* Description */}
-        {project.description && (
-          <p style={{
-            fontSize: designSystem.typography.fontSize.sm,
-            color: designSystem.colors.gray[600],
-            margin: 0,
-            fontStyle: 'italic',
-            lineHeight: '1.4'
-          }}>
-            {project.description.length > 100 
-              ? `${project.description.substring(0, 100)}...` 
-              : project.description
-            }
-          </p>
-        )}
       </div>
     );
   };
@@ -365,22 +351,20 @@ const ClientProjects = ({ clientData, apiCall, onRefresh }) => {
               <>
                 {/* Project Overview */}
                 <div style={{ marginBottom: designSystem.spacing.lg }}>
-                  <h6 style={{ marginBottom: designSystem.spacing.md }}>Project Overview</h6>
+                  <h6 style={{ marginBottom: designSystem.spacing.md, color: '#3b82f6', fontWeight: '600' }}>Project Overview</h6>
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
                     gap: designSystem.spacing.md,
                     padding: designSystem.spacing.md,
                     background: designSystem.colors.light,
                     borderRadius: designSystem.borderRadius.button
                   }}>
                     <div>
-                      <strong>Service:</strong><br />
-                      {selectedProject.service_name}
+                      <strong>Service:</strong> {selectedProject.service_name}
                     </div>
                     <div>
-                      <strong>Status:</strong><br />
-                      <span style={{
+                      <strong>Status:</strong> <span style={{
                         ...componentStyles.badge,
                         ...getProjectStatusStyle(selectedProject.status)
                       }}>
@@ -388,56 +372,23 @@ const ClientProjects = ({ clientData, apiCall, onRefresh }) => {
                       </span>
                     </div>
                     <div>
-                      <strong>Priority:</strong><br />
-                      <span style={{
-                        ...componentStyles.badge,
-                        ...getPriorityStyle(selectedProject.priority)
-                      }}>
-                        {selectedProject.priority.toUpperCase()}
-                      </span>
+                      <strong>Progress:</strong> {calculateProgress(selectedProject)}%
                     </div>
                     <div>
-                      <strong>Progress:</strong><br />
-                      {calculateProgress(selectedProject)}%
+                      <strong>Amount:</strong> ${selectedProject.amount?.toLocaleString()}
                     </div>
                     <div>
-                      <strong>Amount:</strong><br />
-                      ${selectedProject.amount?.toLocaleString()}
+                      <strong>Start Date:</strong> {formatDate(selectedProject.start_date)}
                     </div>
                     <div>
-                      <strong>Paid:</strong><br />
-                      ${selectedProject.paid_amount?.toLocaleString() || '0'}
-                    </div>
-                    <div>
-                      <strong>Start Date:</strong><br />
-                      {formatDate(selectedProject.start_date)}
-                    </div>
-                    <div>
-                      <strong>Due Date:</strong><br />
-                      {formatDate(selectedProject.due_date)}
+                      <strong>Due Date:</strong> {formatDate(selectedProject.due_date)}
                     </div>
                   </div>
                 </div>
 
-                {/* Description */}
-                {selectedProject.description && (
-                  <div style={{ marginBottom: designSystem.spacing.lg }}>
-                    <h6 style={{ marginBottom: designSystem.spacing.md }}>Description</h6>
-                    <p style={{
-                      padding: designSystem.spacing.md,
-                      background: designSystem.colors.light,
-                      borderRadius: designSystem.borderRadius.button,
-                      margin: 0,
-                      lineHeight: '1.6'
-                    }}>
-                      {selectedProject.description}
-                    </p>
-                  </div>
-                )}
-
                 {/* Milestones */}
                 <div style={{ marginBottom: designSystem.spacing.lg }}>
-                  <h6 style={{ marginBottom: designSystem.spacing.md }}>
+                  <h6 style={{ marginBottom: designSystem.spacing.md, color: '#3b82f6', fontWeight: '600' }}>
                     Milestones ({selectedProject.milestones?.length || 0})
                   </h6>
                   {selectedProject.milestones && selectedProject.milestones.length > 0 ? (
@@ -512,33 +463,125 @@ const ClientProjects = ({ clientData, apiCall, onRefresh }) => {
                   )}
                 </div>
 
-                {/* Notes */}
+                {/* Final Files (Approved) */}
                 <div style={{ marginBottom: designSystem.spacing.lg }}>
-                  <h6 style={{ marginBottom: designSystem.spacing.md }}>
-                    Project Notes ({selectedProject.notes?.length || 0})
+                  <h6 style={{ marginBottom: designSystem.spacing.md, color: '#3b82f6', fontWeight: '600' }}>
+                    Final Files ({selectedProject.final_files?.filter(f => f.approval_status === 'approved').length || 0})
                   </h6>
-                  {selectedProject.notes && selectedProject.notes.length > 0 ? (
+                  {selectedProject.final_files && selectedProject.final_files.filter(f => f.approval_status === 'approved').length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: designSystem.spacing.sm }}>
-                      {selectedProject.notes.map((note, index) => (
+                      {selectedProject.final_files
+                        .filter(file => file.approval_status === 'approved')
+                        .map((file, index) => (
                         <div key={index} style={{
                           padding: designSystem.spacing.md,
-                          background: designSystem.colors.light,
+                          background: '#f0fdf4',
                           borderRadius: designSystem.borderRadius.button,
-                          border: `1px solid ${designSystem.colors.gray[200]}`
+                          border: `1px solid #86efac`,
+                          borderLeft: `4px solid #10b981`
                         }}>
                           <div style={{
-                            fontSize: designSystem.typography.fontSize.sm,
-                            color: designSystem.colors.gray[500],
-                            marginBottom: designSystem.spacing.xs
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'flex-start'
                           }}>
-                            {formatDate(note.created_at)}
+                            <div style={{ flex: 1 }}>
+                              <h6 style={{ margin: 0, color: designSystem.colors.dark, marginBottom: '4px' }}>
+                                <i className="fas fa-file me-2" style={{ color: '#10b981' }}></i>
+                                {file.originalName}
+                              </h6>
+                              {file.notes && (
+                                <div style={{ marginBottom: '8px' }}>
+                                  <small style={{ color: designSystem.colors.gray[600], fontWeight: '600' }}>Notes: </small>
+                                  <small style={{ color: designSystem.colors.gray[600] }}>{file.notes}</small>
+                                </div>
+                              )}
+                              <div style={{ 
+                                display: 'flex', 
+                                gap: designSystem.spacing.md, 
+                                fontSize: designSystem.typography.fontSize.xs, 
+                                flexWrap: 'wrap',
+                                color: designSystem.colors.gray[500]
+                              }}>
+                                <span>
+                                  <i className="fas fa-user me-1"></i>
+                                  Uploaded by: {file.uploaded_by?.first_name} {file.uploaded_by?.last_name}
+                                </span>
+                                <span>
+                                  <i className="fas fa-calendar me-1"></i>
+                                  {formatDate(file.uploaded_at)}
+                                </span>
+                                <span>
+                                  <i className="fas fa-file-alt me-1"></i>
+                                  {(file.size / 1024).toFixed(2)} KB
+                                </span>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-start', flexDirection: 'column' }}>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const fileUrl = `${process.env.REACT_APP_API_URL?.replace('/api', '')}/${file.path}`;
+                                    const response = await fetch(fileUrl);
+                                    const blob = await response.blob();
+                                    const url = window.URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.download = file.originalName;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    window.URL.revokeObjectURL(url);
+                                  } catch (error) {
+                                    console.error('Error downloading file:', error);
+                                    alert('Failed to download file. Please try again.');
+                                  }
+                                }}
+                                style={{
+                                  background: '#10b981',
+                                  color: 'white',
+                                  border: 'none',
+                                  padding: '6px 12px',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  textTransform: 'uppercase',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  boxShadow: '0 2px 4px rgba(16, 185, 129, 0.3)',
+                                  transition: 'all 0.2s ease',
+                                  cursor: 'pointer'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.target.style.background = '#059669';
+                                  e.target.style.transform = 'translateY(-1px)';
+                                  e.target.style.boxShadow = '0 4px 8px rgba(16, 185, 129, 0.4)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.target.style.background = '#10b981';
+                                  e.target.style.transform = 'translateY(0)';
+                                  e.target.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.3)';
+                                }}
+                                title="Download file"
+                              >
+                                <i className="fas fa-download"></i>
+                                Download
+                              </button>
+                              <span style={{
+                                background: '#10b981',
+                                color: 'white',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                textTransform: 'uppercase'
+                              }}>
+                                <i className="fas fa-check-circle me-1"></i>
+                                Approved
+                              </span>
+                            </div>
                           </div>
-                          <p style={{
-                            margin: 0,
-                            lineHeight: '1.6'
-                          }}>
-                            {note.text}
-                          </p>
                         </div>
                       ))}
                     </div>
@@ -550,8 +593,8 @@ const ClientProjects = ({ clientData, apiCall, onRefresh }) => {
                       textAlign: 'center',
                       color: designSystem.colors.gray[500]
                     }}>
-                      <i className="fas fa-sticky-note fa-2x mb-3"></i>
-                      <p>No notes added yet</p>
+                      <i className="fas fa-file-download fa-2x mb-3"></i>
+                      <p>No approved files available yet</p>
                     </div>
                   )}
                 </div>
@@ -620,11 +663,11 @@ const ClientProjects = ({ clientData, apiCall, onRefresh }) => {
         marginBottom: designSystem.spacing.xl
       }}>
         <StatsCard
-          icon="fas fa-project-diagram"
-          number={stats.total}
-          label="Total Projects"
-          color="#3b82f6"
-          bgColor="#eff6ff"
+          icon="fas fa-play-circle"
+          number={stats.active}
+          label="Active Projects"
+          color="#10b981"
+          bgColor="#ecfdf5"
         />
         <StatsCard
           icon="fas fa-clock"
@@ -634,11 +677,11 @@ const ClientProjects = ({ clientData, apiCall, onRefresh }) => {
           bgColor="#fffbeb"
         />
         <StatsCard
-          icon="fas fa-play-circle"
-          number={stats.active}
-          label="Active Projects"
-          color="#10b981"
-          bgColor="#ecfdf5"
+          icon="fas fa-pause-circle"
+          number={stats.onHold}
+          label="Hold Projects"
+          color="#ef4444"
+          bgColor="#fef2f2"
         />
         <StatsCard
           icon="fas fa-check-circle"
@@ -684,6 +727,17 @@ const ClientProjects = ({ clientData, apiCall, onRefresh }) => {
             {...hoverEffects.button}
           >
             Active ({stats.active})
+          </button>
+          <button 
+            style={{
+              ...componentStyles.primaryButton,
+              background: activeTab === 'on_hold' ? '#ef4444' : designSystem.colors.gray[100],
+              color: activeTab === 'on_hold' ? 'white' : designSystem.colors.gray[600]
+            }}
+            onClick={() => setActiveTab('on_hold')}
+            {...hoverEffects.button}
+          >
+            On Hold ({stats.onHold})
           </button>
           <button 
             style={{

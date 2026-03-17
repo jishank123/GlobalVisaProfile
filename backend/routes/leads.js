@@ -10,7 +10,7 @@ const validateLeadCreation = [
   body('lastName').notEmpty().withMessage('Last name is required'),
   body('email').isEmail().withMessage('Valid email is required'),
   body('phone').optional().isLength({ min: 10 }).withMessage('Valid phone number is required'),
-  body('source').optional().isIn(['website', 'referral', 'social_media', 'advertisement', 'event']).withMessage('Invalid source'),
+  body('source').optional().isIn(['website', 'referral', 'social_media', 'advertisement', 'event', 'register', 'appointment', 'contact_us', 'assessment']).withMessage('Invalid source'),
   body('priority').optional().isIn(['low', 'medium', 'high']).withMessage('Invalid priority')
 ];
 

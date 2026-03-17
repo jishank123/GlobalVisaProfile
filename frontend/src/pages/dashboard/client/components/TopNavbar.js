@@ -1,14 +1,23 @@
 import { designSystem } from '../../../../styles/designSystem';
+import { getApiEndpoint } from '../../../../utils/apiConfig';
+import { useState } from 'react';
 
 const TopNavbar = ({ user, clientData, logout, sidebarOpen, setSidebarOpen }) => {
+  const [imageError, setImageError] = useState(false);
+  
   const getInitials = (firstName, lastName) => {
     return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
   };
 
-  const displayName = clientData?.user?.full_name || 
-                     `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 
+  // Get the most up-to-date user data
+  const currentUser = clientData?.user || user;
+  
+  const displayName = currentUser?.full_name || 
+                     `${currentUser?.first_name || ''} ${currentUser?.last_name || ''}`.trim() || 
                      clientData?.name || 
                      'Client';
+  
+  const profilePicture = currentUser?.profile_picture || currentUser?.avatar;
 
   return (
     <div 
@@ -63,23 +72,53 @@ const TopNavbar = ({ user, clientData, logout, sidebarOpen, setSidebarOpen }) =>
           borderRadius: '25px',
           backdropFilter: 'blur(10px)'
         }}>
-          <div style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '12px',
-            fontWeight: '600',
-            color: 'white'
-          }}>
-            {getInitials(user?.first_name, user?.last_name)}
-          </div>
+          {profilePicture && !imageError ? (
+            <img
+              src={(() => {
+                // Use API endpoint for serving images
+                if (profilePicture.startsWith('http')) {
+                  return profilePicture;
+                } else if (profilePicture.startsWith('/uploads/profile-pictures/')) {
+                  const filename = profilePicture.replace('/uploads/profile-pictures/', '');
+                  return getApiEndpoint(`/debug/serve-image/profile-pictures/${filename}`);
+                } else if (profilePicture.startsWith('uploads/profile-pictures/')) {
+                  const filename = profilePicture.replace('uploads/profile-pictures/', '');
+                  return getApiEndpoint(`/debug/serve-image/profile-pictures/${filename}`);
+                } else {
+                  return getApiEndpoint(`/debug/serve-image/profile-pictures/${profilePicture}`);
+                }
+              })()}
+              alt="Profile"
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
+              onError={() => setImageError(true)}
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                objectFit: 'cover',
+                border: '2px solid rgba(255,255,255,0.3)'
+              }}
+            />
+          ) : (
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '12px',
+              fontWeight: '600',
+              color: 'white'
+            }}>
+              {getInitials(currentUser?.first_name, currentUser?.last_name)}
+            </div>
+          )}
           <div style={{ display: window.innerWidth < 640 ? 'none' : 'block' }}>
             <div style={{ fontSize: '14px', fontWeight: '500' }}>{displayName}</div>
-            <div style={{ fontSize: '12px', opacity: 0.8 }}>{clientData?.user?.email || user?.email}</div>
+            <div style={{ fontSize: '12px', opacity: 0.8 }}>{currentUser?.email}</div>
           </div>
         </div>
 

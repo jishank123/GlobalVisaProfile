@@ -92,12 +92,26 @@ router.get('/public', authenticateClient, async (req, res) => {
     
     // Get active services from database
     const Service = require('../models/Service');
+    
+    // Get active, non-deleted services with robust query that handles edge cases
     const services = await Service.find({ 
-      isActive: true, 
-      isDeleted: false 
+      $and: [
+        // Not deleted: false, null, undefined, or missing field
+        { $or: [
+          { isDeleted: false },
+          { isDeleted: { $exists: false } },
+          { isDeleted: null }
+        ]},
+        // Active: true, null, undefined, or missing field (default should be active)
+        { $or: [
+          { isActive: true },
+          { isActive: { $exists: false } },
+          { isActive: null }
+        ]}
+      ]
     }).sort({ createdAt: -1 });
     
-    console.log('✅ Returning public services from database:', services.length);
+    console.log('✅ Returning public services:', services.length);
     
     res.json({
       success: true,

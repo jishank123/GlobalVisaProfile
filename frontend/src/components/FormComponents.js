@@ -14,6 +14,8 @@ export const ValidatedInput = ({
   disabled = false,
   showValidation = true,
   className = 'form-control-custom',
+  emailExists = false,
+  checkingEmail = false,
   ...props 
 }) => {
   const [touched, setTouched] = useState(false);
@@ -31,12 +33,22 @@ export const ValidatedInput = ({
   };
 
   const handleChange = (e) => {
+    let value = e.target.value;
+    
+    // For first_name and last_name fields, only allow letters and numbers
+    if (name === 'first_name' || name === 'last_name') {
+      value = value.replace(/[^a-zA-Z0-9\s]/g, '');
+      e.target.value = value;
+    }
+    
     onChange(e);
     if (!touched) setTouched(true);
   };
 
   const hasErrors = touched && validation.errors && validation.errors.length > 0;
   const hasWarnings = touched && validation.warnings && validation.warnings.length > 0;
+  const isEmailField = name === 'email';
+  const showEmailExistsWarning = isEmailField && emailExists && !hasErrors;
 
   return (
     <div className="form-group">
@@ -51,8 +63,8 @@ export const ValidatedInput = ({
         onBlur={handleBlur}
         placeholder={placeholder}
         disabled={disabled}
-        className={`${className} ${hasErrors ? 'border-red-500 focus:border-red-500' : ''} ${
-          touched && validation.isValid && value ? 'border-green-500' : ''
+        className={`${className} ${hasErrors || showEmailExistsWarning ? 'border-red-500 focus:border-red-500' : ''} ${
+          touched && validation.isValid && value && !showEmailExistsWarning ? 'border-green-500' : ''
         }`}
         {...props}
       />
@@ -70,7 +82,21 @@ export const ValidatedInput = ({
             </div>
           )}
           
-          {hasWarnings && !hasErrors && (
+          {showEmailExistsWarning && (
+            <div className="mt-2 text-red-600 text-sm flex items-center border-l-4 border-red-500 bg-red-50 p-3 rounded">
+              <i className="fas fa-exclamation-circle mr-2"></i>
+              <span><strong>This email is already used.</strong> You cannot submit another public form with this email.</span>
+            </div>
+          )}
+          
+          {checkingEmail && isEmailField && !hasErrors && !emailExists && (
+            <div className="mt-2 text-gray-500 text-sm flex items-center">
+              <i className="fas fa-spinner fa-spin mr-2"></i>
+              Checking email...
+            </div>
+          )}
+          
+          {hasWarnings && !hasErrors && !showEmailExistsWarning && (
             <div className="mt-2">
               {validation.warnings.map((warning, index) => (
                 <div key={index} className="text-yellow-600 text-sm flex items-center">
@@ -81,7 +107,7 @@ export const ValidatedInput = ({
             </div>
           )}
           
-          {touched && validation.isValid && value && (
+          {touched && validation.isValid && value && !showEmailExistsWarning && (
             <div className="mt-2 text-green-600 text-sm flex items-center">
               <i className="fas fa-check-circle mr-2"></i>
               Looks good!
@@ -116,7 +142,7 @@ export const PasswordInput = ({
       const result = getFieldValidation(name, value, formData);
       setValidation(result);
     }
-  }, [name, value, touched]); // Removed formData from dependencies
+  }, [name, value, touched, formData.password, formData.confirmPassword]); // Added specific formData fields
 
   const handleBlur = () => {
     setTouched(true);
@@ -212,10 +238,19 @@ export const PasswordInput = ({
             </div>
           )}
           
-          {touched && validation.isValid && value && (
+          {/* Only show success message for main password field (with strength indicator), not for confirm password */}
+          {!hasErrors && validation.isValid && value && showStrength && (
             <div className="mt-2 text-green-600 text-sm flex items-center">
               <i className="fas fa-check-circle mr-2"></i>
               Password meets all requirements
+            </div>
+          )}
+          
+          {/* For confirm password field (without strength indicator), show different message */}
+          {!hasErrors && validation.isValid && value && !showStrength && name === 'confirmPassword' && (
+            <div className="mt-2 text-green-600 text-sm flex items-center">
+              <i className="fas fa-check-circle mr-2"></i>
+              Passwords match
             </div>
           )}
         </>
@@ -283,23 +318,23 @@ export const PhoneInputWithCountry = ({
     // Remove all non-digits for length validation
     const digitsOnly = inputValue.replace(/\D/g, '');
     
-    // Allow input but limit to reasonable maximum (20 digits) to prevent abuse
-    if (digitsOnly.length > 20) {
-      return; // Don't allow more than 20 digits total
+    // Limit to the maximum digits for the selected country
+    if (digitsOnly.length > currentCountry.maxDigits) {
+      return; // Don't allow more than the country's max digits
     }
     
     // Auto-format based on country (but don't restrict input length here)
     if (selectedCountry === 'US') {
-      // Format as (XXX) XXX-XXXX
+      // Format as (XXX) XXX-XXXX or (XXX) XXX-XXXXX for 11 digits
       if (digitsOnly.length <= 3) {
         inputValue = digitsOnly;
       } else if (digitsOnly.length <= 6) {
         inputValue = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3)}`;
       } else {
-        inputValue = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6, 10)}`;
+        inputValue = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6)}`;
       }
     } else if (selectedCountry === 'UK') {
-      // Format as +44 XXXX XXXXXX
+      // Format as XXXX XXXXXX or XXXX XXXXXXX for 11 digits
       if (digitsOnly.length <= 4) {
         inputValue = digitsOnly;
       } else {

@@ -68,9 +68,6 @@ const AppointmentDetailsModal = ({ show, onHide, appointment }) => {
                   <div className="mb-2">
                     <strong>Phone:</strong> {appointment.phone || 'Not provided'}
                   </div>
-                  <div className="mb-2">
-                    <strong>Timezone:</strong> {appointment.timezone || 'Not specified'}
-                  </div>
                 </div>
               </div>
               
@@ -87,16 +84,6 @@ const AppointmentDetailsModal = ({ show, onHide, appointment }) => {
                       textTransform: 'uppercase'
                     }}>
                       {appointment.status}
-                    </span>
-                  </div>
-                  <div className="mb-2">
-                    <strong>Priority:</strong>
-                    <span className="ms-2" style={{
-                      color: getPriorityColor(appointment.priority),
-                      fontWeight: 'bold',
-                      textTransform: 'uppercase'
-                    }}>
-                      ● {appointment.priority || 'Medium'}
                     </span>
                   </div>
                   <div className="mb-2">
@@ -131,7 +118,7 @@ const AppointmentDetailsModal = ({ show, onHide, appointment }) => {
                       }
                     </div>
                     <div className="mb-2">
-                      <strong>Scheduled Time:</strong> {appointment.scheduled_time || appointment.preferred_time || 'Not set'}
+                      <strong>Scheduled Time:</strong> {appointment.scheduled_time || appointment.preferred_time || 'Not set'} {appointment.timezone ? `(${appointment.timezone})` : ''}
                     </div>
                   </div>
                   <div className="col-md-6">

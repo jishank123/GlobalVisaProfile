@@ -6,31 +6,19 @@ const User = require('../models/User');
  * Protects routes that require client authentication
  */
 const authenticateClient = async (req, res, next) => {
-  console.log('\n🔐 === CLIENT AUTHENTICATION MIDDLEWARE ===');
-  console.log('🔐 Request URL:', req.originalUrl);
-  console.log('🔐 Request method:', req.method);
-  console.log('🔐 Middleware called: authenticateClient');
-  
   try {
     let token;
 
     // Check for token in Authorization header
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
-      console.log('🔐 Token found in Authorization header');
     }
     // Check for token in cookies (multiple possible cookie names)
     else if (req.cookies) {
       token = req.cookies.client_token || req.cookies.token;
-      if (token) {
-        console.log('🔐 Token found in cookies');
-      }
     }
 
-    console.log('🔐 Token present:', token ? 'YES' : 'NO');
-
     if (!token) {
-      console.log('❌ No token provided');
       return res.status(401).json({
         success: false,
         error: {
@@ -41,23 +29,15 @@ const authenticateClient = async (req, res, next) => {
     }
 
     // Verify token
-    console.log('🔐 Verifying JWT token...');
-    console.log('🔐 JWT_SECRET available:', process.env.JWT_SECRET ? 'YES' : 'NO');
-    
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('🔐 Token decoded successfully');
-    console.log('🔐 User ID from token:', decoded.user_id || decoded.id);
-    console.log('🔐 Role from token:', decoded.role);
 
     // Get user ID from token (handle both formats)
     const userId = decoded.user_id || decoded.id;
 
     // Find user account
-    console.log('🔍 Looking up user account...');
     const user = await User.findById(userId);
     
     if (!user) {
-      console.log('❌ User account not found');
       return res.status(401).json({
         success: false,
         error: {
@@ -69,7 +49,6 @@ const authenticateClient = async (req, res, next) => {
 
     // Check if user is a client
     if (user.role !== 'client') {
-      console.log('❌ User is not a client. Role:', user.role);
       return res.status(403).json({
         success: false,
         error: {
@@ -78,9 +57,6 @@ const authenticateClient = async (req, res, next) => {
         }
       });
     }
-
-    console.log('✅ Client authenticated:', user.email);
-    console.log('✅ Client ID:', user._id);
 
     // Add client to request object (maintaining compatibility with existing code)
     req.client = {
@@ -100,14 +76,10 @@ const authenticateClient = async (req, res, next) => {
       account: user
     };
 
-    console.log('🔐 === AUTHENTICATION SUCCESSFUL ===\n');
     next();
 
   } catch (error) {
-    console.error('🔐 Authentication error:', error);
-    
     if (error.name === 'JsonWebTokenError') {
-      console.log('❌ Invalid token');
       return res.status(401).json({
         success: false,
         error: {
@@ -118,7 +90,6 @@ const authenticateClient = async (req, res, next) => {
     }
 
     if (error.name === 'TokenExpiredError') {
-      console.log('❌ Token expired');
       return res.status(401).json({
         success: false,
         error: {
@@ -128,7 +99,6 @@ const authenticateClient = async (req, res, next) => {
       });
     }
 
-    console.log('❌ Authentication middleware error');
     res.status(500).json({
       success: false,
       error: {
@@ -145,14 +115,6 @@ const authenticateClient = async (req, res, next) => {
  */
 const auth = (requiredRoles = [], options = {}) => {
   return async (req, res, next) => {
-    console.log('\n🔐 === USER AUTHENTICATION MIDDLEWARE ===');
-    console.log('🔐 Request URL:', req.originalUrl);
-    console.log('🔐 Request method:', req.method);
-    console.log('🔐 Request headers:', JSON.stringify(req.headers, null, 2));
-    console.log('🔐 Middleware called: auth (for users, not clients)');
-    console.log('🔐 Required roles:', requiredRoles);
-    console.log('🔐 Options:', options);
-    
     try {
       let token;
 
@@ -167,7 +129,6 @@ const auth = (requiredRoles = [], options = {}) => {
 
       if (!token) {
         if (options.optional) {
-          console.log('🔐 No token provided, but optional auth - continuing');
           return next();
         }
         return res.status(401).json({
@@ -181,16 +142,13 @@ const auth = (requiredRoles = [], options = {}) => {
 
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log('🔐 Token decoded:', decoded);
 
       // Find user account - handle both id and user_id formats
       const userId = decoded.user_id || decoded.id;
       const user = await User.findById(userId);
       
       if (!user) {
-        console.log('❌ User not found with ID:', userId);
         if (options.optional) {
-          console.log('🔐 User not found, but optional auth - continuing');
           return next();
         }
         return res.status(401).json({
@@ -202,12 +160,9 @@ const auth = (requiredRoles = [], options = {}) => {
         });
       }
 
-      console.log('✅ User authenticated:', user.email, 'Role:', user.role);
-
       // Check role requirements
       if (requiredRoles.length > 0 && !requiredRoles.includes(user.role)) {
         if (options.optional) {
-          console.log('🔐 Role not matching, but optional auth - continuing without user');
           return next();
         }
         return res.status(403).json({

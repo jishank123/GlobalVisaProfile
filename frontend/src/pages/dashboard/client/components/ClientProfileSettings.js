@@ -41,6 +41,13 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
     confirm_password: ''
   });
 
+  // Password visibility states
+  const [showPasswords, setShowPasswords] = useState({
+    current_password: false,
+    new_password: false,
+    confirm_password: false
+  });
+
   const [passwordValidation, setPasswordValidation] = useState({
     isValid: false,
     errors: [],
@@ -76,7 +83,7 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
         phone: userData.phone || clientProfile.phone || '',
         company: userData.company || '',
         country: userData.country || '',
-        university: clientProfile.university || '',
+        university: userData.university || clientProfile.university || '',
         linkedin_url: userData.linkedin_url || '',
         portfolio_url: userData.portfolio_url || '',
         website_url: userData.website_url || '',
@@ -356,6 +363,12 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
       return;
     }
 
+    // Check if new password is same as current password
+    if (passwordData.current_password === passwordData.new_password) {
+      setMessage({ type: 'error', text: 'New password must be different from current password' });
+      return;
+    }
+
     // Validate password strength
     const validation = validatePassword(passwordData.new_password, passwordData.confirm_password);
     if (!validation.isValid) {
@@ -387,6 +400,13 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
           isValid: false,
           errors: [],
           strength: { score: 0, level: 'Very Weak', percentage: 0 }
+        });
+        
+        // Reset password visibility
+        setShowPasswords({
+          current_password: false,
+          new_password: false,
+          confirm_password: false
         });
         
         // Auto-hide success message after 5 seconds
@@ -1831,11 +1851,14 @@ Examples:
                     color: designSystem.colors.dark
                   }}>
                     <i className="fas fa-calendar me-2"></i>
-                    {clientData?.user?.createdAt ? new Date(clientData.user.createdAt).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    }) : 'N/A'}
+                    {(() => {
+                      const createdDate = clientData?.user?.createdAt || clientData?.createdAt;
+                      return createdDate ? new Date(createdDate).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      }) : 'N/A';
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1950,15 +1973,45 @@ Examples:
                 }}>
                   <i className="fas fa-lock me-2"></i>Current Password *
                 </label>
-                <input
-                  type="password"
-                  name="current_password"
-                  required
-                  style={componentStyles.formInput}
-                  value={passwordData.current_password}
-                  onChange={handlePasswordChange}
-                  placeholder="Enter your current password"
-                />
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    type={showPasswords.current_password ? "text" : "password"}
+                    name="current_password"
+                    required
+                    style={{
+                      ...componentStyles.formInput,
+                      paddingRight: '45px',
+                      width: '100%'
+                    }}
+                    value={passwordData.current_password}
+                    onChange={handlePasswordChange}
+                    placeholder="Enter your current password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords(prev => ({ ...prev, current_password: !prev.current_password }))}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: designSystem.colors.gray[500],
+                      padding: '4px 8px',
+                      fontSize: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 1
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = designSystem.colors.primary}
+                    onMouseLeave={(e) => e.currentTarget.style.color = designSystem.colors.gray[500]}
+                  >
+                    <i className={`fas ${showPasswords.current_password ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                  </button>
+                </div>
               </div>
 
               <div style={{ marginBottom: designSystem.spacing.lg }}>
@@ -1971,16 +2024,46 @@ Examples:
                 }}>
                   <i className="fas fa-key me-2"></i>New Password *
                 </label>
-                <input
-                  type="password"
-                  name="new_password"
-                  required
-                  minLength={8}
-                  style={componentStyles.formInput}
-                  value={passwordData.new_password}
-                  onChange={handlePasswordChange}
-                  placeholder="Enter your new password"
-                />
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    type={showPasswords.new_password ? "text" : "password"}
+                    name="new_password"
+                    required
+                    minLength={8}
+                    style={{
+                      ...componentStyles.formInput,
+                      paddingRight: '45px',
+                      width: '100%'
+                    }}
+                    value={passwordData.new_password}
+                    onChange={handlePasswordChange}
+                    placeholder="Enter your new password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords(prev => ({ ...prev, new_password: !prev.new_password }))}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: designSystem.colors.gray[500],
+                      padding: '4px 8px',
+                      fontSize: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 1
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = designSystem.colors.primary}
+                    onMouseLeave={(e) => e.currentTarget.style.color = designSystem.colors.gray[500]}
+                  >
+                    <i className={`fas ${showPasswords.new_password ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                  </button>
+                </div>
                 
                 {/* Password Strength Indicator */}
                 {passwordData.new_password && passwordValidation.strength && (
@@ -2065,16 +2148,46 @@ Examples:
                 }}>
                   <i className="fas fa-check-double me-2"></i>Confirm New Password *
                 </label>
-                <input
-                  type="password"
-                  name="confirm_password"
-                  required
-                  minLength={8}
-                  style={componentStyles.formInput}
-                  value={passwordData.confirm_password}
-                  onChange={handlePasswordChange}
-                  placeholder="Confirm your new password"
-                />
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    type={showPasswords.confirm_password ? "text" : "password"}
+                    name="confirm_password"
+                    required
+                    minLength={8}
+                    style={{
+                      ...componentStyles.formInput,
+                      paddingRight: '45px',
+                      width: '100%'
+                    }}
+                    value={passwordData.confirm_password}
+                    onChange={handlePasswordChange}
+                    placeholder="Confirm your new password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords(prev => ({ ...prev, confirm_password: !prev.confirm_password }))}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: designSystem.colors.gray[500],
+                      padding: '4px 8px',
+                      fontSize: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 1
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = designSystem.colors.primary}
+                    onMouseLeave={(e) => e.currentTarget.style.color = designSystem.colors.gray[500]}
+                  >
+                    <i className={`fas ${showPasswords.confirm_password ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                  </button>
+                </div>
                 
                 {/* Password Match Indicator */}
                 {passwordData.confirm_password && (

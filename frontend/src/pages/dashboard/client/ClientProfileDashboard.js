@@ -14,7 +14,7 @@ import ClientQueries from './components/ClientQueries';
 import ClientProfileSettings from './components/ClientProfileSettings';
 
 const ClientProfileDashboard = () => {
-    const { user, logout } = useAuth();
+    const { user, logout, updateUser } = useAuth();
     const [activeSection, setActiveSection] = useState('overview');
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [clientData, setClientData] = useState(null);
@@ -80,6 +80,12 @@ const ClientProfileDashboard = () => {
             
             if (profileResponse.success) {
                 setClientData(profileResponse.data);
+                // Update AuthContext user to keep TopNavbar in sync
+                if (profileResponse.data?.user) {
+                    updateUser(profileResponse.data.user);
+                } else if (profileResponse.data) {
+                    updateUser(profileResponse.data);
+                }
             } else {
                 setError(profileResponse.message || 'Failed to load profile');
             }

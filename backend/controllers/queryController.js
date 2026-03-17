@@ -4,10 +4,13 @@ const User = require('../models/User');
 
 // @route   GET /api/queries
 // @desc    Get queries with filters
-// @access  Private (Admin, CRM Manager)
+// @access  Private (Admin, CRM Manager, Client)
 exports.getQueries = async (req, res) => {
   try {
     const { status, priority, category, client, page = 1, limit = 20 } = req.query;
+    const userRole = req.user.role;
+    const userId = req.user._id || req.user.user_id || req.user.id;
+    const userEmail = req.user.email;
     
     // Build query
     let query = {};
@@ -18,12 +21,39 @@ exports.getQueries = async (req, res) => {
     if (client) query.client = client;
     
     // Role-based access control
-    if (req.user.role === 'crm_manager') {
+    if (userRole === 'crm_manager') {
       // CRM managers can only see queries from their assigned clients
-      const assignedClients = await Client.find({ crm_manager: req.user._id }).select('_id');
+      const assignedClients = await Client.find({ crm_manager: userId }).select('_id');
       const clientIds = assignedClients.map(client => client._id);
       query.client = { $in: clientIds };
       console.log('🔍 CRM Manager query filter:', { clientIds: clientIds.length });
+    } else if (userRole === 'client') {
+      // Clients can only see their own queries
+      const clientEmail = client || userEmail;
+      
+      // Find the client record by user_id or email
+      const clientRecord = await Client.findOne({
+        $or: [
+          { user_id: userId },
+          { email: clientEmail }
+        ]
+      });
+      
+      if (clientRecord) {
+        query.client = clientRecord._id;
+        console.log('🔍 Client query filter:', { clientId: clientRecord._id });
+      } else {
+        console.log('❌ No client record found for user_id:', userId, 'or email:', clientEmail);
+        return res.json({
+          success: true,
+          count: 0,
+          total: 0,
+          page: parseInt(page),
+          totalPages: 0,
+          data: [],
+          message: 'No client record found for this user'
+        });
+      }
     }
     
     const queries = await Query.find(query)
