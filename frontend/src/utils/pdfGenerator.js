@@ -1,5 +1,15 @@
 import jsPDF from 'jspdf';
 
+// Service interest mapping
+const serviceMapping = {
+  'eb1a-eligibility': 'EB-1A Eligibility',
+  'profile-building': 'Profile Building',
+  'eb2-niw': 'EB-2 NIW',
+  'o1-visa': 'O-1 Visa',
+  'career-coaching': 'Career Coaching',
+  'other': 'General Immigration'
+};
+
 // Criteria labels mapping
 const criteriaLabels = {
   criterion_1_awards: 'Awards & Prizes',
@@ -35,15 +45,18 @@ export const generateAssessmentPDF = (assessment) => {
   const pageHeight = doc.internal.pageSize.getHeight();
   let yPos = 20;
 
+  // Get service title from mapping
+  const serviceTitle = serviceMapping[assessment.service_interest] || 'Immigration Profile';
+
   // Header with gradient effect (simulated with rectangles)
   doc.setFillColor(37, 99, 235);
   doc.rect(0, 0, pageWidth, 40, 'F');
   
-  // Title
+  // Title - Dynamic based on service interest
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text('EB-1A Profile Assessment Report', pageWidth / 2, 20, { align: 'center' });
+  doc.text(`${serviceTitle} Profile Assessment Report`, pageWidth / 2, 20, { align: 'center' });
   
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
@@ -212,7 +225,8 @@ export const generateAssessmentPDF = (assessment) => {
   doc.text(`© Immigration Profile - Assessment Date: ${new Date(assessment.createdAt).toLocaleDateString()}`, pageWidth / 2, footerY + 4, { align: 'center' });
 
   // Save the PDF
-  const fileName = `EB1A_Assessment_${assessment.client_name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+  const dateStr = new Date().toISOString().split('T')[0];
+  const fileName = `Assessment_Report_${dateStr}.pdf`;
   doc.save(fileName);
 };
 

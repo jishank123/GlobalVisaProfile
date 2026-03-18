@@ -7,7 +7,6 @@ const ContactsManagement = () => {
   const [contacts, setContacts] = useState([]);
   const [assessments, setAssessments] = useState([]);
   const [appointments, setAppointments] = useState([]);
-  const [registrations, setRegistrations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [converting, setConverting] = useState(false); // NEW: Separate loading state for conversion
   const [showConvertModal, setShowConvertModal] = useState(false);
@@ -18,10 +17,10 @@ const ContactsManagement = () => {
     notes: ''
   });
   const [stats, setStats] = useState({
+    total: 0,
     contactForms: 0,
     assessments: 0,
-    appointments: 0,
-    registrations: 0
+    appointments: 0
   });
 
   useEffect(() => {
@@ -60,62 +59,30 @@ const ContactsManagement = () => {
         setAssessments([]);
       }
 
-      // Load existing leads to check for duplicates
-      const leadsResponse = await leadsAPI.getAll();
-      let existingLeadEmails = new Set();
-      if (leadsResponse.success) {
-        const leadsData = leadsResponse.data?.leads || leadsResponse.data || [];
-        existingLeadEmails = new Set(
-          leadsData.map(lead => lead.email?.toLowerCase()).filter(Boolean)
-        );
-      }
 
       // Load appointments
       const appointmentsResponse = await appointmentsAPI.getAll();
       let appointmentsData = [];
       if (appointmentsResponse.success) {
         appointmentsData = appointmentsResponse.data?.appointments || appointmentsResponse.data || [];
-        // Filter out converted appointments (check if lead exists with same email)
-        appointmentsData = appointmentsData.filter(appointment => {
-          const appointmentEmail = appointment.email?.toLowerCase();
-          return appointmentEmail && !existingLeadEmails.has(appointmentEmail);
-        });
+        // Only filter appointments that were explicitly converted (have a status flag), not by email cross-match
+        appointmentsData = appointmentsData.filter(appointment =>
+          appointment.status !== 'converted' && !appointment.converted_to_lead_id
+        );
         setAppointments(Array.isArray(appointmentsData) ? appointmentsData : []);
       } else {
         setAppointments([]);
       }
 
-      // Load user registrations (clients who registered directly)
-      const registrationsResponse = await usersAPI.getAll({ role: 'client' });
-      let registrationsData = [];
-      if (registrationsResponse.success) {
-        registrationsData = registrationsResponse.data || [];
-        
-        // Filter out users who have filled any forms (to avoid duplicates)
-        const contactEmails = contactsData.map(c => c.email?.toLowerCase()).filter(Boolean);
-        const assessmentEmails = assessmentsData.map(a => a.client_email?.toLowerCase()).filter(Boolean);
-        const appointmentEmails = appointmentsData.map(a => a.email?.toLowerCase()).filter(Boolean);
-        
-        const formEmails = new Set([...contactEmails, ...assessmentEmails, ...appointmentEmails]);
-        
-        registrationsData = registrationsData.filter(user => {
-          const userEmail = user.email?.toLowerCase();
-          return userEmail && 
-                 !formEmails.has(userEmail) && // Not filled any forms
-                 !existingLeadEmails.has(userEmail); // Not already a lead
-        });
-        
-        setRegistrations(Array.isArray(registrationsData) ? registrationsData : []);
-      } else {
-        setRegistrations([]);
-      }
-
       // Update statistics with filtered data
+      const contactCount = Array.isArray(contactsData) ? contactsData.length : 0;
+      const assessmentCount = Array.isArray(assessmentsData) ? assessmentsData.length : 0;
+      const appointmentCount = Array.isArray(appointmentsData) ? appointmentsData.length : 0;
       setStats({
-        contactForms: Array.isArray(contactsData) ? contactsData.length : 0,
-        assessments: Array.isArray(assessmentsData) ? assessmentsData.length : 0,
-        appointments: Array.isArray(appointmentsData) ? appointmentsData.length : 0,
-        registrations: Array.isArray(registrationsData) ? registrationsData.length : 0
+        total: contactCount + assessmentCount + appointmentCount,
+        contactForms: contactCount,
+        assessments: assessmentCount,
+        appointments: appointmentCount
       });
 
     } catch (error) {
@@ -124,8 +91,7 @@ const ContactsManagement = () => {
       setContacts([]);
       setAssessments([]);
       setAppointments([]);
-      setRegistrations([]);
-      setStats({ contactForms: 0, assessments: 0, appointments: 0, registrations: 0 });
+      setStats({ contactForms: 0, assessments: 0, appointments: 0 });
     } finally {
       setLoading(false);
     }
@@ -186,14 +152,6 @@ const ContactsManagement = () => {
     setShowDetailsModal(true);
   };
 
-  const viewRegistrationDetails = (registration) => {
-    setSelectedContact({
-      type: 'registration',
-      data: registration
-    });
-    setShowDetailsModal(true);
-  };
-
   const checkLeadExists = async (email) => {
     try {
       const leadsResponse = await leadsAPI.getAll();
@@ -229,7 +187,6 @@ const ContactsManagement = () => {
           contactEmail = selectedContact.data?.client_email;
           break;
         case 'appointment':
-        case 'registration':
           contactEmail = selectedContact.data?.email;
           break;
         default:
@@ -308,27 +265,6 @@ const ContactsManagement = () => {
           response = await leadsAPI.create(appointmentLeadData);
           break;
         
-        case 'registration':
-          // For user registrations, create a new lead since there's no specific convert endpoint
-          const registrationPhone = selectedContact.data?.phone;
-          const registrationEmail = selectedContact.data?.email;
-          
-          if (!registrationEmail) {
-            throw new Error('Email is required for registration conversion');
-          }
-          
-          response = await leadsAPI.create({
-            firstName: selectedContact.data?.first_name || 'Unknown',
-            lastName: selectedContact.data?.last_name || 'Unknown',
-            email: registrationEmail,
-            phone: (registrationPhone && registrationPhone.length >= 10) ? registrationPhone : undefined,
-            source: 'register',
-            priority: convertFormData.priority,
-            notes: `Converted from user registration. ${convertFormData.notes || ''}`.trim(),
-            estimatedValue: 0
-          });
-          break;
-        
         default:
           throw new Error('Invalid contact type for conversion');
       }
@@ -340,19 +276,15 @@ const ContactsManagement = () => {
         switch (selectedContact.type) {
           case 'contact':
             setContacts(prev => prev.filter(c => (c._id || c.id) !== selectedContact.id));
-            setStats(prev => ({ ...prev, contactForms: prev.contactForms - 1 }));
+            setStats(prev => ({ ...prev, total: prev.total - 1, contactForms: prev.contactForms - 1 }));
             break;
           case 'assessment':
             setAssessments(prev => prev.filter(a => (a._id || a.id) !== selectedContact.id));
-            setStats(prev => ({ ...prev, assessments: prev.assessments - 1 }));
+            setStats(prev => ({ ...prev, total: prev.total - 1, assessments: prev.assessments - 1 }));
             break;
           case 'appointment':
             setAppointments(prev => prev.filter(a => (a._id || a.id) !== selectedContact.id));
-            setStats(prev => ({ ...prev, appointments: prev.appointments - 1 }));
-            break;
-          case 'registration':
-            setRegistrations(prev => prev.filter(r => (r._id || r.id) !== selectedContact.id));
-            setStats(prev => ({ ...prev, registrations: prev.registrations - 1 }));
+            setStats(prev => ({ ...prev, total: prev.total - 1, appointments: prev.appointments - 1 }));
             break;
           default:
             console.warn('Unknown contact type:', selectedContact.type);
@@ -433,6 +365,19 @@ const ContactsManagement = () => {
       <div className="row mb-4">
         <div className="col-md-3">
           <div 
+            className="card border-info"
+            style={{ transition: 'all 0.3s ease' }}
+            {...hoverEffects.card}
+          >
+            <div className="card-body text-center">
+              <i className="fas fa-layer-group fa-2x text-info mb-2"></i>
+              <h4 className="text-info">{stats.total}</h4>
+              <small className="text-muted">Total Contacts</small>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div 
             className="card border-primary"
             style={{ transition: 'all 0.3s ease' }}
             {...hoverEffects.card}
@@ -470,19 +415,6 @@ const ContactsManagement = () => {
             </div>
           </div>
         </div>
-        <div className="col-md-3">
-          <div 
-            className="card border-info"
-            style={{ transition: 'all 0.3s ease' }}
-            {...hoverEffects.card}
-          >
-            <div className="card-body text-center">
-              <i className="fas fa-user-plus fa-2x text-info mb-2"></i>
-              <h4 className="text-info">{stats.registrations}</h4>
-              <small className="text-muted">Registrations</small>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Tabs */}
@@ -512,15 +444,6 @@ const ContactsManagement = () => {
           >
             <i className="fas fa-calendar-check me-1"></i>Appointments
             <span className="badge bg-warning ms-2">{stats.appointments}</span>
-          </button>
-        </li>
-        <li className="nav-item" role="presentation">
-          <button 
-            className={`nav-link ${activeTab === 'registration' ? 'active' : ''}`}
-            onClick={() => setActiveTab('registration')}
-          >
-            <i className="fas fa-user-plus me-1"></i>Pure Registrations
-            <span className="badge bg-info ms-2">{stats.registrations}</span>
           </button>
         </li>
       </ul>
@@ -740,65 +663,6 @@ const ContactsManagement = () => {
           </div>
         )}
 
-        {/* User Registrations Tab */}
-        {activeTab === 'registration' && (
-          <div className="tab-pane fade show active">
-            <div className="table-responsive">
-              <table className="table table-hover">
-                <thead style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white' }}>
-                  <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Company</th>
-                    <th>Country</th>
-                    <th>Registered</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan="7" className="text-center">
-                        <div className="spinner-border spinner-border-sm me-2"></div>
-                        Loading user registrations...
-                      </td>
-                    </tr>
-                  ) : (
-                    (registrations || []).map(registration => (
-                      <tr key={registration._id || registration.id}>
-                        <td><strong>{registration.first_name} {registration.last_name}</strong></td>
-                        <td>{registration.email}</td>
-                        <td>{registration.phone || 'Not provided'}</td>
-                        <td>{registration.company || 'Not specified'}</td>
-                        <td>{registration.country || 'Not specified'}</td>
-                        <td>{new Date(registration.createdAt || registration.created_at).toLocaleDateString()}</td>
-                        <td>
-                          <div className="btn-group btn-group-sm">
-                            <button 
-                              className="btn btn-outline-primary"
-                              onClick={() => viewRegistrationDetails(registration)}
-                              title="View Details"
-                            >
-                              <i className="fas fa-eye"></i>
-                            </button>
-                            <button 
-                              className="btn btn-outline-success"
-                              onClick={() => convertSingleContact(registration, 'registration')}
-                              title="Convert to Lead"
-                            >
-                              <i className="fas fa-calendar-plus"></i>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Details Modal */}
@@ -812,7 +676,6 @@ const ContactsManagement = () => {
                   {selectedContact.type === 'contact' && 'Contact Details'}
                   {selectedContact.type === 'assessment' && 'Profile Assessment Details'}
                   {selectedContact.type === 'appointment' && 'Appointment Details'}
-                  {selectedContact.type === 'registration' && 'User Registration Details'}
                 </h5>
                 <button 
                   type="button" 
@@ -1177,54 +1040,6 @@ const ContactsManagement = () => {
                   </div>
                 )}
 
-                {selectedContact.type === 'registration' && (
-                  <div className="row">
-                    {/* Left Column */}
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Name</label>
-                        <p className="fw-bold">{selectedContact.data.first_name} {selectedContact.data.last_name}</p>
-                      </div>
-                    </div>
-                    {/* Right Column */}
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Email</label>
-                        <p className="fw-bold">{selectedContact.data.email}</p>
-                      </div>
-                    </div>
-                    
-                    {/* Left Column */}
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Phone</label>
-                        <p className="fw-bold">{selectedContact.data.phone || 'Not provided'}</p>
-                      </div>
-                    </div>
-                    {/* Right Column */}
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Registered</label>
-                        <p className="fw-bold">{new Date(selectedContact.data.createdAt || selectedContact.data.created_at).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    
-                    {/* Left Column */}
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Company</label>
-                        <p className="fw-bold">{selectedContact.data.company || 'Not specified'}</p>
-                      </div>
-                    </div>
-                    {/* Right Column */}
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label text-muted">Country</label>
-                        <p className="fw-bold">{selectedContact.data.country || 'Not specified'}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
               <div className="modal-footer">
                 <button 

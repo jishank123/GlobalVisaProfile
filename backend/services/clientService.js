@@ -14,37 +14,39 @@ class ClientService {
   async findUserByEmail(email) {
     const normalizedEmail = email.toLowerCase();
     
+    console.log('🔍 === FIND USER BY EMAIL ===');
+    console.log('🔍 Looking for email:', normalizedEmail);
+    
     // First try plain text search (faster, uses index)
     let user = await User.findOne({ email: normalizedEmail });
     if (user) {
+      console.log('✅ Found user via plain text search:', user._id);
       return user;
     }
     
-    // If not found and encryption is enabled, try encrypted search
-    // This is slower but necessary for finding encrypted records
-    // OPTIMIZATION: Only do this if we have encrypted data
-    if (!global.ENCRYPTION_DISABLED) {
-      const encryption = require('../middleware/encryptionMiddleware');
-      
-      // Get users created recently (likely to be encrypted)
-      // Limit search to last 1000 users to avoid performance issues
-      const recentUsers = await User.find({})
-        .sort({ createdAt: -1 })
-        .limit(1000);
-      
-      for (const u of recentUsers) {
-        try {
-          const decryptedUser = encryption.decryptDocument(u.toObject());
-          if (decryptedUser.email && decryptedUser.email.toLowerCase() === normalizedEmail) {
-            return u;
-          }
-        } catch (decryptError) {
-          // Skip users that can't be decrypted
-          continue;
+    // ALWAYS try encrypted search regardless of ENCRYPTION_DISABLED flag
+    // This is critical for finding existing users during deferred encryption operations
+    console.log('🔍 Plain text search failed, trying encrypted search...');
+    const encryption = require('../middleware/encryptionMiddleware');
+    
+    // Get ALL users to search through encrypted emails
+    const allUsers = await User.find({});
+    console.log('🔍 Searching through', allUsers.length, 'users for encrypted email match');
+    
+    for (const u of allUsers) {
+      try {
+        const decryptedUser = encryption.decryptDocument(u.toObject());
+        if (decryptedUser.email && decryptedUser.email.toLowerCase() === normalizedEmail) {
+          console.log('✅ Found user via encrypted search:', u._id);
+          return u;
         }
+      } catch (decryptError) {
+        // Skip users that can't be decrypted
+        continue;
       }
     }
     
+    console.log('❌ No user found with email:', normalizedEmail);
     return null;
   }
 
@@ -55,7 +57,7 @@ class ClientService {
    * @returns {Object} - { user, client, isNewUser, isNewClient }
    */
   async createOrGetClient(formData, source = 'form_submission') {
-    const { name, email, phone, field_of_expertise, current_location, company } = formData;
+    const { name, email, phone, phone_country_code, field_of_expertise, current_location, company } = formData;
     
     console.log('👤 === CREATE OR GET CLIENT ===');
     console.log('👤 Source:', source);
@@ -73,7 +75,7 @@ class ClientService {
       let isNewClient = false;
 
       if (user) {
-        console.log('👤 Existing user found:', user._id, user.email);
+        console.log('👤 ✅ EXISTING USER FOUND:', user._id, 'Email in DB:', user.email);
         // Find associated client record by user_id (most reliable)
         client = await Client.findOne({ user_id: user._id });
         
@@ -103,15 +105,16 @@ class ClientService {
         }
         
         if (!client) {
-          console.log('👤 No client record found, creating new client for existing user...');
+          console.log('👤 ⚠️ No client record found, creating new client for existing user...');
           client = await this.createClientRecord(user, formData, source);
           isNewClient = true;
           console.log('✅ New client record created:', client._id);
         } else {
-          console.log('👤 Existing client record found:', client._id);
+          console.log('👤 ✅ Existing client record found:', client._id);
         }
       } else {
-        console.log('👤 No existing user found, creating new user and client...');
+        console.log('👤 ❌ NO EXISTING USER FOUND - CREATING NEW USER AND CLIENT');
+        console.log('👤 This should NOT happen if user already registered!');
         isNewUser = true;
         isNewClient = true;
         
@@ -132,6 +135,7 @@ class ClientService {
           password: tempPassword,
           role: 'client',
           phone: phone || '',
+          phone_country_code: phone_country_code || 'US',
           company: company || '',
           country: current_location || '',
           is_temp_password: true,
@@ -174,7 +178,7 @@ class ClientService {
    * Create client record linked to user (without encryption - will be encrypted later by deferred system)
    */
   async createClientRecord(user, formData, source) {
-    const { field_of_expertise, current_location, company } = formData;
+    const { field_of_expertise, current_location, company, service_interest } = formData;
     
     console.log('👤 === CREATE CLIENT RECORD ===');
     console.log('👤 User ID:', user._id);
@@ -196,6 +200,10 @@ class ClientService {
     if (field_of_expertise) {
       clientData.tags.push('profile_assessment');
       clientData.notes += `\nField of expertise: ${field_of_expertise}`;
+    }
+    
+    if (service_interest) {
+      clientData.notes += `\nService interest: ${service_interest}`;
     }
     
     if (current_location) {

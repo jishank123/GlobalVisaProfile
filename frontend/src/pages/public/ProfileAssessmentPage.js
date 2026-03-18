@@ -18,6 +18,7 @@ const ProfileAssessmentPage = () => {
     client_email: '',
     client_phone: '',
     client_country_code: 'US',
+    service_interest: '', // New service field
     field_of_expertise: '',
     years_of_experience: '',
     current_location: '',
@@ -102,15 +103,29 @@ const ProfileAssessmentPage = () => {
         console.log('📧 Email check response:', response);
         
         if (response.success && response.exists) {
-          setEmailExists(true);
-          console.log('✅ Email exists:', email);
-          
-          if (response.hasAssessment && response.assessment) {
-            setPreviousAssessment(response.assessment);
-            console.log('📊 Previous assessment found:', response.assessment);
+          // Only block if they already have an assessment (not just a registration)
+          if (response.hasAssessment) {
+            setEmailExists(true);
+            console.log('✅ Email exists with assessment:', email);
+            if (response.assessment) {
+              setPreviousAssessment(response.assessment);
+            }
           } else {
+            // Has registration but no assessment — allow them to proceed
+            setEmailExists(false);
             setPreviousAssessment(null);
-            console.log('⚠️ Email exists but NO assessment found - should show RED warning');
+            console.log('✅ Email exists (registered) but no assessment — allowing submission');
+          }
+          
+          // Auto-fill user data if available
+          if (response.user) {
+            setFormData(prev => ({
+              ...prev,
+              first_name: response.user.first_name || prev.first_name,
+              last_name: response.user.last_name || prev.last_name,
+              client_phone: response.user.phone || prev.client_phone,
+              client_country_code: response.user.phone_country_code || prev.client_country_code
+            }));
           }
         } else {
           setEmailExists(false);
@@ -315,7 +330,7 @@ const ProfileAssessmentPage = () => {
 
   const validateStep1 = () => {
     const errors = {};
-    const requiredFields = ['first_name', 'last_name', 'client_email', 'client_phone', 'field_of_expertise', 'years_of_experience', 'current_location'];
+    const requiredFields = ['first_name', 'last_name', 'client_email', 'client_phone', 'service_interest', 'field_of_expertise', 'years_of_experience', 'current_location'];
     
     // Check if email already exists - block submission
     if (emailExists) {
@@ -343,6 +358,9 @@ const ProfileAssessmentPage = () => {
           break;
         case 'current_location':
           validation = validateLocation(formData[field]);
+          break;
+        case 'service_interest':
+          validation = { isValid: !!formData[field], errors: formData[field] ? [] : ['Service is required'] };
           break;
         case 'field_of_expertise':
           validation = validateFieldOfExpertise(formData[field]);
@@ -430,6 +448,7 @@ const ProfileAssessmentPage = () => {
         client_name: `${formData.first_name} ${formData.last_name}`.trim(),
         client_email: formData.client_email,
         client_phone: formData.client_phone,
+        service_interest: formData.service_interest,
         field_of_expertise: formData.field_of_expertise,
         years_of_experience: formData.years_of_experience,
         current_location: formData.current_location,
@@ -461,6 +480,8 @@ const ProfileAssessmentPage = () => {
               name: `${formData.first_name} ${formData.last_name}`.trim(),
               email: formData.client_email,
               phone: formData.client_phone,
+              phone_country_code: formData.client_country_code,
+              service_interest: formData.service_interest,
               field_of_expertise: formData.field_of_expertise,
               current_location: formData.current_location,
               company: ''
@@ -672,7 +693,7 @@ const ProfileAssessmentPage = () => {
         {showEmailExistsWarning && (
           <div className="mt-2 text-red-600 text-sm flex items-center border-l-4 border-red-500 bg-red-50 p-3 rounded">
             <i className="fas fa-exclamation-circle mr-2"></i>
-            <span><strong>This email is already used.</strong> You cannot submit another public form with this email.</span>
+            <span><strong>This email is already used.</strong> A profile assessment already exists for this email. You can only submit one assessment per email.</span>
           </div>
         )}
         {showPreviousAssessment && (
@@ -757,6 +778,15 @@ const ProfileAssessmentPage = () => {
       { value: '16+', label: '16+ years' }
     ];
 
+    const serviceOptions = [
+      { value: 'eb1a-eligibility', label: 'EB-1A Eligibility' },
+      { value: 'profile-building', label: 'Profile Building' },
+      { value: 'eb2-niw', label: 'EB-2 NIW' },
+      { value: 'o1-visa', label: 'O-1 Visa' },
+      { value: 'career-coaching', label: 'Career Coaching' },
+      { value: 'other', label: 'Other' }
+    ];
+
     return (
       <div className="form-container">
         <div className="text-center mb-8">
@@ -774,10 +804,17 @@ const ProfileAssessmentPage = () => {
           {renderInputField('last_name', 'Last Name', 'text', true, 'Enter your last name')}
         </div>
         
-        <div className="form-grid">
+        <div className="form-grid-2">
           {renderInputField('client_email', 'Email Address', 'email', true, 'your.email@example.com')}
           {renderPhoneInputField()}
+        </div>
+        
+        <div className="form-grid-2">
+          {renderSelectField('service_interest', 'Service', serviceOptions, true)}
           {renderInputField('current_location', 'Current Location', 'text', true, 'City, Country')}
+        </div>
+        
+        <div className="form-grid-2">
           {renderInputField('field_of_expertise', 'Field of Expertise', 'text', true, 'e.g., Artificial Intelligence, Biotechnology')}
           {renderSelectField('years_of_experience', 'Years of Experience', experienceOptions, true)}
         </div>

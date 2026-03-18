@@ -80,6 +80,16 @@ const RegisterPage = () => {
         const response = await authAPI.checkEmail(email);
         if (response.success && response.exists) {
           setEmailExists(true);
+          // Auto-fill user data if available
+          if (response.user) {
+            setFormData(prev => ({
+              ...prev,
+              first_name: response.user.first_name || prev.first_name,
+              last_name: response.user.last_name || prev.last_name,
+              phone: response.user.phone || prev.phone,
+              phone_country_code: response.user.phone_country_code || prev.phone_country_code
+            }));
+          }
         } else {
           setEmailExists(false);
         }
@@ -412,7 +422,7 @@ const RegisterPage = () => {
           </form>
 
           <div className="footer-links">
-            Already have an account? <Link to="/login">Sign In</Link> | 
+            Already have an account? <Link to="/login">Login</Link> | 
             <Link to="/"> Back to Home</Link>
           </div>
         </div>

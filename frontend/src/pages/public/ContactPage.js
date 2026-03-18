@@ -46,6 +46,16 @@ const ContactPage = () => {
         const response = await authAPI.checkEmail(email);
         if (response.success && response.exists) {
           setEmailExists(true);
+          // Auto-fill user data if available
+          if (response.user) {
+            setContactForm(prev => ({
+              ...prev,
+              first_name: response.user.first_name || prev.first_name,
+              last_name: response.user.last_name || prev.last_name,
+              phone: response.user.phone || prev.phone,
+              country_code: response.user.phone_country_code || prev.country_code
+            }));
+          }
         } else {
           setEmailExists(false);
         }
@@ -227,10 +237,8 @@ const ContactPage = () => {
     const errors = {};
     const requiredFields = ['first_name', 'last_name', 'email', 'visa-type', 'message'];
     
-    // Check if email already exists - block submission
-    if (emailExists) {
-      errors.email = 'This email is already registered. Please use a different email address.';
-    }
+    // Check if email already exists - for contact forms, just note it (do NOT block)
+    // Contact forms can be submitted multiple times with the same email
     
     requiredFields.forEach(field => {
       let validation;
@@ -307,6 +315,7 @@ const ContactPage = () => {
               name: `${contactForm.first_name} ${contactForm.last_name}`.trim(),
               email: contactForm.email,
               phone: contactForm.phone,
+              phone_country_code: contactForm.country_code,
               current_location: '',
               company: ''
             }, 
@@ -360,7 +369,7 @@ const ContactPage = () => {
     const validation = fieldValidation[name];
     const isValid = validation?.isValid && contactForm[name];
     const isEmailField = name === 'email';
-    const showEmailExistsWarning = isEmailField && emailExists && !hasError;
+    const showEmailExistsWarning = false; // contact forms allow multiple submissions per email
     
     return (
       <div className="form-group">
@@ -374,7 +383,7 @@ const ContactPage = () => {
           onChange={handleInputChange}
           placeholder={placeholder}
           className={`form-control-custom ${
-            hasError || showEmailExistsWarning ? 'border-red-500' : 
+            hasError ? 'border-red-500' : 
             isValid ? 'border-green-500' : ''
           }`}
         />
@@ -384,10 +393,10 @@ const ContactPage = () => {
             {hasError}
           </div>
         )}
-        {showEmailExistsWarning && (
-          <div className="mt-2 text-red-600 text-sm flex items-center border-l-4 border-red-500 bg-red-50 p-3 rounded">
-            <i className="fas fa-exclamation-circle mr-2"></i>
-            <span><strong>This email is already used.</strong> You cannot submit another public form with this email.</span>
+        {isEmailField && emailExists && !hasError && (
+          <div className="mt-2 text-blue-600 text-sm flex items-center border-l-4 border-blue-400 bg-blue-50 p-3 rounded">
+            <i className="fas fa-info-circle mr-2"></i>
+            <span>This email is already registered. Your message will be linked to your existing account.</span>
           </div>
         )}
         {checkingEmail && isEmailField && !hasError && !emailExists && (
@@ -580,11 +589,12 @@ const ContactPage = () => {
   };
 
   const visaTypeOptions = [
-    { value: 'eb1a', label: 'EB-1A (Extraordinary Ability)' },
-    { value: 'eb2-niw', label: 'EB-2 NIW (National Interest Waiver)' },
-    { value: 'o1', label: 'O-1 Visa' },
-    { value: 'profile', label: 'Profile Building' },
-    { value: 'other', label: 'Other / Not Sure' }
+    { value: 'eb1a-eligibility', label: 'EB-1A Eligibility' },
+    { value: 'profile-building', label: 'Profile Building' },
+    { value: 'eb2-niw', label: 'EB-2 NIW' },
+    { value: 'o1-visa', label: 'O-1 Visa' },
+    { value: 'career-coaching', label: 'Career Coaching' },
+    { value: 'other', label: 'Other' }
   ];
 
   return (
@@ -654,9 +664,8 @@ const ContactPage = () => {
                   <div className="text-center">
                     <button
                       type="submit"
-                      disabled={isSubmitting || emailExists}
-                      className={`btn-primary ${emailExists ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      title={emailExists ? 'This email is already registered. Please use a different email to continue.' : ''}
+                      disabled={isSubmitting}
+                      className="btn-primary"
                     >
                       {isSubmitting ? (
                         <>

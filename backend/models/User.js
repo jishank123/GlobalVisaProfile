@@ -40,6 +40,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  phone_country_code: {
+    type: String,
+    trim: true,
+    default: 'US'
+  },
   company: {
     type: String,
     trim: true

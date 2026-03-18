@@ -63,7 +63,7 @@ const createAuthToken = (accountId, accountRole) => {
 // @access  Public
 exports.register = async (req, res) => {
   try {
-    const { first_name, last_name, email, password, phone, company, country, terms_accepted } = req.body;
+    const { first_name, last_name, email, password, phone, phone_country_code, company, country, terms_accepted } = req.body;
 
     // Verify mandatory input fields
     if (!first_name || !last_name || !email || !password) {
@@ -163,6 +163,7 @@ exports.register = async (req, res) => {
       password,
       role: 'client', // Enforce client role for public registration
       phone: phone?.trim(),
+      phone_country_code: phone_country_code || 'US',
       company: company?.trim(),
       country: country?.trim(),
       terms_accepted: true,
@@ -974,11 +975,47 @@ exports.checkEmailExists = async (req, res) => {
       console.log('✅ Returning assessment data:', assessmentData);
     }
     
+    // Decrypt user data to return first_name, last_name, phone
+    const encryption = require('../middleware/encryptionMiddleware');
+    const decryptedUser = encryption.decryptDocument(foundAccount.toObject());
+    
+    // Use stored phone_country_code if available, otherwise detect from phone digits as fallback
+    const detectPhoneCountryCode = (phone) => {
+      if (!phone) return 'US';
+      const digits = phone.replace(/\D/g, '');
+      if (digits.startsWith('91') && digits.length === 12) return 'IN';
+      if (digits.startsWith('44') && digits.length === 12) return 'UK';
+      if (digits.startsWith('1') && digits.length === 11) return 'US';
+      return 'US';
+    };
+    
+    const rawPhone = decryptedUser.phone || '';
+    const phoneCountryCode = foundAccount.phone_country_code || detectPhoneCountryCode(rawPhone);
+    
+    // Strip country dial prefix so the input only contains local digits
+    const stripDialPrefix = (phone, countryCode) => {
+      const digits = phone.replace(/\D/g, '');
+      if (countryCode === 'IN' && digits.startsWith('91') && digits.length === 12) return digits.slice(2);
+      if (countryCode === 'UK' && digits.startsWith('44') && digits.length === 12) return digits.slice(2);
+      if (countryCode === 'US' && digits.startsWith('1') && digits.length === 11) return digits.slice(1);
+      return digits;
+    };
+    
+    const userData = {
+      first_name: decryptedUser.first_name || '',
+      last_name: decryptedUser.last_name || '',
+      phone: stripDialPrefix(rawPhone, phoneCountryCode),
+      phone_country_code: phoneCountryCode,
+      email: decryptedUser.email || email
+    };
+    
     res.json({
       success: true,
       exists: true,
+      hasRegistration: true, // user record exists in users collection
       hasAssessment,
-      assessment: assessmentData
+      assessment: assessmentData,
+      user: userData
     });
   } catch (error) {
     console.error('Check email error:', error);
