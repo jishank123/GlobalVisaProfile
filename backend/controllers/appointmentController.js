@@ -114,34 +114,49 @@ const submitAppointmentRequest = async (req, res) => {
       let user = null;
       let client = null;
       if (!isCreatedByStaff) {
-        console.log('🔄 Auto-registering client account...');
-        try {
-          const autoRegResult = await clientService.createOrGetClient({
-            name,
-            email,
-            phone,
-            company: '',
-            current_location: ''
-          }, 'appointment_request');
-
-          user = autoRegResult.user;
-          client = autoRegResult.client;
-
-          // Add to documents to encrypt - only newly created ones
-          if (autoRegResult.isNewUser) {
-            documentsToEncrypt.push(user);
-          }
-          if (autoRegResult.isNewClient) {
-            documentsToEncrypt.push(client);
-          }
-
-          // Link appointment to user (without encryption)
-          savedAppointment.user_id = user._id;
-          savedAppointment.client_id = client._id;
+        // If client is already logged in, use their user ID directly
+        if (req.user && req.user._id) {
+          console.log('🔄 Logged-in client submitting appointment, linking user_id directly:', req.user._id);
+          savedAppointment.user_id = req.user._id;
+          // Also try to find client record
+          try {
+            const Client = require('../models/Client');
+            const clientRecord = await Client.findOne({ user_id: req.user._id });
+            if (clientRecord) {
+              savedAppointment.client_id = clientRecord._id;
+            }
+          } catch (e) { /* non-critical */ }
           await savedAppointment.save();
-          
-        } catch (autoRegError) {
-          console.error('⚠️ Auto-registration failed (non-critical):', autoRegError.message);
+        } else {
+          console.log('🔄 Anonymous client submitting appointment, auto-registering...');
+          try {
+            const autoRegResult = await clientService.createOrGetClient({
+              name,
+              email,
+              phone,
+              company: '',
+              current_location: ''
+            }, 'appointment_request');
+
+            user = autoRegResult.user;
+            client = autoRegResult.client;
+
+            // Add to documents to encrypt - only newly created ones
+            if (autoRegResult.isNewUser) {
+              documentsToEncrypt.push(user);
+            }
+            if (autoRegResult.isNewClient) {
+              documentsToEncrypt.push(client);
+            }
+
+            // Link appointment to user (without encryption)
+            savedAppointment.user_id = user._id;
+            savedAppointment.client_id = client._id;
+            await savedAppointment.save();
+            
+          } catch (autoRegError) {
+            console.error('⚠️ Auto-registration failed (non-critical):', autoRegError.message);
+          }
         }
       }
 
@@ -471,31 +486,27 @@ const updateAppointmentStatus = async (req, res) => {
 // @access  Private (Admin/Manager only)
 const scheduleAppointment = async (req, res) => {
   try {
-    const { scheduled_date, scheduled_time, duration_minutes, meeting_link, meeting_id } = req.body;
+    const { scheduled_date, scheduled_time, duration_minutes, meeting_link, meeting_id, consultation_notes } = req.body;
     
     const appointment = await AppointmentRequest.findById(req.params.id);
     if (!appointment) {
       return res.status(404).json({
         success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Appointment request not found'
-        }
+        error: { code: 'NOT_FOUND', message: 'Appointment request not found' }
       });
     }
 
-    // Use the model method to schedule
-    await appointment.scheduleAppointment(
-      new Date(scheduled_date),
-      scheduled_time,
-      meeting_link,
-      req.user._id
-    );
-
-    if (duration_minutes) appointment.duration_minutes = duration_minutes;
+    // Build update — bypass validation on encrypted enum fields using { validateBeforeSave: false }
+    appointment.scheduled_date = new Date(scheduled_date);
+    if (scheduled_time) appointment.scheduled_time = scheduled_time;
+    if (meeting_link) appointment.meeting_link = meeting_link;
     if (meeting_id) appointment.meeting_id = meeting_id;
-    
-    await appointment.save();
+    if (consultation_notes) appointment.consultation_notes = consultation_notes;
+    if (duration_minutes) appointment.duration_minutes = duration_minutes;
+    appointment.status = 'confirmed';
+    appointment.assigned_to = req.user._id;
+
+    await appointment.save({ validateBeforeSave: false });
 
     // Log scheduling
     await ActivityLog.create({
@@ -504,30 +515,19 @@ const scheduleAppointment = async (req, res) => {
       resourceType: 'AppointmentRequest',
       resourceId: appointment._id,
       description: `Appointment scheduled for ${scheduled_date} at ${scheduled_time}`,
-      metadata: { 
-        scheduled_date, 
-        scheduled_time, 
-        duration_minutes,
-        meeting_link: meeting_link ? 'provided' : 'not_provided'
-      },
+      metadata: { scheduled_date, scheduled_time, duration_minutes, meeting_link: meeting_link ? 'provided' : 'not_provided' },
       ipAddress: req.ip,
       userAgent: req.get('User-Agent')
     });
 
-    res.json({
-      success: true,
-      message: 'Appointment scheduled successfully',
-      data: appointment
-    });
+    const updated = await AppointmentRequest.findById(req.params.id);
+    res.json({ success: true, message: 'Appointment scheduled successfully', data: updated });
 
   } catch (error) {
     console.error('Schedule Appointment Error:', error);
     res.status(500).json({
       success: false,
-      error: {
-        code: 'SCHEDULE_ERROR',
-        message: 'Failed to schedule appointment'
-      }
+      error: { code: 'SCHEDULE_ERROR', message: error.message || 'Failed to schedule appointment' }
     });
   }
 };
@@ -887,33 +887,77 @@ const getMyCreatedAppointments = async (req, res) => {
       });
     }
     
-    const { status, page = 1, limit = 20 } = req.query;
-    
-    // Build query for appointments created by this lead manager
-    let query = {
-      created_by: req.user._id
-    };
-    
-    if (status) query.status = status;
-    
-    const appointments = await AppointmentRequest.find(query)
+    const { status, page = 1, limit = 50 } = req.query;
+    const leadManagerId = req.user._id;
+
+    // Step 1: Find all leads assigned to this lead manager → get their emails
+    const Lead = require('../models/Lead');
+    const User = require('../models/User');
+
+    const assignedLeads = await Lead.find({ assignedTo: leadManagerId }).select('email');
+    const leadEmails = assignedLeads.map(l => l.email).filter(Boolean);
+    console.log('📅 Assigned lead emails:', leadEmails.length);
+    console.log('📅 Lead emails sample:', leadEmails.slice(0, 3));
+
+    // Step 2: Find User _ids for those emails (client accounts)
+    let clientUserIds = [];
+    if (leadEmails.length > 0) {
+      // Fetch all users and filter by decrypted email (encryption makes direct query unreliable)
+      const allUsers = await User.find({ role: 'client' }).select('_id email');
+      console.log('📅 Total client users fetched:', allUsers.length);
+      console.log('📅 Sample user emails:', allUsers.slice(0, 3).map(u => u.email));
+      clientUserIds = allUsers
+        .filter(u => leadEmails.includes((u.email || '').toLowerCase().trim()))
+        .map(u => u._id);
+      console.log('📅 Matched client user IDs:', clientUserIds.length);
+    }
+
+    // Step 3: Also find appointments by matching email directly (fallback for unlinked user_id)
+    // Fetch all appointments and filter by email match in memory
+    const allAppointments = await AppointmentRequest.find({})
       .populate('assigned_to', 'first_name last_name email')
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .select('-ip_address -user_agent'); // Exclude sensitive data
-    
-    const count = await AppointmentRequest.countDocuments(query);
-    
-    console.log('📅 Found lead manager created appointments:', appointments.length, 'Total:', count);
-    
+      .select('-ip_address -user_agent');
+
+    // Build set of lead emails for fast lookup
+    const leadEmailSet = new Set(leadEmails.map(e => e.toLowerCase().trim()));
+
+    console.log('📅 Total appointments in DB:', allAppointments.length);
+    console.log('📅 Lead email set:', [...leadEmailSet]);
+    console.log('📅 Client user IDs:', clientUserIds.map(id => id.toString()));
+    allAppointments.forEach(a => {
+      const emailInSet = a.email ? leadEmailSet.has(a.email.toLowerCase().trim()) : false;
+      const userIdMatch = a.user_id ? clientUserIds.some(id => id.toString() === a.user_id.toString()) : false;
+      console.log(`📅 Appt ${a._id}: email="${a.email}" emailMatch=${emailInSet} user_id="${a.user_id}" userIdMatch=${userIdMatch} created_by="${a.created_by}" status="${a.status}"`);
+    });
+
+    // Filter: only appointments belonging to leads assigned to this manager
+    // (by user_id match OR email match) — do NOT include created_by to avoid pulling unrelated appointments
+    const filteredAppointments = allAppointments.filter(appt => {
+      if (clientUserIds.length > 0 && appt.user_id && clientUserIds.some(id => id.toString() === appt.user_id.toString())) return true;
+      // Email fallback — appointment email is decrypted by post-find hook
+      if (appt.email && leadEmailSet.has(appt.email.toLowerCase().trim())) return true;
+      return false;
+    });
+
+    console.log('📅 Found lead manager appointments (all sources):', filteredAppointments.length);
+
+    // Apply status filter
+    let result = filteredAppointments;
+    if (status) result = filteredAppointments.filter(a => a.status === status);
+
+    // Apply pagination in memory
+    const total = result.length;
+    const skip = (page - 1) * limit;
+    const paginated = result.slice(skip, skip + parseInt(limit));
+
     res.json({
       success: true,
-      count: appointments.length,
-      total: count,
+      count: paginated.length,
+      total,
       page: parseInt(page),
-      totalPages: Math.ceil(count / limit),
-      data: appointments
+      totalPages: Math.ceil(total / limit),
+      data: paginated
     });
   } catch (error) {
     console.error('❌ Get lead manager created appointments error:', error);

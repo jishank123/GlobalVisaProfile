@@ -192,10 +192,11 @@ exports.register = async (req, res) => {
     // Issue authentication token
     const authToken = createAuthToken(newAccount._id, newAccount.role);
 
+    // New registrations never have an assessment yet
     res.status(201).json({
       success: true,
       message: 'Client account registered successfully',
-      data: newAccount.toAuthJSON(),
+      data: { ...newAccount.toAuthJSON(), has_assessment: false },
       token: authToken,
       expires_in: 86400
     });
@@ -348,12 +349,14 @@ exports.login = async (req, res) => {
       // Issue authentication token
       const authToken = createAuthToken(accountWithCredentials._id, decryptedAccount.role);
 
+      // Password-setup path: brand new account, no assessment yet
       return res.json({
         success: true,
         message: 'Password set successfully and logged in',
         isNewPassword: true,
         data: {
           ...accountWithCredentials.toAuthJSON(),
+          has_assessment: false,
           redirectTo: '/dashboard/client'
         },
         token: authToken,
@@ -383,11 +386,17 @@ exports.login = async (req, res) => {
     // Issue authentication token
     const authToken = createAuthToken(accountWithCredentials._id, decryptedAccount.role);
 
+    // Check if this client has completed a profile assessment
+    const ProfileAssessment = require('../models/ProfileAssessment');
+    const existingAssessment = await ProfileAssessment.findOne({ user_id: accountWithCredentials._id }).select('_id').lean();
+    const hasAssessment = !!existingAssessment;
+
     res.json({
       success: true,
       message: 'Login successful',
       data: {
         ...accountWithCredentials.toAuthJSON(),
+        has_assessment: hasAssessment,
         redirectTo: '/dashboard/client'
       },
       token: authToken,
@@ -990,7 +999,7 @@ exports.checkEmailExists = async (req, res) => {
     };
     
     const rawPhone = decryptedUser.phone || '';
-    const phoneCountryCode = foundAccount.phone_country_code || detectPhoneCountryCode(rawPhone);
+    const phoneCountryCode = decryptedUser.phone_country_code || detectPhoneCountryCode(rawPhone);
     
     // Strip country dial prefix so the input only contains local digits
     const stripDialPrefix = (phone, countryCode) => {
@@ -1270,13 +1279,19 @@ exports.emailLogin = async (req, res) => {
     user.last_login = new Date();
     await user.save();
 
+    // Check if this user already has a profile assessment
+    const ProfileAssessment = require('../models/ProfileAssessment');
+    const existingAssessment = await ProfileAssessment.findOne({ user_id: user._id }).select('_id').lean();
+    const hasAssessment = !!existingAssessment;
+
     res.json({
       success: true,
       message: isNewUser ? 'Account created and logged in successfully' : 'Logged in successfully',
       data: {
-        user: user.toAuthJSON(),
+        user: { ...user.toAuthJSON(), has_assessment: hasAssessment },
         client,
         isNewUser,
+        has_assessment: hasAssessment,
         needsPasswordSetup: user.is_temp_password,
         redirectTo: '/dashboard/client'
       },

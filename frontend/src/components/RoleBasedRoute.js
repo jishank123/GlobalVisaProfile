@@ -1,8 +1,9 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const RoleBasedRoute = ({ children, allowedRoles }) => {
-  const { isAuthenticated, hasAnyRole, loading, user } = useAuth();
+  const { isAuthenticated, hasAnyRole, loading, user, hasAssessment } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -20,7 +21,6 @@ const RoleBasedRoute = ({ children, allowedRoles }) => {
   }
 
   if (allowedRoles && !hasAnyRole(allowedRoles)) {
-    // Redirect to appropriate dashboard based on user role
     const userRole = user?.role;
     switch (userRole) {
       case 'admin':
@@ -34,6 +34,11 @@ const RoleBasedRoute = ({ children, allowedRoles }) => {
       default:
         return <Navigate to="/" replace />;
     }
+  }
+
+  // Gate: clients must complete assessment before accessing dashboard
+  if (user?.role === 'client' && !hasAssessment) {
+    return <Navigate to="/profile-assessment?required=true" replace state={{ from: location }} />;
   }
 
   return children;

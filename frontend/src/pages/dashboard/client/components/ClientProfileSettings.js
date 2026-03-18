@@ -10,6 +10,8 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
   const [imageLoadError, setImageLoadError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [assessment, setAssessment] = useState(null);
+  const [assessmentLoading, setAssessmentLoading] = useState(true);
   const fileInputRef = useRef(null);
   
   // Profile form data - comprehensive structure matching both User and Client models
@@ -66,6 +68,24 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
       console.log('Profile picture changed, resetting image states:', profileData.current_profile_picture);
     }
   }, [profileData.current_profile_picture]);
+
+  // Fetch client's profile assessment
+  useEffect(() => {
+    const fetchAssessment = async () => {
+      setAssessmentLoading(true);
+      try {
+        const res = await apiCall('/profile-assessments/client');
+        if (res?.success && res.data?.length > 0) {
+          setAssessment(res.data[0]);
+        }
+      } catch (e) {
+        // non-critical
+      } finally {
+        setAssessmentLoading(false);
+      }
+    };
+    fetchAssessment();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (clientData) {
@@ -542,299 +562,304 @@ const ClientProfileSettings = ({ clientData, apiCall, onRefresh, onUpdate }) => 
                 alignItems: 'center',
                 gap: designSystem.spacing.sm
               }}>
-                <i className="fas fa-camera" style={{ color: designSystem.colors.primary.split('(')[0] }}></i>
+                <i className="fas fa-user-circle" style={{ color: designSystem.colors.primary.split('(')[0] }}></i>
                 Profile Picture
               </h6>
               
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: designSystem.spacing.lg,
-                flexWrap: 'wrap'
-              }}>
-                {/* Current Profile Picture - Bigger */}
+              {/* Outer row: 4-col image | 8-col assessment */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: designSystem.spacing.xl, alignItems: 'flex-start' }}>
+
+                {/* Left 4-col: avatar */}
                 <div style={{
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  gap: designSystem.spacing.sm,
-                  flex: '0 0 200px' // Fixed width, bigger
+                  gap: designSystem.spacing.sm
                 }}>
-                  <div style={{
-                    position: 'relative',
-                    width: '160px', // Increased from 120px
-                    height: '160px', // Increased from 120px
-                    borderRadius: '50%',
-                    overflow: 'hidden',
-                    border: `3px solid ${designSystem.colors.primary.split('(')[0]}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: designSystem.colors.primary,
-                    color: 'white',
-                    fontSize: '48px', // Increased from 36px
-                    fontWeight: designSystem.typography.fontWeight.bold,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => fileInputRef.current?.click()}
-                  >
-                    {profileData.current_profile_picture ? (
-                      <>
-                        {!imageLoadError && (
-                          <img
-                            src={(() => {
-                              // Use API endpoint for serving images to avoid CORS issues
-                              let imageUrl;
-                              
-                              // If it's already a full URL, use it as-is
-                              if (profileData.current_profile_picture.startsWith('http')) {
-                                imageUrl = profileData.current_profile_picture;
-                              }
-                              // If it starts with /uploads/profile-pictures/, use API endpoint
-                              else if (profileData.current_profile_picture.startsWith('/uploads/profile-pictures/')) {
-                                const filename = profileData.current_profile_picture.replace('/uploads/profile-pictures/', '');
-                                imageUrl = getApiEndpoint(`/debug/serve-image/profile-pictures/${filename}`);
-                              }
-                              // If it starts with uploads/profile-pictures/, use API endpoint
-                              else if (profileData.current_profile_picture.startsWith('uploads/profile-pictures/')) {
-                                const filename = profileData.current_profile_picture.replace('uploads/profile-pictures/', '');
-                                imageUrl = getApiEndpoint(`/debug/serve-image/profile-pictures/${filename}`);
-                              }
-                              // If it's just a filename, use API endpoint
-                              else {
-                                imageUrl = getApiEndpoint(`/debug/serve-image/profile-pictures/${profileData.current_profile_picture}`);
-                              }
-                              
-                              return imageUrl;
-                            })()}
-                            alt="Profile"
-                            crossOrigin="anonymous"
-                            referrerPolicy="no-referrer"
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover',
-                              borderRadius: '50%',
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              zIndex: 2
-                            }}
-                            onError={(e) => {
-                              setImageLoadError(true);
-                              setImageLoaded(false);
-                            }}
-                            onLoad={(e) => {
-                              setImageLoadError(false);
-                              setImageLoaded(true);
-                            }}
-                          />
-                        )}
-                        {/* Show initials if image failed to load or hasn't loaded yet */}
-                        {(imageLoadError || !imageLoaded) && (
-                          <div style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            fontSize: '48px',
-                            fontWeight: '700',
-                            backgroundColor: imageLoadError ? designSystem.colors.danger : designSystem.colors.primary,
-                            borderRadius: '50%',
-                            zIndex: 1
-                          }}>
-                            {imageLoadError ? (
-                              <i className="fas fa-exclamation-triangle" title="Image failed to load" />
-                            ) : (
-                              getInitials(profileData.first_name, profileData.last_name)
-                            )}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      getInitials(profileData.first_name, profileData.last_name)
-                    )}
-                    
-                    {/* Hover overlay */}
-                    <div style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      background: 'rgba(0,0,0,0.5)',
+                  {/* Hidden file input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileInputChange}
+                    style={{ display: 'none' }}
+                  />
+
+                  <div
+                    title="Click to upload profile picture"
+                    style={{
+                      position: 'relative',
+                      width: '160px',
+                      height: '160px',
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                      border: `3px solid ${designSystem.colors.primary.split('(')[0]}`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      opacity: 0,
-                      transition: 'opacity 0.3s ease'
+                      background: designSystem.colors.primary,
+                      color: 'white',
+                      fontWeight: designSystem.typography.fontWeight.bold,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                      cursor: 'pointer',
+                      margin: '0 auto'
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-                    onMouseLeave={(e) => e.currentTarget.style.opacity = '0'}
-                    >
-                      <i className="fas fa-camera fa-lg" style={{ color: 'white' }}></i>
-                    </div>
-                  </div>
-                  <div style={{
-                    textAlign: 'center',
-                    fontSize: designSystem.typography.fontSize.sm,
-                    color: designSystem.colors.gray[600]
-                  }}>
-                    Current Profile Image
-                  </div>
-                </div>
-
-                {/* Upload Area - Smaller */}
-                <div style={{ 
-                  flex: 1,
-                  minWidth: '240px', // Reduced from 280px
-                  maxWidth: '320px' // Added max width
-                }}>
-                  <div
-                    style={{
-                      border: `2px dashed ${dragActive ? designSystem.colors.primary.split('(')[0] : designSystem.colors.gray[300]}`,
-                      borderRadius: designSystem.borderRadius.button,
-                      padding: designSystem.spacing.md,
-                      textAlign: 'center',
-                      background: dragActive 
-                        ? `${designSystem.colors.primary}10` 
-                        : profileData.profile_picture 
-                          ? `${designSystem.colors.success}10` 
-                          : designSystem.colors.gray[50],
-                      transition: 'all 0.3s ease',
-                      cursor: 'pointer'
-                    }}
+                    onClick={() => fileInputRef.current?.click()}
                     onDragEnter={handleDrag}
                     onDragLeave={handleDrag}
                     onDragOver={handleDrag}
                     onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
                   >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileInputChange}
-                      style={{ display: 'none' }}
-                    />
-                    
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: designSystem.spacing.md
-                    }}>
-                      <div style={{
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '50%',
-                        background: dragActive 
-                          ? designSystem.colors.primary 
-                          : profileData.profile_picture 
-                            ? designSystem.colors.success 
-                            : designSystem.colors.gray[300],
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        fontSize: '20px'
-                      }}>
-                        <i className={`fas ${dragActive ? 'fa-cloud-upload-alt' : profileData.profile_picture ? 'fa-check' : 'fa-camera'}`}></i>
-                      </div>
-                      
-                      <div style={{ textAlign: 'left', flex: 1 }}>
-                        <div style={{
-                          fontSize: designSystem.typography.fontSize.sm,
-                          fontWeight: designSystem.typography.fontWeight.semibold,
-                          color: designSystem.colors.dark,
-                          marginBottom: designSystem.spacing.xs
-                        }}>
-                          {dragActive 
-                            ? 'Drop your image here' 
-                            : profileData.profile_picture 
-                              ? 'New photo selected!' 
-                              : 'Upload Profile Picture'
-                          }
-                        </div>
-                        
-                        <div style={{
-                          fontSize: designSystem.typography.fontSize.xs,
-                          color: designSystem.colors.gray[600]
-                        }}>
-                          {profileData.profile_picture 
-                            ? `Selected: ${profileData.profile_picture.name}`
-                            : 'Drag & drop or click to browse'
-                          }
-                        </div>
-                      </div>
-                      
-                      <div style={{
-                        display: 'flex',
-                        gap: designSystem.spacing.xs
-                      }}>
-                        <button
-                          type="button"
-                          style={{
-                            ...componentStyles.primaryButton,
-                            background: designSystem.colors.primary,
-                            padding: `${designSystem.spacing.xs} ${designSystem.spacing.sm}`,
-                            fontSize: designSystem.typography.fontSize.xs,
-                            minWidth: 'auto'
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            fileInputRef.current?.click();
-                          }}
-                        >
-                          <i className="fas fa-upload"></i>
-                        </button>
-                        
-                        {(profileData.current_profile_picture || profileData.profile_picture) && (
-                          <button
-                            type="button"
-                            style={{
-                              ...componentStyles.secondaryButton,
-                              color: designSystem.colors.danger.split('(')[0],
-                              borderColor: designSystem.colors.danger.split('(')[0],
-                              padding: `${designSystem.spacing.xs} ${designSystem.spacing.sm}`,
-                              fontSize: designSystem.typography.fontSize.xs,
-                              minWidth: 'auto'
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setProfileData({
-                                ...profileData,
-                                profile_picture: null,
-                                current_profile_picture: ''
-                              });
-                              if (fileInputRef.current) {
-                                fileInputRef.current.value = '';
-                              }
-                            }}
-                          >
-                            <i className="fas fa-trash"></i>
-                          </button>
-                        )}
-                      </div>
+                    {profileData.current_profile_picture && !imageLoadError ? (
+                      <img
+                        src={(() => {
+                          if (profileData.current_profile_picture.startsWith('http')) return profileData.current_profile_picture;
+                          const path = profileData.current_profile_picture.replace(/^\/?(uploads\/profile-pictures\/)/, '');
+                          return getApiEndpoint(`/debug/serve-image/profile-pictures/${path}`);
+                        })()}
+                        alt="Profile"
+                        crossOrigin="anonymous"
+                        referrerPolicy="no-referrer"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0, zIndex: 2 }}
+                        onError={() => { setImageLoadError(true); setImageLoaded(false); }}
+                        onLoad={() => { setImageLoadError(false); setImageLoaded(true); }}
+                      />
+                    ) : (
+                      /* No image or load error — show upload icon */
+                      <i className="fas fa-upload" style={{ fontSize: '48px', opacity: 0.85 }}></i>
+                    )}
+
+                    {/* Hover overlay — always show camera icon on hover */}
+                    <div
+                      style={{
+                        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                        background: 'rgba(0,0,0,0.45)',
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center', gap: '4px',
+                        opacity: 0, transition: 'opacity 0.25s ease', zIndex: 3
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                      onMouseLeave={(e) => e.currentTarget.style.opacity = '0'}
+                    >
+                      <i className="fas fa-camera fa-lg" style={{ color: 'white' }}></i>
+                      <span style={{ color: 'white', fontSize: '11px', fontWeight: '500' }}>Change Photo</span>
                     </div>
                   </div>
-                  
-                  {/* Compact file info */}
+
                   <div style={{
+                    textAlign: 'center',
                     fontSize: designSystem.typography.fontSize.xs,
-                    color: designSystem.colors.gray[500],
-                    marginTop: designSystem.spacing.xs,
-                    textAlign: 'center'
+                    color: designSystem.colors.gray[500]
                   }}>
-                    JPEG, PNG, GIF, WebP, AVIF • Max 10MB • Best: 400x400px
+                    {profileData.profile_picture
+                      ? `✓ ${profileData.profile_picture.name}`
+                      : profileData.current_profile_picture
+                        ? 'Click to change photo'
+                        : 'Click to upload photo'}
                   </div>
-                </div>
-              </div>
+                </div>{/* end left 4-col: avatar */}
+
+                {/* Right 8-col: Assessment Card */}
+                <div>
+                  {assessmentLoading ? (
+                    <div style={{
+                      background: designSystem.colors.gray[50],
+                      border: `1px solid ${designSystem.colors.gray[200]}`,
+                      borderRadius: designSystem.borderRadius.card,
+                      padding: designSystem.spacing.lg,
+                      display: 'flex', alignItems: 'center', gap: designSystem.spacing.sm,
+                      color: designSystem.colors.gray[500],
+                      fontSize: designSystem.typography.fontSize.sm
+                    }}>
+                      <i className="fas fa-spinner fa-spin"></i> Loading assessment...
+                    </div>
+                  ) : assessment ? (() => {
+                    const scoreColor = assessment.overall_score >= 80 ? '#16a34a'
+                      : assessment.overall_score >= 60 ? '#2563eb'
+                      : assessment.overall_score >= 40 ? '#d97706'
+                      : '#dc2626';
+                    const criteriaMap = [
+                      { key: 'criterion_1_awards', label: 'Awards & Prizes' },
+                      { key: 'criterion_2_memberships', label: 'Membership in Associations' },
+                      { key: 'criterion_3_media', label: 'Published Material About You' },
+                      { key: 'criterion_4_judging', label: 'Judging the Work of Others' },
+                      { key: 'criterion_5_contributions', label: 'Original Contributions' },
+                      { key: 'criterion_6_publications', label: 'Scholarly Articles' },
+                      { key: 'criterion_7_exhibitions', label: 'Exhibitions or Showcases' },
+                      { key: 'criterion_8_leadership', label: 'Leading or Critical Role' },
+                      { key: 'criterion_9_salary', label: 'High Salary or Remuneration' },
+                      { key: 'criterion_10_commercial', label: 'Commercial Success' },
+                    ];
+                    return (
+                      <div style={{
+                        background: 'white',
+                        border: `1px solid ${designSystem.colors.gray[200]}`,
+                        borderRadius: designSystem.borderRadius.card,
+                        overflow: 'hidden',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                      }}>
+                        {/* Card header */}
+                        <div style={{
+                          background: `linear-gradient(135deg, ${scoreColor}15, ${scoreColor}08)`,
+                          borderBottom: `1px solid ${scoreColor}30`,
+                          padding: `${designSystem.spacing.md} ${designSystem.spacing.lg}`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: designSystem.spacing.sm }}>
+                            <i className="fas fa-chart-bar" style={{ color: scoreColor, fontSize: '16px' }}></i>
+                            <span style={{
+                              fontWeight: designSystem.typography.fontWeight.semibold,
+                              fontSize: designSystem.typography.fontSize.sm,
+                              color: designSystem.colors.dark
+                            }}>Profile Assessment Report:</span>
+                          </div>
+                          <span style={{
+                            fontSize: designSystem.typography.fontSize.xs,
+                            color: designSystem.colors.gray[500]
+                          }}>
+                            {new Date(assessment.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </div>
+
+                        <div style={{ padding: designSystem.spacing.lg }}>
+                          {/* Score row */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: designSystem.spacing.lg, marginBottom: designSystem.spacing.md }}>
+                            {/* Circular score */}
+                            <div style={{
+                              width: '72px', height: '72px', borderRadius: '50%',
+                              border: `4px solid ${scoreColor}`,
+                              display: 'flex', flexDirection: 'column',
+                              alignItems: 'center', justifyContent: 'center',
+                              flexShrink: 0
+                            }}>
+                              <span style={{ fontSize: '20px', fontWeight: '700', color: scoreColor, lineHeight: 1 }}>
+                                {assessment.overall_score}
+                              </span>
+                              <span style={{ fontSize: '10px', color: designSystem.colors.gray[500] }}>/ 100</span>
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              {/* Strength + download on same row */}
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
+                                <div style={{
+                                  fontSize: designSystem.typography.fontSize.sm,
+                                  fontWeight: designSystem.typography.fontWeight.semibold,
+                                  color: scoreColor
+                                }}>{assessment.profile_strength}</div>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const { generateAssessmentPDF } = await import('../../../../utils/pdfGenerator');
+                                    generateAssessmentPDF(assessment);
+                                  }}
+                                  title="Download Assessment Report"
+                                  style={{
+                                    display: 'flex', alignItems: 'center', gap: '5px',
+                                    background: scoreColor, color: 'white',
+                                    border: 'none', borderRadius: '6px',
+                                    padding: '4px 10px', fontSize: '11px',
+                                    fontWeight: '500', cursor: 'pointer',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  <i className="fas fa-download" style={{ fontSize: '10px' }}></i>
+                                  Download Report
+                                </button>
+                              </div>
+                              <div style={{ fontSize: designSystem.typography.fontSize.xs, color: designSystem.colors.gray[600] }}>
+                                <i className="fas fa-check-circle" style={{ color: '#16a34a', marginRight: '4px' }}></i>
+                                {assessment.criteria_met} of 10 criteria met
+                              </div>
+                              <div style={{ fontSize: designSystem.typography.fontSize.xs, color: designSystem.colors.gray[500], marginTop: '2px' }}>
+                                Service: <span style={{ color: designSystem.colors.dark, fontWeight: '500' }}>
+                                  {assessment.service_interest?.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Score bar */}
+                          <div style={{ marginBottom: designSystem.spacing.md }}>
+                            <div style={{
+                              height: '6px', borderRadius: '3px',
+                              background: designSystem.colors.gray[200], overflow: 'hidden'
+                            }}>
+                              <div style={{
+                                height: '100%', borderRadius: '3px',
+                                width: `${assessment.overall_score}%`,
+                                background: `linear-gradient(90deg, ${scoreColor}, ${scoreColor}cc)`,
+                                transition: 'width 0.6s ease'
+                              }} />
+                            </div>
+                          </div>
+
+                          {/* Criteria Breakdown — 5-col × 2-row compact */}
+                          <div style={{
+                            borderTop: `1px solid ${designSystem.colors.gray[100]}`,
+                            paddingTop: designSystem.spacing.sm
+                          }}>
+                            <div style={{
+                              fontSize: '10px',
+                              fontWeight: designSystem.typography.fontWeight.semibold,
+                              color: designSystem.colors.gray[500],
+                              marginBottom: '6px',
+                              textTransform: 'uppercase', letterSpacing: '0.05em'
+                            }}>Criteria Breakdown</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px' }}>
+                              {criteriaMap.map(({ key, label }, idx) => {
+                                const val = assessment[key] || 0;
+                                const scoreCol = val >= 2 ? '#16a34a' : val === 1 ? '#d97706' : designSystem.colors.gray[400];
+                                return (
+                                  <div key={key} style={{
+                                    background: designSystem.colors.gray[50],
+                                    border: `1px solid ${designSystem.colors.gray[200]}`,
+                                    borderRadius: '5px',
+                                    padding: '5px 8px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: '6px'
+                                  }}>
+                                    <span style={{
+                                      fontSize: '10px',
+                                      color: designSystem.colors.gray[600],
+                                      lineHeight: '1.2',
+                                      flex: 1
+                                    }}>
+                                      {idx + 1}. {label}
+                                    </span>
+                                    <span style={{
+                                      fontSize: '12px',
+                                      fontWeight: '700',
+                                      color: scoreCol,
+                                      flexShrink: 0
+                                    }}>
+                                      {val}/3
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })() : (
+                    <div style={{
+                      background: designSystem.colors.gray[50],
+                      border: `2px dashed ${designSystem.colors.gray[300]}`,
+                      borderRadius: designSystem.borderRadius.card,
+                      padding: designSystem.spacing.xl,
+                      textAlign: 'center',
+                      color: designSystem.colors.gray[500]
+                    }}>
+                      <i className="fas fa-chart-bar" style={{ fontSize: '28px', marginBottom: designSystem.spacing.sm, display: 'block', opacity: 0.4 }}></i>
+                      <div style={{ fontSize: designSystem.typography.fontSize.sm, fontWeight: '500', marginBottom: '4px' }}>No Assessment Yet</div>
+                      <div style={{ fontSize: designSystem.typography.fontSize.xs }}>Complete your profile assessment to see results here.</div>
+                    </div>
+                  )}
+                </div>{/* end right: assessment card */}
+
+              </div>{/* end outer row */}
             </div>
 
             {/* Basic Information */}
@@ -1663,8 +1688,7 @@ Examples:
 • Educational qualifications and achievements
 • Immigration goals (EB-1A, EB-2 NIW, O-1, etc.)
 • Notable accomplishments or publications
-• Future career aspirations
-• Any specific challenges you're facing"
+• Future career aspirations"
                   onFocus={(e) => {
                     e.target.style.borderColor = designSystem.colors.primary.split('(')[0];
                     e.target.style.boxShadow = `0 0 0 3px ${designSystem.colors.primary}20`;

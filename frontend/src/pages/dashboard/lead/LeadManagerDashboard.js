@@ -170,21 +170,8 @@ const LeadManagerDashboard = () => {
         console.log('🔍 Lead manager created appointments loaded:', allAppointments.length);
         console.log('🔍 Sample appointment:', allAppointments[0]);
         
-        // Filter out any appointments that might not have created_by set (fallback)
-        const validAppointments = allAppointments.filter(appointment => {
-          if (!appointment.created_by) {
-            console.warn('⚠️ Found appointment without created_by field:', appointment._id);
-            return false;
-          }
-          return true;
-        });
-        
-        console.log('🔍 Setting valid appointments for lead manager:', validAppointments.length);
-        setAppointments(validAppointments);
-        
-        if (validAppointments.length !== allAppointments.length) {
-          console.warn(`⚠️ ${allAppointments.length - validAppointments.length} appointments were filtered out due to missing created_by field`);
-        }
+        console.log('🔍 Setting appointments for lead manager:', allAppointments.length);
+        setAppointments(allAppointments);
       } else {
         console.log('🔍 Failed to load appointments:', response);
         setAppointments([]);
@@ -1572,9 +1559,249 @@ const LeadManagerDashboard = () => {
     );
   };
 
+  // Appointments Panel — tabbed Pending / Confirmed
+  const AppointmentsPanel = ({ appointments, onConfirm, onView }) => {
+    const [tab, setTab] = useState('pending');
+    const [expandedRow, setExpandedRow] = useState(null);
+    const [editState, setEditState] = useState({});
+
+    const getEdit = (id) => editState[id] || {};
+    const setEdit = (id, fields) =>
+      setEditState(prev => ({ ...prev, [id]: { ...getEdit(id), ...fields } }));
+
+    const pending = appointments.filter(a => a.status === 'pending');
+    const confirmed = appointments.filter(a => a.status === 'confirmed');
+
+    const tabStyle = (active) => ({
+      padding: '10px 22px',
+      border: 'none',
+      borderBottom: active ? '3px solid #8b5cf6' : '3px solid transparent',
+      background: 'none',
+      fontWeight: active ? '700' : '500',
+      color: active ? '#5b21b6' : '#6b7280',
+      cursor: 'pointer',
+      fontSize: '14px'
+    });
+
+    const thStyle = {
+      padding: '12px 14px', color: 'white',
+      fontWeight: '600', fontSize: '13px',
+      textAlign: 'left', whiteSpace: 'nowrap'
+    };
+    const tdStyle = { padding: '12px 14px', fontSize: '13px', color: '#374151' };
+
+    const statusBadge = (status) => {
+      const map = {
+        pending: { bg: '#f59e0b', color: 'white' },
+        confirmed: { bg: '#6b7280', color: 'white' },
+        completed: { bg: '#10b981', color: 'white' },
+        cancelled: { bg: '#ef4444', color: 'white' },
+      };
+      const s = map[status] || { bg: '#e5e7eb', color: '#374151' };
+      return (
+        <span style={{ background: s.bg, color: s.color, padding: '3px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase' }}>
+          {status}
+        </span>
+      );
+    };
+
+    const renderTable = (rows, isPending) => (
+      <div style={{ borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+              <th style={thStyle}>Client Name</th>
+              <th style={thStyle}>Email</th>
+              <th style={thStyle}>Visa Category</th>
+              <th style={thStyle}>Scheduled Date</th>
+              <th style={thStyle}>Time</th>
+              <th style={thStyle}>Status</th>
+              <th style={thStyle}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#9ca3af', background: 'white' }}>
+                  <i className={`fas ${isPending ? 'fa-hourglass-half' : 'fa-calendar-check'} fa-2x`}
+                    style={{ color: isPending ? '#f59e0b' : '#10b981', display: 'block', marginBottom: '8px' }}></i>
+                  {isPending ? 'No pending appointments' : 'No confirmed appointments yet'}
+                </td>
+              </tr>
+            ) : rows.map((appt, i) => {
+              const ed = getEdit(appt._id);
+              const saving = ed.saving;
+              const isExpanded = expandedRow === appt._id;
+              const defaultDate = appt.preferred_date || (appt.scheduled_date ? new Date(appt.scheduled_date).toISOString().split('T')[0] : '');
+              // Convert time to HH:MM 24h format for <input type="time">
+              const rawTime = appt.preferred_time || appt.scheduled_time || '';
+              const defaultTime = (() => {
+                if (!rawTime) return '';
+                // Already HH:MM
+                if (/^\d{2}:\d{2}$/.test(rawTime)) return rawTime;
+                // 12h format: "3:00 PM" or "03:00 PM"
+                const m = rawTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+                if (m) {
+                  let h = parseInt(m[1], 10);
+                  const min = m[2];
+                  const period = m[3].toUpperCase();
+                  if (period === 'AM' && h === 12) h = 0;
+                  if (period === 'PM' && h !== 12) h += 12;
+                  return `${String(h).padStart(2, '0')}:${min}`;
+                }
+                return rawTime;
+              })();
+              return (
+                <>
+                  <tr key={appt._id} style={{ background: i % 2 === 0 ? 'white' : '#f9fafb', borderBottom: '1px solid #f3f4f6' }}>
+                    <td style={tdStyle}><span style={{ fontWeight: '600' }}>{appt.name}</span></td>
+                    <td style={tdStyle}>
+                      <div>{appt.email}</div>
+                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>{appt.phone}</div>
+                    </td>
+                    <td style={tdStyle}>
+                      <span style={{ background: '#8b5cf6', color: 'white', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase' }}>
+                        {appt.visa_category_display || appt.visa_category || 'N/A'}
+                      </span>
+                    </td>
+                    <td style={tdStyle}>
+                      {appt.scheduled_date ? new Date(appt.scheduled_date).toLocaleDateString() : (appt.preferred_date || '—')}
+                    </td>
+                    <td style={tdStyle}>{appt.scheduled_time || appt.preferred_time || '—'}</td>
+                    <td style={tdStyle}>{statusBadge(appt.status)}</td>
+                    <td style={tdStyle}>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button className="btn btn-outline-primary btn-sm" onClick={() => onView && onView(appt)} title="View Details">
+                          <i className="fas fa-eye"></i>
+                        </button>
+                        {appt.meeting_link && (
+                          <button className="btn btn-outline-success btn-sm" onClick={() => window.open(appt.meeting_link, '_blank')} title="Join Meeting">
+                            <i className="fas fa-video"></i>
+                          </button>
+                        )}
+                        {isPending && (
+                          <button
+                            className="btn btn-sm"
+                            style={{ background: isExpanded ? '#e5e7eb' : '#8b5cf6', color: isExpanded ? '#374151' : 'white', border: 'none', fontWeight: '600' }}
+                            onClick={() => setExpandedRow(isExpanded ? null : appt._id)}
+                          >
+                            <i className={`fas ${isExpanded ? 'fa-chevron-up' : 'fa-calendar-check'} me-1`}></i>
+                            {isExpanded ? 'Close' : 'Schedule'}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                  {isPending && isExpanded && (
+                    <tr key={`${appt._id}-expand`} style={{ background: '#f5f3ff' }}>
+                      <td colSpan="7" style={{ padding: '16px 20px', borderBottom: '2px solid #8b5cf6' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr auto', gap: '12px', alignItems: 'end' }}>
+                          <div>
+                            <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', fontWeight: '600', textTransform: 'uppercase' }}>Date</div>
+                            <input type="date"
+                              value={ed.scheduled_date !== undefined ? ed.scheduled_date : defaultDate}
+                              onChange={e => setEdit(appt._id, { scheduled_date: e.target.value })}
+                              style={{ width: '100%', padding: '7px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px' }}
+                            />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', fontWeight: '600', textTransform: 'uppercase' }}>Time</div>
+                            <input type="time"
+                              value={ed.scheduled_time !== undefined ? ed.scheduled_time : defaultTime}
+                              onChange={e => setEdit(appt._id, { scheduled_time: e.target.value })}
+                              style={{ width: '100%', padding: '7px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px' }}
+                            />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', fontWeight: '600', textTransform: 'uppercase' }}>Meeting Link</div>
+                            <input type="url"
+                              placeholder="https://meet.google.com/..."
+                              value={ed.meeting_link !== undefined ? ed.meeting_link : (appt.meeting_link || '')}
+                              onChange={e => setEdit(appt._id, { meeting_link: e.target.value })}
+                              style={{ width: '100%', padding: '7px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px' }}
+                            />
+                          </div>
+                          <button
+                            disabled={saving}
+                            onClick={async () => {
+                              const date = ed.scheduled_date !== undefined ? ed.scheduled_date : defaultDate;
+                              const time = ed.scheduled_time !== undefined ? ed.scheduled_time : defaultTime;
+                              if (!date || !time) { alert('Please set both date and time before confirming.'); return; }
+                              setEdit(appt._id, { saving: true });
+                              await onConfirm(appt, {
+                                scheduled_date: date, scheduled_time: time,
+                                meeting_link: ed.meeting_link !== undefined ? ed.meeting_link : (appt.meeting_link || ''),
+                                consultation_notes: ed.notes !== undefined ? ed.notes : (appt.consultation_notes || '')
+                              });
+                              setEdit(appt._id, { saving: false });
+                              setExpandedRow(null);
+                            }}
+                            style={{
+                              background: saving ? '#9ca3af' : '#10b981', color: 'white',
+                              border: 'none', padding: '8px 18px', borderRadius: '6px',
+                              fontWeight: '600', fontSize: '13px',
+                              cursor: saving ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {saving ? <><i className="fas fa-spinner fa-spin me-1"></i>Saving...</> : <><i className="fas fa-check me-1"></i>Confirm</>}
+                          </button>
+                        </div>
+                        <div style={{ marginTop: '10px' }}>
+                          <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', fontWeight: '600', textTransform: 'uppercase' }}>
+                            Meeting Agenda / Notes <span style={{ color: '#9ca3af', fontWeight: '400', textTransform: 'none' }}>(optional)</span>
+                          </div>
+                          <textarea rows={2}
+                            placeholder="Add agenda, topics to discuss, or any notes..."
+                            value={ed.notes !== undefined ? ed.notes : (appt.consultation_notes || '')}
+                            onChange={e => setEdit(appt._id, { notes: e.target.value })}
+                            style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', resize: 'vertical', fontFamily: 'inherit' }}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+
+    return (
+      <div style={{
+        background: 'white', border: '1px solid #e5e7eb',
+        borderRadius: designSystem.borderRadius.card,
+        boxShadow: designSystem.shadows.card,
+        marginBottom: designSystem.spacing.lg, overflow: 'hidden'
+      }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb', padding: '0 16px', background: '#fafafa' }}>
+          <button style={tabStyle(tab === 'pending')} onClick={() => setTab('pending')}>
+            <i className="fas fa-hourglass-half" style={{ color: '#f59e0b', marginRight: '6px' }}></i>
+            Pending
+            <span style={{ background: '#f59e0b', color: 'white', borderRadius: '10px', padding: '1px 7px', fontSize: '11px', marginLeft: '6px' }}>
+              {pending.length}
+            </span>
+          </button>
+          <button style={tabStyle(tab === 'confirmed')} onClick={() => setTab('confirmed')}>
+            <i className="fas fa-check-circle" style={{ color: '#10b981', marginRight: '6px' }}></i>
+            Confirmed
+            <span style={{ background: '#10b981', color: 'white', borderRadius: '10px', padding: '1px 7px', fontSize: '11px', marginLeft: '6px' }}>
+              {confirmed.length}
+            </span>
+          </button>
+        </div>
+        <div style={{ padding: '16px' }}>
+          {tab === 'pending' ? renderTable(pending, true) : renderTable(confirmed, false)}
+        </div>
+      </div>
+    );
+  };
+
   // Render meetings management section
   const renderMeetingsManagement = () => {
     return (
+    
       <div style={componentStyles.managementCard}>
         {/* Header */}
         <div style={componentStyles.header}>
@@ -1609,6 +1836,13 @@ const LeadManagerDashboard = () => {
             iconColor="#8b5cf6"
           />
           <StatCard
+            icon="fas fa-hourglass-half"
+            number={appointments.filter(a => a.status === 'pending').length}
+            label="Pending"
+            borderColor="#f59e0b"
+            iconColor="#f59e0b"
+          />
+          <StatCard
             icon="fas fa-clock"
             number={appointments.filter(a => a.status === 'confirmed').length}
             label="Confirmed"
@@ -1623,13 +1857,6 @@ const LeadManagerDashboard = () => {
               return appointmentDate && appointmentDate.toDateString() === today.toDateString();
             }).length}
             label="Today"
-            borderColor="#f59e0b"
-            iconColor="#f59e0b"
-          />
-          <StatCard
-            icon="fas fa-check-circle"
-            number={appointments.filter(a => a.status === 'completed').length}
-            label="Completed"
             borderColor="#10b981"
             iconColor="#10b981"
           />
@@ -1643,122 +1870,29 @@ const LeadManagerDashboard = () => {
           </div>
         )}
 
-        {/* Appointments Table */}
+        {/* Appointments Panel — Pending / Confirmed tabs */}
         {!loading && (
-          <div style={{ borderRadius: designSystem.borderRadius.button, overflow: 'hidden', boxShadow: designSystem.shadows.card }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead style={componentStyles.tableHeader}>
-                <tr>
-                  <th style={componentStyles.tableHeaderCell}>Client Name</th>
-                  <th style={componentStyles.tableHeaderCell}>Email</th>
-                  <th style={componentStyles.tableHeaderCell}>Visa Category</th>
-                  <th style={componentStyles.tableHeaderCell}>Scheduled Date</th>
-                  <th style={componentStyles.tableHeaderCell}>Time</th>
-                  <th style={componentStyles.tableHeaderCell}>Status</th>
-                  <th style={componentStyles.tableHeaderCell}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {appointments.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" style={componentStyles.emptyState}>
-                      <i className="fas fa-calendar-alt fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
-                      <p style={{ color: designSystem.colors.gray[500] }}>No appointments created by you</p>
-                      <small style={{ color: designSystem.colors.gray[400] }}>
-                        Appointments you create for clients will appear here
-                      </small>
-                    </td>
-                  </tr>
-                ) : (
-                  appointments.map((appointment) => (
-                    <tr 
-                      key={appointment._id}
-                      style={componentStyles.tableRow}
-                      {...hoverEffects.tableRow}
-                    >
-                      <td style={componentStyles.tableCell}>
-                        <div style={{ 
-                          fontWeight: designSystem.typography.fontWeight.medium,
-                          marginBottom: '2px'
-                        }}>
-                          {appointment.name}
-                        </div>
-                      </td>
-                      <td style={componentStyles.tableCell}>
-                        <div>
-                          <div style={{ 
-                            fontWeight: designSystem.typography.fontWeight.medium,
-                            marginBottom: '2px'
-                          }}>
-                            {appointment.email}
-                          </div>
-                          <small style={{ color: designSystem.colors.gray[500] }}>
-                            {appointment.phone}
-                          </small>
-                        </div>
-                      </td>
-                      <td style={componentStyles.tableCell}>
-                        <span style={{
-                          background: '#8b5cf6',
-                          color: 'white',
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          fontWeight: '600',
-                          textTransform: 'uppercase'
-                        }}>
-                          {appointment.visa_category_display || appointment.visa_category || 'N/A'}
-                        </span>
-                      </td>
-                      <td style={componentStyles.tableCell}>
-                        {appointment.scheduled_date ? 
-                          new Date(appointment.scheduled_date).toLocaleDateString() : 
-                          (appointment.preferred_date || 'Not scheduled')
-                        }
-                      </td>
-                      <td style={componentStyles.tableCell}>
-                        {appointment.scheduled_time || appointment.preferred_time || 'Not set'}
-                      </td>
-                      <td style={componentStyles.tableCell}>
-                        <span style={{
-                          ...componentStyles.badge,
-                          background: getStatusColor(appointment.status),
-                          color: 'white',
-                          textTransform: 'uppercase',
-                          fontSize: '11px',
-                          fontWeight: '600'
-                        }}>
-                          {appointment.status}
-                        </span>
-                      </td>
-                      <td style={componentStyles.tableCell}>
-                        <div style={{ display: 'flex', gap: designSystem.spacing.xs }}>
-                          <button 
-                            className="btn btn-outline-primary btn-sm"
-                            onClick={() => viewAppointmentDetails(appointment)}
-                            title="View Appointment Details"
-                          >
-                            <i className="fas fa-eye"></i>
-                          </button>
-                          {appointment.meeting_link && (
-                            <button 
-                              className="btn btn-outline-success btn-sm"
-                              onClick={() => {
-                                window.open(appointment.meeting_link, '_blank');
-                              }}
-                              title="Join Meeting"
-                            >
-                              <i className="fas fa-video"></i>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <AppointmentsPanel
+            appointments={appointments}
+            onConfirm={async (appt, data) => {
+              try {
+                const res = await appointmentsAPI.schedule(appt._id, {
+                  scheduled_date: data.scheduled_date,
+                  scheduled_time: data.scheduled_time,
+                  meeting_link: data.meeting_link,
+                  consultation_notes: data.consultation_notes
+                });
+                if (res.success) {
+                  await loadAppointments();
+                } else {
+                  alert('Failed to confirm: ' + (res.message || 'Unknown error'));
+                }
+              } catch (e) {
+                alert('Error: ' + e.message);
+              }
+            }}
+            onView={viewAppointmentDetails}
+          />
         )}
       </div>
     );

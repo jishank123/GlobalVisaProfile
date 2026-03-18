@@ -1,15 +1,33 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { profileAssessmentsAPI, authAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { validateEmailRealTime, validateNameRealTime, validatePhoneRealTime, validateLocation, validateFieldOfExpertise, getSupportedCountries, getPhoneMaxLength } from '../../utils/validation';
 
 const ProfileAssessmentPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isRequired = searchParams.get('required') === 'true';
+  const { setHasAssessment, user, isAuthenticated } = useAuth();
   
   // Scroll to top on component mount
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  // Pre-fill form if user is already logged in (redirected from dashboard gate)
+  useEffect(() => {
+    if (isRequired && isAuthenticated() && user) {
+      setFormData(prev => ({
+        ...prev,
+        first_name: user.first_name || prev.first_name,
+        last_name: user.last_name || prev.last_name,
+        client_email: user.email || prev.client_email,
+        client_phone: user.phone || prev.client_phone,
+        client_country_code: user.phone_country_code || prev.client_country_code,
+      }));
+    }
+  }, [isRequired, user]); // eslint-disable-line react-hooks/exhaustive-deps
   
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -495,6 +513,10 @@ const ProfileAssessmentPage = () => {
             localStorage.setItem('user', JSON.stringify(authResponse.data.user));
             localStorage.setItem('userRole', 'client');
             
+            // Mark assessment as completed in context and localStorage
+            setHasAssessment(true);
+            localStorage.setItem('has_assessment', 'true');
+            
             // Redirect to success page with account creation info
             const queryParams = new URLSearchParams({
               type: 'profile_assessment',
@@ -795,7 +817,7 @@ const ProfileAssessmentPage = () => {
             Personal Information
           </h2>
           <p className="text-gray-600 text-lg">
-            Please provide your basic information to get started with your EB-1A profile assessment.
+            Please provide your basic information to get started with your profile assessment.
           </p>
         </div>
         
@@ -1027,8 +1049,14 @@ const ProfileAssessmentPage = () => {
       <div className="pt-28 pb-20 bg-gradient-to-br from-blue-600 to-indigo-700">
         <div className="container mx-auto px-4">
           <div className="text-center text-white mb-12">
+            {isRequired && (
+              <div className="inline-flex items-center gap-2 bg-white/20 border border-white/40 text-white text-sm font-medium px-4 py-2 rounded-full mb-6">
+                <i className="fas fa-lock-open mr-1"></i>
+                One step before your dashboard — complete your free assessment
+              </div>
+            )}
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              Free EB-1A Profile Assessment
+              Free Profile Assessment
             </h1>
             <p className="text-xl opacity-90 max-w-3xl mx-auto">
               Evaluate your current profile strength for EB-1A extraordinary ability petition. 

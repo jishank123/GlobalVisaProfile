@@ -6,7 +6,7 @@ const { validationResult } = require('express-validator');
 
 /**
  * Profile Assessment Controller
- * Handles EB-1A profile assessment form submissions with comprehensive security
+ * Handles profile assessment form submissions with comprehensive security
  */
 
 // @desc    Submit Profile Assessment
@@ -523,6 +523,21 @@ const getClientAssessments = async (req, res) => {
 
     console.log('📋 Found assessments:', assessments.length);
 
+    // Decrypt sensitive fields before returning
+    const encryption = require('../middleware/encryptionMiddleware');
+    const decryptedAssessments = assessments.map(a => {
+      const obj = a.toObject();
+      // Decrypt string fields that get encrypted
+      const stringFields = [
+        'client_name', 'client_email', 'client_phone',
+        'service_interest', 'field_of_expertise', 'current_location'
+      ];
+      stringFields.forEach(field => {
+        if (obj[field]) obj[field] = encryption.decrypt(obj[field]);
+      });
+      return obj;
+    });
+
     // Log access
     try {
       await ActivityLog.create({
@@ -543,8 +558,8 @@ const getClientAssessments = async (req, res) => {
 
     res.json({
       success: true,
-      data: assessments,
-      count: assessments.length
+      data: decryptedAssessments,
+      count: decryptedAssessments.length
     });
 
     console.log('✅ Client assessments retrieved successfully');

@@ -2,7 +2,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const DashboardRedirect = () => {
-  const { user, isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading, hasAssessment } = useAuth();
 
   if (loading) {
     return (
@@ -19,8 +19,13 @@ const DashboardRedirect = () => {
     return <Navigate to="/login" replace />;
   }
 
-  // Redirect to appropriate dashboard based on user role
   const userRole = user?.role;
+
+  // Gate: clients must complete assessment before accessing dashboard
+  if (userRole === 'client' && !hasAssessment) {
+    return <Navigate to="/profile-assessment?required=true" replace />;
+  }
+
   switch (userRole) {
     case 'admin':
       return <Navigate to="/dashboard/admin" replace />;

@@ -379,7 +379,7 @@ export const crmAPI = {
     // Appointments for CRM manager
     getMyAppointments: (params) => apiClient.get('/appointments/my-appointments', {params}),
     createAppointment: (data) => apiClient.post('/appointments', data),
-    scheduleAppointment: (id, scheduleData) => apiClient.patch(`/appointments/${id}/schedule`, scheduleData),
+    scheduleAppointment: (id, scheduleData) => apiClient.put(`/appointments/${id}/schedule`, scheduleData),
     updateAppointmentStatus: (id, status) => apiClient.patch(`/appointments/${id}/status`, {status}),
 
     // Payments for CRM manager's projects

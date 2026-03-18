@@ -1,17 +1,38 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { designSystem, componentStyles, hoverEffects, getStatusBadgeStyle } from '../../../../styles/designSystem';
 import { getApiEndpoint } from '../../../../utils/apiConfig';
+
+// Map assessment service_interest slugs to Service model category values (exact match)
+const SERVICE_INTEREST_TO_CATEGORY = {
+  'eb1a-eligibility': 'EB-1A Eligibility',
+  'profile-building': 'Profile Building',
+  'eb2-niw': 'EB-2 NIW',
+  'o1-visa': 'O-1 Visa',
+  'career-coaching': 'Career Coaching',
+  'other': 'Other',
+};
+
+// Display labels for the badge
+const SERVICE_INTEREST_LABELS = {
+  'eb1a-eligibility': 'EB-1A Eligibility',
+  'profile-building': 'Profile Building',
+  'eb2-niw': 'EB-2 NIW',
+  'o1-visa': 'O-1 Visa',
+  'career-coaching': 'Career Coaching',
+  'other': 'Other',
+};
 
 const ClientServices = ({ clientData, apiCall, onRefresh }) => {
   const [services, setServices] = useState([]);
   const [purchasedServices, setPurchasedServices] = useState([]);
   const [selectedServices, setSelectedServices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('browse'); // 'browse' or 'purchased'
+  const [activeTab, setActiveTab] = useState('browse'); // 'browse', 'other', 'purchased'
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
-  const [purchaseType, setPurchaseType] = useState('single'); // 'single' or 'multiple'
+  const [purchaseType, setPurchaseType] = useState('single');
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [paymentReceipt, setPaymentReceipt] = useState(null);
+  const [assessment, setAssessment] = useState(null);
   const [stats, setStats] = useState({
     totalServices: 0,
     purchasedServices: 0,
@@ -21,14 +42,47 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
-  const [priceFilter, setPriceFilter] = useState('all'); // 'all', 'low', 'medium', 'high'
+  const [priceFilter, setPriceFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
   useEffect(() => {
     loadServices();
     loadPurchasedServices();
     loadStats();
+    loadAssessment();
   }, []);
+
+  const loadAssessment = async () => {
+    try {
+      const response = await apiCall('/profile-assessments/client');
+      console.log('🔍 Assessment response:', response);
+      if (response.success && response.data) {
+        // data is an array — take the most recent one
+        const latest = Array.isArray(response.data) ? response.data[0] : response.data;
+        console.log('🔍 Assessment latest:', latest);
+        console.log('🔍 service_interest:', latest?.service_interest);
+        setAssessment(latest || null);
+      }
+    } catch (error) {
+      console.error('Error loading assessment:', error);
+    }
+  };
+
+  // Derived: service_interest slug and label
+  const serviceInterestSlug = assessment?.service_interest || '';
+  const serviceInterestLabel = SERVICE_INTEREST_LABELS[serviceInterestSlug] || serviceInterestSlug;
+  // Map slug to exact Service category value
+  const matchedCategory = SERVICE_INTEREST_TO_CATEGORY[serviceInterestSlug] || '';
+
+  // Split services into matching vs other based on assessment service_interest
+  const matchingServices = services.filter(s =>
+    matchedCategory
+      ? (s.category || '').trim() === matchedCategory
+      : true
+  );
+  const otherServices = services.filter(s =>
+    (s.category || '').trim() === 'Other'
+  );
 
   const loadServices = async () => {
     setLoading(true);
@@ -681,7 +735,25 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
             <p style={componentStyles.headerSubtitle}>Browse services and manage your purchases</p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: designSystem.spacing.sm }}>
+        <div style={{ display: 'flex', gap: designSystem.spacing.sm, alignItems: 'center' }}>
+          {/* Selected Service Badge */}
+          {serviceInterestLabel && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              padding: '6px 14px',
+              borderRadius: '20px',
+              fontSize: '13px',
+              fontWeight: '600',
+              boxShadow: '0 2px 8px rgba(102,126,234,0.4)'
+            }}>
+              <i className="fas fa-star" style={{ fontSize: '11px' }}></i>
+              {serviceInterestLabel}
+            </div>
+          )}
           <button 
             style={{
               ...componentStyles.primaryButton,
@@ -690,14 +762,13 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
             }}
             onClick={async () => {
               try {
-                console.log('🔄 Refresh button clicked');
                 setLoading(true);
                 await Promise.all([
                   loadServices(),
                   loadPurchasedServices(),
-                  loadStats()
+                  loadStats(),
+                  loadAssessment()
                 ]);
-                console.log('✅ Refresh completed successfully');
               } catch (error) {
                 console.error('❌ Refresh failed:', error);
               } finally {
@@ -764,14 +835,26 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
             <button 
               style={{
                 ...componentStyles.primaryButton,
-                background: activeTab === 'browse' ? designSystem.colors.primary : designSystem.colors.gray[100],
+                background: activeTab === 'browse' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : designSystem.colors.gray[100],
                 color: activeTab === 'browse' ? 'white' : designSystem.colors.gray[600]
               }}
               onClick={() => setActiveTab('browse')}
               {...hoverEffects.button}
             >
-              <i className="fas fa-store me-2"></i>
-              Browse Services ({services.length})
+              <i className="fas fa-star me-2"></i>
+              Browse Services ({matchingServices.length})
+            </button>
+            <button 
+              style={{
+                ...componentStyles.primaryButton,
+                background: activeTab === 'other' ? designSystem.colors.primary : designSystem.colors.gray[100],
+                color: activeTab === 'other' ? 'white' : designSystem.colors.gray[600]
+              }}
+              onClick={() => setActiveTab('other')}
+              {...hoverEffects.button}
+            >
+              <i className="fas fa-th-large me-2"></i>
+              Other Services ({otherServices.length})
             </button>
             <button 
               style={{
@@ -787,8 +870,8 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
             </button>
           </div>
 
-          {/* Search Bar - Only show on Browse tab */}
-          {activeTab === 'browse' && (
+          {/* Search Bar - show on browse and other tabs */}
+          {(activeTab === 'browse' || activeTab === 'other') && (
             <div style={{ position: 'relative', flex: '1', maxWidth: '400px', minWidth: '250px' }}>
               <input
                 type="text"
@@ -840,68 +923,101 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
       {/* Tab Content */}
       {activeTab === 'browse' && (
         <>
-          {/* Services Grid */}
+          {serviceInterestLabel && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: designSystem.spacing.md,
+              padding: '8px 14px',
+              background: 'linear-gradient(135deg, #f0f0ff 0%, #f5f0ff 100%)',
+              borderRadius: '8px',
+              border: '1px solid #c4b5fd',
+              fontSize: '13px',
+              color: '#5b21b6'
+            }}>
+              <i className="fas fa-filter"></i>
+              Showing services matching your selected interest: <strong>{serviceInterestLabel}</strong>
+            </div>
+          )}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
             gap: designSystem.spacing.lg
           }}>
-            {services
+            {matchingServices
               .filter(service => {
                 if (!searchTerm) return true;
-                
                 const search = searchTerm.toLowerCase();
-                const name = service.name?.toLowerCase() || '';
-                const description = service.description?.toLowerCase() || '';
-                const category = service.category?.toLowerCase() || '';
-                const price = service.pricing?.minPrice?.toString() || '';
-                
-                // Search in name, description, category, and price
-                return name.includes(search) || 
-                       description.includes(search) || 
-                       category.includes(search) ||
-                       price.includes(search);
+                return (service.name?.toLowerCase() || '').includes(search) ||
+                       (service.description?.toLowerCase() || '').includes(search) ||
+                       (service.category?.toLowerCase() || '').includes(search) ||
+                       (service.pricing?.minPrice?.toString() || '').includes(search);
               })
               .map(service => (
-                <ServiceCard
-                  key={service._id}
-                  service={service}
-                  onPurchase={handlePurchase}
-                />
+                <ServiceCard key={service._id} service={service} onPurchase={handlePurchase} />
               ))}
           </div>
-
-          {services.filter(service => {
+          {matchingServices.filter(service => {
             if (!searchTerm) return true;
-            
             const search = searchTerm.toLowerCase();
-            const name = service.name?.toLowerCase() || '';
-            const description = service.description?.toLowerCase() || '';
-            const category = service.category?.toLowerCase() || '';
-            const price = service.pricing?.minPrice?.toString() || '';
-            
-            return name.includes(search) || 
-                   description.includes(search) || 
-                   category.includes(search) ||
-                   price.includes(search);
+            return (service.name?.toLowerCase() || '').includes(search) ||
+                   (service.description?.toLowerCase() || '').includes(search) ||
+                   (service.category?.toLowerCase() || '').includes(search) ||
+                   (service.pricing?.minPrice?.toString() || '').includes(search);
           }).length === 0 && (
             <div style={componentStyles.emptyState}>
               <i className="fas fa-search fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
               <p style={{ color: designSystem.colors.gray[500] }}>
-                {searchTerm 
-                  ? `No services found matching "${searchTerm}"` 
-                  : 'No services available'}
+                {searchTerm ? `No services found matching "${searchTerm}"` : 'No services match your selected interest'}
               </p>
               {searchTerm && (
-                <button 
-                  style={{
-                    ...componentStyles.primaryButton,
-                    background: designSystem.colors.primary,
-                    marginTop: designSystem.spacing.md
-                  }}
-                  onClick={() => setSearchTerm('')}
-                  {...hoverEffects.button}
-                >
+                <button style={{ ...componentStyles.primaryButton, background: designSystem.colors.primary, marginTop: designSystem.spacing.md }}
+                  onClick={() => setSearchTerm('')} {...hoverEffects.button}>
+                  Clear Search
+                </button>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {activeTab === 'other' && (
+        <>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+            gap: designSystem.spacing.lg
+          }}>
+            {otherServices
+              .filter(service => {
+                if (!searchTerm) return true;
+                const search = searchTerm.toLowerCase();
+                return (service.name?.toLowerCase() || '').includes(search) ||
+                       (service.description?.toLowerCase() || '').includes(search) ||
+                       (service.category?.toLowerCase() || '').includes(search) ||
+                       (service.pricing?.minPrice?.toString() || '').includes(search);
+              })
+              .map(service => (
+                <ServiceCard key={service._id} service={service} onPurchase={handlePurchase} />
+              ))}
+          </div>
+          {otherServices.filter(service => {
+            if (!searchTerm) return true;
+            const search = searchTerm.toLowerCase();
+            return (service.name?.toLowerCase() || '').includes(search) ||
+                   (service.description?.toLowerCase() || '').includes(search) ||
+                   (service.category?.toLowerCase() || '').includes(search) ||
+                   (service.pricing?.minPrice?.toString() || '').includes(search);
+          }).length === 0 && (
+            <div style={componentStyles.emptyState}>
+              <i className="fas fa-th-large fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
+              <p style={{ color: designSystem.colors.gray[500] }}>
+                {searchTerm ? `No services found matching "${searchTerm}"` : 'No other services available'}
+              </p>
+              {searchTerm && (
+                <button style={{ ...componentStyles.primaryButton, background: designSystem.colors.primary, marginTop: designSystem.spacing.md }}
+                  onClick={() => setSearchTerm('')} {...hoverEffects.button}>
                   Clear Search
                 </button>
               )}
@@ -912,33 +1028,21 @@ const ClientServices = ({ clientData, apiCall, onRefresh }) => {
 
       {activeTab === 'purchased' && (
         <>
-          {/* Purchased Services Grid */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
             gap: designSystem.spacing.lg
           }}>
             {purchasedServices.map(project => (
-              <PurchasedServiceCard
-                key={project._id}
-                project={project}
-              />
+              <PurchasedServiceCard key={project._id} project={project} />
             ))}
           </div>
-
           {purchasedServices.length === 0 && (
             <div style={componentStyles.emptyState}>
               <i className="fas fa-shopping-bag fa-3x" style={{ color: designSystem.colors.gray[400], marginBottom: designSystem.spacing.md }}></i>
               <p style={{ color: designSystem.colors.gray[500] }}>No purchased services yet</p>
-              <button 
-                style={{
-                  ...componentStyles.primaryButton,
-                  background: designSystem.colors.primary,
-                  marginTop: designSystem.spacing.md
-                }}
-                onClick={() => setActiveTab('browse')}
-                {...hoverEffects.button}
-              >
+              <button style={{ ...componentStyles.primaryButton, background: designSystem.colors.primary, marginTop: designSystem.spacing.md }}
+                onClick={() => setActiveTab('browse')} {...hoverEffects.button}>
                 Browse Services
               </button>
             </div>

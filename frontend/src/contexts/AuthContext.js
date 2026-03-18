@@ -15,6 +15,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hasAssessment, setHasAssessment] = useState(false);
 
   // Initialize auth state from localStorage
   useEffect(() => {
@@ -25,7 +26,9 @@ export const AuthProvider = ({ children }) => {
         
         if (storedToken && storedUser) {
           setToken(storedToken);
-          setUser(JSON.parse(storedUser));
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          setHasAssessment(parsedUser?.has_assessment === true || localStorage.getItem('has_assessment') === 'true');
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
@@ -47,15 +50,20 @@ export const AuthProvider = ({ children }) => {
       if (response.success) {
         const newToken = response.token || response.data?.token;
         const userData = response.data?.user || response.data;
+        // has_assessment can come from data.has_assessment or data.user.has_assessment
+        const assessmentDone = response.data?.has_assessment ?? userData?.has_assessment ?? false;
+        const userWithAssessment = { ...userData, has_assessment: assessmentDone };
         
         // Store in state
         setToken(newToken);
-        setUser(userData);
+        setUser(userWithAssessment);
+        setHasAssessment(assessmentDone);
         
         // Store in localStorage
         localStorage.setItem('token', newToken);
-        localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('user', JSON.stringify(userWithAssessment));
         localStorage.setItem('userRole', userData?.role || 'client');
+        localStorage.setItem('has_assessment', String(assessmentDone));
         
         // For client users, also store as clientToken and clientId for compatibility
         if (userData?.role === 'client') {
@@ -84,15 +92,19 @@ export const AuthProvider = ({ children }) => {
       if (response.success) {
         const newToken = response.token || response.data?.token;
         const userData = response.data?.user || response.data;
+        const assessmentDone = userData?.has_assessment ?? false;
+        const userWithAssessment = { ...userData, has_assessment: assessmentDone };
         
         // Store in state
         setToken(newToken);
-        setUser(userData);
+        setUser(userWithAssessment);
+        setHasAssessment(assessmentDone);
         
         // Store in localStorage
         localStorage.setItem('token', newToken);
-        localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('user', JSON.stringify(userWithAssessment));
         localStorage.setItem('userRole', userData?.role || 'client');
+        localStorage.setItem('has_assessment', String(assessmentDone));
         
         // For client users, also store as clientToken and clientId for compatibility
         if (userData?.role === 'client') {
@@ -147,15 +159,19 @@ export const AuthProvider = ({ children }) => {
       if (response.success) {
         const newToken = response.token || response.data?.token;
         const newUser = response.data?.user || response.data;
+        // New registrations never have an assessment
+        const userWithAssessment = { ...newUser, has_assessment: false };
         
         // Store in state
         setToken(newToken);
-        setUser(newUser);
+        setUser(userWithAssessment);
+        setHasAssessment(false);
         
         // Store in localStorage
         localStorage.setItem('token', newToken);
-        localStorage.setItem('user', JSON.stringify(newUser));
+        localStorage.setItem('user', JSON.stringify(userWithAssessment));
         localStorage.setItem('userRole', newUser?.role || 'client');
+        localStorage.setItem('has_assessment', 'false');
         
         return response;
       }
@@ -170,11 +186,13 @@ export const AuthProvider = ({ children }) => {
     // Clear state
     setUser(null);
     setToken(null);
+    setHasAssessment(false);
     
     // Clear localStorage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('userRole');
+    localStorage.removeItem('has_assessment');
     localStorage.removeItem('clientToken');
     localStorage.removeItem('clientId');
     localStorage.removeItem('clientEmail');
@@ -220,6 +238,8 @@ export const AuthProvider = ({ children }) => {
     user,
     token,
     loading,
+    hasAssessment,
+    setHasAssessment,
     login,
     emailLogin,
     managerLogin,
