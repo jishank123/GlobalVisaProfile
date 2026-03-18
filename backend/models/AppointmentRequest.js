@@ -26,7 +26,7 @@ const appointmentRequestSchema = new mongoose.Schema({
   visa_category: {
     type: String,
     required: [true, 'Visa category is required'],
-    enum: ['eb1a', 'eb2-niw', 'o1', 'multiple', 'other'],
+    enum: ['eb1a-eligibility', 'profile-building', 'eb2-niw', 'o1-visa', 'career-coaching', 'other'],
     trim: true
   },
   timezone: {
@@ -187,11 +187,12 @@ const appointmentRequestSchema = new mongoose.Schema({
 // Virtual for visa category display name
 appointmentRequestSchema.virtual('visa_category_display').get(function() {
   const categories = {
-    'eb1a': 'EB-1A (Extraordinary Ability)',
-    'eb2-niw': 'EB-2 NIW (National Interest Waiver)',
-    'o1': 'O-1 Visa',
-    'multiple': 'Multiple Categories',
-    'other': 'Other / Not Sure'
+    'eb1a-eligibility': 'EB-1A Eligibility',
+    'profile-building': 'Profile Building',
+    'eb2-niw': 'EB-2 NIW',
+    'o1-visa': 'O-1 Visa',
+    'career-coaching': 'Career Coaching',
+    'other': 'Other'
   };
   return categories[this.visa_category] || this.visa_category;
 });
@@ -258,9 +259,9 @@ appointmentRequestSchema.pre('save', function(next) {
 appointmentRequestSchema.pre('save', function(next) {
   // Set priority based on visa category
   if (this.isNew) {
-    if (this.visa_category === 'eb1a') {
+    if (this.visa_category === 'eb1a-eligibility') {
       this.priority = 'high';
-    } else if (this.visa_category === 'multiple') {
+    } else if (this.visa_category === 'profile-building') {
       this.priority = 'medium';
     }
   }

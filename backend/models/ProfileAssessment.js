@@ -20,6 +20,12 @@ const profileAssessmentSchema = new mongoose.Schema({
     trim: true,
     maxlength: [20, 'Phone number cannot exceed 20 characters']
   },
+  service_interest: {
+    type: String,
+    enum: ['eb1a-eligibility', 'profile-building', 'eb2-niw', 'o1-visa', 'career-coaching', 'other'],
+    required: [true, 'Service interest is required'],
+    trim: true
+  },
   field_of_expertise: {
     type: String,
     required: [true, 'Field of expertise is required'],
@@ -261,6 +267,7 @@ profileAssessmentSchema.methods.toDisplayJSON = function() {
     client_name: decryptedDoc.client_name,
     client_email: decryptedDoc.client_email,
     client_phone: decryptedDoc.client_phone,
+    service_interest: decryptedDoc.service_interest,
     field_of_expertise: decryptedDoc.field_of_expertise,
     years_of_experience: this.years_of_experience,
     current_location: decryptedDoc.current_location,

@@ -70,7 +70,7 @@ const validateAppointmentRequest = [
     }),
   
   body('visa_category')
-    .isIn(['eb1a', 'eb2-niw', 'o1', 'multiple', 'other'])
+    .isIn(['eb1a-eligibility', 'profile-building', 'eb2-niw', 'o1-visa', 'career-coaching', 'other'])
     .withMessage('Invalid visa category'),
   
   body('timezone')

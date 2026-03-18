@@ -52,7 +52,7 @@ const validateContactForm = [
     .withMessage('Please provide a valid phone number'),
   
   body('visa_type')
-    .isIn(['eb1a', 'eb2-niw', 'o1', 'profile', 'other'])
+    .isIn(['eb1a-eligibility', 'profile-building', 'eb2-niw', 'o1-visa', 'career-coaching', 'other'])
     .withMessage('Invalid visa category'),
   
   body('message')

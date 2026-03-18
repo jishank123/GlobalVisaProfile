@@ -85,7 +85,7 @@ export const ValidatedInput = ({
           {showEmailExistsWarning && (
             <div className="mt-2 text-red-600 text-sm flex items-center border-l-4 border-red-500 bg-red-50 p-3 rounded">
               <i className="fas fa-exclamation-circle mr-2"></i>
-              <span><strong>This email is already used.</strong> You cannot submit another public form with this email.</span>
+              <span><strong>This email is already registered.</strong> An account already exists with this email. Please <a href={`${process.env.REACT_APP_BASE_PATH || '/CRM'}/login`} className="underline">login</a> instead.</span>
             </div>
           )}
           

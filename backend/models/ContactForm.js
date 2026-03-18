@@ -25,7 +25,7 @@ const contactFormSchema = new mongoose.Schema({
   visa_type: {
     type: String,
     required: [true, 'Visa category is required'],
-    enum: ['eb1a', 'eb2-niw', 'o1', 'profile', 'other'],
+    enum: ['eb1a-eligibility', 'profile-building', 'eb2-niw', 'o1-visa', 'career-coaching', 'other'],
     trim: true
   },
   message: {
@@ -196,11 +196,12 @@ const contactFormSchema = new mongoose.Schema({
 // Virtual for visa type display name
 contactFormSchema.virtual('visa_type_display').get(function() {
   const types = {
-    'eb1a': 'EB-1A (Extraordinary Ability)',
-    'eb2-niw': 'EB-2 NIW (National Interest Waiver)',
-    'o1': 'O-1 Visa',
-    'profile': 'Profile Building',
-    'other': 'Other / Not Sure'
+    'eb1a-eligibility': 'EB-1A Eligibility',
+    'profile-building': 'Profile Building',
+    'eb2-niw': 'EB-2 NIW',
+    'o1-visa': 'O-1 Visa',
+    'career-coaching': 'Career Coaching',
+    'other': 'Other'
   };
   return types[this.visa_type] || this.visa_type;
 });
@@ -249,7 +250,7 @@ contactFormSchema.pre('save', function(next) {
     
     if (urgentKeywords.some(keyword => messageText.includes(keyword))) {
       this.priority = 'urgent';
-    } else if (this.visa_type === 'eb1a') {
+    } else if (this.visa_type === 'eb1a-eligibility') {
       this.priority = 'high';
     }
     

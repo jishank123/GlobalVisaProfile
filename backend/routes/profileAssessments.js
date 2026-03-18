@@ -50,6 +50,10 @@ const validateProfileAssessment = [
     .matches(/^[\+]?[1-9][\d\s\-\(\)\.]{7,18}$/)
     .withMessage('Please provide a valid phone number'),
   
+  body('service_interest')
+    .isIn(['eb1a-eligibility', 'profile-building', 'eb2-niw', 'o1-visa', 'career-coaching', 'other'])
+    .withMessage('Invalid service interest'),
+  
   body('field_of_expertise')
     .trim()
     .isLength({ min: 2, max: 200 })

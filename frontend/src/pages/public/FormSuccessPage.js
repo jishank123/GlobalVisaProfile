@@ -3,6 +3,16 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { profileAssessmentsAPI } from '../../services/api';
 import { generateAssessmentPDF } from '../../utils/pdfGenerator';
 
+// Service interest mapping
+const serviceMapping = {
+  'eb1a-eligibility': 'EB-1A Eligibility',
+  'profile-building': 'Profile Building',
+  'eb2-niw': 'EB-2 NIW',
+  'o1-visa': 'O-1 Visa',
+  'career-coaching': 'Career Coaching',
+  'other': 'General Immigration'
+};
+
 const FormSuccessPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -71,9 +81,13 @@ const FormSuccessPage = () => {
   const getContent = () => {
     switch (type) {
       case 'profile_assessment':
+        const serviceTitle = assessment?.service_interest 
+          ? serviceMapping[assessment.service_interest] || 'Immigration Profile'
+          : 'Immigration Profile';
+        
         return {
           title: 'Profile Assessment Submitted!',
-          message: 'Thank you for completing your EB-1A profile assessment.',
+          message: `Thank you for completing your ${serviceTitle} profile assessment.`,
           details: 'We have received your assessment and will review your profile strength. Our team will contact you within 24-48 hours with detailed feedback and next steps.',
           icon: '📊'
         };
@@ -162,7 +176,9 @@ const FormSuccessPage = () => {
                 )}
               </button>
               <p className="text-xs text-gray-500 mt-2 text-center">
-                Download your detailed EB-1A profile assessment report
+                Download your detailed {assessment?.service_interest 
+                  ? serviceMapping[assessment.service_interest] || 'immigration profile'
+                  : 'immigration profile'} assessment report
               </p>
             </div>
           )}

@@ -31,6 +31,7 @@ const submitProfileAssessment = async (req, res) => {
       client_name,
       client_email,
       client_phone,
+      service_interest,
       field_of_expertise,
       years_of_experience,
       current_location,
@@ -45,6 +46,29 @@ const submitProfileAssessment = async (req, res) => {
       criterion_9_salary,
       criterion_10_commercial
     } = req.body;
+
+    // Block duplicate profile assessments — one per email
+    console.log('📊 === PROFILE ASSESSMENT DUPLICATE CHECK ===');
+    console.log('📊 Checking for existing user with email:', client_email);
+    const existingUser = await clientService.findUserByEmail(client_email.toLowerCase().trim());
+    if (existingUser) {
+      console.log('📊 ✅ Found existing user:', existingUser._id);
+      const existingAssessment = await ProfileAssessment.findOne({ user_id: existingUser._id });
+      if (existingAssessment) {
+        console.log('📊 ❌ BLOCKING: Assessment already exists for this user');
+        return res.status(409).json({
+          success: false,
+          error: {
+            code: 'ASSESSMENT_EXISTS',
+            message: 'A profile assessment already exists for this email address.'
+          }
+        });
+      } else {
+        console.log('📊 ✅ User exists but no assessment found - allowing submission');
+      }
+    } else {
+      console.log('📊 ❌ No existing user found - will create new user');
+    }
 
     // Use deferred encryption for the entire process
     const result = await EncryptionManager.bulkOperationWithDeferredEncryption(async () => {
@@ -95,6 +119,7 @@ const submitProfileAssessment = async (req, res) => {
         client_name,
         client_email,
         client_phone,
+        service_interest,
         field_of_expertise,
         years_of_experience: experienceYears,
         current_location,
